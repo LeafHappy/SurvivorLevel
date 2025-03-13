@@ -1,0 +1,382 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Data
+---============================================================================
+
+-- SCRIPTS
+local SettingsMenuHelper = require("UiMeta/Settings/SettingsMenuHelper")
+
+-- DATA
+local StageData = require("SharedData/Stages/StageData")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- CONSTANTS
+local DIFFICULTY_LABELS = {
+    "Normal",
+    "Hard",
+    "Nightmare",
+}
+
+---@class LazyLayout
+local PauseLayout = GMUI.LazyLayout.New({
+    name = "Game/PauseMenu",
+    parent = ui.z3.Lower,
+})
+
+-- VARIABLES
+-- Actives
+local active_skill_layouts = {}
+local active_skill_on_tooltip = 0
+-- Upgrades
+local active_upgrade_layouts = {}
+local active_upgrade_on_tooltip = 0
+-- Passives
+local passive_skill_layouts = {}
+local passive_skill_on_tooltip = 0
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+-- STAGE
+local function SetStageData(data)
+    -- Set stage name
+    PauseLayout.state.stage_name = StageData[data.Stage].display_name
+
+    -- Set stage difficulty
+    PauseLayout.state.stage_difficulty = DIFFICULTY_LABELS[data.Difficulty]
+end
+
+-- SUB-TOOLTIPS
+local function HideUpgradeTooltip()
+    local state = PauseLayout.skill_panel.active_tooltip.upgrade_tooltip.state
+    state.active = false
+
+    active_upgrade_on_tooltip = 0
+end
+
+local function ShowUpgradeTooltip(index, skill_data)
+    if active_upgrade_on_tooltip == index then
+        HideUpgradeTooltip()
+        return
+    else
+        active_upgrade_on_tooltip = index
+    end
+
+    -- Toggle
+    local state = PauseLayout.skill_panel.active_tooltip.upgrade_tooltip.state
+    state.active = true
+
+    -- Update data
+    state.display_name = skill_data.DisplayName
+    state.description = skill_data.ShortDescription
+    state.icon = skill_data.Icon
+    state.level = "Lv. " .. skill_data.Level
+
+    -- Update level text if at max
+    if skill_data.Level >= skill_data.MaxLevel then
+        state.level = "MAX"
+    end
+end
+
+-- UPGRADES
+local function CreateUpgradeSkillItem(index, skill_data)
+    local layout = GMUI.Layout.New({
+        name = "Game/PauseMenu/ActiveTooltip/UpgradeItem",
+        parent = PauseLayout.skill_panel.active_tooltip.UpgradeContent,
+    })
+    active_upgrade_layouts[index] = layout
+
+    -- Setup display
+    layout.state.icon = skill_data.Icon
+end
+
+local function SetUpgradeDataSlot(index, skill_data)
+    local layout = active_upgrade_layouts[index]
+    if not layout then
+        CreateUpgradeSkillItem(index, skill_data)
+        layout = active_upgrade_layouts[index]
+    end
+
+    -- Setup tooltip generation
+    DCEI.SetOnClickCallback(layout.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ShowUpgradeTooltip(index, skill_data)
+    end)
+
+    -- Update States
+    layout.state.icon = skill_data.Icon
+    layout.state.level = skill_data.Level
+    layout.state.is_maxed = skill_data.Level >= skill_data.MaxLevel
+end
+
+local function SetActiveSkillUpgrades(upgrades)
+    Help.Log("Active Skill Upgrades", nil, upgrades)
+
+    for index, skill_data in ipairs(upgrades) do
+        SetUpgradeDataSlot(index, skill_data)
+    end
+end
+
+local function CleanUpActiveSkillUpgrades()
+    -- Hide tooltip
+    HideUpgradeTooltip()
+
+    -- Remove old layouts
+    for _, item in pairs(active_upgrade_layouts) do
+        item:Destroy()
+    end
+    active_upgrade_layouts = {}
+end
+
+-- MAIN TOOLTIPS
+local function HideActiveTooltip()
+    local state = PauseLayout.skill_panel.active_tooltip.state
+    state.active = false
+
+    active_skill_on_tooltip = 0
+    CleanUpActiveSkillUpgrades()
+end
+
+local function HidePassiveTooltip()
+    local state = PauseLayout.skill_panel.passive_tooltip.state
+    state.active = false
+
+    passive_skill_on_tooltip = 0
+end
+
+local function ShowActiveTooltip(index, skill_data)
+    if active_skill_on_tooltip == index then
+        HideActiveTooltip()
+        return
+    else
+        active_skill_on_tooltip = index
+    end
+
+    -- Hide passive and upgrade tooltips
+    HidePassiveTooltip()
+    CleanUpActiveSkillUpgrades()
+
+    -- Toggle
+    local state = PauseLayout.skill_panel.active_tooltip.state
+    state.active = true
+
+    -- Update data
+    state.display_name = skill_data.DisplayName
+    state.description = skill_data.ShortDescription
+    state.icon = skill_data.Icon
+    state.level = "Lv. " .. skill_data.Level
+    state.total_damage = math.max(skill_data.TotalDamage, 1)
+    state.damage = skill_data.Damage
+
+    -- Update upgrades
+    state.has_upgrades = #skill_data.Upgrades > 0
+    if state.has_upgrades then
+        SetActiveSkillUpgrades(skill_data.Upgrades)
+    end
+
+    -- Set damage text
+    local damage_text = tostring(math.floor(state.damage))
+    local total_damage_text = tostring(math.floor(state.total_damage))
+    local bar_text = damage_text .. "/" .. total_damage_text
+    DCEI.SetTextFrameText(PauseLayout.skill_panel.active_tooltip.BarText, bar_text)
+end
+
+local function ShowPassiveTooltip(index, skill_data)
+    if passive_skill_on_tooltip == index then
+        HidePassiveTooltip()
+        return
+    else
+        passive_skill_on_tooltip = index
+    end
+
+    -- Hide active
+    HideActiveTooltip()
+
+    -- Toggle
+    local state = PauseLayout.skill_panel.passive_tooltip.state
+    state.active = true
+
+    -- Update data
+    state.display_name = skill_data.DisplayName
+    state.description = skill_data.ShortDescription
+    state.icon = skill_data.Icon
+    state.secondary_icon = skill_data.SecondaryIcon or ""
+    state.level = "Lv. " .. skill_data.Level
+
+    -- Update level text if at max
+    if skill_data.Level >= skill_data.MaxLevel then
+        state.level = "MAX"
+    end
+end
+
+-- ACTIVES
+local function CreateActiveSkillItem(index, skill_data)
+    local layout = GMUI.Layout.New({
+        name = "Game/PauseMenu/Panel/ActiveItem",
+        parent = PauseLayout.skill_panel.ActiveItemContainer,
+    })
+    active_skill_layouts[index] = layout
+
+    -- Setup display
+    layout.state.icon = skill_data.Icon
+end
+
+local function SetActiveSkillDataSlot(index, skill_data)
+    local layout = active_skill_layouts[index]
+    if not layout then
+        CreateActiveSkillItem(index, skill_data)
+        layout = active_skill_layouts[index]
+    end
+
+    -- Setup tooltip generation
+    DCEI.SetOnClickCallback(layout.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ShowActiveTooltip(index, skill_data)
+    end)
+
+    -- Update States
+    local state = layout.state
+    state.total_damage = math.max(skill_data.TotalDamage, 1)
+    state.damage = skill_data.Damage
+    state.icon = skill_data.Icon
+    state.level = skill_data.Level
+
+    -- Update upgrade count
+    state.upgrade_count = #skill_data.Upgrades
+    DCEI.SetFrameActive(layout.UpgradesContainer, #skill_data.Upgrades > 0)
+
+    -- Update percent bar text
+    local percentage_dealt = (state.damage / state.total_damage) * 100
+    local bar_text = tostring(math.floor(percentage_dealt)) .. "%"
+    DCEI.SetTextFrameText(layout.BarText, bar_text)
+end
+
+local function SetActiveSkillData(active_skill_data_pass)
+    -- Help.Log("Updating Active Skill Data", nil, active_skill_data_pass)
+
+    for index, skill_data in ipairs(active_skill_data_pass) do
+        SetActiveSkillDataSlot(index, skill_data)
+    end
+end
+
+-- PASSIVES
+local function CreatePassiveSkillItem(index, skill_data)
+    local layout = GMUI.Layout.New({
+        name = "Game/PauseMenu/Panel/PassiveItem",
+        parent = PauseLayout.skill_panel.PassiveItemContainer,
+    })
+    passive_skill_layouts[index] = layout
+
+    -- Setup display
+    layout.state.icon = skill_data.Icon
+end
+
+local function SetPassiveSkillDataSlot(index, skill_data)
+    local layout = passive_skill_layouts[index]
+    if not layout then
+        CreatePassiveSkillItem(index, skill_data)
+        layout = passive_skill_layouts[index]
+    end
+
+    -- Setup tooltip generation
+    DCEI.SetOnClickCallback(layout.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ShowPassiveTooltip(index, skill_data)
+    end)
+
+    -- Update States
+    layout.state.icon = skill_data.Icon
+    layout.state.secondary_icon = skill_data.SecondaryIcon or ""
+    layout.state.level = skill_data.Level
+    layout.state.is_maxed = skill_data.Level >= skill_data.MaxLevel
+end
+
+local function SetPassiveSkillData(passive_skill_data_pass)
+    -- Help.Log("Updating Passive Skill Data", nil, passive_skill_data_pass)
+
+    for index, skill_data in ipairs(passive_skill_data_pass) do
+        SetPassiveSkillDataSlot(index, skill_data)
+    end
+end
+
+-- BUTTONS
+local function OnContinuePressed()
+    PauseLayout:Hide()
+    DCEI.SetUpdateFrequency(1)
+    GMUI.RunSimulationCallback(PauseLayout.context.OnResumeGame)
+end
+
+local function OnOptionsPressed()
+    SettingsMenuHelper.Open()
+end
+
+local function OnQuitPressed()
+    PauseLayout:Hide()
+    ui.game.exit_run_confirmation:Show()
+end
+
+-- Used to clear old layouts on pause menu for new game
+local function CleanUpPauseMenu()
+    for _, item in pairs(active_skill_layouts) do
+        item:Destroy()
+    end
+    active_skill_layouts = {}
+
+    for _, item in pairs(passive_skill_layouts) do
+        item:Destroy()
+    end
+    passive_skill_layouts = {}
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout Methods
+---============================================================================
+
+function PauseLayout:Initialize()
+    self.context = self:GetContext()
+
+    -- Button Callbacks
+    DCEI.SetOnClickCallback(self.continue_button.Frame, OnContinuePressed)
+    DCEI.SetOnClickCallback(self.options_button.Frame, OnOptionsPressed)
+    DCEI.SetOnClickCallback(self.quit_button.Frame, OnQuitPressed)
+end
+
+function PauseLayout:OnShow()
+    DCEI.SetUpdateFrequency(0)
+    GMUI.RunSimulationCallback(self.context.OnPauseGame)
+
+    -- Make sure tooltips are off by default
+    HideActiveTooltip()
+    HidePassiveTooltip()
+end
+
+---============================================================================
+---!SECTION: Layout Methods
+---SECTION: Events
+---============================================================================
+
+-- EVENTS
+Core.Event.RegisterPresentationEvent("UI.PauseMenu.CleanUpPauseMenu", CleanUpPauseMenu)
+Core.Event.RegisterPresentationEvent("UI.PauseMenu.SetStageData", SetStageData)
+Core.Event.RegisterPresentationEvent("UI.PauseMenu.SetActiveSkillData", SetActiveSkillData)
+Core.Event.RegisterPresentationEvent("UI.PauseMenu.SetPassiveSkillData", SetPassiveSkillData)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+-- EXPORT
+return PauseLayout

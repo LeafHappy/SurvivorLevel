@@ -1,0 +1,53 @@
+---@enum FONT_STYLE
+FONT_STYLE = {
+    WildSurvivor = 0,
+    IPick = 1,
+    MergeWar = 2,
+}
+
+---@class NumberStyleOptions
+---@field font_type FONT_STYLE
+---@field prefix_symbol_index integer
+---@field suffix_symbol_index integer
+---@field distance_between_digits Vector3
+---@field duration_seconds number
+local NumberStyleOptions = {}
+NumberStyleOptions.__index = NumberStyleOptions
+
+function NumberStyleOptions.New()
+    local self = setmetatable({}, NumberStyleOptions)
+
+    return self
+end
+
+---Set the Font Type
+---@param font_type FONT_STYLE
+function NumberStyleOptions:SetFontType(font_type)
+    self.font_type = font_type
+end
+
+---Set the Prefix Symbol
+---@param prefix_symbol_index integer
+function NumberStyleOptions:SetPrefix(prefix_symbol_index)
+    self.prefix_symbol_index = prefix_symbol_index
+end
+
+---Set the Suffix Symbol
+---@param suffix_symbol_index integer
+function NumberStyleOptions:SetSuffix(suffix_symbol_index)
+    self.suffix_symbol_index = suffix_symbol_index
+end
+
+---Set the Distance Between Digits
+---@param distance_between_digits Vector3
+function NumberStyleOptions:SetSpacing(distance_between_digits)
+    self.distance_between_digits = distance_between_digits
+end
+
+---Set the Duration
+---@param duration_seconds number
+function NumberStyleOptions:SetDuration(duration_seconds)
+    self.duration_seconds = duration_seconds
+end
+
+return NumberStyleOptions

@@ -1,0 +1,107 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Vector2 = require("Class/Vector2")
+local HostileData = require("Data/SimpleUnits/HostileData")
+
+local CampManager = require("Class/CampManager")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local STARTING_RADIUS = 10
+local SPAWN_COUNT = 20
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function GenerateTracker(position)
+    local tracker = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, DCEI.Unit("Global Caster"), position.x, position.y)
+    return tracker
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class StructureTargetingEvent
+local StructureTargetingEvent = {}
+StructureTargetingEvent.__index = StructureTargetingEvent
+
+---comment
+---@return StructureTargetingEvent
+function StructureTargetingEvent.New()
+    local self = setmetatable({}, StructureTargetingEvent)
+    return self
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+---comment
+---@param spawner SpawnDirector
+function StructureTargetingEvent:Initialize(spawner)
+    self.Spawner = spawner
+    self.SpawnPosition = Vector2.Right() * STARTING_RADIUS
+
+    self.Target = CampManager.Instance:FindClosestCampObject(self.SpawnPosition)
+    self.CurrentPosition = self.Target:GetPosition()
+    self.Tracker = GenerateTracker(self.CurrentPosition)
+
+    self.Count = SPAWN_COUNT
+end
+
+function StructureTargetingEvent:Update()
+    if not self.Target:IsAlive() then -- Update the Target and Current Position
+        self.Target = CampManager.Instance:FindClosestCampObject(self.CurrentPosition)
+        self.CurrentPosition = self.Target:GetPosition()
+        DCEI.SetUnitPosition2D(self.Tracker, self.CurrentPosition.x, self.CurrentPosition.y)
+    end
+
+    if self.Count > 0 then
+        self.Count = self.Count - 1
+        self.Spawner:SpawnFollow(HostileData.Runner, self.SpawnPosition, self.Tracker)
+    end
+end
+
+function StructureTargetingEvent:End()
+    DCEI.RemoveUnit(self.Tracker)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- ================================================================================================
+
+return StructureTargetingEvent

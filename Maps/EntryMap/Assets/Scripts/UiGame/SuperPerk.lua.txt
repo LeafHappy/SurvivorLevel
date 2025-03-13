@@ -1,0 +1,108 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- CONSTANTS
+local INPUT_STATE_KEY = "on_perk_select"
+local INPUT_STATE_KEY_ON_HIDE = "on_perk_select_hide"
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Game/SuperPerk",
+    parent = ui.z1.Upper,
+})
+
+-- LOCAL FUNCTIONS
+local function UpdatePerkItemDisplay(self, item_data)
+    -- update name, icon, and description
+    DCEI.SetTextFrameText(self.DisplayLabel, item_data.display_name)
+    DCEI.SetTextFrameText(self.DescriptionLabel, item_data.description)
+    DCEI.SetFrameImage(self.Icon, item_data.icon)
+
+    -- update level
+    local text = "Lv. " .. tostring(item_data.level)
+    DCEI.SetTextFrameText(self.LevelLabel, text)
+
+    -- update weapon vs perk state
+    -- currently this just makes weapon banner yellow and perk banners green (or purple for evolutions)
+    self.state.is_weapon = item_data.is_weapon
+    self.state.is_evolution = item_data.is_evolution or false
+end
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    self.controller = DCEI.GetFrameController(self.Frame)
+    self.controller:SetTimerFunc(GMUI.RunFunctionAfterTimeElapsed)
+end
+
+function layout:Update(data, OnPerkSelect)
+    DCEI.SetUpdateFrequency(0)
+
+    local super_upgrade_data = data.super_upgrade_data
+    local base_upgrade_data = data.base_upgrade_data
+
+    -- update base item and start sequence
+    UpdatePerkItemDisplay(self.item, base_upgrade_data)
+    self.controller:Reset()
+
+    -- block input until some of the animation has played
+    GMUI.InputState.BlockUserInput(INPUT_STATE_KEY)
+
+    -- start animation sequence after initial_delay
+    local initial_delay = 0.5
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        self.controller:PlayAnimationSequence()
+
+        -- update to item evolution during animation sequence
+        local delay = 1
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            UpdatePerkItemDisplay(self.item, super_upgrade_data)
+        end, delay)
+
+        local unblock_delay = 1.5
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            GMUI.InputState.UnblockUserInput(INPUT_STATE_KEY)
+            self.controller:FadeInTapToContinue()
+        end, unblock_delay)
+    end, initial_delay)
+
+    -- update item callbacks with key of given item
+    DCEI.SetOnClickCallback(self.FullscreenButton, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        DCEI.SetUpdateFrequency(1)
+
+        -- run the callback defined in `Hero:GetSuperPerk()` and hide perk selection
+        GMUI.RunSimulationCallback(OnPerkSelect, super_upgrade_data.key)
+
+        self:PlayHideAnimation()
+    end)
+end
+
+function layout:PlayHideAnimation()
+    local k1, k2 = 1, 0
+    local duration = 0.15
+    local ease = "Linear"
+    DCEI.AnimateFrameAlpha(self.Frame, k1, k2, duration, ease)
+
+    -- block input until hide animation is finished
+    GMUI.InputState.BlockUserInput(INPUT_STATE_KEY_ON_HIDE)
+
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        GMUI.InputState.UnblockUserInput(INPUT_STATE_KEY_ON_HIDE)
+        self:Hide()
+    end, duration)
+end
+
+function layout:OnShow()
+    local k1 = { x = 0, y = 0, z = 0 }
+    local k2 = { x = 1, y = 1, z = 1 }
+    local duration = 0.25
+    local ease = "OutBack"
+    DCEI.AnimateFrameScale(self.Frame, k1, k2, duration, ease)
+end
+
+-- EXPORT
+return layout

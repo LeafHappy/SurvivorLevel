@@ -1,0 +1,97 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+---============================================================================
+---SECTION: Local
+---============================================================================
+
+local _damage_number_index = 0
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function GetNextDamageIndex()
+    _damage_number_index = _damage_number_index + 1
+    return _damage_number_index
+end
+
+local function RegisterDefaultDamageNumberStyle(number_style_options)
+    DCEI.SetDefaultSimpleDamageNumberStyle(number_style_options)
+    return 0
+end
+
+local function RegisterNewDamageNumberStyle(number_style_options)
+    DCEI.RegisterSimpleDamageNumberStyles(number_style_options)
+    return GetNextDamageIndex()
+end
+
+local function AddTransformAnimationSequence(id, transform_animation_sequence)
+    for i = 1, #transform_animation_sequence do
+        DCEI.AddTransformAnimationToSimpleDamageNumberStyle(id, transform_animation_sequence[i])
+    end
+end
+
+local function AddTintColorAnimationSequence(id, tint_color_animation_sequence)
+    for i = 1, #tint_color_animation_sequence do
+        DCEI.AddTintColorAnimationToSimpleDamageNumberStyle(id, tint_color_animation_sequence[i])
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Class Initialization
+---============================================================================
+
+---@class RegisterDamageNumbers
+local RegisterDamageNumbers = {}
+
+---Register Damage Numbers
+---@param default boolean true: Default Damage Number (n = 0) || false: n (n + 1)
+---@param number_style_options NumberStyleOptions
+---@param transform_animation_options TransformAnimationOptions
+---@param tint_color_animation_options TintColorAnimationOptions
+function RegisterDamageNumbers.New(
+    default,
+    number_style_options,
+    transform_animation_options,
+    tint_color_animation_options
+)
+    local id = 0
+
+    if default then
+        id = RegisterDefaultDamageNumberStyle(number_style_options)
+    else
+        id = RegisterNewDamageNumberStyle(number_style_options)
+    end
+
+    DCEI.AddTransformAnimationToSimpleDamageNumberStyle(id, transform_animation_options)
+    DCEI.AddTintColorAnimationToSimpleDamageNumberStyle(id, tint_color_animation_options)
+end
+
+---Register Damage Numbers
+---@param default boolean true: Default Damage Number (n = 0) || false: n (n + 1)
+---@param number_style_options NumberStyleOptions
+---@param transform_animation_sequence table<TransformAnimationOptions>
+---@param tint_color_animation_sequence table<TintColorAnimationOptions>
+function RegisterDamageNumbers.NewSequence(
+    default,
+    number_style_options,
+    transform_animation_sequence,
+    tint_color_animation_sequence
+)
+    local id = 0
+
+    if default then
+        id = RegisterDefaultDamageNumberStyle(number_style_options)
+    else
+        id = RegisterNewDamageNumberStyle(number_style_options)
+    end
+
+    AddTransformAnimationSequence(id, transform_animation_sequence)
+    AddTintColorAnimationSequence(id, tint_color_animation_sequence)
+end
+
+return RegisterDamageNumbers

@@ -1,0 +1,36 @@
+-- CONSTANTS
+local DEFAULT_MODE = "nexus"
+
+-- Game Modes
+local ModeData = {
+    default_mode = DEFAULT_MODE,
+    list = {
+        {
+            id = "Hunt",
+            key = "Hunt",
+            trophy = 0,
+            display_name = "Hunt",
+            image = DCEI.Texture("modern_icon_mode_nexus_wildsurvivor"),
+            description = "Find and eliminate the target.",
+        },
+        -- {
+        --     id = "Nexus",
+        --     key = "Nexus",
+        --     trophy = 0,
+        --     display_name = "Nexus",
+        --     image = DCEI.Texture("modern_icon_mode_nexus_wildsurvivor"),
+        --     description = "Embark on a quest to destroy three elusive Nexuses. Each destruction summons a fierce mini-boss, leading to the ultimate challenge when the third Nexus is obliterated. Collect experience from fallen foes, uncover hidden chests and empower yourself at mystical shrines. But remember, as time ticks on, your enemies only grow more formidable. Can you conquer the Nexus and face the final boss?",
+        -- },
+        -- {
+        --     id = "Shadowfall",
+        --     key = "Shadowfall",
+        --     trophy = 20,
+        --     display_name = "Shadowfall",
+        --     image = DCEI.Texture("modern_icon_mode_onslaught_wildsurvivor"),
+        --     description = "Plunge into a realm swallowed by relentless darkness. Your quest: defy the encroaching shadows, shatter crystals to illuminate your path, and unearth elusive relics. As time slips away, confront waves of mounting foes in your relentless pursuit. Brace yourself for every tenth wave, where a formidable adversary awaits. A total of thirty waves loom, can you conquer the shadows and face the ultimate challenge within?",
+        -- },
+    },
+}
+
+-- EXPORT
+return ModeData

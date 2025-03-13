@@ -1,0 +1,273 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.Chakram = {
+    Key = "Chakram",
+
+    -- UI Information
+    DisplayName = "Chakram",
+    ShortDescription = "Spawns 2 swirling blades.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram2_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Chakram,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Chakram"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 1.00, SCALING.Scaled, { SKILL_TAG.Chakram }),
+
+                -- Projectile
+                Modifier.New(STAT.SkillSize, 0.85, SCALING.Scaled, { SKILL_TAG.Chakram }),
+                Modifier.New(STAT.ProjectileSpeed, 10, SCALING.Scaled, { SKILL_TAG.Chakram }),
+                Modifier.New(STAT.SkillDuration, 1.25, SCALING.Scaled, { SKILL_TAG.Chakram }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 15, SCALING.Scaled, { SKILL_TAG.Chakram }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.Chakram }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.Chakram }),
+
+                -- Slow
+                Modifier.New(STAT.SlowEffectiveness, 0.95, SCALING.Scaled, { SKILL_TAG.Chakram }),
+                Modifier.New(STAT.SlowDuration, 0.10, SCALING.Scaled, { SKILL_TAG.Chakram }),
+
+                -- Stagger
+                Modifier.New(STAT.Stagger, 3, SCALING.Scaled, { SKILL_TAG.Chakram }),
+
+                -- Reset
+                Modifier.New(STAT.Break, 0, SCALING.Scaled, { SKILL_TAG.Chakram }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.Chakram] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.Chakram,
+
+            -- Exposed Tags
+            SKILL_TAG.Physical,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+-- Physical
+-- Projectile Size
+-- Critical Multiplier
+Data.Juggernaut = {
+    Key = "Juggernaut",
+
+    -- UI Information
+    DisplayName = "Juggernaut",
+    ShortDescription = "Physical Skills gain Projectile Size.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_dwarvenluchador_skill_practicemakesstronger"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Chakram,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 0.15, SCALING.Additive, { SKILL_TAG.Physical }),
+                -- Modifier.New(STAT.CriticalMultiplier, 0.25, SCALING.Scaled, { SKILL_TAG.Physical }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Attack
+-- Stagger
+-- Critical Chance
+Data.PressurePoint = {
+    Key = "PressurePoint",
+
+    -- UI Information
+    DisplayName = "PressurePoint",
+    ShortDescription = "Attack Skills gain Increased Critical Chance",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_crossfire_skill_hardimpact"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Attack,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Chakram,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Modifier.New(STAT.Stagger, 0.25, SCALING.Additive, { SKILL_TAG.Physical }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.Physical }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+-- Rend
+-- Causes enemies to take stacking damage.
+Data.Rend = {
+    Key = "Rend",
+
+    -- UI Information
+    DisplayName = "Rend",
+    ShortDescription = "Chakrams apply stacking damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram2_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Chakram,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Chakram,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Break, 3, SCALING.Scaled, { SKILL_TAG.Chakram }),
+                Modifier.New(STAT.DebuffDuration, 10, SCALING.Scaled, { SKILL_TAG.Chakram }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Hyper Glaives
+-- Boost Projectile Speed and Damage.
+Data.HyperGlaives = {
+    Key = "HyperGlaives",
+
+    -- UI Information
+    DisplayName = "Hyper Glaives",
+    ShortDescription = "Chakrams gain increased Speed and Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram2_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Chakram,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Chakram,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileSpeed, 0.30, SCALING.Additive, { SKILL_TAG.Chakram }),
+                Modifier.New(STAT.Damage, 0.30, SCALING.Additive, { SKILL_TAG.Chakram }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

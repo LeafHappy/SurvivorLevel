@@ -1,0 +1,345 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+local PropZone = require("Class/PropZone")
+
+local PropData = require("Map/PropData")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+-- Force as Singleton so we can Register Game Events to it.
+---@type PropManager
+local _Instance = nil
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class PropManager
+---@field TileSize number
+---@field protected _Zones table<table, table, PropZone> _Zones[r][c] = PropZone
+local PropManager = {}
+PropManager.__index = PropManager
+
+---
+---@return PropManager
+function PropManager.New(tile_size)
+    if _Instance then
+        _Instance.TileSize = tile_size
+        _Instance:Reset()
+        return _Instance
+    end
+
+    ---@type PropManager
+    _Instance = setmetatable({}, PropManager)
+    _Instance.TileSize = tile_size
+    _Instance._Zones = {}
+
+    return _Instance
+end
+
+-- Reset Prop Manager
+-- Loop through each Tile and Destroy all Zones and Instances
+function PropManager:Reset()
+    for r, c in pairs(self._Zones) do
+        for _, zone in pairs(c) do
+            zone:Destroy()
+        end
+        self._Zones[r] = nil
+    end
+    self._Zones = {}
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+---Attempt to Get the PropZone at the given Row and Column.
+---@param r integer
+---@param c integer
+---@return PropZone | nil
+function PropManager:_Get(r, c)
+    if not self._Zones[r] then
+        return nil
+    end
+
+    if not self._Zones[r][c] then
+        return nil
+    end
+
+    return self._Zones[r][c]
+end
+
+---Generate a New Zone.
+---@param r integer
+---@param c integer
+---@return PropZone
+function PropManager:_GenerateNewZone(r, c)
+    if not self._Zones[r] then
+        self._Zones[r] = {}
+    end
+
+    if self._Zones[r][c] then
+        Help.Warn("Attempting to Generate an Existing Prop Zone: [" .. r .. ", " .. c .. "]")
+        return self._Zones[r][c]
+    end
+
+    local position = self:GetWorldPositionFromTileIndex(r, c)
+    local prop_zone_options = self:PropInjection(r, c)
+    self._Zones[r][c] = PropZone.New(position, self.TileSize, prop_zone_options)
+
+    return self._Zones[r][c]
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Overloads
+-- ================================================================================================
+
+---Converts a Tile Index to a Position.
+---@param r integer
+---@param c integer
+---@return Vector2
+---@overload fun(self: PropManager, r: integer, c: integer): Vector2
+function PropManager:GetWorldPositionFromTileIndex(r, c)
+    return Vector2.Zero()
+end
+
+---Converts a Position to a Tile Index.
+---@param position Vector2
+---@return Vector2
+---@overload fun(self: PropManager, position: Vector2): Vector2
+function PropManager:GetTileIndexFromWorldPosition(position)
+    return Vector2.Zero()
+end
+
+---Override this function to inject Prop Options for the given Row and Column.
+---Should return desired Density and a list of PropOptions.
+---@param r integer
+---@param c integer
+---@return PropZoneOptions
+---@overload fun(self:PropManager, r: integer, c: integer): PropZoneOptions
+function PropManager:PropInjection(r, c)
+    return {}
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Overloads
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+---Loads props for the given Row and Column.
+---@param r integer
+---@param c integer
+---@param immediately boolean | nil
+function PropManager:Load(r, c, immediately)
+    local prop_zone = self:_Get(r, c)
+
+    -- Generate New Zone if it doesn't exist.
+    if not prop_zone then
+        prop_zone = self:_GenerateNewZone(r, c)
+    end
+
+    -- Load the Zone
+    -- Help.Log("Loading Prop Zone: [" .. r .. ", " .. c .. "]")
+    prop_zone:Load(immediately)
+end
+
+---Unloads props for the given Row and Column.
+---@param r integer
+---@param c integer
+function PropManager:Unload(r, c)
+    local prop_zone = self:_Get(r, c)
+
+    if not prop_zone then
+        Help.Warn("Attempting to Unload non-existing Prop Zone: [" .. r .. ", " .. c .. "]")
+        return
+    end
+
+    -- Unload the Zone
+    -- Help.Log("Unloading Prop Zone: [" .. r .. ", " .. c .. "]")
+    prop_zone:Unload()
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Library
+-- ================================================================================================
+
+---Adds an existing Simple Unit Instance into the respective PropZone.
+---@param instance SimpleUnitInstance
+function PropManager:InjectProp(instance)
+    local target_position = Vector2.UnitPosition(instance)
+    local tile_index = self:GetTileIndexFromWorldPosition(target_position)
+
+    -- Find the PropZone
+    local prop_zone = self:_Get(tile_index.x, tile_index.y)
+
+    -- Generate New Zone if it doesn't exist.
+    if not prop_zone then
+        prop_zone = self:_GenerateNewZone(tile_index.x, tile_index.y)
+    end
+
+    -- Load the New Prop into the Zone
+    prop_zone:AddProp(instance, target_position, true)
+end
+
+---Adds a new Prop into the respective PropZone.
+---@param prop_data PropData
+---@param position Vector2
+---@param scale_override number | nil
+function PropManager:InjectNewProp(prop_data, position, scale_override)
+    local tile_index = self:GetTileIndexFromWorldPosition(position)
+
+    -- Find the PropZone
+    local prop_zone = self:_Get(tile_index.x, tile_index.y)
+
+    -- Generate New Zone if it doesn't exist.
+    if not prop_zone then
+        prop_zone = self:_GenerateNewZone(tile_index.x, tile_index.y)
+    end
+
+    -- Check Scale Override
+    if scale_override and prop_data.TransformAnimation and prop_data.TransformAnimation.end_scale then
+        -- Help.Log("Prop Data", nil, prop_data)
+        prop_data = Core.Table.DeepCopy(prop_data)
+        local current_scale = prop_data.TransformAnimation.end_scale
+        local new_scale = Vector3.New(
+            current_scale.x * scale_override,
+            current_scale.y * scale_override,
+            current_scale.z * scale_override
+        )
+        prop_data.TransformAnimation.end_scale = new_scale
+    end
+
+    -- Load the New Prop into the Zone
+    prop_zone:AddProp(prop_data, position, true)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Library
+-- SECTION -- Callbacks
+-- ================================================================================================
+
+-- Example Code for Prop Death Callback
+-- DCEI.TriggerAddEffectEvent(DCEI.Effect("Prop - Death"), function(ctx)
+--     local target_position = Vector2.NewFromTable(ctx.target_location)
+--     local tile_index = _Instance:GetTileIndexFromWorldPosition(target_position)
+--     Help.Log("Prop Death", target_position)
+
+--     -- Find the PropZone
+--     local prop_zone = _Instance:_Get(tile_index.x, tile_index.y)
+--     if not prop_zone then
+--         return
+--     end
+
+--     -- Load the New Prop into the Zone
+--     Help.Log("Spawning a new Tree")
+--     prop_zone:AddProp(PropData.Forest.Crate01, target_position, true)
+-- end, true)
+
+---Adds a Prop into the respective PropZone.
+---@param ctx EffectContext
+---@param prop_data PropData
+local function InjectPropAt(ctx, prop_data)
+    -- Get the Target Position and respective Tile Index
+    local target_position = Vector2.NewFromTable(ctx.target_location)
+    local tile_index = _Instance:GetTileIndexFromWorldPosition(target_position)
+
+    -- Find the PropZone
+    local prop_zone = _Instance:_Get(tile_index.x, tile_index.y)
+    if not prop_zone then
+        return
+    end
+
+    -- Load the New Prop into the Zone
+    prop_zone:AddProp(prop_data, target_position, true)
+end
+
+local _PropInjections = {
+    -- Forest
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Forest - Tree - Degrade - 02"),
+        PropData = PropData.Forest.TreeDegrade02,
+    },
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Forest - Tree - Degrade - 03"),
+        PropData = PropData.Forest.TreeDegrade03,
+    },
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Forest - Tree - Degrade - 04"),
+        PropData = PropData.Forest.TreeDegrade04,
+    },
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Forest - Tree - Degrade - 05"),
+        PropData = PropData.Forest.TreeDegrade05,
+    },
+    -- Thicket
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Thicket - Tree - Degrade - 02"),
+        PropData = PropData.Thicket.TreeDegrade02,
+    },
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Thicket - Tree - Degrade - 03"),
+        PropData = PropData.Thicket.TreeDegrade03,
+    },
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Thicket - Tree - Degrade - 04"),
+        PropData = PropData.Thicket.TreeDegrade04,
+    },
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Thicket - Tree - Degrade - 05"),
+        PropData = PropData.Thicket.TreeDegrade05,
+    },
+    -- Swamp
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Swamp - Tree - Degrade - 02"),
+        PropData = PropData.Swamp.TreeDegrade02,
+    },
+    {
+        Effect = DCEI.Effect("Trigger - Spawn - Swamp - Tree - Degrade - 03"),
+        PropData = PropData.Swamp.TreeDegrade03,
+    },
+}
+
+-- Register Prop Injection Events
+for _, data in ipairs(_PropInjections) do
+    local effect = data.Effect
+    local prop_data = data.PropData
+
+    DCEI.TriggerAddEffectEvent(effect, function(ctx)
+        InjectPropAt(ctx, prop_data)
+    end, true)
+end
+
+-- ================================================================================================
+-- !SECTION -- Callbacks
+-- ================================================================================================
+
+return PropManager

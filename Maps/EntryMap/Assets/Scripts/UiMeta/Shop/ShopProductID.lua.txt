@@ -1,0 +1,19 @@
+local SHOP_PRODUCT_ID = {
+    SHOP_CHEST_01 = "com.wildsurvivor.shop.chest01",
+    SHOP_CHEST_02 = "com.wildsurvivor.shop.chest02",
+    SHOP_CHEST_03 = "com.wildsurvivor.shop.chest03",
+    IAP_GEM_01 = "com.wildsurvivor.iap.gems.01",
+    IAP_GEM_02 = "com.wildsurvivor.iap.gems.02",
+    IAP_GEM_03 = "com.wildsurvivor.iap.gems.03",
+    IAP_GEM_04 = "com.wildsurvivor.iap.gems.04",
+    IAP_GEM_05 = "com.wildsurvivor.iap.gems.05",
+    IAP_GEM_06 = "com.wildsurvivor.iap.gems.06",
+    SHOP_GOLD_01 = "com.wildsurvivor.shop.gold01",
+    SHOP_GOLD_02 = "com.wildsurvivor.shop.gold02",
+    SHOP_GOLD_03 = "com.wildsurvivor.shop.gold03",
+    SHOP_DAILY_01 = "com.wildsurvivor.shop.daily01",
+    SHOP_DAILY_02 = "com.wildsurvivor.shop.daily02",
+    SHOP_DAILY_03 = "com.wildsurvivor.shop.daily03",
+}
+
+return SHOP_PRODUCT_ID

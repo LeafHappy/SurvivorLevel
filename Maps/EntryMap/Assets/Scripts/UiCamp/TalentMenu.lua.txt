@@ -1,0 +1,201 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- DATA
+local DataManager = require("UiMeta/DataManager")
+local TalentData = require("SharedData/Talents/TalentData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local TalentMenu = {}
+TalentMenu.is_initialized = false
+
+local talent_layouts = {}
+local talent_selected = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function OnResetTalents()
+    local talent_points = DataManager.ResetTalents()
+
+    for _, talent_layout in pairs(talent_layouts) do
+        talent_layout:Update()
+    end
+    TalentMenu.layout:Update()
+    Core.Event.SendSimulationEvent("Hybrid.ResetTalents", talent_points)
+end
+
+---@param talent_key string
+local function TryLevelUp(talent_key)
+    local talent_points = DataManager.GetTalentPoints()
+    if talent_points <= 0 then
+        return
+    end
+
+    local cost = 1
+    DataManager.SpendTalentPoint(cost)
+    DataManager.IncrementTalentLevel(talent_key)
+
+    talent_layouts[talent_key]:Update()
+    TalentMenu.layout:Update()
+    Core.Event.SendSimulationEvent("Hybrid.TalentSelected", talent_key)
+end
+
+---@param talent_key string
+local function OnTalentClicked(talent_key)
+    if not talent_selected then
+        talent_selected = true
+        TalentMenu.layout:Update()
+    end
+
+    local talent_data = TalentData.GetTalent(talent_key)
+    TalentMenu.layout.state.display_name = talent_data.DisplayName
+    TalentMenu.layout.state.description = talent_data.Description
+
+    DCEI.SetOnClickCallback(TalentMenu.layout.LevelUp, function()
+        TryLevelUp(talent_key)
+    end)
+end
+
+---@param talent_key string
+local function CreateTalentLayout(talent_key)
+    local talent_layout = GMUI.Layout.New({
+        name = "Camp/TalentMenu/Talent",
+        parent = TalentMenu.layout.Grid,
+    })
+
+    local talent_data = TalentData.GetTalent(talent_key)
+    talent_layout.state.icon = talent_data.Icon
+
+    function talent_layout:Update()
+        local talent_save = DataManager.GetTalentSave(talent_key)
+        talent_layout.state.current_level = talent_save.level or 0
+
+        DCEI.SetOnClickCallback(talent_layout.Frame, function()
+            OnTalentClicked(talent_key)
+        end)
+    end
+
+    talent_layouts[talent_key] = talent_layout
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@param data table
+---@param callback function
+function TalentMenu.GiveAuthority(data, callback)
+    -- Talent Data
+    -- data = {
+    --     available_points = 0,
+    --     talent_levels = {
+    --         key = value,
+    --     },
+    -- }
+
+    data.available_points = data.available_points or 0
+    data.talents = data.talents or {}
+
+    DataManager.SetTalentPoints(data.available_points)
+
+    for key, level in pairs(data.talents) do
+        DataManager.SetTalentSave(key, level)
+    end
+
+    TalentMenu.Open(callback)
+end
+
+function TalentMenu.Initialize()
+    if TalentMenu.is_initialized then
+        return
+    end
+
+    TalentMenu.layout = GMUI.Layout.New({
+        name = "Camp/TalentMenu",
+        parent = ui.z3.Lower,
+    })
+
+    for _, talent_data in ipairs(TalentData.Talents) do
+        CreateTalentLayout(talent_data.Key)
+    end
+
+    TalentMenu.layout.HideActual = TalentMenu.layout.Hide
+    function TalentMenu.layout:Hide()
+        -- TODO: Run this when we implement joystick authority for new camp
+        -- GMUI.RunSimulationCallback(TalentMenu.return_authority)
+        self:HideActual()
+    end
+
+    function TalentMenu.layout:Update()
+        local talent_points = tostring(DataManager.GetTalentPoints())
+        self.state.talent_points = talent_points
+
+        DCEI.SetFrameActive(self.LevelUp, talent_selected)
+        DCEI.SetFrameActive(self.Name, talent_selected)
+        DCEI.SetFrameActive(self.Description, talent_selected)
+    end
+
+    DCEI.SetOnClickCallback(TalentMenu.layout.Reset, function()
+        OnResetTalents()
+    end)
+
+    DCEI.SetOnClickCallback(TalentMenu.layout.close.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        TalentMenu.layout:Hide()
+    end)
+    DCEI.SetOnClickOutsideCallback(TalentMenu.layout.Popup, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        TalentMenu.layout:Hide()
+    end)
+
+    TalentMenu.is_initialized = true
+end
+
+function TalentMenu.Open(callback)
+    if not TalentMenu.is_initialized then
+        TalentMenu.Initialize()
+    end
+
+    for _, talent_layout in pairs(talent_layouts) do
+        talent_layout:Update()
+    end
+
+    TalentMenu.layout:Update()
+
+    TalentMenu.return_authority = callback
+    TalentMenu.layout:Show()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.TalentMenu", TalentMenu.GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return TalentMenu

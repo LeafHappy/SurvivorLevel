@@ -1,0 +1,158 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Swing a bat.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Abilities
+    Ability = DCEI.Ability("Weapon - Homerun Bat"),
+
+    -- Tags
+    IsPrimaryWeapon = DCEI.Tag("Weapon - Homerun Bat - IsPrimaryWeapon"),
+
+    -- Effects
+    Scan = DCEI.Effect("Weapon - Homerun Bat - Scan"),
+    ScanFallback = DCEI.Effect("Weapon - Homerun Bat - Scan - Fallback"),
+    Success = DCEI.Effect("Weapon - Homerun Bat - Success"),
+    Cast = DCEI.Effect("Weapon - Homerun Bat - Cast"),
+    SpawnVFX = DCEI.Effect("Weapon - Homerun Bat - Spawn VFX"),
+    ImpactArea = DCEI.Effect("Weapon - Homerun Bat - Impact Area"),
+    Damage = DCEI.Effect("Weapon - Homerun Bat - Damage"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+local MODEL_SCALE = 0.5
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+local function Cast(hero, target_position)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    DCEI.CreateEffectAtPosition(REF.Cast, hero.unit, target_position.x, target_position.y)
+end
+
+---Hero Ability Success Callback
+---Calls the Projectile Launch Function on Success
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local caster = ctx.caster
+    local player_id = DCEI.GetUnitPlayerId(caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    -- We need to get the Target and Force the Player to Rotate Towards it.
+    local target = ctx.target
+
+    local animation_delay = 0.25
+
+    -- Keep a record of the last known position of the Target in case it dies.
+    local target_position = Vector2.UnitPosition(target)
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(animation_delay)
+
+    function timer:Tick()
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+    end
+
+    function timer:Action()
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+
+        Cast(hero, target_position)
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ScanFallback, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.SpawnVFX, EJS.Actor.Scale, nil, MODEL_SCALE),
+        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.OuterRadius),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    ---TEMP: Go ahead and Set the Scarlet Arrow as the Primary Weapon
+    ---Ideally, we have a better way to handle this.
+    DCEI.ApplyTag(hero.unit, REF.IsPrimaryWeapon, -1, 1)
+
+    -- Need to access the Cast Range of this Ability and set a Custom Property for the Top Detection Range.
+    local detection_range = hero:GetStat(STAT.SkillSize, Upgrade.Name)
+    hero:SetDetectionRange(detection_range)
+
+    -- Need to Register when this Ability is Cast and force the Top to play the Attack Animation
+    DCEI.TriggerAddEffectEvent(REF.Success, function()
+        Help.SendActorEvent(hero.top, "Attack")
+    end, true)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

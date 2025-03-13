@@ -1,0 +1,450 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+	---TODO: Create a subroutine to handle the calculation of the attributes
+		-- For instance:
+			-- Critical Chance is influenced by Luck
+				-- 0.10 Critical Chance
+				-- 1.10 Luck
+				-- Additive
+				-- Critical Chance = 0.10 * (1 + (1.10)) = 0.10 * 1.10 = 0.11
+			-- Projectile Speed grants Damage
+				-- 30 Damage (after other calculations)
+				-- 13 Projectile Speed
+				-- 1% Conversion Rate
+				-- Damage = 30 * (1 + (13 * 1%)) = 30 * 1.13 = 33.9
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Json = require("json")
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Checks to see if the base_table contains the value
+---@param base_table table
+---@param value any
+---@return boolean
+local function Contains(base_table, value)
+    for _, v in pairs(base_table) do
+        if v == value then
+            return true
+        end
+    end
+
+    return false
+end
+
+---Checks to see if the base_table contains all the values in the second_table
+---@param base_table table
+---@param second_table table
+---@return boolean
+local function ContainsAll(base_table, second_table)
+    for _, v in pairs(second_table) do
+        if not Contains(base_table, v) then
+            return false
+        end
+    end
+
+    return true
+end
+
+---Checks the base_table to see if it contains any full sets of tags from the provided_table
+---@param base_table table | nil
+---@param provided_table table
+---@return boolean
+local function HasMatchingTags(base_table, provided_table)
+    if base_table == nil then
+        return true
+    end
+
+    -- Need to check if the first element is of type table
+    if type(provided_table[1]) == "table" then
+        for _, subset in pairs(provided_table) do
+            if ContainsAll(base_table, subset) then
+                return true
+            end
+        end
+    else
+        return ContainsAll(base_table, provided_table)
+    end
+
+    return false
+end
+
+---Converts a list of tags into a single string
+---@param tags SkillTagList | table<SkillTagList> | nil
+---@return string
+local function ConvertTagListToTagId(tags)
+    -- Can also try sorting the tags
+    -- Then converting it to a Json string
+
+    if tags == nil or #tags <= 0 then
+        return "- Global -"
+    end
+
+    table.sort(tags)
+
+    return Json.encode(tags)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class: Core
+-- ================================================================================================
+
+---@alias SkillTagList table<SKILL_TAG>
+---@alias TagId string
+
+---@class CachedValue
+---@field is_dirty boolean
+---@field value number
+
+---@class Attributes.Subroutine
+---@field Scaling SCALING
+---@field ConversionRate number | STAT
+
+---@class Attributes
+---@field modifiers table<string, Modifier>
+---@field calculated table<STAT, table<TagId, CachedValue>> -- STAT -> TagId -> CachedValue
+---@field subroutines table<STAT, table<STAT, Attributes.Subroutine>>
+local Attributes = {}
+Attributes.__index = Attributes
+
+---Generates a new Attributes object
+---@return Attributes
+function Attributes.New()
+    local self = setmetatable({}, Attributes)
+
+    self:Reset()
+
+    return self
+end
+
+function Attributes:Reset()
+    self.modifiers = {}
+    -- A Dictionary of Pre-calculated Values
+    self.calculated = {}
+    self.subroutines = {
+        -- Examples
+        -- [STAT.CriticalChance] = {
+        --     [STAT.Luck] = {
+        --         Scaling = SCALING.Multiplier,
+        --         ConversionRate = 1,
+        --     },
+        -- },
+        -- [STAT.Damage] = {
+        --     [STAT.ProjectileSpeed] = {
+        --         Scaling = SCALING.Additive,
+        --         ConversionRate = 0.10,
+        --     },
+        -- },
+    }
+end
+
+-- ================================================================================================
+-- !SECTION -- Class: Core
+-- SECTION -- Class: Private Functions
+-- ================================================================================================
+
+---comment
+---@param stat STAT
+---@param scaling SCALING
+---@param tags SkillTagList | table<SkillTagList> | nil
+---@return number
+function Attributes:_CalculateScaling(stat, scaling, tags)
+    local value = 0
+
+    if scaling == SCALING.Multiplier then
+        value = 1
+    end
+
+    for _, modifier in pairs(self.modifiers) do
+        if modifier.stat == stat and modifier.scaling == scaling and HasMatchingTags(tags, modifier.tags) then
+            if scaling == SCALING.Scaled then
+                value = value + modifier.value
+            elseif scaling == SCALING.Additive then
+                value = value + modifier.value
+            elseif scaling == SCALING.UnifiedPositive then
+                if modifier.value > value then
+                    value = modifier.value
+                end
+            elseif scaling == SCALING.UnifiedNegative then
+                if modifier.value < value then
+                    value = modifier.value
+                end
+            elseif scaling == SCALING.Multiplier then
+                value = value * modifier.value
+            elseif scaling == SCALING.Unscaled then
+                value = value + modifier.value
+            end
+        end
+    end
+
+    return value
+end
+
+---@private
+---Gets the value of the stat with the provided tags
+---@param stat STAT
+---@param tags SkillTagList | table<SkillTagList> | nil
+---@return number
+function Attributes:_Calculate(stat, tags)
+    -- Help.Log("Recalculating", stat, tags)
+
+    local scaled = 0
+    local additive = 0
+    local unified_positive = 0
+    local unified_negative = 0
+    local multiplier = 1
+    local unscaled = 0
+
+    for _, modifier in pairs(self.modifiers) do
+        if modifier.stat == stat and HasMatchingTags(tags, modifier.tags) then
+            if modifier.scaling == SCALING.Scaled then -- Scaled
+                scaled = scaled + modifier.value
+            elseif modifier.scaling == SCALING.Additive then -- Additive
+                additive = additive + modifier.value
+            elseif modifier.scaling == SCALING.UnifiedPositive then -- Unified Positive
+                if modifier.value > unified_positive then
+                    unified_positive = modifier.value
+                end
+            elseif modifier.scaling == SCALING.UnifiedPositive then -- Unified Negative
+                if modifier.value < unified_negative then
+                    unified_negative = modifier.value
+                end
+            elseif modifier.scaling == SCALING.Multiplier then -- Multiplier
+                multiplier = multiplier * modifier.value
+            elseif modifier.scaling == SCALING.Unscaled then -- Unscaled
+                unscaled = unscaled + modifier.value
+            end
+        end
+    end
+
+    return scaled * (1 + additive) * (1 + unified_positive + unified_negative) * multiplier + unscaled
+end
+
+---@private
+---Checks the calculated table to see if the value is already calculated, otherwise, calculates it.
+---@param stat STAT
+---@param tags SkillTagList | table<SkillTagList> | nil
+---@return number
+function Attributes:_GetCalculatedValue(stat, tags)
+    -- return self:_Calculate(stat, tags)
+
+    -- Make sure we have a table for the stat
+    if not self.calculated[stat] then
+        self.calculated[stat] = {}
+    end
+
+    -- since [tags] is a table (therefore has a unique Id), convert it to a string
+    local tag_id = ConvertTagListToTagId(tags)
+
+    -- Make sure we have a table for the tag_id
+    if not self.calculated[stat][tag_id] then
+        self.calculated[stat][tag_id] = {
+            is_dirty = true,
+            value = 0,
+        }
+    end
+
+    -- Check to see if the Value is already calculated
+    if self.calculated[stat][tag_id].is_dirty then
+        self.calculated[stat][tag_id].value = self:_Calculate(stat, tags)
+        self.calculated[stat][tag_id].is_dirty = false
+    end
+
+    return self.calculated[stat][tag_id].value
+end
+
+---@private
+---Forces the stat to be recalculated
+---@param stat any
+function Attributes:_ForceDirty(stat)
+    if not self.calculated[stat] then
+        return
+    end
+
+    for tag_id, cached_value in pairs(self.calculated[stat]) do
+        cached_value.is_dirty = true
+    end
+end
+
+---Forces all the values to be recalculated
+function Attributes:_ForceAllDirty()
+    for stat, tags in pairs(self.calculated) do
+        for tag_id, cached_value in pairs(tags) do
+            cached_value.is_dirty = true
+        end
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Class: Private Functions
+-- SECTION -- Class: Public Functions
+-- ================================================================================================
+
+---FIXME: Temporary functionality to allow for Skill Levels to stack.
+
+---Adds a Modifier
+---@param modifier Modifier
+---@param overwrite boolean | nil
+function Attributes:Add(modifier, overwrite)
+    if overwrite then
+        self:RemoveId(modifier.id)
+    end
+
+    table.insert(self.modifiers, modifier)
+
+    self:_ForceDirty(modifier.stat)
+end
+
+---Adds a list of Modifiers
+---@param modifiers table<Modifier>
+---@param overwrite boolean | nil
+function Attributes:AddModifiers(modifiers, overwrite)
+    for _, modifier in pairs(modifiers) do
+        self:Add(modifier, overwrite)
+    end
+end
+
+---Removes a Modifier.
+---@param modifier Modifier
+function Attributes:RemoveModifier(modifier)
+    self:RemoveId(modifier.id)
+    -- self.modifiers[modifier.id] = nil
+
+    -- self:_ForceDirty(modifier.stat)
+end
+
+---Removes a Modifier by id.
+---@param id string
+function Attributes:RemoveId(id)
+    -- Search the table for the modifier
+    for index, _ in ipairs(self.modifiers) do
+        -- If the id matches, remove it
+        if self.modifiers[index].id == id then
+            local removed_modifier = table.remove(self.modifiers, index)
+
+            -- If the modifier was removed, force the stat to be recalculated
+            if removed_modifier then
+                self:_ForceDirty(removed_modifier.stat)
+                return
+            end
+        end
+    end
+
+    -- local modifier = self.modifiers[id]
+
+    -- self.modifiers[id] = nil
+
+    -- if modifier then
+    --     self:_ForceDirty(modifier.stat)
+    -- end
+end
+
+---FIXME: Need a way to cache the calculated values and set is_dirty
+---Gets the value of the stat with the provided tags
+---@param stat STAT
+---@param tags SkillTagList | table<SkillTagList> | nil
+---@return number
+function Attributes:Get(stat, tags)
+    -- return self:_Calculate(stat, tags)
+    tags = tags or {}
+
+    local base_value = self:_GetCalculatedValue(stat, tags)
+    local increased_value = 0
+
+    if self.subroutines[stat] then
+        local subroutines = self.subroutines[stat]
+        -- Help.Log("Subroutines", stat, subroutines)
+
+        for inherited_stat, subroutine in pairs(subroutines) do
+            local inherited_value = self:_GetCalculatedValue(inherited_stat, tags)
+            local conversion_rate = subroutine.ConversionRate
+
+            if type(conversion_rate) == "string" then -- STAT
+                -- Help.Log("Conversion", conversion_rate)
+                conversion_rate = self:_GetCalculatedValue(conversion_rate, tags)
+                -- Help.Log("Conversion Rate", conversion_rate)
+            end
+
+            -- Help.Log(inherited_stat, inherited_value)
+
+            if subroutine.Scaling == SCALING.Scaled then
+                local v = inherited_value * conversion_rate
+                increased_value = increased_value + v
+            elseif subroutine.Scaling == SCALING.Additive then
+                local v = base_value * (inherited_value * conversion_rate)
+                increased_value = increased_value + v
+            elseif subroutine.Scaling == SCALING.Multiplier then
+                local v = base_value * (inherited_value - 1) * conversion_rate
+                increased_value = increased_value + v
+            end
+
+            -- Help.Log("Increased Value", increased_value)
+        end
+    end
+
+    -- if self.subroutines[stat] then
+    --     Help.Log("Stat", stat)
+    --     Help.Log("Base Value", base_value)
+    --     Help.Log("Increased Value", increased_value)
+    --     Help.Log("Final Value", base_value + increased_value)
+    -- end
+
+    return base_value + increased_value
+end
+
+---comment
+---@param stat STAT
+---@param scaling SCALING
+---@param tags SkillTagList | table<SkillTagList> | nil
+---@return number
+function Attributes:GetStatScaling(stat, scaling, tags)
+    return self:_CalculateScaling(stat, scaling, tags)
+end
+
+---comment
+---@param affected_stat STAT The Stat that gets modified.
+---@param inherited_stat STAT The Stat that influences the affected_stat.
+---@param scaling_type SCALING
+---@param conversion_rate STAT | number | nil Default: 1
+function Attributes:AddSubroutine(affected_stat, inherited_stat, scaling_type, conversion_rate)
+    conversion_rate = conversion_rate or 1
+
+    if not self.subroutines[affected_stat] then
+        self.subroutines[affected_stat] = {}
+    end
+
+    self.subroutines[affected_stat][inherited_stat] = {
+        Scaling = scaling_type,
+        ConversionRate = conversion_rate,
+    }
+
+    -- local message
+    -- if type(conversion_rate) == "number" then
+    --     message = string.format("Adding a Subroutine: %s -> %s [%.2f]", affected_stat, inherited_stat, conversion_rate)
+    -- elseif type(conversion_rate) == "string" then
+    --     message = string.format("Adding a Subroutine: %s -> %s [%s]", affected_stat, inherited_stat, conversion_rate)
+    -- end
+    -- Help.Log(message)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class: Public Functions
+-- ================================================================================================
+
+return Attributes

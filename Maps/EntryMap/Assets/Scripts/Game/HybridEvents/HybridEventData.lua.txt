@@ -1,0 +1,6 @@
+local HybridEventData = {
+    SpiralSwarmEvent = require("Game/HybridEvents/SpiralSwarmEvent"),
+    StructureTargetingEvent = require("Game/HybridEvents/StructureTargetingEvent"),
+}
+
+return HybridEventData

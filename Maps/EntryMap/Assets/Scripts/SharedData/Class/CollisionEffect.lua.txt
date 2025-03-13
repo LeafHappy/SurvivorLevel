@@ -1,0 +1,25 @@
+---@class CollisionEffect
+---@field public effect_name Effect | string
+---@field public timing CollisionTiming | integer
+---@field public cooldown_seconds number
+---@field public tag_mask_filter SIMPLE_TAG | integer | nil
+local CollisionEffect = {}
+CollisionEffect.__index = CollisionEffect
+
+---Generates a new CollisionEffect.
+---@param effect Effect | string
+---@param timing CollisionTiming | integer
+---@param cooldown number
+---@param tag SIMPLE_TAG | integer | nil
+---@return CollisionEffect
+function CollisionEffect.New(effect, timing, cooldown, tag)
+    local self = setmetatable({}, CollisionEffect)
+    self.effect_name = effect
+    self.timing = timing
+    self.cooldown_seconds = cooldown
+    self.tag_mask_filter = tag
+
+    return self
+end
+
+return CollisionEffect

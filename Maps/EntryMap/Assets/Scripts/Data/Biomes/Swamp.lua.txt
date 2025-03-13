@@ -1,0 +1,326 @@
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local PerlinNoise = require("Class/PerlinNoise")
+
+local PropData = require("Map/PropData")
+local TileData = require("Data/TileData")
+
+local Help = require("Help")
+
+---@type Biome
+local Biome = {}
+
+---@type TileData
+Biome.TILE_DATA = {
+    Size = 5.12,
+    LoadDistance = 4,
+    TileOptions = {
+        TileData.Swamp.Standard,
+    },
+}
+
+---TODO: Figure out POIs
+
+-- table of {x, y} POIWeight
+-- POIWeight Id's
+local POI_Spawn_Weight = 0
+local POI_Spawn_Threshold = 100000
+
+---Returns true if the POI should spawn.
+---@return boolean
+local function POIChance(weight)
+    weight = weight or 1
+
+    POI_Spawn_Weight = POI_Spawn_Weight + weight
+
+    if Help.Chance(POI_Spawn_Weight / POI_Spawn_Threshold) then
+        POI_Spawn_Weight = 0
+        return true
+    end
+
+    return false
+end
+
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateWithPOIChance(biome_data, biome_spawn_data, weight)
+    weight = weight or 1
+
+    if POIChance() then
+        -- table.insert(biome_spawn_data.forced_props, PropData.POI.MeditationFountain)
+        table.insert(biome_spawn_data.forced_props, PropData.Forest.Crate01)
+        return true
+    end
+
+    return false
+end
+
+---Custom Noise Generation with Octaves
+---@param seed integer
+---@param r integer
+---@param c integer
+---@param zoom number
+---@param octaves number
+---@param persistence number
+---@return number
+function Biome.GenerateNoise(seed, r, c, zoom, octaves, persistence)
+    return PerlinNoise.GenerateOctave(seed + r / zoom, seed + c / zoom, 0.50, octaves, persistence)
+end
+
+---============================================================================
+---SECTION: Void Map Center
+---============================================================================
+
+---Prevents spawning in a 3x3 area around the map center.
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function PreventSpawningNearMapCenter(biome_data, biome_spawn_data)
+    local radius = 2
+
+    if biome_data.r == 0 and biome_data.c == 0 then
+        return true
+    end
+
+    if biome_data.r >= -radius and biome_data.r <= radius and biome_data.c >= -radius and biome_data.c <= radius then
+        table.insert(biome_spawn_data.forced_props, PropData.Swamp.Grass)
+        return true
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Void Map Center
+---SECTION: Water
+---============================================================================
+
+local _WaterSpline = {
+    Help.NewSplinePoint(-10, 0),
+    Help.NewSplinePoint(0, 5),
+    Help.NewSplinePoint(10, 0),
+}
+
+---comment
+---@param seed integer
+---@param r integer
+---@param c integer
+---@return number
+function Biome.WaterNoise(seed, r, c)
+    local zoom = 10
+    local octaves = 1
+    local persistence = 0
+    local scale = 100
+    local noise = Biome.GenerateNoise(seed + 45, r, c, zoom, octaves, persistence) * scale
+    return noise
+end
+
+---comment
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateWater(biome_data, biome_spawn_data)
+    local noise = Biome.WaterNoise(biome_data.seed, biome_data.r, biome_data.c)
+
+    -- Checkerboard pattern
+    if (biome_data.r + biome_data.c) % 2 == 0 then
+        return false
+    end
+
+    -- table.insert(biome_spawn_data.forced_props, PropData.Swamp.Water03)
+
+    local noise_factor = 3
+
+    if noise >= noise_factor or noise_factor <= -noise_factor then
+        if Help.Chance(0.50) then
+            local selected_prop = Help.GetRandomValueFromWeightedTable({
+                {
+                    Weight = 30,
+                    Value = PropData.Swamp.Water01,
+                },
+                {
+                    Weight = 10,
+                    Value = PropData.Swamp.Water02,
+                },
+                {
+                    Weight = 30,
+                    Value = PropData.Swamp.Water03,
+                },
+            })
+
+            table.insert(biome_spawn_data.forced_props, selected_prop)
+            return true
+        end
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Water
+---SECTION: Grass, Dirt, Rocks
+---============================================================================
+
+---@param seed integer
+---@param r integer
+---@param c integer
+function Biome.GroundTexturesNoise(seed, r, c)
+    local zoom = 3
+    local octaves = 1
+    local persistence = 0
+    local scale = 10
+    local noise = Biome.GenerateNoise(seed, r, c, zoom, octaves, persistence) * scale
+    return noise
+end
+
+local _WeightedGroundTextures = {
+    {
+        Weight = 30,
+        Value = PropData.Swamp.DestroyedCrate,
+    },
+    {
+        Weight = 30,
+        Value = PropData.Swamp.DirtPatch01,
+    },
+    {
+        Weight = 30,
+        Value = PropData.Swamp.DirtPatch02,
+    },
+    {
+        Weight = 30,
+        Value = PropData.Swamp.Grass,
+    },
+    {
+        Weight = 30,
+        Value = PropData.Swamp.Rock,
+    },
+}
+
+---comment
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateGroundTextures(biome_data, biome_spawn_data)
+    local noise = Biome.GroundTexturesNoise(biome_data.seed, biome_data.r, biome_data.c)
+
+    biome_spawn_data.density = biome_spawn_data.density + Help.RandomInteger(5, 35)
+    biome_spawn_data.density = biome_spawn_data.density + Help.RandomInteger(5, 35)
+
+    local selected_prop = Help.GetRandomValueFromWeightedTable(_WeightedGroundTextures)
+    table.insert(biome_spawn_data.prop_options, selected_prop)
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Grass, Dirt, Rocks
+---SECTION: Tree Fill Generation
+---============================================================================
+
+local _WeightedTreeTypes = {
+    {
+        Weight = 30,
+        Value = PropData.Swamp.TreeDegrade01,
+    },
+    {
+        Weight = 20,
+        Value = PropData.Swamp.TreeDegrade02,
+    },
+    {
+        Weight = 10,
+        Value = PropData.Swamp.TreeDegrade03,
+    },
+}
+
+function Biome.TreeTypeNoise(seed, r, c)
+    local zoom = 10
+    local octaves = 3
+    local persistence = 0.25
+    local scale = 3
+    local noise = Biome.GenerateNoise(seed, r, c, zoom, octaves, persistence) * scale
+    return noise
+end
+
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateTreeFill(biome_data, biome_spawn_data)
+    local noise = Biome.TreeTypeNoise(biome_data.seed, biome_data.r, biome_data.c)
+
+    local target_tree_density = 3 * math.sqrt(math.abs(noise))
+
+    local noise_factor = 1
+
+    while target_tree_density >= noise_factor do
+        target_tree_density = target_tree_density - noise_factor
+
+        local selected_prop = Help.GetRandomValueFromWeightedTable(_WeightedTreeTypes)
+        table.insert(biome_spawn_data.forced_props, selected_prop)
+    end
+
+    return true
+end
+
+---============================================================================
+---!SECTION: Tree Fill Generation
+---SECTION: Prop Injection
+---============================================================================
+
+-- Objects:
+-- - Trees
+-- - Destroyed Crates
+-- - Log
+-- - Dirt Patch
+-- - Flower
+
+-- Can likely turn this into a list of generators
+local GenerationList = {
+    -- Void Layers
+    PreventSpawningNearMapCenter,
+
+    GenerateWater,
+    GenerateGroundTextures,
+    GenerateTreeFill,
+}
+
+---comment
+---@param seed integer
+---@param r integer
+---@param c integer
+---@return PropZoneOptions
+function Biome.PropInjection(seed, r, c)
+    local biome_data = {
+        seed = seed,
+        r = r,
+        c = c,
+    }
+
+    local biome_spawn_data = {
+        density = 0,
+        prop_options = {},
+        forced_props = {},
+    }
+
+    for _, func in ipairs(GenerationList) do
+        local exit = func(biome_data, biome_spawn_data)
+
+        if exit then
+            break
+        end
+    end
+
+    return {
+        Density = biome_spawn_data.density,
+        PropOptions = biome_spawn_data.prop_options,
+        ForcedProps = biome_spawn_data.forced_props,
+    }
+end
+
+---============================================================================
+---!SECTION: Prop Injection
+---============================================================================
+
+return Biome

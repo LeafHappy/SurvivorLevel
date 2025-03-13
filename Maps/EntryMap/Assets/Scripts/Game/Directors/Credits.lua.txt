@@ -1,0 +1,148 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Handles Generating Credits
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Help = require("Help")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+---@class CreditOption
+---@field id string
+---@field cost number
+---@field callback function
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Class Initialization
+---============================================================================
+
+---@class CreditDirector
+---@field active boolean Determines if the Director will Update or not.
+---@field credits number The number of available credits that can be spent.
+---@field credits_per_minute number The number of credits generated each minute.
+-- -@field chance number The success rate of purchasing an option.
+-- -@field options table<CreditOption> Contains a list of CreditOptions.
+local CreditDirector = {}
+CreditDirector.__index = CreditDirector
+
+---Generates a Credit Director.
+---@return CreditDirector
+function CreditDirector.New()
+	local self = setmetatable({}, CreditDirector)
+	self.active = true
+
+	self.credits = 0
+	self.credits_per_minute = 0
+
+	return self
+end
+
+---============================================================================
+---!SECTION: Class Initialization
+---SECTION: Class Internal Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Class Internal Functions
+---SECTION: Class Setters/Getters
+---============================================================================
+
+---Determines if the Director will update.
+---@param status boolean
+function CreditDirector:SetActive(status)
+	self.active = status
+end
+
+---Set the current amount of Credits Available.
+---@param amount number
+function CreditDirector:SetCredits(amount)
+	self.credits = amount
+end
+
+---Modify the current amount of Credits Available.
+---@param amount number
+function CreditDirector:ModifyCredits(amount)
+	self.credits = self.credits + amount
+	return self.credits
+end
+
+---Get currently available Credits.
+---@return number
+function CreditDirector:GetCredits()
+	return self.credits
+end
+
+---Clears the Available Credits to 0 (zero).
+function CreditDirector:ClearCredits()
+	self.credits = 0
+end
+
+---Attempt to Spend Credits. Subtracts credits on success.
+---@param amount number
+---@return true|false
+function CreditDirector:SpendCredits(amount)
+	local success = amount <= self.credits
+
+	if success then
+		self:ModifyCredits(-amount)
+	end
+
+	return success
+end
+
+---Set the amount of Credits generated each minute.
+---@param amount number
+function CreditDirector:SetCreditsGeneratedPerMinute(amount)
+	self.credits_per_minute = amount
+end
+
+---Modify the amount of Credits generated each minute.
+---@param amount number
+function CreditDirector:ModifyCreditsGenerated(amount)
+	self.credits_per_minute = self.credits_per_minute + amount
+end
+
+---Set the amount of Credits generated per minute to 0 (zero).
+function CreditDirector:ClearCreditsGenerated()
+	self.credits_per_minute = 0
+end
+
+---============================================================================
+---!SECTION: Class Setters/Getters
+---SECTION: Class Public Functions
+---============================================================================
+
+function CreditDirector:Update(delta)
+	delta = delta or TICK_RATE or 0.0625 -- Default Tick Rate
+
+	-- Make sure the Director is Active
+	if not self.active then
+		return
+	end
+
+	-- Grant Points this frame.
+	self:ModifyCredits(self.credits_per_minute / 60 * delta)
+end
+
+---============================================================================
+---!SECTION: Class Public Functions
+---============================================================================
+
+return CreditDirector

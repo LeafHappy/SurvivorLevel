@@ -1,0 +1,161 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Frost Pillar"),
+
+    -- Effects
+    Scan = DCEI.Effect("Weapon - Frost Pillar - Scan"),
+    ScanFallback = DCEI.Effect("Weapon - Frost Pillar - Scan Fallback"),
+    ImpactArea = DCEI.Effect("Weapon - Frost Pillar - Impact Area"),
+    Damage = DCEI.Effect("Weapon - Frost Pillar - Damage"),
+    Slow = DCEI.Effect("Weapon - Frost Pillar - Slow"),
+
+    ImpactVFX = DCEI.Effect("Weapon - Frost Pillar - Impact VFX"),
+
+    CooldownReduction = DCEI.Effect("Weapon - Frost Pillar - Cooldown Reduction"),
+}
+
+---@type table<integer, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+---@type table<integer, Timer>
+local _Timers = {}
+
+---@type table<integer, integer>
+local _DamageInstanceStacks = {}
+
+local IMPACT_VFX_SCALE = 0.5
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function ReduceFrostPillarCooldown(hero)
+    DCEI.CreateEffectAtSelf(REF.CooldownReduction, hero.unit)
+end
+
+---Frostnova Hero Update Loop Hookup
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    -- Inject New Instance Stacks into Instance Table
+    Help.InjectGameStats(hero, GAME_STATS.DamageTakenInstance, _DamageInstanceStacks)
+
+    -- Get Required Stacks
+    local tags = hero:GetInheritedTags(SkillData.FrostPillar.Key)
+    local required_stacks = hero:GetStat(STAT.RequiredStacks, tags)
+
+    -- Compare Current Stacks to Required Stacks
+    if _DamageInstanceStacks[hero.player_id] >= required_stacks then
+        -- Cast Effect
+        ReduceFrostPillarCooldown(hero)
+
+        -- Use Stacks
+        _DamageInstanceStacks[hero.player_id] = _DamageInstanceStacks[hero.player_id] - required_stacks
+    end
+end
+
+---Reset Variables and Unsubscribe from Hero Events
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    --Reset Variables
+    _DamageInstanceStacks[hero.player_id] = nil
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ScanFallback, EJS.AreaSearch.Radius),
+    },
+    [STAT.ProjectileCount] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Count),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, nil, IMPACT_VFX_SCALE),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Multiplier, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+    -- [STAT.CooldownReduction] = {
+    --     EffectPath.New(REF.CooldownReduction, EJS.Modify.Cooldown, nil, -1),
+    -- },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    -- Generate Timer
+    -- GenerateTimer(hero)
+
+    hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

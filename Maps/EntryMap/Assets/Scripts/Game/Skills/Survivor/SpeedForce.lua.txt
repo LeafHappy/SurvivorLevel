@@ -1,0 +1,81 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+---comment
+---@param hero Hero
+function Upgrade.PreCache(hero)
+    -- ---TESTING: Get all Additive Projectile Speed Modifiers
+    -- local increased_projectile_speed = hero.Attributes:GetStatScaling(STAT.ProjectileSpeed, SCALING.Additive)
+    -- local conversion_rate = hero.Attributes:Get(STAT.ConversionRate, { SKILL_TAG.SpeedForce })
+    -- local damage_increase = increased_projectile_speed * conversion_rate
+    -- -- Help.Log("Increased Projectile Speed", increased_projectile_speed)
+    -- -- Help.Log("Damage Increase", damage_increase)
+
+    -- local modifier_id = "Projectile Speed Conversion Modifier"
+    -- local projectile_speed_conversion_modifier =
+    --     Modifier.New(STAT.Damage, damage_increase, SCALING.Additive, { SKILL_TAG.Global }, modifier_id)
+
+    -- -- Apply Modifier
+    -- hero:ApplyModifier(projectile_speed_conversion_modifier, true)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

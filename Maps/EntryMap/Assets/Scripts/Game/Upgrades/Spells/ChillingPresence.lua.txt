@@ -1,0 +1,83 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local ability = DCEI.Ability("Chilling Presence")
+
+local behaviors = {
+    base = DCEI.Behavior("Chilling Presence"),
+    vfx_size = DCEI.Behavior("Chilling Presence - Size"),
+}
+
+local effects = {
+    size = DCEI.Effect("Chilling Presence - Apply Size"),
+    scan = DCEI.Effect("Chilling Presence - Scan"),
+    damage = DCEI.Effect("Chilling Presence - Damage"),
+    slow = DCEI.Effect("Chilling Presence - Slow"),
+    stagger = DCEI.Effect("Chilling Presence - Stagger"),
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = "Chilling Presence",
+}
+
+Upgrade.Cache = {
+    -- Cooldown is handled separately.
+    [STAT.SkillSize] = {
+        EffectPath.New(effects.size, EJS.ApplyBehavior.Count, nil, 40),
+        EffectPath.New(effects.scan, EJS.AreaSearch.Radius),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(effects.damage, EJS.Damage.Value),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(effects.slow, EJS.Slow.Multiplier),
+    },
+    [STAT.SkillDuration] = {
+        EffectPath.New(effects.slow, EJS.Slow.Duration),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(effects.stagger, EJS.ApplyBehavior.Count),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    local size = hero:GetStat(STAT.SkillSize, ability)
+    local size_stacks = math.floor(size * 50)
+    Core.Unit.SetBehaviorCount(hero.unit, behaviors.vfx_size, size_stacks)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

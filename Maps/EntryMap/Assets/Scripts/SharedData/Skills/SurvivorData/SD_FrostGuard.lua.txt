@@ -1,0 +1,260 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.FrostGuard = {
+    Key = "FrostGuard",
+
+    -- UI Information
+    DisplayName = "Frost Guard",
+    ShortDescription = "Throws 2 Frost Axes.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.FrostGuard,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Frost Guard"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.SkillRange, 5.00, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+                Modifier.New(STAT.BaseAttackTime, 1.00, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+
+                -- Projectile
+                Modifier.New(STAT.ProjectileCount, 2, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+                Modifier.New(STAT.ProjectileSpeed, 13, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+                Modifier.New(STAT.SkillSize, 0.65, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 30, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+                Modifier.New(STAT.Stagger, 9, SCALING.Scaled, { SKILL_TAG.FrostGuard }),
+
+                -- Reset
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.FrostGuard] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.FrostGuard,
+
+            -- Exposed Tags
+            SKILL_TAG.Cold,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+-- Cold Damage and Health Regeneration
+Data.ColdSteel = {
+    Key = "ColdSteel",
+
+    -- UI Information
+    DisplayName = "Cold Steel",
+    ShortDescription = "Gain Health Regeneration and Cold Damage.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_iceage_skill_icefortification"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Attack,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.FrostGuard,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.HealthRegeneration, 1, SCALING.Scaled),
+                Modifier.New(STAT.Damage, 0.20, SCALING.Additive, { SKILL_TAG.Cold }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Attack Projectile Size and Skill Size
+Data.Tundra = {
+    Key = "Tundra",
+
+    -- UI Information
+    DisplayName = "Tundra",
+    ShortDescription = "Physical Skills gain Projectile Size and Skill Size.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_volcano_skill_perpetualrumbles"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Attack,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.FrostGuard,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 0.15, SCALING.Additive, { SKILL_TAG.Attack }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+Data.FrostboundFrenzy = {
+    Key = "FrostboundFrenzy",
+
+    -- UI Information
+    DisplayName = "Frostbound Frenzy",
+    ShortDescription = "Whenever you take contact damage, release a frenzy of axes.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.FrostGuard,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.FrostGuard,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 10, SCALING.Scaled, { SKILL_TAG.FrostboundFrenzy }),
+                Modifier.New(STAT.Cooldown, 3, SCALING.Scaled, { SKILL_TAG.FrostboundFrenzy }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Ice Splash: Causes a splash of ice to deal damage to nearby enemies.
+Data.IceSplash = {
+    Key = "IceSplash",
+
+    -- UI Information
+    DisplayName = "Ice Splash",
+    ShortDescription = "Axes deal splash damage on impact.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.FrostGuard,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.FrostGuard,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 1.50, SCALING.Scaled, { SKILL_TAG.IceSplash }),
+                Modifier.New(STAT.AreaDamage, 0.30, SCALING.Scaled, { SKILL_TAG.IceSplash }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

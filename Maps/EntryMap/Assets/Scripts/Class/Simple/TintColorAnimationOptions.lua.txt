@@ -1,0 +1,60 @@
+---@class TintColorAnimationOptions
+---@field start_tint_color Vector3
+---@field end_tint_color Vector3
+---@field start_alpha number
+---@field end_alpha number
+---@field start_seconds number
+---@field end_seconds number
+---@field ease Ease
+local TintColorAnimationOptions = {}
+TintColorAnimationOptions.__index = TintColorAnimationOptions
+
+function TintColorAnimationOptions.New()
+    local self = setmetatable({}, TintColorAnimationOptions)
+
+    return self
+end
+
+---Add Start Tint Color
+---@param start_tint_color Vector3
+function TintColorAnimationOptions:AddStartTintColor(start_tint_color)
+    self.start_tint_color = start_tint_color
+end
+
+---Add End Tint Color
+---@param end_tint_color Vector3
+function TintColorAnimationOptions:AddEndTintColor(end_tint_color)
+    self.end_tint_color = end_tint_color
+end
+
+---Add Start Alpha
+---@param start_alpha number
+function TintColorAnimationOptions:AddStartAlpha(start_alpha)
+    self.start_alpha = start_alpha
+end
+
+---Add End Alpha
+---@param end_alpha number
+function TintColorAnimationOptions:AddEndAlpha(end_alpha)
+    self.end_alpha = end_alpha
+end
+
+---Add Start Seconds
+---@param start_seconds number
+function TintColorAnimationOptions:AddStartSeconds(start_seconds)
+    self.start_seconds = start_seconds
+end
+
+---Add End Seconds
+---@param end_seconds number
+function TintColorAnimationOptions:AddEndSeconds(end_seconds)
+    self.end_seconds = end_seconds
+end
+
+---Add Ease
+---@param ease Ease
+function TintColorAnimationOptions:AddEase(ease)
+    self.ease = ease
+end
+
+return TintColorAnimationOptions

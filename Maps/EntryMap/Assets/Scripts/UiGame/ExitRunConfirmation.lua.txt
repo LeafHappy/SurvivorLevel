@@ -1,0 +1,33 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Popup/ExitRunConfirmation",
+    parent = ui.z3.Upper,
+})
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    self.context = self:GetContext()
+
+    -- hookup callbacks
+    DCEI.SetOnClickCallback(self.cancel.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ui.game.pause_menu:Show()
+        self:Hide()
+    end)
+
+    DCEI.SetOnClickCallback(self.confirm.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        DCEI.SetUpdateFrequency(1)
+        GMUI.RunSimulationCallback(self.context.OnExitGame)
+    end)
+end
+
+-- EXPORT
+return layout

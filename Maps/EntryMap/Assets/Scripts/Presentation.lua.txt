@@ -1,0 +1,387 @@
+-- LIBARARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local TrophyRoadRewardData = require("SharedData/TrophyRoadRewardData")
+local json = require("json")
+local Server = require("DFServer:Presentation")
+local PresentationTimer = require("Presentation/PresentationTimer")
+local Animation = require("Presentation/Animation")
+
+-- Contains Enum Constants for the Project
+-- needs to be called above script requires in case they reference enums
+require("SharedData/Types")
+
+local DataManager = require("UiMeta/DataManager")
+local PostGameRewards = require("UiMeta/PostGameRewards")
+
+local Help = require("UiHelp")
+
+-- SCRIPTS
+-- local Help = require("Help")
+
+-- SELF-CONTAINED SCRIPTS
+require("UiGame/Tutorial/FloatingRescueText")
+require("Presentation/OffscreenIndicatorManager")
+require("Presentation/StatusBarManager")
+local StageData = require("SharedData/Stages/StageData")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- LOCAL VARIABLES
+local results_chest_queue = {}
+local accumulative_rewards = {}
+local game_results_data = {}
+
+-- LOCAL FUNCTIONS
+local function HideDefaultPauseButton()
+    local button = DCEI.CreateButtonFrame(ui.Root)
+    DCEI.SetPauseButtonFrame(button)
+    DCEI.SetFrameActive(button, false)
+end
+
+local HomeData = {
+    StageLabel = "",
+    WaveLabel = "",
+    EquippedHero = {
+        BigArt = "",
+        Name = "",
+        Trophies = 0,
+        Level = 0,
+    },
+    TrophyBarFill = 0,
+    TrophyCountText = 0,
+    TrophyLevel = 0,
+    SelectedMode = "",
+}
+DCEI.BindLuaTable("HomeData", HomeData)
+
+local GameState = {
+    [TRACKED_STATS.Wood] = {
+        limit = 100,
+        value = 0,
+        fill = 0,
+    },
+    [TRACKED_STATS.Stone] = {
+        limit = 100,
+        value = 0,
+        fill = 0,
+    },
+    [TRACKED_STATS.Pumpkin] = {
+        limit = 100,
+        value = 0,
+        fill = 0,
+    },
+    [TRACKED_STATS.Meat] = {
+        limit = 100,
+        value = 0,
+        fill = 0,
+    },
+    [TRACKED_STATS.Gold] = {
+        limit = 100,
+        value = 0,
+        fill = 0,
+    },
+    [TRACKED_STATS.Gems] = {
+        limit = 100,
+        value = 0,
+        fill = 0,
+    },
+}
+DCEI.BindLuaTable("Game", GameState)
+
+local function GetTrophiesNeeded(current_trophies)
+    local current_level = 0
+    for i, v in ipairs(TrophyRoadRewardData) do
+        if v.trophies_needed > current_trophies then
+            break
+        end
+        current_level = i
+    end
+
+    local next_level = current_level + 1
+    next_level = math.min(next_level, #TrophyRoadRewardData)
+
+    local trophies_needed = TrophyRoadRewardData[next_level].trophies_needed
+    return trophies_needed, current_level
+end
+
+local function OnUiInitialize()
+    local data = DataManager.Load()
+    DCEI.LogMessage("Loaded game data: " .. json.encode(data))
+    HideDefaultPauseButton()
+
+    -- initialize server
+    ui.server = Server()
+    local ShopManager = require("UiMeta/Shop/ShopManager")
+    ShopManager.Initialize(ui.server)
+
+    ui.game.transition_mask:Show()
+
+    -- trophy road
+    -- local total_trophies = DataManager.GetTotalTrophy()
+    -- local needed_trophies, current_level = GetTrophiesNeeded(total_trophies)
+    -- local fill_amount = total_trophies / needed_trophies
+    -- local trophy_count_text = total_trophies .. "/" .. needed_trophies
+    -- HomeData.TrophyBarFill = fill_amount
+    -- HomeData.TrophyCountText = trophy_count_text
+    -- HomeData.TrophyLevel = current_level + 1
+
+    -- per-hero data
+    -- local heroData = DataManager.GetCardData(data.player.hero)
+    -- HomeData.EquippedHero.BigArt = heroData.BigArt
+    -- HomeData.EquippedHero.HeroLabel = heroData.Name
+    -- HomeData.EquippedHero.Trophies = DataManager.GetHeroTrophy(data.player.hero)
+    -- HomeData.EquippedHero.Level = "Level " .. DataManager.GetHeroLevel(data.player.hero)
+
+    -- HomeData.SelectedMode = DataManager.GetModeData(data.player.mode).display_name
+    ui.HomeData = HomeData
+
+    ui.GameState = GameState
+    GameState[TRACKED_STATS.Wood].value = 0
+    GameState[TRACKED_STATS.Stone].value = 0
+    GameState[TRACKED_STATS.Pumpkin].value = 0
+    GameState[TRACKED_STATS.Meat].value = 0
+    GameState[TRACKED_STATS.Gems].value = 0
+    GameState[TRACKED_STATS.Gold].value = 0
+
+    -- GameState.gems.value = data.currency.gems
+    -- GameState.gold.value = data.currency.gold
+    -- GameState.gold.value = DataManager.GetGold()
+
+    ui.ResourceState = ResourceState
+end
+
+-- ON LAYOUT INITIALIZE
+GMUI.Layout.SetOnLayoutInitializeCallback(function(self)
+    -- check to set ui mode depending on platform
+    -- this used to adjust UI to account for notch and mic bar on 'IPhonePlayer'
+    -- we generally add a top padding/offset of -52 and bottom padding/offset of 16 to account for these
+    if self.state then
+        -- self.state.platform = Help.GetPlatform()
+        self.state.platform = DCEI.Platform
+    end
+end)
+
+-- UI LAYERS
+-- z1 is generally used base UIs, such as glue and meta (Lower) and "intermediate" popups (Upper)
+-- intermediate popups are popups that need to have other elements above (like revive popup vs gems button)
+ui.z1 = GMUI.Layout.New({ name = "Common/FullscreenUiLayer" })
+
+-- z2 is generally used nav elements (Lower) and "default" popups (Upper)
+-- by nav elements, we mean top bar and nav bars, so they render below popups
+ui.z2 = GMUI.Layout.New({ name = "Common/FullscreenUiLayer" })
+
+-- z3 is used for flying icons (Lower) and pause menus (Upper)
+ui.z3 = GMUI.Layout.New({ name = "Common/FullscreenUiLayer" })
+
+-- HIERARCHY
+ui.glue = GMUI.Layout.New({ name = "Glue" })
+
+-- LAZY LAYOUTS
+-- meta
+-- ui.meta.cumulative_ad = require("UiMeta/CumulativeAd")
+-- ui.meta.FlyingRewards = require("UiMeta/FlyingRewards")
+
+if DCEI.IsDev() and false then
+    local panel = require("UiMeta/DebugPanel")
+    panel:Show()
+end
+
+-- camp
+ui.camp = {}
+ui.camp.bark = require("UiCamp/CampBark")
+ui.camp.labels = require("UiCamp/CampLabels")
+ui.camp.chest_page = require("UiMeta/ChestPage")
+ui.camp.item_unlock = require("UiMeta/ItemUnlock")
+ui.camp.overlay = require("UiCamp/Overlay")
+ui.camp.campfire = require("UiCamp/Campfire")
+ui.camp.shrine_of_blessing = require("UiCamp/ShrineOfBlessing")
+ui.camp.vault = require("UiCamp/Equipment/Vault")
+ui.camp.talent_menu = require("UiCamp/TalentMenu")
+ui.camp.zeppelin = require("UiCamp/Zeppelin")
+ui.camp.achievements = require("UiCamp/Achievements")
+ui.camp.trophy_road = require("UiCamp/TrophyRoad")
+ui.camp.stage_info = require("UiCamp/StageInfo")
+ui.camp.talking_head = require("UiMeta/TalkingHead")
+ui.camp.quest_guide = require("UiMeta/Quest/QuestGuide")
+ui.camp.quest_hud = require("UiMeta/Quest/QuestHUD")
+
+-- Zone
+ui.zone = {}
+ui.zone.cost = require("UiZone/ZoneCost")
+
+-- Hybrid
+ui.camp.labels = require("UiCamp/CampButtons")
+ui.camp.warning = require("UiCamp/WaveStart")
+ui.camp.wave_complete = require("UiCamp/WaveComplete")
+ui.camp.wave_fail = require("UiCamp/WaveFail")
+
+-- game
+ui.game = require("UiGame/Game")
+
+-- test
+ui.test = require("UiTest/Test")
+ui.test.gui = require("UiTest/GUI")
+ui.test.configuration = require("UiTest/Configuration")
+ui.test.configuration.hero_select = require("UiTest/HeroSelect")
+
+-- lower
+ui.game.leaderboard = require("UiGame/Leaderboard")
+ui.game.perk_select = require("UiGame/PerkSelect")
+ui.game.super_perk = require("UiGame/SuperPerk")
+
+-- upper
+ui.in_app_offer_popup = require("UiMeta/InAppOffer/InAppOfferPopup")
+ui.unlock_popup = require("UiMeta/Popup/Unlock")
+ui.review_invite_prompt = require("UiMeta/Popup/ReviewInvitePrompt")
+ui.game.pause_menu = require("UiGame/PauseMenu")
+ui.game.exit_run_confirmation = require("UiGame/ExitRunConfirmation")
+ui.game.results = require("UiGame/Results/Results")
+ui.game.game_mode_info = require("UiGame/Tutorial/GameModeInfo")
+ui.game.movement_tutorial = require("UiGame/Tutorial/MovementTutorial")
+ui.game.event_warning = require("UiGame/EventWarning")
+ui.game.experience = require("UiGame/Experience")
+
+-- super
+ui.game.damage_flash = require("UiGame/DamageFlash")
+ui.game.transition_mask = require("UiGame/TransitionMask")
+ui.dev_log = require("UiGame/DevLog")
+
+-- Editor
+ui.editor = require("Editor/Editor")
+
+function AddResultsChest(chest_data, chest_rewards)
+    for _, results_chest_data in ipairs(results_chest_queue) do
+        -- Merge rewards of new chest with any existing rewards from chest of same type
+        if results_chest_data.key == chest_data.key then
+            results_chest_data.rewards = DataManager.MergeChestRewards(chest_rewards, results_chest_data.rewards)
+            return
+        end
+    end
+
+    -- Add new chest if there isn't any of same type already
+    table.insert(results_chest_queue, { key = chest_data.key, rewards = chest_rewards })
+end
+
+function StepGameResultsChests()
+    if #results_chest_queue == 0 then
+        -- For flying non-chest rewards in future if wanted (needs to be setup still)
+        local rewards = {}
+
+        -- Run post game rewards
+        PostGameRewards.Show(rewards)
+
+        -- Hide loading mask as we no longer need it
+        ui.camp.loading_mask:Hide()
+
+        Core.Event.SendSimulationEvent("Continue")
+    else
+        -- Show loading mask to block blue background flash
+        ui.camp.loading_mask:Show()
+
+        -- Pop next chest from queue
+        local next_chest = results_chest_queue[1]
+        table.remove(results_chest_queue, 1)
+
+        -- Open chest page
+        local chest_config = DataManager.GetChestConfig(next_chest.key)
+        ui.camp.chest_page:ShowChestPage(chest_config.rarity, next_chest.rewards, true)
+    end
+end
+
+function Popup(data)
+    local layout = GMUI.Layout.New({
+        name = "WorldUi/Popup",
+        parent = ui.root,
+    })
+
+    local unit = GMUI.GetUnitFromUnitReference(data.unit_reference)
+    layout.state.count = "+" .. tostring(data.amount)
+
+    DCEI.AttachFrameToUnit(layout.Frame, unit, { up = -4 })
+    Animation.PopIn(layout.Frame)
+
+    PresentationTimer.Create(function()
+        Animation.FadeOut(layout.Frame, 0.5)
+    end, 0.5)
+    PresentationTimer.Create(function()
+        layout:Destroy()
+    end, 1)
+end
+
+function ShowOfflineReward(data)
+    local layout = GMUI.Layout.New({
+        name = "Meta/OfflineReward",
+        parent = ui.z2.Lower,
+    })
+
+    layout.state.label = tostring(data)
+
+    DCEI.SetOnClickCallback(layout.close.Button, function()
+        layout:Destroy()
+    end)
+end
+
+local function StartGameResults(data)
+    -- update achievement data
+    if data.achievements then
+        for achievement_name, value in pairs(data.achievements) do
+            DataManager.AddAchievementValue(achievement_name, value)
+        end
+        DataManager.Save()
+    end
+
+    -- Get chests to open
+    local lootTable = StageData[data.stage_level].loot_tables[data.stage_difficulty]
+    local loots = {
+        { key = lootTable["Normal Chest"], value = data["Normal Chest"] or 0 },
+        { key = lootTable["Elite Chest"], value = data["Elite Chest"] or 0 },
+        {
+            key = lootTable["Boss Chest"],
+            value = data.is_victory and (data["Boss Chest"] or 1) or data["Boss Chest"] or 0,
+        },
+    }
+
+    -- Queue rewarded chests
+    local rewards = data.rewards or {}
+    for _, chests in pairs(loots) do
+        if chests.value > 0 then
+            -- Open all of chests of same type at once
+            local chest_rewards = DataManager.OpenAllChests(chests)
+
+            -- Track opened chests to show graphic
+            AddResultsChest(chests, chest_rewards)
+
+            -- Track all chests for results page
+            table.insert(rewards, { key = chests.key, value = chests.value })
+        end
+    end
+
+    PostGameRewards.is_victory = data.is_victory
+
+    ui.game.results:Open(data.is_victory, data.trophy_earned or 0, rewards, data.game_stats or {}, data.achievements)
+end
+
+---@param chest_id string
+local function DebugQueueChest(chest_id)
+    DCEI.LogMessage(string.format("[DebugQueueChest]: trying to open chest_id %s", chest_id))
+    if DataManager.GetChestConfig(chest_id) then
+        local chest_rewards = DataManager.OpenChest(chest_id, true, true)
+        AddResultsChest({ key = chest_id }, chest_rewards)
+    else
+        DCEI.LogWarning(string.format("[DebugQueueChest]: Chest id [%s] doesn't exist", chest_id))
+    end
+end
+
+local function DebugOpenChests()
+    StepGameResultsChests()
+end
+
+Core.Event.RegisterPresentationEvent("StartGameResults", StartGameResults)
+Core.Event.RegisterPresentationEvent("DebugQueueChest", DebugQueueChest)
+Core.Event.RegisterPresentationEvent("DebugOpenChests", DebugOpenChests)
+Core.Event.RegisterPresentationEvent("Popup", Popup)
+Core.Event.RegisterPresentationEvent("ShowOfflineReward", ShowOfflineReward)
+-- INITIALIZATION
+OnUiInitialize()

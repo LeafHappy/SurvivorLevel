@@ -1,0 +1,50 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local PopupManager = require("UiMeta/Popup/PopupManager")
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Popup/ReviewInviteRating",
+})
+
+-- LOCAL FUNCTIONS
+local function OnSelectRating(index)
+    -- call OnPressReviewInviteRating from ReviewInviteManager
+    GMUI.RunSimulationCallback(layout:GetContext(), index)
+
+    -- update UI
+    layout:SetRating(index)
+end
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    PopupManager.ApplyPopupAnimations(self, { popup_frame = self.Popup })
+
+    -- hookup callbacks
+    self.stars = self:GetChildCollection("star")
+    for index, star_layout in ipairs(self.stars) do
+        DCEI.SetOnClickCallback(star_layout.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+            OnSelectRating(index)
+        end)
+    end
+end
+
+function layout:SetRating(select_index)
+    for index, star_layout in ipairs(self.stars) do
+        DCEI.SetButtonFrameEnable(star_layout.Button, false)
+
+        -- turn highlighted starts from gray to default texture color (gold)
+        local can_highlight = index <= select_index
+        if can_highlight then
+            DCEI.SetFrameImageGrayScale(star_layout.Icon, false)
+            DCEI.SetFrameImageColor(star_layout.Icon, "#ffffffff")
+        end
+    end
+end
+
+-- EXPORT
+return layout

@@ -1,0 +1,112 @@
+-- ================================================================================================
+-- SECTION: Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Log = require("Game/Log")
+local Help = require("Help")
+local SaveDataManager = require("Class/SaveDataManager")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- MODULE
+local ReviewInviteManager = {}
+
+-- CONSTANTS
+local FEEDBACK_THANKS = "Thanks for your feedback!"
+local ANDROID_URL = "market://details?id=com.funovus.wild.survivors"
+local MAX_RATING = 5
+
+-- VARIABLES
+local review_rewards = {
+    {
+        key = SAVE_KEY.Gems,
+        type = TRACKED_STATS.Gems,
+        amount = 20,
+    },
+    {
+        key = SAVE_KEY.Gold,
+        type = TRACKED_STATS.Gold,
+        amount = 5,
+    },
+}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function EndReviewInviteFlow()
+    local delay = 0.125
+    DCEI.TriggerAddTimerEventElapsed(function()
+        DCEI.ShowFeedbackMessage(FEEDBACK_THANKS)
+    end, delay, true, true)
+end
+
+local function OnMaxReview()
+    -- Logging
+    Log.Generic.ReviewInviteAccepted()
+
+    -- Request app store review from the relevant store
+    if Help.IsPlayingOnAndroid() then
+        DCEI.OpenUrl(ANDROID_URL)
+    elseif Help.IsPlayingOnIOs() then
+        DCEI.RequestAppStoreReview()
+    end
+
+    -- Grant rewards
+    for _, reward in ipairs(review_rewards) do
+        SaveDataManager.Modify(reward.key, reward.amount)
+    end
+    SaveDataManager.SendPresentationEvents()
+end
+
+---@param rating integer
+local function OnDismissPrompt(rating)
+    -- Check to accept invite
+    if rating == MAX_RATING then
+        OnMaxReview()
+    end
+
+    -- Thank for feedback
+    EndReviewInviteFlow()
+
+    -- Flag review invite as shown
+    SaveDataManager.Set(SAVE_KEY.ReviewInvite, true)
+    SaveDataManager.CommitSaveData()
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: UI Callbacks
+---============================================================================
+
+Core.Event.RegisterSimulationEvent("ReviewInviteManager.OnDismissPrompt", OnDismissPrompt)
+
+---============================================================================
+---!SECTION: UI Callbacks
+---SECTION: Module Methods
+---============================================================================
+
+function ReviewInviteManager.StartReviewInviteFlow()
+    local review_flag = SaveDataManager.GetReference(SAVE_KEY.ReviewInvite)
+    if not review_flag then
+        Core.Event.SendPresentationEvent("ReviewInvitePrompt.Open", review_rewards)
+    end
+end
+
+---============================================================================
+---!SECTION: Module Methods
+---============================================================================
+
+return ReviewInviteManager

@@ -1,0 +1,80 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- MODULE
+local AdsManager = {}
+local _cached_resolve_ads = nil
+
+-- ad-specific counter
+local failed_ad_count = 0
+local shop_section_ad_count = 0
+
+-- FUNCTIONS
+local function ShowAds(resolve_ads)
+    local editor_mode = DCEI.Platform == "WindowsPlayer"
+    if editor_mode then
+        local success = true
+        resolve_ads(success)
+    else
+        _cached_resolve_ads = resolve_ads
+        -- presentation layer doesn't support ads API
+        Core.Event.SendSimulationEvent("ProcessAdsInSimulation")
+    end
+end
+
+function AdsManager.RegisterSimulationWatchAdsResult()
+    Core.Event.RegisterPresentationEvent("SimulationWatchAdsResult", function(success)
+        if _cached_resolve_ads then
+            _cached_resolve_ads(success)
+            _cached_resolve_ads = nil
+        end
+    end)
+end
+
+function AdsManager.ShowShopSectionAds(result_callback)
+    local function ResolveAds(success)
+        if success then
+            -- add a delay here as player may stay on the ads screen for a while
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                shop_section_ad_count = shop_section_ad_count + 1
+                DCEI.LogMessage("> Playing Shop Secion Ad " .. tostring(shop_section_ad_count) .. " Success")
+                result_callback(success)
+            end, 0.25)
+        else
+            failed_ad_count = failed_ad_count + 1
+            DCEI.LogMessage("> Playing Ads Failed " .. tostring(failed_ad_count))
+            DCEI.ShowFeedbackMessage("Check Network Connection")
+            --result_callback(success)
+        end
+    end
+    DCEI.LogMessage("> Playing Shop Section Ads")
+
+    ShowAds(ResolveAds)
+    return true
+end
+
+function AdsManager.ShowDoubleRewardsAds(result_callback)
+    local function ResolveAds(success)
+        if success then
+            -- add a delay here as player may stay on the ads screen for a while
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                shop_section_ad_count = shop_section_ad_count + 1
+                DCEI.LogMessage("> Playing Double Rewards Ad " .. tostring(shop_section_ad_count) .. " Success")
+                result_callback(success)
+            end, 0.25)
+        else
+            failed_ad_count = failed_ad_count + 1
+            DCEI.LogMessage("> Playing Ads Failed " .. tostring(failed_ad_count))
+            DCEI.ShowFeedbackMessage("Check Network Connection")
+            --result_callback(success)
+        end
+    end
+    DCEI.LogMessage("> Playing Double Rewards Ads")
+
+    ShowAds(ResolveAds)
+    return true
+end
+
+-- EXPORT
+return AdsManager

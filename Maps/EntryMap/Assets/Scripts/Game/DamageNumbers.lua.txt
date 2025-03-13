@@ -1,0 +1,308 @@
+local Vector3 = require("Class/Vector3")
+
+local RegisterDamageNumbers = require("Class/Simple/RegisterDamageNumbers")
+local NumberStyleOptions = require("Class/Simple/NumberStyleOptions")
+local TransformAnimationOptions = require("Class/Simple/TransformAnimationOptions")
+local TintColorAnimationOptions = require("Class/Simple/TintColorAnimationOptions")
+
+--[[
+    Impact: White
+    Cold: Light Blue
+    Fire: Red/Orange
+    Shock: Yellow
+    Corrosive: Green
+    Void: Purple
+
+    Hostile: Red/Yellow
+    Heal: Green
+]]
+
+---@class DamageNumberData
+---@field Color Vector3
+---@field InheritedFrom Table
+---@field Duration number
+---@field RandomPositionOffset Vector3
+---@field StartPosition Vector3
+---@field EndPosition Vector3
+---@field StartingScale number
+---@field EndingScale number
+---@field PositionEasing string
+
+local ElementalColors = {
+    -- stylua: ignore start
+    Physical  = Vector3.New(1.00, 1.00, 1.00),
+    Fire      = Vector3.New(0.95, 0.63, 0.06),
+    Cold      = Vector3.New(0.07, 0.70, 0.93),
+    Shock     = Vector3.New(1.00, 1.00, 0.00),
+    Corrosive = Vector3.New(0.09, 0.82, 0.07),
+    Void      = Vector3.New(0.64, 0.22, 0.82),
+    -- stylua: ignore end
+}
+
+local StandardDamage = {
+    Duration = 0.65,
+
+    RandomPositionOffset = Vector3.New(2, 5, -2),
+    StartPosition = Vector3.New(0, 1.00, 0),
+    EndPosition = Vector3.New(0, 2.00, 0),
+
+    StartingScale = 0.75,
+    EndingScale = 0,
+    PositionEasing = "InOutSine",
+}
+
+local CriticalDamage = {
+    Duration = 0.80,
+
+    RandomPositionOffset = Vector3.New(0, 0, 0),
+    StartPosition = Vector3.New(0, 1.5, 0),
+    EndPosition = Vector3.New(0, 3.0, 0),
+
+    StartingScale = 1.2,
+    EndingScale = 0.6,
+    PositionEasing = "InOutSine",
+}
+
+local DamageOverTime = {
+    Duration = 0.50,
+
+    RandomPositionOffset = Vector3.New(1, 0.2, 1),
+    StartPosition = Vector3.New(0, 0, 0),
+    EndPosition = Vector3.New(-0.3, -1, -0.2),
+
+    StartingScale = 0.55,
+    EndingScale = 0,
+    PositionEasing = "InOutSine",
+}
+
+---@table <number, DamageNumberData>
+local DamageNumberData = {
+    [0] = { -- Hostile Damage
+        Color = Vector3.New(1, 0.2, 0.1),
+        Duration = 0.85,
+
+        RandomPositionOffset = Vector3.New(0.4, 0, -0.4),
+        StartPosition = Vector3.New(0, 3.25, 0),
+        EndPosition = Vector3.New(0, 9.25, 0),
+
+        StartingScale = 0.90,
+        EndingScale = 0,
+        PositionEasing = "InCirc",
+    },
+    [1] = { -- Heal
+        Color = Vector3.New(0, 1, 0),
+        Duration = 0.55,
+
+        RandomPositionOffset = Vector3.New(0.4, 0.6, -0.4),
+        StartPosition = Vector3.New(0, 0, 0),
+        EndPosition = Vector3.New(-0.3, 0.2, 0.2),
+
+        StartingScale = 0.85,
+        EndingScale = 0,
+        PositionEasing = "Linear",
+    },
+    [2] = { -- Physical Damage
+        Color = ElementalColors.Physical,
+        InheritedFrom = StandardDamage,
+    },
+    [3] = { -- Physical Critical Damage
+        Color = ElementalColors.Physical,
+        InheritedFrom = CriticalDamage,
+    },
+    [4] = { -- Physical Damage over Time
+        Color = ElementalColors.Physical,
+        InheritedFrom = DamageOverTime,
+    },
+    [5] = { -- Fire Damage
+        Color = ElementalColors.Fire,
+        InheritedFrom = StandardDamage,
+    },
+    [6] = { -- Fire Critical Damage
+        Color = ElementalColors.Fire,
+        InheritedFrom = CriticalDamage,
+    },
+    [7] = { -- Fire Damage over Time
+        Color = ElementalColors.Fire,
+        InheritedFrom = DamageOverTime,
+    },
+    [8] = { -- Cold Damage
+        Color = ElementalColors.Cold,
+        InheritedFrom = StandardDamage,
+    },
+    [9] = { -- Cold Critical Damage
+        Color = ElementalColors.Cold,
+        InheritedFrom = CriticalDamage,
+    },
+    [10] = { -- Cold Damage over Time
+        Color = ElementalColors.Cold,
+        InheritedFrom = DamageOverTime,
+    },
+    [11] = { -- Shock Damage
+        Color = ElementalColors.Shock,
+        InheritedFrom = StandardDamage,
+    },
+    [12] = { -- Shock Critical Damage
+        Color = ElementalColors.Shock,
+        InheritedFrom = CriticalDamage,
+    },
+    [13] = { -- Shock Damage over Time
+        Color = ElementalColors.Shock,
+        InheritedFrom = DamageOverTime,
+    },
+    [14] = { -- Corrosive Damage
+        Color = ElementalColors.Corrosive,
+        InheritedFrom = StandardDamage,
+    },
+    [15] = { -- Corrosive Critical Damage
+        Color = ElementalColors.Corrosive,
+        InheritedFrom = CriticalDamage,
+    },
+    [16] = { -- Corrosive Damage over Time
+        Color = ElementalColors.Corrosive,
+        InheritedFrom = DamageOverTime,
+    },
+    [17] = { -- Void Damage
+        Color = ElementalColors.Void,
+        InheritedFrom = StandardDamage,
+    },
+    [18] = { -- Void Critical Damage
+        Color = ElementalColors.Void,
+        InheritedFrom = CriticalDamage,
+    },
+    [19] = { -- Void Damage over Time
+        Color = ElementalColors.Void,
+        InheritedFrom = DamageOverTime,
+    },
+}
+
+---@enum DamageNumberStyles
+DamageNumberStyles = {
+    Hostile = 0,
+    Heal = 1,
+    Physical = 2,
+    PhysicalCritical = 3,
+    PhysicalDamageOverTime = 4,
+    Fire = 5,
+    FireCritical = 6,
+    FireDamageOverTime = 7,
+    Cold = 8,
+    ColdCritical = 9,
+    ColdDamageOverTime = 10,
+    Shock = 11,
+    ShockCritical = 12,
+    ShockDamageOverTime = 13,
+    Corrosive = 14,
+    CorrosiveCritical = 15,
+    CorrosiveDamageOverTime = 16,
+    Void = 17,
+    VoidCritical = 18,
+    VoidDamageOverTime = 19,
+}
+
+local is_default_registered = false
+
+local function GenerateDamageNumberInstanceWithInheritance(color, data)
+    local number_style = NumberStyleOptions.New()
+    number_style:SetFontType(FONT_STYLE.WildSurvivor)
+    number_style:SetSpacing(Vector3.New(0.4, 0, 0))
+    number_style:SetDuration(data.Duration)
+
+    local transform_animation = TransformAnimationOptions.New()
+    transform_animation:AddStartSeconds(0)
+    transform_animation:AddEndSeconds(data.Duration)
+    transform_animation:AddRandomPositionOffset(data.RandomPositionOffset)
+    transform_animation:AddStartPosition(data.StartPosition)
+    transform_animation:AddEndPosition(data.EndPosition)
+    transform_animation:AddStartScale(Vector3.One() * data.StartingScale)
+    transform_animation:AddEndScale(Vector3.One() * data.EndingScale)
+    transform_animation:AddEase(data.PositionEasing)
+
+    local tint_color_animation = TintColorAnimationOptions.New()
+    tint_color_animation:AddStartSeconds(0)
+    tint_color_animation:AddEndSeconds(data.Duration)
+    tint_color_animation:AddStartAlpha(1)
+    tint_color_animation:AddEndAlpha(0)
+    tint_color_animation:AddStartTintColor(color)
+    tint_color_animation:AddEndTintColor(color)
+    tint_color_animation:AddEase("InCirc")
+
+    local register_as_default = not is_default_registered
+    if register_as_default then
+        is_default_registered = true
+    end
+
+    RegisterDamageNumbers.New(register_as_default, number_style, transform_animation, tint_color_animation)
+end
+
+---comment
+---@param data DamageNumberData
+local function GenerateDamageNumberInstance(data)
+    if data.InheritedFrom then
+        GenerateDamageNumberInstanceWithInheritance(data.Color, data.InheritedFrom)
+        return
+    end
+
+    local number_style = NumberStyleOptions.New()
+    number_style:SetFontType(FONT_STYLE.WildSurvivor)
+    number_style:SetSpacing(Vector3.New(0.4, 0, 0))
+    number_style:SetDuration(data.Duration)
+
+    local transform_animation = TransformAnimationOptions.New()
+    transform_animation:AddStartSeconds(0)
+    transform_animation:AddEndSeconds(data.Duration)
+    transform_animation:AddRandomPositionOffset(data.RandomPositionOffset)
+    transform_animation:AddStartPosition(data.StartPosition)
+    transform_animation:AddEndPosition(data.EndPosition)
+    transform_animation:AddStartScale(Vector3.One() * data.StartingScale)
+    transform_animation:AddEndScale(Vector3.One() * data.EndingScale)
+    transform_animation:AddEase(data.PositionEasing)
+
+    local tint_color_animation = TintColorAnimationOptions.New()
+    tint_color_animation:AddStartSeconds(0)
+    tint_color_animation:AddEndSeconds(data.Duration)
+    tint_color_animation:AddStartAlpha(1)
+    tint_color_animation:AddEndAlpha(0)
+    tint_color_animation:AddStartTintColor(data.Color)
+    tint_color_animation:AddEndTintColor(data.Color)
+    tint_color_animation:AddEase("InCirc")
+
+    local register_as_default = not is_default_registered
+    if register_as_default then
+        is_default_registered = true
+    end
+
+    RegisterDamageNumbers.New(register_as_default, number_style, transform_animation, tint_color_animation)
+end
+
+local DamageNumbers = {}
+
+function DamageNumbers.Initialize()
+    for i = 0, #DamageNumberData do
+        GenerateDamageNumberInstance(DamageNumberData[i])
+    end
+end
+
+function DamageNumbers.HideDamageNumbers()
+    local number_style = NumberStyleOptions.New()
+    number_style:SetDuration(0.01)
+
+    local ts1 = TransformAnimationOptions.New()
+    ts1:AddStartScale(Vector3.One() * 0.01)
+    ts1:AddEndScale(Vector3.One() * 0.01)
+
+    local transform_sequence = {
+        ts1,
+    }
+
+    local cs1 = TintColorAnimationOptions.New()
+    cs1:AddStartAlpha(0)
+    cs1:AddEndAlpha(0)
+
+    local color_sequence = {
+        cs1,
+    }
+
+    RegisterDamageNumbers.New(true, number_style, transform_sequence, color_sequence)
+end
+
+return DamageNumbers

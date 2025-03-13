@@ -1,0 +1,226 @@
+-- LIBRARIES
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local Colors = require("Data/Colors")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+-- MODULE
+local UiHelper = {}
+
+-- DEFAULT VALUES
+local TRANSITION_FADE_TIME = 2
+
+-- MODULE FUNCTIONS
+
+---Shows a Feedback Message.
+---@param text string
+function UiHelper.ShowFeedbackMessage(text)
+    DCEI.ShowFeedbackMessage("<size=200%>" .. text)
+end
+
+---Shows "Clear the Wave!" Feedback Message.
+function UiHelper.PlayWaveClearMessage()
+    local text = "Clear the Wave!"
+    UiHelper.ShowFeedbackMessage(text)
+end
+
+---Shows "Wave Complete!" Feedback Message.
+function UiHelper.PlayWaveCompleteMessage()
+    local text = "Wave Complete!"
+    UiHelper.ShowFeedbackMessage(text)
+end
+
+---Shows/Hides the Game UI
+---@param status boolean | nil
+function UiHelper.SetGameUIActive(status)
+    GMUI.SendUiLayoutCommand("ui.game", status and "Show" or "Hide")
+end
+
+function UiHelper.SetPauseButtonActive(status)
+    GMUI.SendUiLayoutCommand("ui.game", "SetPauseButtonEnabled", status)
+end
+
+---Mask Fade In
+---@param fade_time number | nil
+---@return number fade_time
+function UiHelper.FadeIn(fade_time)
+    fade_time = fade_time or TRANSITION_FADE_TIME
+    GMUI.SendUiLayoutCommand("ui.game.transition_mask", "FadeIn", fade_time)
+    return fade_time
+end
+
+---Mask Fade Out
+---@param fade_time number | nil
+---@return number fade_time
+function UiHelper.FadeOut(fade_time)
+    fade_time = fade_time or TRANSITION_FADE_TIME
+    GMUI.SendUiLayoutCommand("ui.game.transition_mask", "FadeOut", fade_time)
+    return fade_time
+end
+
+---Set the Game Timer to the provided value.
+---@param time number
+function UiHelper.SetGameTime(time)
+    GMUI.SendUiLayoutCommand("ui.game", "SetTime", time)
+end
+
+---Turn on/off the Stage Timer.
+---@param status boolean
+---@param time number | nil
+function UiHelper.SetGameTimerActive(status, time)
+    GMUI.SendUiLayoutCommand("ui.game", "SetTimeActive", status)
+
+    if status and time then
+        UiHelper.SetGameTime(time)
+    end
+end
+
+---ANCHOR: Experience
+function UiHelper.LevelAnimation()
+    Core.Event.SendPresentationEvent("ui.game.experience.play_level_animation")
+end
+
+---Set the Level Display.
+---@param level integer | any
+function UiHelper.SetLevel(level)
+    Core.Event.SendPresentationEvent("ui.game.experience.set_level", { level = level })
+end
+
+---Set the Experience Bar Fill Amount
+---@param fill_amount number | any
+function UiHelper.SetXpFillAmount(fill_amount)
+    Core.Event.SendPresentationEvent("ui.game.experience.set_fill_amount", { fill_amount = fill_amount })
+end
+
+function UiHelper.HideObjectives()
+    GMUI.SendUiLayoutCommand("ui.game", "HideObjectives")
+end
+
+-- Update this to have standard colors based on context.
+-- Such as Strike-through, color, etc.
+function UiHelper.ModifyObjectives(key, information, color)
+    color = color or Colors.ToString(Colors.Hex.Yellow)
+    -- Help.Log("Color", color)
+
+    GMUI.SendUiLayoutCommand("ui.game", "ModifyObjectives", { key = key, information = information, color = color })
+end
+
+function UiHelper.ClearObjectives()
+    GMUI.SendUiLayoutCommand("ui.game", "ClearObjectives")
+end
+
+---Set the Objective Text.
+---@param text string
+function UiHelper.SetMainObjectiveText(text)
+    GMUI.SendUiLayoutCommand("ui.game", "SetStageInfo", text)
+end
+
+function UiHelper.SetBossDisplayActive(flag)
+    local status = "Hide"
+    if flag then
+        status = "Show"
+    end
+
+    GMUI.SendUiLayoutCommand("ui.game.boss", status)
+end
+
+---comment
+---@param text string
+---@param duration number
+---@param icon string | nil
+function UiHelper.EventWarning(text, duration, icon)
+    local data = {
+        text = text,
+        duration = duration,
+        icon = icon,
+    }
+
+    Core.Event.SendPresentationEvent("ui.game.event_warning", data)
+end
+
+---Creates text to display at the bottom left of the screen.
+---@param key any
+---@param label any
+function UiHelper.SetDeveloperText(key, label)
+    if _Dev and _Dev.Extra and _Dev.Extra.hide_dev_text then
+        return
+    end
+
+    local data = {
+        key = key,
+        value = label,
+    }
+
+    GMUI.SendUiLayoutCommand("ui.dev_log", "Log", data)
+end
+
+---Show/Hide the Try Buttons
+---@param status boolean | nil
+function UiHelper.SetTryButtonsActive(status)
+    local _status = status and "Show" or "Hide"
+
+    GMUI.SendUiLayoutCommand("ui.game", "SetTryButtonsActive", status)
+end
+
+---Clear Developer Text.
+function UiHelper.ResetDeveloperText()
+    GMUI.SendUiLayoutCommand("ui.dev_log", "Reset")
+end
+
+function UiHelper.ShowGameModeInfo(data, callback)
+    GMUI.SendUiLayoutCommand("ui.game.game_mode_info", "Show")
+    GMUI.SendUiLayoutCommand("ui.game.game_mode_info", "ShowGameModeInfo", data, callback)
+
+    -- Core.Event.SendPresentationEvent("ui.game.game_mode_info", data)
+end
+
+---============================================================================
+---SECTION: Table
+---============================================================================
+
+---Returns `true` if the table contains the given value.
+---
+---##### Example Usage
+---```lua
+---local equipment = { "sword", "shield", "helmet" }
+---
+---local has_shield = Core.Table.Contains(equipment, "shield")
+----- returns true
+---```
+---@param table_arg table
+---@param value any
+---@return boolean
+function Help.TableContains(table_arg, value)
+    -- was TableContains
+    if table_arg == nil or value == nil then
+        return
+    end
+
+    for key, tableValue in pairs(table_arg) do
+        if tableValue == value then
+            return true
+        end
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Table
+---SECTION: Test Mode
+---============================================================================
+
+-- function UiHelper.SetTestActive(status)
+--     GMUI.SendUiLayoutCommand("ui.test", "Show", status)
+-- end
+
+---============================================================================
+---!SECTION: Test Mode
+---============================================================================
+
+-- EXPORT
+return UiHelper

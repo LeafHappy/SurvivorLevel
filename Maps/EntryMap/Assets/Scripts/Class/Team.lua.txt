@@ -1,0 +1,30 @@
+-- local _teams = {}
+
+---@class Team
+---@field id integer
+local Team = {}
+Team.__index = Team
+
+function Team.New(id)
+    local self = setmetatable({}, Team)
+    self.id = id
+    -- _teams[self.id] = self
+
+    self.players = {}
+
+    return self
+end
+
+---Adds the Player to the Team.
+---@param player Player
+function Team:Add(player)
+    self.players[player.id] = player
+end
+
+---Get all Players on this Team
+---@return table<Player>
+function Team:GetPlayers()
+    return self.players
+end
+
+return Team

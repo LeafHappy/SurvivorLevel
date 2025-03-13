@@ -1,0 +1,80 @@
+-- Tick class
+---@class TickRate
+---@field tick integer The current tick.
+---@field tick_interval number The delta time between each tick.
+---@field functions table<integer, function[]> Table of functions to call based on tick.
+local TickRate = {}
+TickRate.__index = TickRate
+
+local TICK_RATE = 0.03125
+
+-- Loops every 10 Minutes
+-- Ideally, this would be calculated based on the highest interval (GCD of all intervals)
+local TICK_LOOP = 600 / TICK_RATE
+
+-- Constructor
+---@return TickRate
+function TickRate.New(tick_interval)
+    tick_interval = tick_interval or TICK_RATE
+
+    local self = setmetatable({}, TickRate)
+    self.tick_interval = tick_interval
+    self.tick = 0
+    self.functions = {}
+
+    DCEI.TriggerAddTimerEventPeriodicIndefinite(function()
+        self:Update()
+    end, TICK_RATE, false, true)
+    return self
+end
+
+-- Subscribe a function to a tick interval
+---@param interval integer
+---@param func function
+function TickRate:Subscribe(interval, func)
+    if not self.functions[interval] then
+        self.functions[interval] = {}
+    end
+    table.insert(self.functions[interval], func)
+end
+
+-- Unsubscribe a function from a tick interval
+---@param interval integer
+---@param func function
+function TickRate:Unsubscribe(interval, func)
+    local funcs = self.functions[interval]
+    if funcs then
+        for i = #funcs, 1, -1 do
+            if funcs[i] == func then
+                table.remove(funcs, i)
+                break
+            end
+        end
+    end
+end
+
+-- Update tick
+function TickRate:Update()
+    self.tick = self.tick + 1
+    for interval, funcs in pairs(self.functions) do
+        if self.tick % interval == 0 then
+            for _, func in ipairs(funcs) do
+                func(interval * self.tick_interval)
+            end
+        end
+    end
+
+    -- Reset Tick
+    if self.tick >= TICK_LOOP then
+        self.tick = 0
+    end
+end
+
+-- Reset Tick to Zero
+---@param tick number | nil
+function TickRate:ResetTick(tick)
+    tick = tick or 0
+    self.tick = tick
+end
+
+return TickRate

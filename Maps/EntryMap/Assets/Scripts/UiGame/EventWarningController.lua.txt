@@ -1,0 +1,118 @@
+-- LOCAL FUNCTIONS
+local function InitializeController(ui)
+    local controller = {}
+    local refs = DCEI.GetChildrenFramesIdAndFrameType(ui)
+    for _, ref in ipairs(refs) do
+        local id = ref.id
+        controller[id] = DCEI.GetChildFrameById(ui, id)
+    end
+    return controller
+end
+
+-- CONTROLLER
+return function(ui)
+    local controller = InitializeController(ui)
+    controller.TimerFunc = DCEI.TriggerAddTimerEventElapsed
+
+    function controller:SetTimerFunc(TimerFunc)
+        self.TimerFunc = TimerFunc
+    end
+
+    function controller:AnimateIn()
+        -- reset frame alpha
+        DCEI.SetFrameAlpha(self.Popup, 1)
+
+        -- scale in text
+        local k1 = { x = 0, y = 0, z = 0 }
+        local k2 = { x = 1, y = 1, z = 1 }
+        local duration = 0.35
+        local ease = "OutBack"
+        DCEI.AnimateFrameScale(self.Label, k1, k2, duration, ease)
+
+        -- hide icon and bars so we can fade them in
+        DCEI.SetFrameAlpha(self.BackgroundContainer, 0)
+        DCEI.SetFrameAlpha(self.Icon, 0)
+
+        local delay = 0.1
+        self.TimerFunc(function()
+            -- fade in scrolling red bars & background
+            local k1, k2 = 0, 1
+            local duration = 0.25
+            local ease = "Linear"
+            DCEI.AnimateFrameAlpha(self.BackgroundContainer, k1, k2, duration, ease)
+
+            -- scale + fade in warning icon
+            local k1 = { x = 1.75, y = 1.75, z = 1.75 }
+            local k2 = { x = 1, y = 1, z = 1 }
+            local duration = 0.25
+            local ease = "OutSine"
+            DCEI.AnimateFrameScale(self.Icon, k1, k2, duration, ease)
+
+            local k1, k2 = 0, 1
+            local duration = 0.25
+            local ease = "Linear"
+            DCEI.AnimateFrameAlpha(self.Icon, k1, k2, duration, ease)
+        end, delay, true, true)
+    end
+
+    function controller:StartLoopingAnimation()
+        -- start scrolling red bars
+        local k1, k2 = -400, 400 - 50
+        local duration = 5
+        local ease = "Linear"
+
+        self.scroll_anim = DCEI.AnimateFrameHorizontalOffset(self.BarsContainer, k1, k2, duration, ease)
+        DCEI.SetFrameAnimationLoops(self.scroll_anim, -1, "Restart")
+
+        local k1, k2 = 0.3, 0.9
+        local duration = 0.8
+        local ease = "InOutSine"
+
+        self.pulse_anim_1 = DCEI.AnimateFrameAlpha(self.Bar_1, k1, k2, duration, ease)
+        self.pulse_anim_2 = DCEI.AnimateFrameAlpha(self.Bar_2, k1, k2, duration, ease)
+        DCEI.SetFrameAnimationLoops(self.pulse_anim_1, -1, "Yoyo")
+        DCEI.SetFrameAnimationLoops(self.pulse_anim_2, -1, "Yoyo")
+    end
+
+    function controller:AnimateOut()
+        -- scale out icon
+        local k1 = { x = 1, y = 1, z = 1 }
+        local k2 = { x = 1.75, y = 1.75, z = 1.75 }
+        local duration = 0.2
+        local ease = "OutSine"
+        DCEI.AnimateFrameScale(self.Icon, k1, k2, duration, ease)
+
+        -- fade out everything
+        local k1, k2 = 1, 0
+        local duration = 0.2
+        local ease = "Linear"
+        DCEI.AnimateFrameAlpha(self.Popup, k1, k2, duration, ease)
+
+        -- clear any looping animations
+        self.TimerFunc(function()
+            DCEI.StopFrameAnimation(self.scroll_anim)
+            DCEI.StopFrameAnimation(self.pulse_anim_1)
+            DCEI.StopFrameAnimation(self.pulse_anim_2)
+        end, duration, true, true)
+    end
+
+    -- play full animation sequence
+    function controller:PlayAnimation(duration)
+        self:AnimateIn()
+        self:StartLoopingAnimation()
+        self.TimerFunc(function()
+            self:AnimateOut()
+        end, duration, true, true)
+    end
+
+    -- Hookup testing button
+    if controller.Test then
+        DCEI.SetOnClickCallback(controller.Test, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+            local duration = 3.25
+            controller:PlayAnimation(duration)
+        end)
+    end
+
+    return controller
+end

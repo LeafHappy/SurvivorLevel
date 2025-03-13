@@ -1,0 +1,516 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local HostilePatternData = require("Data/Events/HostilePatternData")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local Elites = require("Game/AI/Elites")
+
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+local CollisionEffect = require("SharedData/Class/CollisionEffect")
+local HostilePatternData = require("Data/Events/HostilePatternData")
+
+-- local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local REF = {}
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Data Initialization
+---============================================================================
+
+---@class EventSpawnData : EventData
+---@field Hostile HostileData
+---@field Pattern HostilePatternData
+---@field Modifiers table<Modifier>
+---@field SimpleDropTable table<SimpleDropTableData>
+
+---@type table<EventSpawnData>
+local Data = {}
+
+---============================================================================
+---!SECTION: Data Initialization
+---SECTION: Standard Spawn Events
+---============================================================================
+
+-- =======================================================================================
+-- ANCHOR: Time and Rarity Based Spawns
+-- =======================================================================================
+
+Data.StandardRunners_Common = {
+    Hostile = HostileData.Runner,
+    Pattern = {
+        HostilePatternData.DirectionalNorthEast,
+        HostilePatternData.DirectionalNorthWest,
+        HostilePatternData.DirectionalSouthEast,
+        HostilePatternData.DirectionalSouthWest,
+    },
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 7, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 5, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.StandardRunners_Uncommon = {
+    Hostile = HostileData.Runner,
+    Pattern = {
+        HostilePatternData.DirectionalNorthEast,
+        HostilePatternData.DirectionalNorthWest,
+        HostilePatternData.DirectionalSouthEast,
+        HostilePatternData.DirectionalSouthWest,
+    },
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 14, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 5, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.StandardRunners_Rare = {
+    Hostile = HostileData.Runner,
+    Pattern = {
+        HostilePatternData.DirectionalNorthEast,
+        HostilePatternData.DirectionalNorthWest,
+        HostilePatternData.DirectionalSouthEast,
+        HostilePatternData.DirectionalSouthWest,
+    },
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 28, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 5, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.StandardWalkers_Common = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 3, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.StandardWalkers_Uncommon = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 6, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+        SimpleDropTableData.SmallChanceForMediumExperience,
+    },
+}
+
+Data.StandardWalkers_Rare = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 12, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallChanceForMediumExperience,
+        SimpleDropTableData.SmallChanceForMediumExperience,
+    },
+}
+
+Data.StandardMarauders_Common = {
+    Hostile = HostileData.Marauder,
+    Pattern = HostilePatternData.RandomAround,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 3, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.GuaranteedSmallExperience,
+        SimpleDropTableData.SmallExperienceChance,
+        SimpleDropTableData.SmallChanceForMediumExperience,
+    },
+}
+
+Data.StandardMarauders_Uncommon = {
+    Hostile = HostileData.Marauder,
+    Pattern = HostilePatternData.RandomAround,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 6, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.GuaranteedSmallExperience,
+        SimpleDropTableData.SmallChanceForMediumExperience,
+        SimpleDropTableData.MediumExperienceChance,
+    },
+}
+
+Data.StandardMarauders_Rare = {
+    Hostile = HostileData.Marauder,
+    Pattern = HostilePatternData.RandomAround,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 9, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallChanceForMediumExperience,
+        SimpleDropTableData.MediumExperienceChance,
+        SimpleDropTableData.MediumExperienceChance,
+    },
+}
+
+-- =======================================================================================
+-- ANCHOR: One-Off Spawns
+-- =======================================================================================
+
+Data.RandomWalker = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.HeatmapBalancing,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.WalkerSurge = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.RandomAround,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 10, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.RandomBanshee = {
+    Hostile = HostileData.Banshee,
+    Pattern = HostilePatternData.HeatmapBalancing,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.BansheeSurge = {
+    Hostile = HostileData.Banshee,
+    Pattern = HostilePatternData.StandardBansheeStream,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 10, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+-- =======================================================================================
+-- ANCHOR: Standard Old Spawns
+-- =======================================================================================
+
+Data.StandardWalkers = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 5, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.TravelBasedWalkers = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.RandomAround,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 3, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+        SimpleDropTableData.SmallExperienceChance,
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.TravelBasedRunners = {
+    Hostile = HostileData.Runner,
+    Pattern = HostilePatternData.StandardRunnerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 100, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 5, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.TravelBasedBanshees = {
+    Hostile = HostileData.Banshee,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 20, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 3, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.LowSmallExperienceChance,
+    },
+}
+
+Data.StandardBansheeRush = {
+    Hostile = HostileData.Banshee,
+    Pattern = {
+        HostilePatternData.BansheeDeathSwarm_1,
+        HostilePatternData.BansheeDeathSwarm_2,
+    },
+    Modifiers = {
+        Modifier.New(STAT.SequenceCount, 50, SCALING.Scaled),
+        Modifier.New(STAT.SequenceFrequency, 0.40, SCALING.Scaled),
+
+        Modifier.New(STAT.Count, 3, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 3, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.LowSmallExperienceChance,
+    },
+    WarningSettings = {
+        Message = "Banshee Rush!",
+        Duration = 5,
+    },
+}
+
+Data.RunnerSwarmSequence = {
+    Hostile = HostileData.Runner,
+    Pattern = HostilePatternData.DeathSwarmSequence,
+    Modifiers = {
+        Modifier.New(STAT.SequenceCount, 50, SCALING.Scaled),
+        Modifier.New(STAT.SequenceFrequency, 0.40, SCALING.Scaled),
+
+        Modifier.New(STAT.Thorns, 0.50, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 1, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.LowSmallExperienceChance,
+    },
+    WarningSettings = {
+        Message = "Death Swarm Incoming!",
+        Duration = 5,
+    },
+}
+
+Data.StandardMarauders = {
+    Hostile = HostileData.Marauder,
+    Pattern = HostilePatternData.RandomAround,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 3, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.GuaranteedSmallExperience,
+        SimpleDropTableData.SmallExperienceChance,
+        SimpleDropTableData.SmallChanceForMediumExperience,
+    },
+}
+
+---============================================================================
+---!SECTION: Standard Spawn Events
+---SECTION: Specific Spawn Events
+---============================================================================
+
+-- Spawns 3 Walkers next to each other.
+-- Drops Small Experience
+-- Data.RandomWalker = {
+--     Hostile = HostileData.Walker,
+--     Pattern = HostilePatternData.StandardWalkerPack,
+--     Modifiers = {
+--         Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+--         Modifier.New(STAT.Count, 1, SCALING.Scaled),
+--         Modifier.New(STAT.Frequency, 1, SCALING.Scaled), -- The Rate at which the Hostile is spawned (per Tick : 0.0625s)
+--     },
+--     SimpleDropTable = {
+--         SimpleDropTableData.SmallExperienceChance,
+--     },
+-- }
+
+-- Spawns 3 Walkers next to each other.
+-- Drops Small Experience
+Data.WalkerPack_v1 = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 3, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled), -- The Rate at which the Hostile is spawned (per Tick : 0.0625s)
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+--- Spawns 5 Walkers next to each other.
+--- Drops Medium Experience
+Data.WalkerPack_v2 = {
+    Hostile = HostileData.Walker,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 5, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled), -- The Rate at which the Hostile is spawned (per Tick : 0.0625s)
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.MediumExperienceChance,
+    },
+}
+
+-- Spawns 30 Runners from the North.
+Data.RunnerStream = {
+    Hostile = HostileData.Runner,
+    Pattern = HostilePatternData.StandardRunnerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 30, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 5, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+}
+
+Data.MarauderPack_v1 = {
+    Hostile = HostileData.Marauder,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 3, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmoothExperience,
+    },
+}
+
+Data.MarauderPack_v2 = {
+    Hostile = HostileData.Marauder,
+    Pattern = HostilePatternData.StandardWalkerPack,
+    Modifiers = {
+        Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 6, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmoothExperience,
+    },
+}
+
+-- Spawns 60 Marauders in a circle around the player.
+Data.MarauderEnclosure = {
+    Hostile = HostileData.Marauder,
+    Pattern = HostilePatternData.StandardEnclosure,
+    Modifiers = {
+        Modifier.New(STAT.Health, 5.00, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 60, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.GuaranteedSmallExperience,
+        SimpleDropTableData.SmallChanceForMediumExperience,
+    },
+    WarningSettings = {
+        Message = "Enclosure Alert!",
+        Duration = 5,
+    },
+}
+
+-- Spawns 1200 around the player.
+Data.DeathSwarm = {
+    Hostile = HostileData.Runner,
+    Pattern = HostilePatternData.DeathSwarm,
+    Modifiers = {
+        Modifier.New(STAT.Thorns, 0.50, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 1200, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 20, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.SmallExperienceChance,
+    },
+    WarningSettings = {
+        Message = "Death Swarm Incoming!",
+        Duration = 5,
+    },
+}
+
+Data.RunnerSwarmSequence = {
+    Hostile = HostileData.Runner,
+    Pattern = HostilePatternData.DeathSwarmSequence,
+    Modifiers = {
+        Modifier.New(STAT.SequenceCount, 50, SCALING.Scaled),
+        Modifier.New(STAT.SequenceFrequency, 0.40, SCALING.Scaled),
+
+        Modifier.New(STAT.Thorns, 0.50, SCALING.Multiplier),
+        Modifier.New(STAT.Count, 1, SCALING.Scaled),
+        Modifier.New(STAT.Frequency, 1, SCALING.Scaled),
+    },
+    SimpleDropTable = {
+        SimpleDropTableData.LowSmallExperienceChance,
+    },
+    WarningSettings = {
+        Message = "Death Swarm Incoming!",
+        Duration = 5,
+    },
+}
+
+---============================================================================
+---!SECTION: Data
+---============================================================================
+
+return Data

@@ -1,0 +1,370 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.Strafe = {
+    Key = "Strafe",
+
+    -- UI Information
+    DisplayName = "Strafe",
+    ShortDescription = "Release a projectile that can hit up to 3 enemies.",
+    Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Strafe,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Strafe"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 0.75, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                Modifier.New(STAT.Spread, 5, SCALING.Scaled, { SKILL_TAG.Strafe }),
+
+                -- Projectile
+                Modifier.New(STAT.SkillRange, 8.00, SCALING.Scaled, { SKILL_TAG.Strafe }), -- Travel Distance
+                Modifier.New(STAT.SkillSize, 0.65, SCALING.Scaled, { SKILL_TAG.Strafe }), -- Projectile Size
+                Modifier.New(STAT.ProjectileSpeed, 22, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.Strafe }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                -- Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                -- Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                Modifier.New(STAT.Stagger, 7, SCALING.Scaled, { SKILL_TAG.Strafe }),
+
+                -- Modifier.New(STAT.PierceDamage, -0.30, SCALING.Scaled, { SKILL_TAG.Strafe }),
+
+                -- Reset
+                Modifier.New(STAT.TargetCount, 1, SCALING.Scaled, { SKILL_TAG.Strafe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.Strafe] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.Strafe,
+
+            -- Exposed Tags
+            SKILL_TAG.Physical,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.Quickfire = {
+    Key = "Quickfire",
+
+    -- UI Information
+    DisplayName = "Quickfire",
+    ShortDescription = "Increase Attack Speed.",
+    Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_demonhunter_skill_blazingphantom"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Global,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Strafe,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 0.10, SCALING.Scaled),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Slipstream = {
+    Key = "Slipstream",
+
+    -- UI Information
+    DisplayName = "Slipstream",
+    ShortDescription = "Increase Projectile Speed.",
+    Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_foxoutlaw_skill_callofthewild"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Global,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Strafe,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Modifier.New(STAT.Damage, 0.20, SCALING.Additive, { SKILL_TAG.Physical }),
+                Modifier.New(STAT.ProjectileSpeed, 0.10, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+--TODO: Replace Uniques with:
+-- - Spectral Arrow: Every 3rd Attack is a Special Arrow.
+-- - QuickDraw: Multicast Chance (30%)
+
+Data.Trickshot = {
+    Key = "Trickshot",
+
+    -- UI Information
+    DisplayName = "Trickshot",
+    ShortDescription = "Shoot another arrow.",
+    Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Strafe,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Strafe,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                Modifier.New(STAT.Spread, 5, SCALING.Scaled, { SKILL_TAG.Strafe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Sideshow = {
+    Key = "Sideshow",
+
+    -- UI Information
+    DisplayName = "Sideshow",
+    ShortDescription = "Shoot another arrow.",
+    Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Strafe,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Strafe,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                Modifier.New(STAT.Spread, 5, SCALING.Scaled, { SKILL_TAG.Strafe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Data.QuickDraw = {
+--     Key = "QuickDraw",
+
+--     -- UI Information
+--     DisplayName = "Quick Draw",
+--     ShortDescription = "Every 3 seconds, Strafe has no Cooldown.",
+--     Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+
+--     -- Skill Information
+--     MaxLevel = 1,
+--     Type = SKILL_TYPE.Unique,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.Strafe,
+--     },
+--     Requirements = {
+--         {
+--             Tag = SKILL_TAG.Strafe,
+--         },
+--         -- { -- Agility has reached Level 3
+--         --     SkillLevel = Data.HighVelocity.Key,
+--         --     Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+--         --     Level = 3,
+--         -- },
+--     },
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {},
+--             Behaviors = {
+--                 Behavior.New(DCEI.Behavior("Skill - Strafe - Learned - Quick Draw"), 1, APPLICATION_TYPE.Set),
+--             },
+--             Modifiers = {
+--                 Modifier.New(STAT.Damage, 0.30, SCALING.Additive, { SKILL_TAG.Strafe }),
+--                 Modifier.New(STAT.Cooldown, 3, SCALING.Scaled, { SKILL_TAG.Strafe }),
+--             },
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {},
+--     RemoveStatInheritance = {},
+-- }
+
+-- Whenever you move 5 distance, Shoot a Mystic Arrow
+-- Mystic Arrow deals damage and projectile speed are increased by Move Speed.
+Data.SpectralArrow = {
+    Key = "SpectralArrow",
+
+    -- UI Information
+    DisplayName = "Spectral Arrow",
+    ShortDescription = "Release a powerful arrow that pierces all targets with full damage after traveling a given distance.",
+    Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Strafe,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Strafe,
+        },
+        -- { -- Agility has reached Level 3
+        --     SkillLevel = Data.Agility.Key,
+        --     Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+        --     Level = 3,
+        -- },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.RequiredTravelDistance, 6, SCALING.Scaled, { SKILL_TAG.Strafe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.Strafe] = { -- Grants Strafe the Travel Tag
+            SKILL_TAG.Travel,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+return Data

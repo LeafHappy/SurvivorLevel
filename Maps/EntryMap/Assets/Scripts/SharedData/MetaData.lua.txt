@@ -1,0 +1,68 @@
+local Json = require("json")
+-- local Core = require("Core")
+
+-- local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+local MetaData = {}
+local _cache = {}
+
+---Called once at the start of the game.
+function MetaData.Load()
+    if _Dev and _Dev.Extra.reset_save_data_on_startup then
+        -- DCEI.Save.Set("meta_data", Json.encode({}))
+        -- DCEI.Save.Commit()
+        _cache = {}
+        return
+    end
+
+    local data = DCEI.Save.Get("meta_data")
+
+    if not data then
+        _cache = {}
+        MetaData.Save()
+    else
+        _cache = Json.decode(data)
+    end
+end
+
+---Saves the currently cached Meta Data.
+function MetaData.Save()
+    -- DCEI.Save.Set("meta_data", Json.encode(_cache))
+    -- DCEI.Save.Commit()
+end
+
+---Returns the cached Meta Data.
+---@param key META_DATA
+---@return integer
+function MetaData.Get(key)
+    local r = _cache[key]
+
+    if not r then
+        return 0
+    end
+
+    return r
+end
+
+---Modifies the cached Meta Data.
+---@param key META_DATA
+---@param value integer
+function MetaData.Modify(key, value)
+    local previous_value = MetaData.Get(key)
+
+    _cache[key] = value
+
+    -- Auto Save on change
+    if previous_value ~= value then
+        MetaData.Save()
+    end
+end
+
+function MetaData.Set(key, value)
+    _cache[key] = value
+    MetaData.Save()
+end
+
+return MetaData

@@ -1,0 +1,351 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Releases a Revenant that Haunts the Target for a duration.
+    The Revenant will follow the Target and deal Damage to it.
+    The Revenant will return to the Hero if the Target is Dead or the Duration ends.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Revenant"),
+
+    -- Tags
+    IsPrimaryWeapon = DCEI.Tag("Weapon - Revenant - IsPrimaryWeapon"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Weapon - Revenant - Projectile"),
+
+    -- Effects
+    Scan = DCEI.Effect("Weapon - Revenant - Scan"),
+    ScanFallback = DCEI.Effect("Weapon - Revenant - Scan - Fallback"),
+    Damage = DCEI.Effect("Weapon - Revenant - Damage"),
+
+    ProjectileScan = DCEI.Effect("Weapon - Revenant - Projectile - Scan"),
+    ProjectileScanFallback = DCEI.Effect("Weapon - Revenant - Projectile - Scan - Fallback"),
+
+    -- Trigger
+    Success = DCEI.Effect("Weapon - Revenant - Success"),
+    OnEnter = DCEI.Effect("Weapon - Revenant - OnEnter"),
+    OnRevenantProjectileTrigger = DCEI.Effect("Weapon - Revenant - Projectile - Trigger"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+local _ProjectileData = {}
+
+local MODEL_SCALE = 0.8
+local PROJECTILE_SCAN_FACTOR = 0.5
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param instance_id string
+local function ApplyRevenantReturn(instance_id)
+    -- Check if is returning
+    if _ProjectileData[instance_id].is_returning then
+        return
+    end
+
+    ---@type Hero
+    local hero = _ProjectileData[instance_id].hero
+    local instance = _ProjectileData[instance_id].instance
+
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, REF.Ability)
+
+    local timer = Core.Timer.Game.New()
+
+    function timer:Tick()
+        if not hero:IsUnitAlive() then
+            DCEI.RemoveUnit(instance)
+            self:Destroy()
+            return
+        end
+
+        if not Help.ValidateUnit(instance) then
+            self:Destroy()
+            return
+        end
+
+        local instance_position = Vector2.UnitPosition(instance)
+        local hero_position = hero:GetPosition()
+        local move_position = Vector2.MoveTowards(instance_position, hero_position, projectile_speed * TICK_RATE)
+
+        -- Check if the Distance is less than the Speed
+        if Vector2.Distance(instance_position, hero_position) < projectile_speed * TICK_RATE then
+            DCEI.RemoveUnit(instance)
+            self:Destroy()
+            return
+        end
+
+        DCEI.SetUnitPosition2DWithInterpolation(instance, move_position.x, move_position.y)
+    end
+
+    -- Set is returning
+    _ProjectileData[instance_id].is_returning = true
+end
+
+---comment
+---@param instance_id string
+local function ApplyRevenantHaunt(instance_id)
+    if not _ProjectileData[instance_id] then
+        return
+    end
+
+    local instance = _ProjectileData[instance_id].instance
+
+    ---@type Hero
+    local hero = _ProjectileData[instance_id].hero
+
+    local duration = _ProjectileData[instance_id].time_remaining
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, REF.Ability)
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(duration)
+
+    function timer:Tick()
+        -- Hero Validation
+        if not hero:IsUnitAlive() then
+            DCEI.RemoveUnit(instance)
+            self:Destroy()
+            return
+        end
+
+        -- Validation Checks
+        if not _ProjectileData[instance_id] or not Help.ValidateUnit(instance) then
+            ---NOTE: This likely needs some adjustments
+            return
+        end
+
+        -- Target Check (Set to return to Hero)
+        if
+            not _ProjectileData[instance_id].target or not Help.ValidateSimpleUnit(_ProjectileData[instance_id].target)
+        then
+            -- Set to Move Towards Hero
+            DCEI.CreateEffectAtSelf(REF.ProjectileScan, instance)
+
+            -- Destroy Timer
+            self:Destroy()
+            return
+        end
+
+        -- Reduce Duration
+        _ProjectileData[instance_id].time_remaining = _ProjectileData[instance_id].time_remaining - TICK_RATE
+
+        -- Out or Duration, Set to Return to Hero
+        if _ProjectileData[instance_id].time_remaining <= 0 then
+            ApplyRevenantReturn(instance_id)
+
+            -- Destroy Timer
+            self:Destroy()
+            return
+        end
+
+        -- Move the Revenant towards the Target
+        local instance_position = Vector2.UnitPosition(instance)
+        local target_position = Vector2.UnitPosition(_ProjectileData[instance_id].target)
+        local move_position = Vector2.MoveTowards(instance_position, target_position, projectile_speed * TICK_RATE)
+
+        DCEI.SetUnitPosition2DWithInterpolation(instance, move_position.x, move_position.y)
+    end
+
+    function timer:Action()
+        -- Validation Checks
+        if not _ProjectileData[instance_id] or not Help.ValidateUnit(instance) then
+            return
+        end
+
+        ApplyRevenantReturn(instance_id)
+    end
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+local function SummonRevenant(hero, target_position, target)
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local spawn_position = hero_position + (target_position - hero_position):Normalized() * 0.5
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, spawn_position.x, spawn_position.y)
+
+    -- Apply Simple Unit Information
+    local size = hero:GetStat(STAT.SkillSize, REF.Ability)
+    local cooldown = hero:GetStat(STAT.Cooldown, REF.Ability)
+    local duration = hero:GetStat(STAT.SkillDuration, REF.Ability)
+
+    -- Model Scale
+    Help.SetModelScale(instance, size * MODEL_SCALE, 0.25, Ease.OutSine)
+
+    -- Collision Size
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    -- Collision Effects
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start | CollisionTiming.Continue, cooldown),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Cache Data
+    local instance_id = Core.Unit.GetId(instance)
+    _ProjectileData[instance_id] = {
+        hero = hero,
+        target = target,
+        instance = instance,
+        time_remaining = duration,
+        is_returning = false,
+    }
+
+    -- Apply Behavior
+    ApplyRevenantHaunt(instance_id)
+
+    -- Callback on Revenant Removed
+    DCEI.TriggerAddUnitRemovedEvent(instance, function()
+        _ProjectileData[instance_id] = nil
+    end)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local caster = ctx.caster
+    local player_id = DCEI.GetUnitPlayerId(caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local target = ctx.target
+    local target_position = Vector2.UnitPosition(target)
+
+    local animation_delay = 0.15
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(animation_delay)
+
+    function timer:Tick()
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+    end
+
+    function timer:Action()
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+
+        SummonRevenant(hero, target_position, target)
+    end
+end
+
+---comment
+---@param ctx EffectContext
+local function OnRevenantProjectileTrigger(ctx)
+    -- Grants a new Target and begins Haunt
+    local instance_id = Core.Unit.GetId(ctx.source)
+
+    -- Validate
+    if not _ProjectileData[instance_id] then
+        return
+    end
+
+    if not _ProjectileData[instance_id] then
+        return
+    end
+
+    local target = ctx.target
+
+    if not Help.ValidateSimpleUnit(target) then
+        _ProjectileData[instance_id].target = nil
+        ApplyRevenantReturn(instance_id)
+        return
+    end
+
+    _ProjectileData[instance_id].target = target
+    ApplyRevenantHaunt(instance_id)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ScanFallback, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ProjectileScan, EJS.AreaSearch.Radius, nil, PROJECTILE_SCAN_FACTOR),
+        EffectPath.New(REF.ProjectileScanFallback, EJS.AreaSearch.Radius, nil, PROJECTILE_SCAN_FACTOR),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    DCEI.ApplyTag(hero.unit, REF.IsPrimaryWeapon, -1, 1)
+
+    local detection_range = hero:GetStat(STAT.SkillRange, Upgrade.Name)
+    hero:SetDetectionRange(detection_range)
+
+    DCEI.TriggerAddEffectEvent(REF.Success, function()
+        Help.SendActorEvent(hero.top, "Attack")
+    end, true)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess)
+DCEI.TriggerAddEffectEvent(REF.OnRevenantProjectileTrigger, OnRevenantProjectileTrigger)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

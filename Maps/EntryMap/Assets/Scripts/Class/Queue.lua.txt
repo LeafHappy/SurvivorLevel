@@ -1,0 +1,72 @@
+---@class Queue
+local Queue = {}
+Queue.__index = Queue
+
+---Creates a Queue
+---@return Queue
+function Queue.New()
+    local self = setmetatable({}, Queue)
+    self.first = 0
+    self.last = -1
+    self.list = {}
+    return self
+end
+
+---Adds the value to the left most location.
+---@param value any
+function Queue:PushLeft(value)
+    local first = self.first - 1
+    self.first = first
+    self.list[first] = value
+end
+
+---Adds the value to the right most location.
+---@param value any
+function Queue:PushRight(value)
+    local last = self.last + 1
+    self.last = last
+    self.list[last] = value
+end
+
+---Returns the left most entry
+---@return any
+function Queue:PopLeft()
+    if self.first > self.last then
+        error("List is empty.")
+        return
+    end
+
+    local value = self.list[self.first]
+    self.list[self.first] = nil
+    self.first = self.first + 1
+    return value
+end
+
+---Returns the right most entry.
+---@return any
+function Queue:PopRight()
+    if self.first > self.last then
+        error("List is empty.")
+        return
+    end
+
+    local value = self.list[self.last]
+    self.list[self.last] = nil
+    self.last = self.last - 1
+    return value
+end
+
+---Returns the total number of items in the Queue.
+---@return integer
+function Queue:Length()
+    return self.last - self.first + 1
+end
+
+---Clears the Queue.
+function Queue:Clear()
+    self.first = 0
+    self.last = -1
+    self.list = {}
+end
+
+return Queue

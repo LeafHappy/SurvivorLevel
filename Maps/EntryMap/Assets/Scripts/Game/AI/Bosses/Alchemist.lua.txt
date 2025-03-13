@@ -1,0 +1,1053 @@
+-- ============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+local FogOfWar = require("Class/FogOfWar")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Boss
+local Boss = {}
+
+---@type BossData
+Boss.Data = {
+    Key = "Alchemist",
+    Name = "Alchemist",
+    Type = DCEI.Unit("Boss - Alchemist"),
+    Stats = {
+        Modifier.New(STAT.Health, 10000, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 20, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.90, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 2.65, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 500, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 250, SCALING.Scaled),
+
+        -- Modifier.New(STAT.AttackSpeed, 0.50, SCALING.Scaled),
+        Modifier.New(STAT.ProjectileSpeed, 12, SCALING.Scaled),
+        Modifier.New(STAT.ProjectileCount, 2, SCALING.Scaled),
+        Modifier.New(STAT.SkillSize, 2.00, SCALING.Scaled), -- Contaminate Size
+        Modifier.New(STAT.SkillDuration, 10, SCALING.Scaled), -- Contaminate Duration
+        Modifier.New(STAT.ProjectileSize, 1.50, SCALING.Scaled), -- Blast Projectile Size
+        Modifier.New(STAT.ProjectileDistance, 8, SCALING.Scaled), -- Nova Blast Distance
+
+        Modifier.New(STAT.MinionCount, 3, SCALING.Scaled),
+        Modifier.New(STAT.MinionHealth, 90, SCALING.Scaled),
+        Modifier.New(STAT.MinionDamage, 10, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 3.55, SCALING.Scaled),
+    },
+    StaggerAnimation = "action2",
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 2.85
+
+local PHASE_MODIFIERS = {
+    -- Base
+    Modifier.New(STAT.AttackSpeed, 0.30, SCALING.Scaled),
+    Modifier.New(STAT.MoveSpeed, 0.05, SCALING.Additive),
+
+    -- Skills
+    Modifier.New(STAT.ProjectileSpeed, 0.20, SCALING.Additive),
+    Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled),
+    Modifier.New(STAT.SkillSize, 0.35, SCALING.Additive),
+    Modifier.New(STAT.SkillDuration, 0.50, SCALING.Additive),
+    Modifier.New(STAT.ProjectileSize, 0.20, SCALING.Additive),
+
+    -- Minions
+    Modifier.New(STAT.MinionCount, 1, SCALING.Scaled),
+    Modifier.New(STAT.MinionHealth, 1.25, SCALING.Multiplier),
+    Modifier.New(STAT.MinionSpeed, 1.12, SCALING.Multiplier),
+}
+
+local REF = {
+    OnStay = DCEI.Effect("Boss - Alchemist - OnStay"),
+    ContactDamage = DCEI.Effect("Boss - Alchemist - Contact Damage"),
+
+    -- Minion
+    BearMinionDamage = DCEI.Effect("Alchemist - Minion - Bear - Damage"),
+
+    -- Contaminate
+    ContaminateTelegraph = DCEI.Unit("Boss - Alchemist - Contaminate - Telegraph"),
+    ContaminateThrow = DCEI.Effect("Boss - Alchemist - Contaminate - Throw"),
+    ContaminateImpactVFX = DCEI.Effect("Boss - Alchemist - Contaminate - Impact VFX"),
+    ContaminateTrigger = DCEI.Effect("Boss - Alchemist - Contaminate - Impact Trigger"),
+    ContaminateUnit = DCEI.Unit("Boss - Alchemist - Contaminate"),
+    ContaminateOnEnter = DCEI.Effect("Boss - Alchemist - Contaminate - OnEnter"),
+    ContaminateDamage = DCEI.Effect("Boss - Alchemist - Contaminate - Damage"),
+
+    -- Blast
+    BlastProjectileSpeed = DCEI.Behavior("Boss - Alchemist - Blast - Projectile Speed"),
+
+    BlastTelegraph = DCEI.Unit("Boss - Alchemist - Blast - Telegraph"),
+    BlastProjectile = DCEI.Unit("Boss - Alchemist - Blast - Projectile"),
+    BlastProjectileFilter = DCEI.CreateUnitFilter({ name = "Boss - Alchemist - Blast - Projectile" }),
+
+    BlastLaunch = DCEI.Effect("Boss - Alchemist - Blast - Launch"),
+    BlastOnEnter = DCEI.Effect("Boss - Alchemist - Blast - Projectile - OnEnter"),
+    BlastEffects = DCEI.Effect("Boss - Alchemist - Blast - Impact Effects"),
+    BlastScan = DCEI.Effect("Boss - Alchemist - Blast - Scan"),
+    BlastDamage = DCEI.Effect("Boss - Alchemist - Blast - Damage"),
+    BlastVFX = DCEI.Effect("Boss - Alchemist - Blast - Impact VFX"),
+
+    -- Teleport
+    FromTelegraph = DCEI.Unit("Boss - Alchemist - Teleport - From Telegraph"),
+    ToTelegraph = DCEI.Unit("Boss - Alchemist - Teleport - To Telegraph"),
+}
+
+local CONTAMINATE_TELEGRAPH_MODEL_SCALE = 0.55
+local CONTAMINATE_MODEL_SCALE = 0.55
+
+local OVERRIDES = {
+    EffectPath.New(REF.ContactDamage, EJS.Damage.Value, STAT.Thorns, 0.50),
+
+    -- Contaminate
+    EffectPath.New(REF.ContaminateImpactVFX, EJS.Actor.Scale, STAT.SkillSize, CONTAMINATE_MODEL_SCALE),
+    EffectPath.New(REF.ContaminateDamage, EJS.Damage.Value, STAT.Thorns, 0.10),
+
+    -- Blast
+    EffectPath.New(REF.BlastScan, EJS.AreaSearch.Radius, STAT.ProjectileSize),
+    EffectPath.New(REF.BlastVFX, EJS.Actor.Scale, STAT.ProjectileSize),
+    EffectPath.New(REF.BlastDamage, EJS.Damage.Value, STAT.Thorns, 1),
+
+    -- Minion
+    EffectPath.New(REF.BearMinionDamage, EJS.Damage.Value, STAT.MinionDamage, 1),
+}
+
+local STATES = {
+    -- Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Taunt: action1
+    -- Stagger: action2
+    -- Throw: attack
+    -- Teleport: channeling_start, channeling_end
+    -- Plague: action4
+    -- Summon: action3
+
+    -- Custom
+    Move = "Move",
+    Summon = "Summon", -- action3
+    Contaminate = "Contaminate", -- attack
+    Blast = "Blast", -- action4
+    Teleport = "Teleport", -- channeling_start, channeling_end
+    TeleportNova = "TeleportNova", -- channeling_start, channeling_end
+
+    -- Ice = "Ice",
+    -- Blink = "Blink",
+}
+
+local ACTION_ORDER_01 = {
+    -- STATES.Move,
+    -- STATES.Summon,
+    -- STATES.Contaminate,
+    -- STATES.Blast,
+    -- STATES.Teleport,
+    -- STATES.TeleportNova,
+
+    STATES.Summon,
+    STATES.Move,
+    STATES.Blast,
+    STATES.Move,
+    STATES.Contaminate,
+    STATES.Contaminate,
+}
+
+local ACTION_ORDER_02 = {
+    -- STATES.Move,
+    -- STATES.Summon,
+    -- STATES.Contaminate,
+    -- STATES.Blast,
+    -- STATES.Teleport,
+    -- STATES.TeleportNova,
+
+    STATES.Blast,
+    STATES.Summon,
+    STATES.Teleport,
+    STATES.Contaminate,
+    STATES.Move,
+    STATES.Contaminate,
+}
+
+local ACTION_ORDER_03 = {
+    -- STATES.Move,
+    -- STATES.Summon,
+    -- STATES.Contaminate,
+    -- STATES.Blast,
+    -- STATES.Teleport,
+    -- STATES.TeleportNova,
+
+    STATES.TeleportNova,
+    STATES.Blast,
+    STATES.TeleportNova,
+    STATES.Blast,
+    STATES.Summon,
+    STATES.TeleportNova,
+    STATES.Contaminate,
+    STATES.Contaminate,
+    STATES.Contaminate,
+}
+
+local SIMPLE_UNITS = {
+    bear = SimpleUnit.New("Bear"),
+    -- contaminate = SimpleUnit.New("Contaminate"),
+
+    ice_elemental = SimpleUnit.New("Ice Elemental Minion"),
+    ice_missile = SimpleUnit.New("Ice Missile"),
+}
+
+local FOW_PADDING = -3
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Patterns
+---============================================================================
+
+local function RegisterSimpleUnits(attributes)
+    SIMPLE_UNITS.bear = SimpleUnits.Helpers.QuickRegister(SimpleUnits.Data.BearMinion, attributes)
+
+    -- SIMPLE_UNITS.contaminate = SimpleUnits.Helpers.QuickRegister(SimpleUnits.Data.Contaminate, attributes)
+end
+
+---@param ai AIHandler
+local function UpdateProjectileSpeed(ai)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+    local projectile_stacks = math.floor(projectile_speed * 100)
+
+    Core.Unit.SetBehaviorCount(ai.unit, REF.BlastProjectileSpeed, projectile_stacks)
+
+    -- local projectile_speed = ai.attributes:Get(STAT.ProjectileSpeed)
+    -- local projectile_stacks = math.floor(projectile_speed * 100)
+
+    -- Core.Unit.SetBehaviorCount(ai.unit, REF.IceProjectileSpeed, projectile_stacks)
+end
+
+---comment
+---@param ai AIHandler
+local function UpdateCache(ai)
+    RegisterSimpleUnits(ai.attributes)
+    UpdateProjectileSpeed(ai)
+end
+
+---comment
+---@param ai AIHandler
+local function OnPhaseIncreased(ai)
+    ai.Data.StateIndex = 0
+
+    for _, modifier in pairs(PHASE_MODIFIERS) do
+        local new_modifier = modifier:Copy()
+        ai.attributes:Add(new_modifier)
+    end
+
+    -- Any other required updates
+    UpdateCache(ai)
+end
+
+local function OnIceMissileSpawn()
+    local instance = DCEI.TriggeringUnit
+
+    -- SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Friendly, 0.5)
+
+    -- local collision_effects = {
+    --     SimpleUnit.GenerateCollisionEffect(effects.IceOnEnter, CollisionTiming.Start, 1, SIMPLE_TAG.Hero),
+    -- }
+
+    -- SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    SimpleUnit.ModifyHealth(instance, 99999999)
+end
+
+local function OnBlastProjectileSpawn(ctx)
+    local instance = DCEI.TriggeringUnit
+
+    DCEI.SetUnitTeamId(instance, TEAM.Terrain) -- Prevents the player from targeting it
+
+    Help.SetModelScale(instance, 1)
+
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Friendly, 0.5)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.BlastOnEnter, CollisionTiming.Start, 0, SIMPLE_TAG.Hero),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    SimpleUnit.ModifyHealth(instance, 1)
+
+    -- Backup if the projectile doesn't "die on impact" from launch
+    Help.GameTimer(3, nil, nil, function()
+        if Help.ValidateUnit(instance) then
+            DCEI.KillUnit(instance)
+        end
+    end)
+end
+
+local function OnAlchemistProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+end
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Action Parts
+---============================================================================
+
+---Turns the Unit towards their Target
+---@param ai AIHandler
+local function TurnTowardsTarget(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return false
+    end
+
+    local BASE_CAST_TIME = 0.25
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local facing = Vector2.GetUnitOffsetVector(ai.unit, ai.Data.Target, true)
+    DCEI.TurnUnitTowards(ai.unit, facing.x, facing.y, cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+local function OnSummon(ctx)
+    local ai = AIHandler.Fetch(ctx.caster)
+
+    if not ai or not Help.ValidateUnit(ai.unit) or not Help.ValidateUnit(ai.Data.Target) then
+        Help.Log("No AI found.")
+        return
+    end
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+
+    local end_delay = 1
+    local channel_duration = 1.5
+    local spawn_count = ai.attributes:Get(STAT.MinionCount)
+    local interval = channel_duration / spawn_count
+
+    for i = 1, spawn_count do
+        local spawn_time = interval * i
+        AIHelper.DelayedEvent(spawn_time, function()
+            if not Help.ValidateUnit(ai.unit) then
+                return
+            end
+
+            local spawn_position = unit_position + Vector2.Random() * Core.Random.GetNumber(4, 6)
+            local marker_duration = end_delay + channel_duration - spawn_time
+
+            AIHelper.SpawnMarker(ai.unit, spawn_position, function()
+                if not Help.ValidateUnit(ai.unit) or not Help.ValidateUnit(ai.Data.Target) then
+                    return
+                end
+
+                SIMPLE_UNITS.ice_elemental:SpawnSync(PLAYER.Hostile, TEAM.Hostile, spawn_position, ai.Data.Target)
+            end)
+        end)
+    end
+
+    ai:SetState(STATES.BaseDecision)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnContaminateTrigger(ctx)
+    local ai = AIHandler.Fetch(ctx.caster)
+
+    if not ai or not ai:ValidateUnit() then
+        Help.Log("Could not find AI")
+        return
+    end
+
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+    local skill_duration = ai:GetBossStat(STAT.SkillDuration)
+
+    -- Spawn Contaminate Area
+    local position = Vector2.NewFromTable(ctx.target_location)
+    local instance = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.ContaminateUnit, position.x, position.y)
+    Help.SetModelScale(instance, skill_size * CONTAMINATE_MODEL_SCALE)
+
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Friendly, skill_size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(
+            REF.ContaminateOnEnter,
+            CollisionTiming.Start | CollisionTiming.Continue,
+            0.25,
+            SIMPLE_TAG.Hero
+        ),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    local time_delta = 0
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    -- local recurring_action = function()
+    --     time_delta = time_delta + TICK_RATE
+
+    --     local new_size = Core.Math.Lerp(skill_size, 0.25, time_delta / skill_duration)
+    --     new_size = math.max(0.25, new_size)
+    --     Help.SetModelScale(instance, new_size * CONTAMINATE_MODEL_SCALE)
+    --     SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Friendly, new_size)
+    -- end
+
+    local callback_action = function()
+        DCEI.KillUnit(instance)
+    end
+
+    Help.GameTimer(skill_duration, condition, nil, callback_action, callback_action)
+end
+
+-- ============================================================================
+-- !SECTION: Action Parts
+---SECTION: Local Casters
+---============================================================================
+
+local function CastSummon(ai)
+    local BASE_CAST_TIME = 1.25
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local spawn_count = ai:GetBossStat(STAT.MinionCount)
+
+    local frequency = cast_time / spawn_count
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function()
+        local target_position = Vector2.UnitPosition(ai.Data.Target)
+        local offset = Vector2.Random() * 15
+        local spawn_position = target_position + offset
+        SIMPLE_UNITS.bear:SpawnSync(PLAYER.Hostile, TEAM.Hostile, spawn_position, ai.Data.Target)
+    end
+
+    Help.PeriodicGameTimer(spawn_count, frequency, condition, action)
+
+    Help.PlayAnimationWithDuration(ai.unit, "action3", cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return
+    end
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+local function GetContaminatePosition(ai)
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local distance = Vector2.Distance(position, target_position)
+    local direction = Vector2.Normalized(target_position - position)
+
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+
+    local min, max = FogOfWar.Instance:GetBoundary(FOW_PADDING)
+
+    local spawn_position = AIHelper.RerollPositionAttempt(function()
+        -- Get a Random Position some distance between the unit and target
+        local min_distance = math.max(skill_size / 2, distance * 0.25)
+        local random_distance = Help.RandomNumber(min_distance, distance - skill_size / 2)
+        local base_position = position + direction * random_distance
+        local random_offset = Vector2.Random() * skill_size / 2
+
+        return base_position + random_offset
+    end, 3, min, max)
+
+    -- local random_offset = Vector2.Random() * distance * 0.25
+    -- local spawn_position = target_position + direction * distance * 0.50 + random_offset
+
+    return spawn_position
+end
+
+local function ContaminateAction(ai)
+    local BASE_CAST_TIME = 1.25
+    local IMPACT_RATIO = 14 / 30
+    local PROJECTILE_TIME = 1.5
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+    local impact_time = cast_time * IMPACT_RATIO
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local launch_position = GetContaminatePosition(ai)
+
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+
+    local telegraph =
+        DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.ContaminateTelegraph, launch_position.x, launch_position.y)
+
+    Help.SetModelScale(telegraph, skill_size * CONTAMINATE_TELEGRAPH_MODEL_SCALE)
+
+    Help.GameTimer(PROJECTILE_TIME, nil, nil, function()
+        DCEI.RemoveUnit(telegraph)
+    end)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function()
+        Help.CreateEffect(PLAYER.Hostile, REF.ContaminateThrow, ai.unit, launch_position)
+    end
+
+    Help.GameTimer(impact_time, condition, nil, action, nil)
+
+    Help.PlayAnimationWithDuration(ai.unit, "attack", cast_time)
+
+    local turn_direction = Vector2.Normalized(launch_position - position)
+    DCEI.TurnUnitTowards(ai.unit, turn_direction.x, turn_direction.y, cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return
+    end
+
+    return true
+end
+
+---comment
+---@param ai AIHandler
+local function CastContaminate(ai)
+    ai:PlayActionSequence({
+        -- TurnTowardsTarget,
+        ContaminateAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---comment
+---@param position Vector2
+---@param size number
+---@param impact_time number
+local function SpawnBlastTelegraph(position, size, impact_time)
+    local telegraph = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.BlastTelegraph, position.x, position.y)
+    Help.SetModelScale(telegraph, size * 0.60)
+
+    local projectile_impact_time = impact_time
+
+    Help.GameTimer(projectile_impact_time, nil, nil, function()
+        DCEI.RemoveUnit(telegraph)
+    end)
+end
+
+---comment
+---@param ai any
+---@param count any
+---@return table<Vector2>
+local function GetBlastPositions(ai, count)
+    local skill_size = ai:GetBossStat(STAT.ProjectileSize)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local forward = Vector2.UnitForward(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local target_forward = Vector2.UnitForward(ai.Data.Target)
+
+    local target_positions = {}
+
+    for i = 1, count do
+        local forward_influence = target_forward * skill_size * count * Help.RandomNumber(0, 1 / i)
+        local random_influence = Vector2.RandomInside(skill_size * count) * Help.RandomNumber(0, 1)
+        local impact_position = target_position + forward_influence + random_influence
+        table.insert(target_positions, impact_position)
+    end
+
+    return target_positions
+end
+
+local function BlastAction(ai)
+    local BASE_CAST_TIME = 1.25
+    local IMPACT_RATIO = 14 / 30
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+    local impact_time = cast_time * IMPACT_RATIO
+
+    local skill_size = ai:GetBossStat(STAT.ProjectileSize)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+    local projectile_count = ai:GetBossStat(STAT.ProjectileCount)
+
+    local position = Vector2.UnitPosition(ai.unit)
+
+    ---TODO: Add Telegraph Lines
+    ---TODO: Manual Projectile Spawning for better control and proper removal (if Boss/Player dies)
+
+    local impact_positions = GetBlastPositions(ai, projectile_count)
+    local center_position = Vector2.Centroid(impact_positions)
+
+    local turn_direction = Vector2.Normalized(center_position - position)
+    DCEI.TurnUnitTowards(ai.unit, turn_direction.x, turn_direction.y, impact_time)
+
+    local time_remaining = cast_time - impact_time
+    local time_between_shots = time_remaining / projectile_count
+
+    -- Spawn Telegraphs
+    for i = 1, #impact_positions do
+        local impact_position = impact_positions[i]
+
+        local projectile_impact_time = impact_time
+            + Vector2.Distance(position, impact_position) / projectile_speed
+            + time_between_shots * i
+
+        SpawnBlastTelegraph(impact_position, skill_size, projectile_impact_time)
+    end
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function(count)
+        local launch_position = impact_positions[count]
+        DCEI.CreateEffectAtPosition(REF.BlastLaunch, ai.unit, launch_position.x, launch_position.y)
+    end
+
+    Help.GameTimer(impact_time, condition, nil, function()
+        Help.PeriodicGameTimer(projectile_count, time_between_shots, condition, action, true)
+    end, nil)
+
+    Help.PlayAnimationWithDuration(ai.unit, "action4", cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---comment
+---@param ai AIHandler
+local function CastBlast(ai)
+    ai:PlayActionSequence({
+        -- TurnTowardsTarget,
+        BlastAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---Returns a random position to teleport to that is near the target and inside the boundary.
+---@param ai AIHandler
+---@return Vector2
+local function GetTeleportPosition(ai)
+    local TELEPORT_DISTANCE_FROM_TARGET = 3
+    local RANDOM_OFFSET_DISTANCE = 2
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local min, max = FogOfWar.Instance:GetBoundary(FOW_PADDING)
+
+    local spawn_position = AIHelper.RerollPositionAttempt(function()
+        -- Calculate a position on the other side of the target
+        local opposite_side_of_target = Vector2.Normalized(target_position - position) * TELEPORT_DISTANCE_FROM_TARGET
+
+        -- local target_offset = Vector2.Random() * TELEPORT_DISTANCE_FROM_TARGET
+        local random_offset = Vector2.Random() * RANDOM_OFFSET_DISTANCE
+
+        local teleport_position = target_position + opposite_side_of_target + random_offset
+
+        return teleport_position
+    end, 3, min, max)
+
+    return spawn_position
+end
+
+local function SpawnFromTeleportTelegraph(ai, position, impact_time)
+    local telegraph = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.FromTelegraph, position.x, position.y)
+
+    Help.PlayAnimationWithDuration(telegraph, "channeling_start", impact_time)
+
+    Help.GameTimer(impact_time, nil, nil, function()
+        Help.PlayAnimationWithDuration(telegraph, "channeling_end", impact_time)
+        Help.GameTimer(impact_time, nil, nil, function()
+            DCEI.RemoveUnit(telegraph)
+        end)
+    end)
+
+    return telegraph
+end
+
+local function SpawnToTeleportTelegraph(ai, position, impact_time)
+    local telegraph = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.ToTelegraph, position.x, position.y)
+
+    Help.PlayAnimationWithDuration(telegraph, "channeling_start", impact_time)
+
+    Help.GameTimer(impact_time, nil, nil, function()
+        Help.PlayAnimationWithDuration(telegraph, "channeling_end", impact_time)
+        Help.GameTimer(impact_time, nil, nil, function()
+            DCEI.RemoveUnit(telegraph)
+        end)
+    end)
+
+    return telegraph
+end
+
+---@param ai AIHandler
+local function TeleportAction(ai)
+    local BASE_CAST_TIME = 2.50
+    local IMPACT_RATIO = 0.50
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+    local impact_time = cast_time * IMPACT_RATIO
+
+    -- Calculate where the unit will teleport to
+    local position = Vector2.UnitPosition(ai.unit)
+    local teleport_position = GetTeleportPosition(ai)
+
+    -- Spawn Telegraphs
+    local from_telegraph = SpawnFromTeleportTelegraph(ai, position, impact_time * 0.60)
+    local to_telegraph = SpawnToTeleportTelegraph(ai, teleport_position, impact_time)
+
+    -- Play Animation
+    Help.PlayAnimationWithDuration(ai.unit, "channeling_start", impact_time + TICK_RATE)
+
+    -- Rotate Towards the teleport position
+    local turn_direction = Vector2.Normalized(teleport_position - position)
+    DCEI.TurnUnitTowards(ai.unit, turn_direction.x, turn_direction.y, impact_time)
+
+    if not Help.WaitAndValidateUnit(impact_time, ai.unit) then
+        return
+    end
+
+    if not ai:ValidateSelfAndTarget() then -- Need to validate target
+        return
+    end
+
+    -- Teleport the unit
+    DCEI.SetUnitPosition2D(ai.unit, teleport_position.x, teleport_position.y)
+
+    -- Rotate towards the target (instantly)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local turn_direction = Vector2.Normalized(target_position - teleport_position)
+    DCEI.TurnUnitTowards(ai.unit, turn_direction.x, turn_direction.y, 0)
+
+    -- Play Animation
+    Help.PlayAnimationWithDuration(ai.unit, "channeling_end", cast_time - impact_time)
+
+    if not Help.WaitAndValidateUnit(cast_time - impact_time, ai.unit) then
+        return
+    end
+end
+
+---@param ai AIHandler
+local function CastTeleport(ai)
+    ai:PlayActionSequence({
+        -- TurnTowardsTarget,
+        TeleportAction,
+        -- TurnTowardsTarget,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+---@param teleport_position Vector2
+---@param count integer
+---@return table<Vector2>
+local function GetNovaPositions(ai, teleport_position, count)
+    local skill_size = ai:GetBossStat(STAT.ProjectileSize)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+    local projectile_distance = ai:GetBossStat(STAT.ProjectileDistance)
+
+    -- local position = Vector2.UnitPosition(ai.unit)
+    -- local forward = Vector2.UnitForward(ai.unit)
+    -- local target_position = Vector2.UnitPosition(ai.Data.Target)
+    -- local target_forward = Vector2.UnitForward(ai.Data.Target)
+
+    local target_positions = {}
+
+    local starting_angle = Help.RandomNumber(0, 360)
+    local angle_step = 360 / count
+
+    for i = 1, count do
+        local angle = starting_angle + angle_step * i
+
+        local direction = Vector2.NewFromAngle(angle)
+        local impact_position = teleport_position + direction * projectile_distance
+        table.insert(target_positions, impact_position)
+
+        -- local forward_influence = target_forward * skill_size * count * Help.RandomNumber(0, 1 / i)
+        -- local random_influence = Vector2.RandomInside(skill_size * count) * Help.RandomNumber(0, 1)
+        -- local impact_position = target_position + forward_influence + random_influence
+        -- table.insert(target_positions, impact_position)
+    end
+
+    return target_positions
+end
+
+---@param ai AIHandler
+local function TeleportNovaAction(ai)
+    local BASE_CAST_TIME = 2.50
+    local IMPACT_RATIO = 0.50
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+    local impact_time = cast_time * IMPACT_RATIO
+
+    -- Calculate where the unit will teleport to
+    local position = Vector2.UnitPosition(ai.unit)
+    local teleport_position = GetTeleportPosition(ai)
+
+    -- Spawn Telegraphs
+    local from_telegraph = SpawnFromTeleportTelegraph(ai, position, impact_time * 0.60)
+    local to_telegraph = SpawnToTeleportTelegraph(ai, teleport_position, impact_time)
+
+    -- Blast Projectiles
+    local projectile_count = ai:GetBossStat(STAT.ProjectileCount)
+    local projectile_distance = ai:GetBossStat(STAT.ProjectileDistance)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+    local projectile_size = ai:GetBossStat(STAT.ProjectileSize)
+
+    local blast_positions = GetNovaPositions(ai, teleport_position, projectile_count)
+
+    for i = 1, #blast_positions do
+        -- Spawn a Telegraph for each Blast
+        local blast_position = blast_positions[i]
+
+        local projectile_impact_time = impact_time + projectile_distance / projectile_speed
+        SpawnBlastTelegraph(blast_position, projectile_size, projectile_impact_time)
+    end
+
+    -- Play Animation
+    Help.PlayAnimationWithDuration(ai.unit, "channeling_start", impact_time + TICK_RATE)
+
+    -- Rotate Towards the teleport position
+    local turn_direction = Vector2.Normalized(teleport_position - position)
+    DCEI.TurnUnitTowards(ai.unit, turn_direction.x, turn_direction.y, impact_time)
+
+    if not Help.WaitAndValidateUnit(impact_time, ai.unit) then
+        return
+    end
+
+    if not ai:ValidateSelfAndTarget() then -- Need to validate target
+        return
+    end
+
+    -- Teleport the unit
+    DCEI.SetUnitPosition2D(ai.unit, teleport_position.x, teleport_position.y)
+
+    -- Launch Blast Projectiles
+    for i = 1, #blast_positions do
+        local launch_position = blast_positions[i]
+        DCEI.CreateEffectAtPosition(REF.BlastLaunch, ai.unit, launch_position.x, launch_position.y)
+    end
+
+    -- Rotate towards the target (instantly)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local turn_direction = Vector2.Normalized(target_position - teleport_position)
+    DCEI.TurnUnitTowards(ai.unit, turn_direction.x, turn_direction.y, 0)
+
+    -- Play Animation
+    Help.PlayAnimationWithDuration(ai.unit, "channeling_end", cast_time - impact_time)
+
+    if not Help.WaitAndValidateUnit(cast_time - impact_time, ai.unit) then
+        return
+    end
+end
+
+---@param ai AIHandler
+local function CastTeleportNova(ai)
+    ai:PlayActionSequence({
+        -- TurnTowardsTarget,
+        TeleportNovaAction,
+        -- TurnTowardsTarget,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---Generates a random position somwhere between 2 positions.
+---@param unit_position Vector2
+---@param target_position Vector2
+---@return Vector2
+local function GetRandomMidPoint(unit_position, target_position)
+    local nearby_unit = unit_position + Vector2.RandomRange(1, 2)
+    local nearby_target = target_position + Vector2.RandomRange(1, 2)
+    return Vector2.Midpoint(nearby_unit, nearby_target)
+end
+
+---@param ai AIHandler
+local function CastMove(ai)
+    -- Validate Unit
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local distance = Vector2.Distance(position, ai.Data.MovePosition)
+
+    -- Check if Staggered
+    if ai:IsStaggerThresholdReached() then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Reached Destination
+    if distance <= 0.1 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Timer Expired
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Stop Movement if moving out of this State
+    if ai.state ~= STATES.Move then
+        ai.Data.MovePosition = position
+    end
+
+    DCEI.Move(ai.unit, ai.Data.MovePosition.x, ai.Data.MovePosition.y)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    ---TODO: Boss Specific Actions
+    local phase = ai.phase
+    local action_order = phase == 1 and ACTION_ORDER_01 or phase == 2 and ACTION_ORDER_02 or ACTION_ORDER_03
+
+    -- Update State Index
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #action_order then
+        ai.Data.StateIndex = 1
+    end
+
+    local state = action_order[ai.Data.StateIndex]
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+
+    ai:SetState(state)
+
+    if state == STATES.Move then
+        -- Randomly select a time to move
+        ai.Data.StateTime = Core.Random.GetNumber(2, 3.5) * action_speed_modifier
+        ai.Data.StateTimer = ai.Data.StateTime
+
+        -- Randomly select a position to move to
+        ai.Data.MovePosition = GetRandomMidPoint(unit_position, target_position)
+
+        ai:SetState(STATES.Move)
+    end
+
+    local think_time = 0.25 * action_speed_modifier
+    if not Help.WaitAndValidateUnit(think_time, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Boss.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, OVERRIDES, true, true, Boss.Data.StaggerAnimation)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, REF.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    UpdateCache(ai)
+
+    -- Core States
+    ai:AddState(STATES.Move, CastMove)
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+
+    -- Boss Specific
+    ai:AddState(STATES.Summon, CastSummon)
+    ai:AddState(STATES.Contaminate, CastContaminate)
+    ai:AddState(STATES.Blast, CastBlast)
+    ai:AddState(STATES.Teleport, CastTeleport)
+    ai:AddState(STATES.TeleportNova, CastTeleportNova)
+
+    -- ai:AddState(STATES.Ice, CastIce)
+    -- ai:AddState(STATES.Blink, CastBlink)
+
+    -- Stagger
+    AIHelper.RegisterBossStaggerUpdate(ai)
+
+    -- Phase Increase
+    ai:AddPhaseIncreaseCallback(OnPhaseIncreased)
+
+    -- Initialize Projectile Speed
+    UpdateProjectileSpeed(ai)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Hookup
+---============================================================================
+
+DCEI.TriggerAddEffectEvent(REF.ContaminateTrigger, OnContaminateTrigger)
+DCEI.TriggerAddUnitSpawnEvent(REF.BlastProjectileFilter, OnBlastProjectileSpawn)
+
+-- ============================================================================
+-- !SECTION: Hookup
+---SECTION: Libraries
+---============================================================================
+
+return Boss

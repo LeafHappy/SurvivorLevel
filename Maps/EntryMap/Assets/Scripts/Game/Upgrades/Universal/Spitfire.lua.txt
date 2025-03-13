@@ -1,0 +1,153 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Release a series of fire in the facing angle.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Spitfire"),
+
+    -- Behaviors
+    ProjectileSpread = DCEI.Behavior("Weapon - Spitfire - Projectile Spread"),
+    ProjectileSpeed = DCEI.Behavior("Weapon - Spitfire - Projectile Speed"),
+    ProjectileDecelerationRate = DCEI.Behavior("Weapon - Spitfire - Projectile Deceleration Rate"),
+
+    -- Effects
+    Count = DCEI.Effect("Weapon - Spitfire - Count"),
+    Launch = DCEI.Effect("Weapon - Spitfire - Launch"),
+    OnEnter = DCEI.Effect("Weapon - Spitfire - OnEnter"),
+    Damage = DCEI.Effect("Weapon - Spitfire - Damage"),
+    ImpactVFX = DCEI.Effect("Weapon - Spitfire - Impact VFX"),
+
+    -- Projectile
+    Projectile = DCEI.Unit("Weapon - Spitfire - Projectile"),
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Weapon - Spitfire - Projectile") }),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+local MODEL_SCALE = 1.00
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local projectile = DCEI.TriggeringUnit
+
+    local player_id = DCEI.GetUnitPlayerId(projectile)
+    local hero = _Heroes[player_id]
+
+    local size = hero:GetStat(STAT.SkillSize, REF.Ability)
+    Help.SetModelScale(projectile, size * MODEL_SCALE, 0.10, Ease.OutCubic)
+
+    local health = hero:GetStat(STAT.ProjectileHealth, REF.Ability)
+
+    SimpleUnit.ModifyHealth(projectile, health)
+    SimpleUnit.ModifyCollision(projectile, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 1),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(projectile, collision_effects)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnProjectileLaunchHook(ctx)
+    local spread = 30
+
+    local random_angle = Help.RandomNumber(-spread / 2, spread / 2)
+    DCEI.SetEffectHookFieldValue(EJS.Launch.Impact.Yaw, random_angle)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.ProjectileCount] = {
+        EffectPath.New(REF.Count, EJS.Persistent.Count),
+    },
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Launch, EJS.Launch.Impact.Distance),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, nil, MODEL_SCALE),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    local speed = hero:GetStat(STAT.ProjectileSpeed, REF.Ability)
+    local distance = hero:GetStat(STAT.SkillRange, REF.Ability)
+
+    local deceleration_rate = speed * speed / (2 * distance) * 0.90
+
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileSpeed, Help.Stacks(speed))
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileDecelerationRate, Help.Stacks(deceleration_rate))
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+DCEI.TriggerAddEffectHookEvent(REF.Launch, OnProjectileLaunchHook)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

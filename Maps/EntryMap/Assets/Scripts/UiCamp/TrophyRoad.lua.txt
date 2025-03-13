@@ -1,0 +1,424 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Meta = require("Meta:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local TrophyRoadRewardData = require("SharedData/TrophyRoadRewardData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local DataManager = require("UiMeta/DataManager")
+local ResourceDisplay = require("UiCamp/ResourceDisplay")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- CONSTANTS
+local DEFAULT_REWARD_ICON = DCEI.Texture("gold_chest_wildsurvivor")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local TrophyRoad = {}
+TrophyRoad.is_initialized = false
+local level_rewards = {}
+local big_hand_tutorial_active = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function StartActivateButtonAnimation()
+    local k1, k2 = 4, -6
+    local duration = 1.25
+    local frame = TrophyRoad.layout.ActivateButtonFrame
+    local ease = "InOutSine"
+
+    TrophyRoad.layout.activate_button_animation = DCEI.AnimateFrameVerticalOffset(frame, k1, k2, duration, ease)
+    DCEI.SetFrameAnimationLoops(TrophyRoad.layout.activate_button_animation, -1, "Yoyo")
+end
+
+local function FormatRewardLabel(reward)
+    local key = reward.items[1].key
+    local label = ResourceData[key].display_name
+
+    -- Set proper display type for label
+    if reward.minutes then
+        label = label .. " min"
+    elseif reward.number then
+        label = "x" .. label
+    end
+
+    -- Set text color
+    if reward.label_color then
+        label = reward.label_color .. label
+    end
+
+    return label
+end
+
+local function CreateRewardItem(reward, index)
+    local level_item = GMUI.Layout.New({
+        name = "Meta/TrophyRoad/Item",
+        parent = TrophyRoad.layout.RewardScroll,
+    })
+
+    -- Setup label
+    level_item.state.reward_level = FormatRewardLabel(reward)
+    level_item.state.reward_icon = ResourceData[reward.items[1].key].icon or DEFAULT_REWARD_ICON
+    level_item.state.trophies_needed = reward.trophies_needed
+    level_item.connection.state.level_label = index
+    level_item.connection.state.is_top = index == #TrophyRoadRewardData
+
+    function level_item:OnPress()
+        if not level_item.state.unlocked or level_item.state.claimed then
+            return
+        end
+
+        -- ensure chronological order
+        if #DataManager.save_data.trophy_road.claimed + 1 < index then
+            local message = "Claim Previous Reward First"
+            DCEI.ShowFeedbackMessage(message)
+            return
+        end
+
+        DataManager.ClaimRewards(reward.items, false)
+
+        -- Logging
+        Core.Event.SendSimulationEvent("Log.Meta.TrophyRoadClaimed", {
+            trophy_index = #DataManager.save_data.trophy_road.claimed + 1,
+            reward = reward.items[1].key,
+        })
+
+        table.insert(DataManager.save_data.trophy_road.claimed, index)
+
+        DataManager.Save()
+        level_item.state.claimed = true
+
+        ---TUTORIAL: Remove Big Hand after Claiming First Item in Trophy Road
+        if index == 1 and big_hand_tutorial_active then
+            big_hand_tutorial_active = false
+            Meta.BigHand.DismissOldest()
+        end
+    end
+
+    -- Set click callback
+    DCEI.SetOnClickCallback(level_item.RewardButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        level_item:OnPress()
+    end)
+
+    return level_item
+end
+
+local function SetRewardScroll(level)
+    local layout = TrophyRoad.layout
+    if level > 2 then
+        -- Offset by 5 items
+        local locked_items_shown = 4
+        local scroll_count = level + locked_items_shown
+
+        -- Get height of frames
+        local margin_bottom = -25
+        local item_height = DCEI.GetFrameHeight(level_rewards[1].Frame) + margin_bottom
+        local total_height = DCEI.GetFrameHeight(layout.RewardContent)
+
+        -- Calculate target offset
+        local target_offset = total_height - (item_height * scroll_count)
+        DCEI.SetScrollFrameScrollPosition(layout.RewardScroll, target_offset)
+    else
+        -- Set scroll to bottom
+        local total_height = DCEI.GetFrameHeight(layout.RewardContent)
+        DCEI.SetScrollFrameScrollPosition(layout.RewardScroll, total_height)
+    end
+end
+
+local function HandleShowingTutorial(first_item)
+    big_hand_tutorial_active = true
+
+    -- Use a Delay to allow the Frame to finish setting up (for position).
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        -- Get first reward in the Trophy Road
+        local target_frame = first_item.RewardButton
+        local offset = { x = 0, y = 0 }
+        local offset_distance = 50
+
+        Meta.Spotlight.Create({
+            frame = target_frame,
+            scale = 1.5,
+            spotlight_offset = -30,
+        }, function()
+            -- Force Claiming the First Reward
+            first_item:OnPress()
+        end)
+
+        Meta.BigHand.AnimateBetweenTargets({
+            start_frame = target_frame,
+            end_frame = target_frame,
+            start_x_offset = offset.x,
+            start_y_offset = offset.y,
+            end_x_offset = offset.x + offset_distance,
+            end_y_offset = offset.y + offset_distance,
+            loop_type = "Yoyo",
+        })
+    end, 0.125)
+end
+
+local function GetTrophyRoadLevel()
+    return #DataManager.save_data.trophy_road.claimed
+end
+
+local function GetTrophiesNeeded(current_trophies)
+    local current_level = 0
+    for i, v in ipairs(TrophyRoadRewardData) do
+        -- only advance if reward is claimed
+        if v.trophies_needed > current_trophies or current_level == GetTrophyRoadLevel() then
+            break
+        end
+        current_level = i
+    end
+
+    local next_level = current_level + 1
+    next_level = math.min(next_level, #TrophyRoadRewardData)
+
+    local trophies_needed = TrophyRoadRewardData[next_level].trophies_needed
+    return trophies_needed, current_level
+end
+
+local function CanStartTrophyRoadTutorial()
+    local total_trophies = DataManager.GetTotalTrophy()
+    local needed_trophies = GetTrophiesNeeded(total_trophies)
+    local is_right_level = GetTrophyRoadLevel() == 0
+    local has_needed_trophies = total_trophies >= needed_trophies
+    local can_start = not big_hand_tutorial_active and has_needed_trophies and is_right_level
+    return can_start
+end
+
+local function PlayTrophyRoadTutorial()
+    big_hand_tutorial_active = true
+
+    -- Spotlight
+    if not spotlight_active then
+        spotlight_active = true
+        Meta.Spotlight.Create({
+            frame = ui.camp.trophy_road.Frame,
+            scale = 2,
+            tip_text = "Claim your first reward!",
+        }, function()
+            -- Force Entering the Trophy Road
+            ui.camp.trophy_road:Open({})
+            spotlight_active = false
+        end)
+    end
+
+    -- Big Hand
+    -- TODO: Need to make target camp unit for tutorial
+    local target_frame = ui.home.trophy_road.Frame
+    local offset = { x = 20, y = 10 }
+    local offset_distance = 50
+
+    Meta.BigHand.AnimateBetweenTargets({
+        start_frame = target_frame,
+        end_frame = target_frame,
+        start_x_offset = offset.x,
+        start_y_offset = offset.y,
+        end_x_offset = offset.x + offset_distance,
+        end_y_offset = offset.y + offset_distance,
+        loop_type = "Yoyo",
+    })
+end
+
+local function TryPlayTrophyRoadTutorial()
+    ---TUTORIAL: Open Trophy Road
+    if CanStartTrophyRoadTutorial() then
+        -- PlayTrophyRoadTutorial()
+    end
+end
+
+---@param callback function
+local function GiveAuthority(data, callback)
+    TrophyRoad.Open(callback)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function TrophyRoad.Initialize()
+    if TrophyRoad.is_initialized then
+        return
+    end
+
+    -- Create layout
+    TrophyRoad.layout = GMUI.Layout.New({
+        name = "Meta/TrophyRoad",
+        parent = ui.z3.Lower,
+    })
+    ui.camp.trophy_road = TrophyRoad.layout
+
+    -- Setup the item layout for each reward
+    for i = 1, #TrophyRoadRewardData do
+        local level_reward = TrophyRoadRewardData[i]
+        local new_item = CreateRewardItem(level_reward, i)
+        table.insert(level_rewards, new_item)
+    end
+
+    -- Store hide function from layout
+    TrophyRoad.layout.HideActual = TrophyRoad.layout.Hide
+
+    -- Override default hide to animate out instead
+    function TrophyRoad.layout:Hide()
+        -- Animate out
+        Animation.DropAndFadeOut(self.Frame)
+
+        -- Wait for animation to finish before hiding
+        local animation_delay = 0.25
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            self:HideActual()
+            GMUI.RunSimulationCallback(TrophyRoad.return_authority)
+        end, animation_delay)
+    end
+
+    function TrophyRoad.layout:OnShow()
+        -- Animate in
+        Animation.PopAndFadeIn(self.Frame)
+
+        ---TUTORIAL: Claim First Item in Trophy Road
+        ---Uses a delay to allow the Trophy Road to finish setting state values when initializing.
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            local first_item = level_rewards[1]
+            if not big_hand_tutorial_active and first_item.state.unlocked and not first_item.state.claimed then
+                HandleShowingTutorial(first_item)
+            end
+        end, 0.25)
+    end
+
+    function TrophyRoad.layout:OnHide()
+        ---TUTORIAL: Remove Big Hand if leaving Trophy Road without Claiming First Item
+        if big_hand_tutorial_active then
+            big_hand_tutorial_active = false
+            Meta.BigHand.DismissOldest()
+        end
+    end
+
+    TrophyRoad.layout.TryPlayTrophyRoadTutorial = TryPlayTrophyRoadTutorial
+
+    DCEI.SetOnClickCallback(TrophyRoad.layout.close.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        TrophyRoad.layout:Hide()
+    end)
+
+    TrophyRoad.is_initialized = true
+end
+
+function TrophyRoad.Open(callback)
+    if not TrophyRoad.is_initialized then
+        TrophyRoad.Initialize()
+    end
+
+    TrophyRoad.return_authority = callback
+
+    StartActivateButtonAnimation()
+    TrophyRoad.Update()
+    TrophyRoad.layout:Show()
+end
+
+function TrophyRoad.Update()
+    local claimed_rewards = {}
+    for _, reward_key in ipairs(DataManager.save_data.trophy_road.claimed) do
+        claimed_rewards[reward_key] = true
+    end
+
+    -- Get data
+    local current_trophies = DataManager.GetTotalTrophy()
+    local layout = TrophyRoad.layout
+
+    local level = 0
+    for i = 1, #TrophyRoadRewardData do
+        if
+            TrophyRoadRewardData[i].trophies_needed <= current_trophies
+            and (i == #TrophyRoadRewardData or TrophyRoadRewardData[i + 1].trophies_needed > current_trophies)
+        then
+            level = i
+            break
+        end
+    end
+
+    -- Make sure we stay within bounds of rewards table
+    local next_level = level + 1
+    next_level = math.min(next_level, #TrophyRoadRewardData)
+
+    -- Get amount of trophies for next level
+    local required_trophies = TrophyRoadRewardData[next_level].trophies_needed
+
+    -- Set level number display
+    DCEI.SetTextFrameText(layout.Level, level)
+
+    -- Check if maxed and get fill amount
+    local is_level_maxed = level >= #TrophyRoadRewardData
+    local fill_amount = is_level_maxed and 1 or current_trophies / required_trophies
+
+    -- Update exp bar
+    DCEI.SetFrameActive(layout.ExpLabel, not is_level_maxed)
+    DCEI.SetTextFrameText(layout.ExpLabel, current_trophies .. "/" .. required_trophies)
+    DCEI.SetFrameImageFillAmount(layout.ExpBarFill, fill_amount)
+
+    for i = 1, #TrophyRoadRewardData do
+        local item_layout = level_rewards[i]
+        local item_connection = item_layout.connection
+
+        local is_locked = current_trophies < TrophyRoadRewardData[i].trophies_needed
+        item_connection.state.unlocked = not is_locked
+
+        DCEI.SetFrameActive(item_connection.LevelFill, not is_locked)
+        DCEI.SetFrameActive(item_connection.LevelLineFill, not is_locked)
+
+        if is_locked then
+            item_layout.state.claimed = false
+            item_layout.state.unlocked = false
+            DCEI.SetFrameImageFillAmount(item_connection.LevelLineFill, 0)
+        else
+            item_layout.state.unlocked = true
+            item_layout.state.claimed = claimed_rewards[i] ~= nil
+            local is_current_level = level == i
+            local current_fill_amount = is_current_level
+                    and (current_trophies - TrophyRoadRewardData[level].trophies_needed) / (required_trophies - TrophyRoadRewardData[level].trophies_needed)
+                or 1
+            DCEI.SetFrameImageFillAmount(item_connection.LevelLineFill, current_fill_amount)
+        end
+    end
+
+    -- scroll to current level
+    DCEI.WaitForUiUpdateToComplete(function()
+        SetRewardScroll(level)
+    end)
+end
+
+TrophyRoad.TryPlayTrophyRoadTutorial = TryPlayTrophyRoadTutorial
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.TrophyRoad", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return TrophyRoad

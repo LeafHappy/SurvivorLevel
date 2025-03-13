@@ -1,0 +1,83 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local CampLabels = {}
+local current_labels = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function MoveFrameToUnit(frame, unit, scale)
+    local down_offset = scale + 0.65
+    local offset = { up = -down_offset }
+    DCEI.AttachFrameToUnit(frame, unit, { offset = offset })
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@class CampLabelData
+---@field uid string
+---@field unit_reference string
+---@field label_text string
+---@field scale number
+---@field offset Vector2
+
+---@param data CampLabelData
+function CampLabels.Create(data)
+    if not data or not data.label_text then
+        return
+    end
+
+    local new_label = GMUI.Layout.New({
+        name = "Camp/Label",
+    })
+    new_label.state.label = tostring(data.label_text)
+
+    -- NOTE: Written to use unit reference and uid
+    local unit = GMUI.GetUnitFromUnitReference(data.unit_reference)
+    MoveFrameToUnit(new_label.Frame, unit, data.scale)
+
+    current_labels[data.uid] = new_label
+end
+
+---@param uid string
+function CampLabels.Remove(uid)
+    if not current_labels[uid] then
+        return
+    end
+
+    current_labels[uid]:Destroy()
+    current_labels[uid] = nil
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.CreateLabel", CampLabels.Create)
+Core.Event.RegisterPresentationEvent("Camp.RemoveLabel", CampLabels.Remove)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return CampLabels

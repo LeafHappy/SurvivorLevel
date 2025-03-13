@@ -1,0 +1,965 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+
+    Enemies always spawn from the Shadows.
+    Enemies Periodically Spawn.
+    Specific Waves Spawn every 1 Minute.
+    Player must expand the Shadow to have more playspace.
+
+    -- Total Time: 900 Seconds or 15 Minutes
+    -- The Player can earn up to 15 Trophies
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New("Nexus")
+
+-- Classes
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local TileMap = require("Class/TileMap")
+local Joystick = require("Class/Joystick")
+
+-- Data
+local NexusData = require("Data/Modes/Nexus")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+-- Shared Data
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Bosses = require("Game/AI/Bosses")
+
+-- Directors
+local CreditDirector = require("Game/Directors/Credits")
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+-- TICK RATE
+local TICK_RATE = TICK_RATE or 0.0625
+
+-- TILE INFO
+-- local TILE_SIZE = 20.40
+-- local TILE_SIZE = 10.20
+local TILE_SIZE = 5.10
+local TILE_LOAD_DISTANCE = 3
+local TILE_OPTIONS = {
+    -- New
+    DCEI.Unit("Forest - Tile - Standard"),
+}
+
+local KILL_BOX_SIZE = 50
+
+-- This game mode always uses the Walker as its primary enemy.
+local PERIODIC_SPAWN_TYPE = SimpleUnits.Data.Walker
+local HOSTILE_SPAWN_DISTANCE = 20
+
+-- TROPHY BRACKET
+local TROPHIES_EARNED = 10
+
+local NEXUS_SPAWN_DISTANCE = 100
+
+local BOSS_ICON = DCEI.Texture("icon_boss_wildsurvivor")
+
+-- Per Difficulty
+local HOSTILE_HEALTH_INCREASE = 0.10
+local HOSTILE_DAMAGE_INCREASE = 0.01
+
+-- Per Phase
+local HOSTILE_SPEED_INCREASE = 0.05
+
+local STARTING_CREDITS_PER_MINUTE = 800
+local CREDITS_INCREASE_PER_PHASE = 275
+
+local SHRINE_SPAWN_LIMIT = 2
+local SHRINE_SPAWN_DISTANCE = Vector2.New(20, 25) -- The distance we attempt to spawn from the Hero.
+local SHRINE_PREVENT_SPAWN_DISTANCE = 30 -- Cannot be within 30 units of another Chest.
+
+local CONSUMABLE_SPAWN_LIMIT = 1
+local CONSUMABLE_SPAWN_DISTANCE = Vector2.New(25, 50)
+local CONSUMABLE_DESPAWN_RANGE = 100
+
+---DEBUG: Developer Startup
+local _SHOW_DEV_INFO = nil
+local _PRINT_STAGE_INFO = nil
+local _PRINT_SPAWN_EVENTS = nil
+if _Dev then
+    _SHOW_DEV_INFO = _Dev.UI.show_dev_info
+    _PRINT_STAGE_INFO = _Dev.Log.stage_information
+    _PRINT_SPAWN_EVENTS = _Dev.Log.spawn_events
+end
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Variables
+---============================================================================
+
+---@type TileMap
+local _Map = nil
+
+---@type CreditDirector
+local _CreditDirector = nil
+
+-- Game
+local _CurrentPhase = 0
+local _PhaseTime = 0
+
+-- Game Objectives
+local _NexusCount = 0
+local _NexusInstance = nil
+local _BossInstance = nil
+
+-- Passive Upgrades
+local _ShrinesActive = false
+local _ConsumblesActive = false
+
+-- Tutorial
+local show_movement_tutorial = false
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions - Core
+---============================================================================
+
+---Increment Nexus Attempts
+---@return integer nexus_attempts
+---@return integer session_attempts
+local function GetNexusAttempts()
+    local user_data = DCEI.Save.Get("user_data")
+    user_data = Json.decode(user_data)
+
+    -- Check if the player has any previous Nexus Attempts
+    if user_data.nexus_attempts then
+        user_data.nexus_attempts = user_data.nexus_attempts + 1
+    else
+        user_data.nexus_attempts = 1
+    end
+
+    user_data.session_attempts = user_data.session_attempts + 1
+
+    -- Save the User Data
+    -- DCEI.Save.Set("user_data", Json.encode(user_data))
+    -- DCEI.Save.Commit()
+
+    return user_data.nexus_attempts, user_data.session_attempts
+end
+
+local function ResetStateVariables()
+    -- Reset Map
+    if _Map then
+        _Map:Reset()
+    end
+    _Map = nil
+
+    -- Reset Directors
+    _CreditDirector = nil
+    SpawnDirector.Instance = nil
+
+    _CurrentPhase = 0
+    _PhaseTime = 0
+
+    _NexusCount = 0
+    _NexusInstance = nil
+    _BossCount = 0
+    _BossInstance = nil
+
+    _ShrinesActive = false
+    _ConsumblesActive = false
+end
+
+---Initialize Game Mode
+---@param ctx GameModeContext
+local function Initialize(ctx)
+    -- Reset Player Stats
+    StageHelper.InitializeTrackedStats()
+
+    -- Reset Common Data Access
+    CommonDataAccess.Clear()
+
+    ---LOG: Attempts
+    local nexus_attempts, session_attempts = GetNexusAttempts()
+    CommonDataAccess.Set("attempts", nexus_attempts)
+    CommonDataAccess.Set("session_attempts", session_attempts)
+
+    -- Core
+    local game_mode = CommonDataAccess.Set("game_mode", State.name)
+    local hero_name = CommonDataAccess.Set("hero", ctx.hero)
+    local hero_meta_level = CommonDataAccess.Set("hero_meta_level", ctx.hero_meta_level)
+    local trophy_count = CommonDataAccess.Set("current_total_trophies", ctx.trophy_count or 0)
+    local stage_level = CommonDataAccess.Set("stage_level", 1 + math.floor(trophy_count / TROPHIES_EARNED))
+
+    -- UI Display
+    CommonDataAccess.Set("game_time", 0)
+
+    -- Passive Upgrades
+    local passive_upgrades = ctx.passives
+
+    -- Check if Shrines/Consumables are Active
+    if passive_upgrades then
+        _ShrinesActive = Core.Table.Contains(passive_upgrades, "Shrines")
+        _ConsumblesActive = Core.Table.Contains(passive_upgrades, "Consumables")
+    end
+
+    -- Map
+    _Map = TileMap.New(TILE_SIZE, TILE_LOAD_DISTANCE, TILE_OPTIONS)
+    _Map:Update(Vector2.Zero())
+
+    -- Hero
+    StageHelper.SetupPlayerCount(1)
+    local hero = StageHelper.SetupPlayerHero(PLAYER.Player1, hero_name, hero_meta_level, Vector2.Zero(), ctx.upgrades)
+
+    -- UI
+    StageHelper.ResetUI()
+    UiHelper.SetGameTimerActive(true, 0)
+    UiHelper.SetGameUIActive(true)
+
+    -- Experience
+    StageHelper.SetupGlobalExperience()
+
+    -- Set Seed
+    local seed = Help.ConvertToSeed(hero_name, game_mode, stage_level)
+    Core.Random.SetSeed(seed)
+
+    -- Directors
+    _CreditDirector = CreditDirector.New()
+    _CreditDirector:SetCreditsGeneratedPerMinute(STARTING_CREDITS_PER_MINUTE)
+
+    -- Tutorial
+    show_movement_tutorial = ctx.active_tutorial
+
+    ---LOG: Game Start
+    Log.Game.Start({
+        game_mode = State.name,
+        stage_level = stage_level,
+        hero = hero_name,
+        hero_meta_level = hero_meta_level,
+        attempts = nexus_attempts,
+        session_attempts = session_attempts,
+    })
+end
+
+---Trigger Game Over
+---@param victory boolean
+local function GameOver(victory)
+    if not FSM:IsCurrentState(State) then
+        return
+    end
+
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+    FSM:Transition(FSM.states.game_over, { Victory = victory })
+end
+
+---DEBUG: Controls
+
+---Triggers when the player presses 'v'
+local function AutoVictory()
+    StageHelper.SetTrackedStat("Boss Kills", 3)
+    StageHelper.SetTrackedStat("Nexus", 3)
+
+    -- CommonDataAccess.Set("nexus_destroyed", 3)
+    -- CommonDataAccess.Set("bosses_defeated", 3)
+    GameOver(true)
+end
+
+---Triggers when the player presses 'b'
+local function AutoDefeat()
+    DCEI.KillUnit(Hero.Fetch(PLAYER.Player1).unit)
+end
+
+-- Skip to the next main event.
+local function TimeSkip()
+    if _NexusInstance then
+        DCEI.KillUnit(_NexusInstance)
+    elseif _BossInstance then
+        DCEI.KillUnit(_BossInstance)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Variables - Core
+---SECTION: Local Functions - Phase & Spawning
+---============================================================================
+
+local function CheckRequiredDifficultyMaxIndex(table, difficulty)
+    local index = 1
+    for i = 1, #table do
+        if table[i].RequiredDifficulty > difficulty then
+            break
+        end
+
+        index = i
+    end
+
+    return index
+end
+
+local function CreditSpawnCheck()
+    local stage_level = CommonDataAccess.Get("stage_level")
+    local difficulty = NexusData.GetDifficulty(stage_level, _CurrentPhase)
+
+    -- Formation Selection
+    local formation_selection_limit = CheckRequiredDifficultyMaxIndex(NexusData.Formations, difficulty)
+    local formation_selection = NexusData.Formations[Core.Random.GetInteger(1, formation_selection_limit)]
+
+    -- Enemy Selection
+    local enemy_selection_limit = CheckRequiredDifficultyMaxIndex(NexusData.Enemies, difficulty)
+    local enemy_selection = NexusData.Enemies[Core.Random.GetInteger(1, enemy_selection_limit)]
+
+    -- Mutation Selection
+    local mutation_selection_limit = CheckRequiredDifficultyMaxIndex(NexusData.Mutations, difficulty)
+    local mutation_selection = NexusData.Mutations[Core.Random.GetInteger(1, mutation_selection_limit)]
+
+    -- Verify that we can afford this combination.
+    local credits_available = _CreditDirector:GetCredits()
+    local spawn_cost = enemy_selection.Cost * formation_selection.CostMultiplier * mutation_selection.CostMultiplier
+
+    local max_spawn_count = math.floor(credits_available / spawn_cost)
+    local half_spawn_count = math.floor(max_spawn_count / 2)
+    local count = Core.Random.GetInteger(half_spawn_count, max_spawn_count)
+
+    local success = _CreditDirector:SpendCredits(count * spawn_cost)
+    if not success then
+        Help.Warn("Could not afford to purchase any units.")
+        return
+    end
+
+    if _PRINT_SPAWN_EVENTS then
+        Help.Warn("Credit Spawn Event:", formation_selection.Name, {
+            Count = count,
+            EnemyType = enemy_selection.Type.Name,
+            Mutation = mutation_selection.Name,
+        })
+    end
+
+    -- Register the Unit
+    ---REVIEW: Do we need to also remove or wipe this unit?
+    local hostile_data = enemy_selection.Type
+    local enemy_modifiers = enemy_selection.Modifiers
+    local formation_modifiers = formation_selection.Modifiers
+    local mutation_modifiers = mutation_selection.Modifiers
+
+    SpawnDirector.Instance:RemoveUnit(hostile_data) -- Safety Precaution
+    SpawnDirector.Instance:AddNewUnit(hostile_data)
+    SpawnDirector.Instance:AddModifiers(hostile_data, enemy_modifiers)
+    SpawnDirector.Instance:AddModifiers(hostile_data, formation_modifiers)
+    SpawnDirector.Instance:AddModifiers(hostile_data, mutation_modifiers)
+    SpawnDirector.Instance:AddModifier(
+        hostile_data,
+        Modifier.New(STAT.Health, difficulty * HOSTILE_HEALTH_INCREASE, SCALING.Additive)
+    )
+    SpawnDirector.Instance:AddModifier(
+        hostile_data,
+        Modifier.New(STAT.Thorns, difficulty * HOSTILE_DAMAGE_INCREASE, SCALING.Additive)
+    )
+    SpawnDirector.Instance:AddModifier(
+        hostile_data,
+        Modifier.New(STAT.MoveSpeed, (_CurrentPhase - 1) * HOSTILE_SPEED_INCREASE, SCALING.Additive)
+    )
+
+    -- Setup Properties
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local target = hero.unit
+    if not Help.ValidateUnit(target) then
+        return
+    end
+    local target_position = hero:GetPosition()
+
+    local properties = Core.Table.DeepCopy(formation_selection.Properties)
+    for key, value in pairs(properties) do
+        if value == "TargetPass" then
+            properties[key] = target
+        elseif value == "PositionPass" then
+            properties[key] = target_position
+        elseif value == "RandomAnglePass" then
+            properties[key] = Core.Random.GetNumber(0, 360)
+        elseif value == "RandomCardinalPass" then
+            properties[key] = Vector2.Angle(CardinalToVector(Help.GetRandomCardinalDirection()))
+        end
+    end
+
+    if formation_selection.Type == "Enclosure" then
+        SpawnDirector.Instance:SpawnEnclosure(hostile_data, count, properties)
+    elseif formation_selection.Type == "Stream" then
+        SpawnDirector.Instance:SpawnStream(hostile_data, count, properties)
+    end
+end
+
+local function PhaseIncrease()
+    DCEI.ShowFeedbackMessage("The darkness grows stronger.")
+    _CurrentPhase = _CurrentPhase + 1
+
+    local stage_level = CommonDataAccess.Get("stage_level")
+
+    local difficulty = NexusData.GetDifficulty(stage_level, _CurrentPhase)
+
+    -- Modify Credit Director
+    _CreditDirector:ModifyCreditsGenerated(CREDITS_INCREASE_PER_PHASE)
+
+    -- Reroll Enemies
+    -- Apply Modifiers
+
+    -- Modify Periodic Spawn Stats
+    ---NOTE: Make sure to assign an ID so that the value is overwritten (rather than appended).
+
+    SpawnDirector.Instance:AddModifier(
+        PERIODIC_SPAWN_TYPE,
+        Modifier.New(STAT.Health, difficulty * HOSTILE_HEALTH_INCREASE, SCALING.Additive, nil, "Difficulty Health")
+    )
+
+    SpawnDirector.Instance:AddModifier(
+        PERIODIC_SPAWN_TYPE,
+        Modifier.New(STAT.Thorns, difficulty * HOSTILE_DAMAGE_INCREASE, SCALING.Additive, nil, "Difficulty Thorns")
+    )
+
+    SpawnDirector.Instance:AddModifier(
+        PERIODIC_SPAWN_TYPE,
+        Modifier.New(
+            STAT.MoveSpeed,
+            (_CurrentPhase - 1) * HOSTILE_SPEED_INCREASE,
+            SCALING.Additive,
+            nil,
+            "Phase Move Speed"
+        )
+    )
+end
+
+-- Phase Duration: 60s * Phase
+-- Phase 1: 1 Minute
+-- Phase 2: 2 Minutes
+-- Phase 3: 3 Minutes, etc.
+local function PhaseCheck(delta)
+    _PhaseTime = _PhaseTime + delta
+    if _PhaseTime >= _CurrentPhase * 60 then
+        PhaseIncrease()
+        _PhaseTime = 0
+    end
+end
+
+local function PeriodicSpawn()
+    -- Periodic Spawn occurs 1/s per phase with a delay of 1/s per phase.
+    -- This ends up being a total of 1 per second still, while causing them to start clustering.
+    local game_time = CommonDataAccess.Get("game_time")
+
+    if game_time % _CurrentPhase ~= 0 then
+        return
+    end
+
+    local target = Hero.GetRandomTarget()
+    if not target then
+        return
+    end
+
+    local groups_to_spawn = Core.Random.GetInteger(1, _CurrentPhase)
+    local max_count_in_group = 3 + _CurrentPhase * (_CurrentPhase - 1)
+
+    for i = 1, groups_to_spawn do
+        local count = Core.Random.GetInteger(1, max_count_in_group)
+        SpawnDirector.Instance:SpawnStream(PERIODIC_SPAWN_TYPE, count, {
+            [StreamProperties.width] = 2,
+            [StreamProperties.distance] = HOSTILE_SPAWN_DISTANCE,
+            [StreamProperties.anchor_target] = target,
+            [StreamProperties.follow_target] = target,
+            [StreamProperties.spawn_angle] = Core.Random.GetNumber(0, 360),
+        })
+    end
+end
+
+---Spawn Starting Nexus
+---@param base_position Vector2
+---@param forced_position boolean | nil
+local function SpawnNexus(base_position, forced_position)
+    UiHelper.SetMainObjectiveText(string.format("Nexus Destroyed\n %d/%d", _NexusCount, 3))
+    _NexusCount = _NexusCount + 1
+
+    local position = base_position + Vector2.Random() * NEXUS_SPAWN_DISTANCE
+
+    if forced_position then
+        position = base_position
+    end
+
+    _NexusInstance = Events.SpawnNexus(position, _NexusCount)
+
+    local function OnBossDeath()
+        -- When the Boss Dies, cut the current Credits in half.
+        _CreditDirector:ModifyCredits(_CreditDirector:GetCredits() * -0.50)
+
+        _BossInstance = nil
+        DCEI.Wait(0.5)
+
+        -- CommonDataAccess.Modify("bosses_defeated", 1)
+
+        -- Was the final Boss
+        if _BossCount == 3 then
+            GameOver(true)
+        else
+            -- Boss Delay for Death Animation
+            if not Help.WaitAndValidateUnit(1.25, Hero.Fetch(PLAYER.Player1).unit) then
+                return
+            end
+
+            -- Grant the hero an Artifact Point
+            Hero.Fetch(PLAYER.Player1):ModifyUpgradePoints(HERO_POINT.Heroic)
+
+            -- Spawn Nexus
+            SpawnNexus(position)
+        end
+    end
+
+    local function SpawnBoss()
+        -- When the Boss Dies, cut the current Credits in half.
+        _CreditDirector:ModifyCredits(_CreditDirector:GetCredits() * -0.50)
+
+        _BossCount = _BossCount + 1
+        if _BossCount == 3 then
+            UiHelper.SetMainObjectiveText(string.format("Defeat the Boss!"))
+        else
+            UiHelper.SetMainObjectiveText(string.format("Defeat the Boss!"))
+        end
+
+        local stage_level = CommonDataAccess.Get("stage_level")
+        local looping_boss_index = (stage_level - 1 + _NexusCount - 1) % #NexusData.Bosses + 1
+        local boss_type = NexusData.Bosses[looping_boss_index]
+        local difficulty = NexusData.GetDifficulty(stage_level, _CurrentPhase) * _BossCount
+
+        _BossInstance = Bosses.Spawn(boss_type, position, difficulty)
+        Bosses.ApplyOnScreenHealthBar(_BossInstance, boss_type.Data.Name)
+        Bosses.ApplyOffscreenIndicator(_BossInstance, BOSS_ICON)
+
+        DCEI.TriggerAddUnitDiedEvent(_BossInstance, OnBossDeath)
+    end
+
+    local function OnNexusDeath()
+        -- CommonDataAccess.Modify("nexus_destroyed", 1)
+        _NexusInstance = nil
+        DCEI.Wait(0.5)
+
+        SpawnBoss()
+    end
+
+    DCEI.TriggerAddUnitDiedEvent(_NexusInstance, OnNexusDeath)
+end
+
+local function AnimateNexusEvent()
+    if _NexusInstance then
+        local unit_reference = GMUI.CreateUnitReference(_NexusInstance)
+        Core.Event.SendPresentationEvent("AnimateOffscreenIndicator", unit_reference)
+    end
+end
+
+local function CheckSpawnShrine()
+    if not _ShrinesActive then
+        return
+    end
+
+    -- Too many Shrines to spawn another
+    if Events.GetEventCount(EventsGroup.Shrine) >= SHRINE_SPAWN_LIMIT then
+        return
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+
+    local direction = Vector2.Random()
+
+    -- If the Nexus is available, use its position as an offset direction for spawning a Shrine.
+    -- This will help guide the player towards the Nexus while collecting Shrines.
+    if _NexusInstance then
+        local nexus_position = Vector2.UnitPosition(_NexusInstance)
+        local offset = Vector2.Normalized(nexus_position - hero_position)
+        direction = Vector2.Normalized(direction + offset * 2)
+    end
+
+    local shrine_spawn_distance = Core.Random.GetInteger(SHRINE_SPAWN_DISTANCE.x, SHRINE_SPAWN_DISTANCE.y)
+    local spawn_position = hero_position + direction * shrine_spawn_distance
+
+    -- Prevent Shrine from spawning too close to the Nexus
+    if _NexusInstance then
+        local nexus_position = Vector2.UnitPosition(_NexusInstance)
+        if Vector2.Distance(spawn_position, nexus_position) < SHRINE_PREVENT_SPAWN_DISTANCE then
+            return
+        end
+    end
+
+    -- Prevent Shrines from spawning too close to another Shrine.
+    local instances = Events.GetEventInstances(EventsGroup.Shrine)
+    for _, instance in pairs(instances) do
+        local instance_position = Vector2.UnitPosition(instance)
+        if Vector2.Distance(spawn_position, instance_position) < SHRINE_PREVENT_SPAWN_DISTANCE then
+            return
+        end
+    end
+
+    Events.SpawnShrine(spawn_position)
+end
+
+local function CheckSpawnConsumable()
+    if not _ConsumblesActive then
+        return
+    end
+
+    -- Hero Data
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local hero_position = hero:GetPosition()
+
+    -- We should remove Consumables when the player is extremely distant.
+    local instances = Events.GetEventInstances(EventsGroup.Consumable)
+
+    -- Check the Distance to each active Consumable
+    for _, instance in pairs(instances) do
+        local instance_position = Vector2.UnitPosition(instance)
+        local instance_distance = Vector2.Distance(hero_position, instance_position)
+
+        -- Remove extremely distance Consumables
+        if instance_distance > CONSUMABLE_DESPAWN_RANGE then
+            DCEI.RemoveUnit(instance)
+        end
+    end
+
+    -- Prevent spawning past the Available Limit.
+    if Events.GetEventCount(EventsGroup.Consumable) >= CONSUMABLE_SPAWN_LIMIT then
+        return
+    end
+
+    ---TEMP: Spawn a random Consumable Event for the player to engage with.
+    ---TODO: Implement a better system when more Consumable Event types are available.
+    local distance = Core.Random.GetNumber(CONSUMABLE_SPAWN_DISTANCE.x, CONSUMABLE_SPAWN_DISTANCE.y)
+    local spawn_position = hero_position + Vector2.Random() * distance
+
+    if math.random() <= 0.50 then
+        Events.SpawnPotion(spawn_position)
+    else
+        Events.SpawnMagnet(spawn_position)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions - Phase & Spawning
+---SECTION: Registered Functions
+---============================================================================
+
+---Check for Defeat Condition
+---@param delta number
+local function CheckDefeatStatus(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        GameOver(false)
+    end
+end
+
+---To make sure this is responsive, trigger every Frame.
+---Updates Player Movement
+---@param delta number
+local function UpdatePlayerMovement(delta)
+    StageHelper.PlayerUpdate()
+end
+
+---Every 0.25 Seconds - Helps the UI be less jittery.
+---Updates Player Stats
+---NOTE: Make sure to record one final time prior to leaving the State.
+---@param delta number | nil
+local function UpdatePlayerStats(delta)
+    StageHelper.UpdatePlayerStats()
+end
+
+---Every 0.50 seconds.
+---Updates the Tiles and Hostile Remove Boundary
+---@param delta number
+local function UpdateTilesAndBoundary(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+
+    _Map:Update(tile_index)
+    StageHelper.SetSimpleUnitBounds(hero_position, KILL_BOX_SIZE)
+end
+
+---Triggers every 1 Second.
+---Updates the Main Game Events.
+---@param delta number
+local function UpdateGameTime(delta)
+    -- Update Time every 1 Second.
+    local game_time = CommonDataAccess.Modify("game_time", delta)
+
+    if type(game_time) == "number" then
+        UiHelper.SetGameTime(game_time)
+    end
+
+    PhaseCheck(delta)
+    PeriodicSpawn()
+end
+
+---Occurs every 30 Seconds.
+---Check for Credit Spawns.
+---@param delta number
+local function CreditCheck(delta)
+    -- While a Boss is Active, Credits Flow at 50% Speed.
+    local boss_active = Help.ValidateUnit(_BossInstance)
+    local credits_multiplier = boss_active and 0.5 or 1
+
+    -- Update Credits
+    _CreditDirector:Update(delta * credits_multiplier)
+
+    -- Spawn Enemies
+    CreditSpawnCheck()
+end
+
+---Should occur every minute.
+---Log the current Game Performance
+---@param delta number
+local function LogGamePerformance(delta)
+    Log.Performance.Event({
+        game_mode = CommonDataAccess.Get("game_mode"),
+        game_time = CommonDataAccess.Get("game_time"),
+        hero_level = CommonDataAccess.Get("hero_level"),
+        attempts = CommonDataAccess.Get("attempts"),
+        session_attempts = CommonDataAccess.Get("session_attempts"),
+    })
+end
+
+local function CheckMovementTutorialCompleted()
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    if Vector2.Magnitude(joystick.axes) > 0.1 then
+        Log.Nexus.MovementTutorialCompleted()
+        GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Hide")
+        show_movement_tutorial = false
+        TickRate:Unsubscribe(TICK_RATE, CheckMovementTutorialCompleted)
+    end
+end
+
+local _TickRateUpdates = {
+    {
+        Interval = 1,
+        Function = CheckDefeatStatus,
+    },
+    {
+        Interval = 1,
+        Function = UpdatePlayerMovement,
+    },
+    {
+        Interval = 0.25 / TICK_RATE,
+        Function = UpdatePlayerStats,
+    },
+    {
+        Interval = 0.50 / TICK_RATE,
+        Function = UpdateTilesAndBoundary,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = UpdateGameTime,
+    },
+    {
+        Interval = 10 / TICK_RATE,
+        Function = CheckSpawnShrine,
+    },
+    {
+        Interval = 15 / TICK_RATE,
+        Function = AnimateNexusEvent,
+    },
+    {
+        Interval = 30 / TICK_RATE,
+        Function = CreditCheck,
+    },
+    {
+        Interval = 60 / TICK_RATE,
+        Function = CheckSpawnConsumable,
+    },
+    {
+        Interval = 60 / TICK_RATE,
+        Function = LogGamePerformance,
+    },
+}
+
+---Un/Register Tick Rate Dependent Functions
+---@param unsubscribe boolean | nil
+local function SubscribeTickRates(unsubscribe)
+    -- Forces the Tick back to Zero to keep the game_mode in sync.
+    TickRate:ResetTick()
+
+    if not unsubscribe then
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Subscribe(entry.Interval, entry.Function)
+        end
+    else
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Unsubscribe(entry.Interval, entry.Function)
+        end
+    end
+
+    if show_movement_tutorial then
+        TickRate:Subscribe(TICK_RATE, CheckMovementTutorialCompleted)
+    end
+end
+
+---============================================================================
+---!SECTION: Registered Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    ---@type GameModeContext
+    self.data = self.data
+
+    -- Clear any Leftover Units
+    StageHelper.RemoveAllUnits()
+
+    -- Reset
+    ResetStateVariables()
+
+    -- Setup
+    Initialize(self.data)
+
+    -- FadeIn
+    UiHelper.FadeIn()
+end
+
+function State:OnEnter()
+    -- Spawn Initial Nexus
+    local direction = Vector2.NewFromAngle(Core.Random.GetNumber(30, 60))
+    SpawnNexus(direction * NEXUS_SPAWN_DISTANCE, true)
+
+    -- Spawn Starting Shrine
+    if _ShrinesActive then
+        local position = Vector2.Quadrant(1) * 10
+        Events.SpawnShrine(position, SHRINE.MeditationFountain)
+    end
+
+    SpawnDirector.Instance:AddNewUnit(PERIODIC_SPAWN_TYPE)
+
+    if _Dev then
+        _Dev.Events.Register("Victory", AutoVictory)
+        _Dev.Events.Register("Defeat", AutoDefeat)
+        _Dev.Events.Register("Time Skip", TimeSkip)
+    end
+
+    local stage_level = CommonDataAccess.Get("stage_level")
+    NexusData.PrintStageDifficulty(stage_level)
+
+    SubscribeTickRates()
+
+    if show_movement_tutorial then
+        GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Show")
+    end
+end
+
+function State:OnGameUpdate(delta)
+    ---DEBUG: Update Developer UI
+    if _SHOW_DEV_INFO then
+        State:Developer()
+    end
+end
+
+function State:OnTransitionExit()
+    if show_movement_tutorial then
+        GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Hide")
+        TickRate:Unsubscribe(TICK_RATE, CheckMovementTutorialCompleted)
+    end
+
+    SubscribeTickRates(true)
+    UpdatePlayerStats() -- Make sure to Record 1 Final Time.
+
+    -- StageHelper.RecordHeroDamage()
+
+    -- Reset Hero
+    ---NOTE: This prevents Return to Menu to see VFX in Meta Menu
+    Hero.Fetch(PLAYER.Player1):Reset()
+
+    -- Transition
+    StageHelper.GameOverSlowTimeAndZoom(3, 60, 40, function()
+        UiHelper.FadeOut(1)
+    end)
+end
+
+function State:OnExit()
+    -- Reset Game Speed back to Normal
+    Help.SetGameSpeed(1)
+
+    -- Clear
+    _Map:Reset()
+    StageHelper.RemoveAllUnits()
+
+    -- Reset State Variables
+    ResetStateVariables()
+
+    ---DEBUG: Remove Developer Console
+    if _SHOW_DEV_INFO then
+        UiHelper.ResetDeveloperText()
+    end
+
+    if _Dev then
+        _Dev.Events.Unregister("Victory", AutoVictory)
+        _Dev.Events.Unregister("Defeat", AutoDefeat)
+        _Dev.Events.Unregister("Time Skip", TimeSkip)
+    end
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: Developer
+---============================================================================
+
+---DEBUG: Developer Console
+if _SHOW_DEV_INFO then
+    function State:Developer()
+        local unit = Hero.Fetch(PLAYER.Player1).unit
+
+        -- Verify Unit Exists
+        if not unit or not DCEI.UnitExists(unit) then
+            return
+        end
+
+        -- Show Hero Position
+        local position = Vector2.UnitPosition(unit)
+        local key = "unit_position"
+        local label = string.format("Position: (%0.1f, %0.1f)", position.x, position.y)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Credit Director
+        local key = "credits"
+        local label = string.format("Credits: %d", math.floor(_CreditDirector.credits))
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Phase
+        local key = "phase"
+        local label = string.format("Phase [%d]: %d", _CurrentPhase, math.floor(_PhaseTime))
+        UiHelper.SetDeveloperText(key, label)
+    end
+end
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

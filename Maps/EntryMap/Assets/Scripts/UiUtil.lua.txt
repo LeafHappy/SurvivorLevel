@@ -1,0 +1,40 @@
+local function GetChildFrameOrLayout(layout_table, frame_name)
+    local child_frame = DCEI.GetChildFrameById(layout_table.Frame, frame_name)
+    if child_frame then
+        if DCEI.IsUiRootFrame(child_frame) then
+            local child_layout = {
+                Frame = child_frame,
+            }
+            setmetatable(child_layout, {
+                __index = function(layout_table, name)
+                    return GetChildFrameOrLayout(layout_table, name)
+                end,
+            })
+            child_layout.state = DCEI.GetFrameState(child_frame)
+            rawset(layout_table, frame_name, child_layout)
+            return child_layout
+        else
+            rawset(layout_table, frame_name, child_frame)
+            return child_frame
+        end
+    end
+end
+
+local function GetChildrenFrames(frame)
+    local layout = {
+        Frame = frame,
+    }
+    setmetatable(layout, {
+        __index = function(layout_table, name)
+            return GetChildFrameOrLayout(layout_table, name)
+        end,
+    })
+    layout.state = DCEI.GetFrameState(frame)
+    return layout
+end
+
+local UiUtil = {
+    GetChildrenFrames = GetChildrenFrames,
+}
+
+return UiUtil

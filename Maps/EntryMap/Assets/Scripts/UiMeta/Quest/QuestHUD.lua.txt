@@ -1,0 +1,278 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Meta = require("Meta:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local FlyingRewards = require("UiMeta/FlyingRewards")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+local ui = GMUI.ui
+
+---@class QuestHUD
+local QuestHUD = {}
+local is_initialized = false
+local is_showing_objective = false
+
+---@type table<QuestReward>
+local current_rewards = {}
+
+---@type table<Layout>
+local current_indicators = {}
+
+---@type boolean
+local can_click_to_claim = true
+
+-- CONSTANT
+local BAR_FILL_DURATION = 0.5
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function RemoveQuestHint()
+    local state = QuestHUD.layout.objective_display.state
+    state.is_complete = true
+    is_showing_objective = false
+
+    local check_duration = 0.25
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        local duration = 0.5
+        if not is_showing_objective then
+            Animation.FadeOut(QuestHUD.layout.objective_display.Frame, duration)
+        end
+
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            if not is_showing_objective then
+                QuestHUD.layout.objective_display:Hide()
+            else
+                QuestHUD.layout.objective_display:Show()
+            end
+        end, duration)
+    end, check_duration)
+end
+
+local function OnClaimRewards()
+    for _, reward in ipairs(current_rewards) do
+        FlyingRewards.SpawnRewards(reward.type, reward.amount, 50)
+    end
+
+    DCEI.SetUpdateFrequency(1)
+    Core.Event.SendSimulationEvent("QuestManager.ClaimRewards", current_rewards)
+    current_rewards = {}
+end
+
+---@param unit_reference string
+local function ShakeIndicator(unit_reference)
+    if not current_indicators[unit_reference] then
+        return
+    end
+
+    current_indicators[unit_reference]:Focus()
+end
+
+local function InitializeObjectiveDisplay()
+    local objective_display = GMUI.Layout.New({
+        name = "Meta/QuestHUD/Objective",
+        parent = QuestHUD.layout.ObjectiveContent,
+    })
+
+    function objective_display:OnShow()
+        DCEI.SetFrameAlpha(self.Frame, 1)
+
+        local duration = 0.25
+        Animation.PopIn(self.Frame, { duration = duration })
+    end
+
+    objective_display.ShowActual = objective_display.Show
+    function objective_display:Show()
+        if not DCEI.IsFrameActive(self.Frame) then
+            self:OnShow()
+        end
+        self:ShowActual()
+        is_showing_objective = true
+    end
+
+    ---@param on_animation_complete function
+    function objective_display:PlayBarFillAnimation(on_animation_complete)
+        local state = self.state
+        local current_fill = DCEI.GetFrameImageFillAmount(objective_display.FillMask)
+        local fill_amount = state.current_amount / state.needed_amount
+        local fill_difference = fill_amount - current_fill
+        if fill_difference < 0 then
+            DCEI.SetFrameImageFillAmount(objective_display.FillMask, fill_amount)
+            if on_animation_complete then
+                on_animation_complete()
+            end
+            return
+        end
+
+        local step_time = 0.0125
+        local time = 0
+        while time < BAR_FILL_DURATION do
+            local fill_percent = time / BAR_FILL_DURATION
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                local step = Core.Math.Lerp(current_fill, fill_amount, fill_percent)
+                DCEI.SetFrameImageFillAmount(objective_display.FillMask, step)
+            end, time)
+            time = time + step_time
+        end
+
+        if on_animation_complete then
+            GMUI.RunFunctionAfterTimeElapsed(on_animation_complete, time)
+        end
+    end
+
+    function objective_display:PlayQuestCompleteAnimation()
+        Animation.Impact(self.Frame, { final_size = 2 })
+        Animation.ShakeFrame(self.Frame)
+    end
+
+    DCEI.SetButtonDefaultClickAnimationEnabled(objective_display.Button, false)
+    DCEI.SetOnClickCallback(objective_display.Button, function()
+        if objective_display.state.can_claim and can_click_to_claim then
+            OnClaimRewards()
+        elseif is_showing_objective then
+            Core.Event.SendSimulationEvent("QuestManager.ReFocusObjective")
+        end
+    end)
+
+    objective_display:OnShow()
+    return objective_display
+end
+
+---@param unit_reference string
+local function CreateIndicator(unit_reference)
+    local indicator = GMUI.Layout.New({
+        name = "Meta/QuestHUD/Indicator",
+    })
+
+    local unit = GMUI.GetUnitFromUnitReference(unit_reference)
+    local options = {
+        offset = { up = 1 },
+        center_at_unit_top = true
+    }
+    DCEI.AttachFrameToUnit(indicator.Frame, unit, options)
+
+    function indicator:Focus()
+        local controller = DCEI.GetFrameController(self.Frame)
+        controller:Focus()
+    end
+
+    current_indicators[unit_reference] = indicator
+end
+
+---@param unit_reference string
+local function RemoveIndicator(unit_reference)
+    current_indicators[unit_reference]:Destroy()
+    current_indicators[unit_reference] = nil
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function QuestHUD.Initialize()
+    if is_initialized then
+        return
+    end
+
+    QuestHUD.layout = GMUI.Layout.New({
+        Frame = GMUI.ui.camp.overlay.quest_hud.Frame,
+    })
+
+    QuestHUD.layout.objective_display = InitializeObjectiveDisplay()
+
+    is_initialized = true
+end
+
+---@param data_pass table
+function QuestHUD.Update(data_pass)
+    local quest_data = data_pass.quest_data or {}
+    local objective_data = data_pass.objective_data or {}
+    local quest_save_data = data_pass.quest_save_data or {}
+    current_rewards = data_pass.rewards or {}
+
+    if not is_initialized then
+        QuestHUD.Initialize()
+    end
+
+    local objective_display = QuestHUD.layout.objective_display
+    local state = objective_display.state
+    state.icon = quest_data.icon or ""
+    state.hint = objective_data.hint or ""
+    state.can_claim = false
+
+    state.needed_amount = objective_data.values and objective_data.values.amount or 1
+    state.current_amount = quest_save_data[quest_data.key].amount or 0
+    objective_display:PlayBarFillAnimation(function()
+        state.can_claim = quest_save_data[quest_data.key].can_claim or false
+        state.is_complete = data_pass.is_complete or false
+
+        if state.can_claim and objective_data.pause_on_done then
+            DCEI.SetUpdateFrequency(0)
+            Meta.Spotlight.Create({
+                frame = objective_display.Frame,
+                scale = 2.5,
+                spotlight_offset = -10,
+            }, function()
+                OnClaimRewards()
+            end)
+
+            -- Clear click callback to not overlap with spotlight
+            can_click_to_claim = false
+        else
+            can_click_to_claim = true
+        end
+    end)
+
+    objective_display:Show()
+end
+
+---@param rewards table<QuestReward> | nil
+function QuestHUD.CompleteQuest(rewards)
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        QuestHUD.layout.objective_display:PlayQuestCompleteAnimation()
+
+        if not rewards then
+            RemoveQuestHint()
+            return
+        end
+
+        local state = QuestHUD.layout.objective_display.state
+        state.can_claim = true
+        current_rewards = rewards
+    end, BAR_FILL_DURATION)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("QuestHUD.CreateIndicator", CreateIndicator)
+Core.Event.RegisterPresentationEvent("QuestHUD.RemoveIndicator", RemoveIndicator)
+Core.Event.RegisterPresentationEvent("QuestHUD.ShakeIndicator", ShakeIndicator)
+
+Core.Event.RegisterPresentationEvent("QuestHUD.Update", QuestHUD.Update)
+Core.Event.RegisterPresentationEvent("QuestHUD.Complete", QuestHUD.CompleteQuest)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return QuestHUD

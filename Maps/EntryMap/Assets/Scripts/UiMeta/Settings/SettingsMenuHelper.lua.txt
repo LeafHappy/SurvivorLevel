@@ -1,0 +1,42 @@
+local Meta = require("Meta:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local SettingsMenuHelper = {}
+SettingsMenuHelper.is_initialized = false
+
+function SettingsMenuHelper.Initialize(parent_frame)
+    if SettingsMenuHelper.is_initialized then
+        return
+    end
+
+    local args = {
+        parent_frame = parent_frame,
+        OnQuitFunction = function()
+            DCEI.QuitApplication()
+        end,
+        no_button = true,
+        is_legacy = false,
+        button_args = {
+            load_progress = false,
+            resume = false,
+            quit = true,
+            restart = false,
+        },
+    }
+
+    Meta.SettingsMenu.Create(args)
+
+    SettingsMenuHelper.is_initialized = true
+
+    return Meta.SettingsMenu
+end
+
+function SettingsMenuHelper.Open()
+    if not SettingsMenuHelper.is_initialized then
+        GMUI.ui.camp.settings_menu = SettingsMenuHelper.Initialize(GMUI.ui.z3.Upper)
+    end
+
+    GMUI.ui.camp.settings_menu:Show()
+end
+
+return SettingsMenuHelper

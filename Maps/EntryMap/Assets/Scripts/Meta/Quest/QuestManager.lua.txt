@@ -1,0 +1,477 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+local Hero = require("Game/Hero")
+
+local ReviewInviteManager = require("Meta/ReviewInviteManager")
+local SaveDataManager = require("Class/SaveDataManager")
+
+local QuestActionManager = require("Meta/Quest/QuestActionManager")
+local QuestQueue = require("Meta/Quest/QuestQueue")
+
+-- DATA
+local QuestData = require("Meta/Quest/QuestData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+---@class QuestManager
+local QuestManager = {}
+
+local is_in_combat = false
+local quest_save_data = {}
+local current_quest = {}
+
+---@type function
+QuestManager.on_start_objective_callback = nil
+
+-- CONSTANTS
+local FINISHED = -1
+local HERO_LOAD_TIME = 1
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function UpdateQuestHUD()
+    if not current_quest or not current_quest.key then
+        return
+    end
+
+    local is_complete = QuestManager.IsQuestFinished(current_quest.key) and not QuestManager.CanClaimQuestRewards(current_quest.key)
+    QuestActionManager.UpdateQuestHUD(current_quest.key, current_quest.objective, quest_save_data, is_complete)
+end
+
+---@param objective_data QuestObjective
+local function CheckMoveToPositionObjective(objective_data)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero or not hero.unit then
+        return
+    end
+
+    local hero_position = Vector2.UnitPosition(hero.unit)
+    local position = objective_data.values.position
+    local active_radius = objective_data.values.active_radius
+
+    if Vector2.Distance(position, hero_position) <= active_radius then
+        local quest = quest_save_data[current_quest.key]
+        quest.amount = 1
+        QuestManager.EndCurrentObjective()
+    end
+end
+
+---@param button_id string
+local function CheckClickUiButtonObjective(button_id)
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.ClickUiButton then
+        return
+    end
+
+    local obj_button_id = current_objective.values.button_id
+    if obj_button_id == button_id then
+        local quest = quest_save_data[current_quest.key]
+        quest.amount = 1
+        QuestManager.EndCurrentObjective()
+    end
+end
+
+---@param event_id string
+local function CheckTriggerBuildingObjective(event_id)
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.TriggerBuilding then
+        return
+    end
+
+    local obj_event_id = current_objective.values.event_id
+    if obj_event_id == event_id then
+        local quest = quest_save_data[current_quest.key]
+        quest.amount = 1
+        QuestManager.EndCurrentObjective()
+    end
+end
+
+---@param collected_resource table
+local function CheckCollectResourceObjective(collected_resource)
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.CollectResource then
+        return
+    end
+
+    local resource = current_objective.values.resource
+    if collected_resource.id ~= resource then
+        return
+    end
+
+    local quest = quest_save_data[current_quest.key]
+    quest.amount = quest.amount or 0
+    quest.amount = quest.amount + collected_resource.amount
+    quest_save_data[current_quest.key] = quest
+
+    local amount = current_objective.values.amount
+    if quest.amount >= amount then
+        QuestManager.EndCurrentObjective()
+    else
+        QuestManager.PushQuestSaveData()
+        UpdateQuestHUD()
+    end
+end
+
+local function CheckObjectiveComplete()
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type == QUEST_OBJECTIVE_TYPES.MoveToPos then
+        CheckMoveToPositionObjective(current_objective)
+    end
+end
+
+---@param step integer
+local function StartObjective(step)
+    if not current_quest or not next(current_quest) then
+        return
+    end
+
+    local quest_data = QuestData.GetQuestData(current_quest.key)
+    if not quest_data then
+        QuestManager.EndCurrentQuest()
+        return
+    end
+
+    current_quest.objective = quest_data.objectives[step]
+    if not current_quest.objective then
+        QuestManager.EndCurrentQuest()
+        return
+    end
+
+    quest_save_data[current_quest.key].step = step
+    current_quest.step = step
+
+    if QuestManager.on_start_objective_callback then
+        -- Right now this checks to add any quest specific buildings
+        QuestManager.on_start_objective_callback(current_quest)
+    end
+
+    if QuestManager.CanClaimQuestRewards(current_quest.key) then
+        UpdateQuestHUD()
+    else
+        local is_complete = QuestManager.IsQuestFinished(current_quest.key)
+        QuestActionManager.FocusObjective(current_quest.objective, current_quest.key, quest_save_data, is_complete)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@param save_data table
+function QuestManager.LoadQuestSaveData(save_data)
+    quest_save_data = save_data
+
+    for key in pairs(quest_save_data) do
+        if key ~= "quest_queue" and (QuestManager.IsQuestActive(key) or QuestManager.CanClaimQuestRewards(key)) then
+            -- Wait for hero to load for any camera animations or position checks
+            DCEI.TriggerAddTimerEventElapsed(function()
+                QuestManager.ResumeQuest(key)
+            end, HERO_LOAD_TIME)
+            break
+        end
+    end
+
+    QuestQueue.Initialize(quest_save_data["quest_queue"] or {})
+
+    -- Subscribe to check objectives on tick
+    TickRate:Subscribe(1, CheckObjectiveComplete)
+end
+
+function QuestManager.PushQuestSaveData()
+    SaveDataManager.Set(SAVE_KEY.Quest, quest_save_data)
+    SaveDataManager.CommitSaveData()
+end
+
+---@param key string
+---@return boolean
+function QuestManager.IsQuestActive(key)
+    return quest_save_data[key] and quest_save_data[key].step > 0
+end
+
+---@param key string
+---@return boolean
+function QuestManager.IsQuestFinished(key)
+    return quest_save_data[key] and quest_save_data[key].step == FINISHED
+end
+
+---@param key string
+---@return boolean
+function QuestManager.CanClaimQuestRewards(key)
+    local can_claim = quest_save_data[key] and quest_save_data[key].can_claim or false
+    return can_claim
+end
+
+---@param collected_resource table
+function QuestManager.CheckResourceObjective(collected_resource)
+    CheckCollectResourceObjective(collected_resource)
+end
+
+---@param unit_type string
+function QuestManager.CheckBuildingQuest(unit_type)
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.Build then
+        return
+    end
+
+    local u = current_objective.values.unit_type
+    if u ~= unit_type then
+        return
+    end
+
+    QuestManager.EndCurrentObjective()
+end
+
+function QuestManager.CheckRecruitQuest()
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.Recruit then
+        return
+    end
+
+    QuestManager.EndCurrentObjective()
+end
+
+function QuestManager.CheckSpendResource(collected_resource)
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.SpendResource then
+        return
+    end
+
+    local resource = current_objective.values.resource
+
+    if collected_resource.id ~= resource then
+        return
+    end
+
+    local quest = quest_save_data[current_quest.key]
+    quest.amount = quest.amount or 0
+    quest.amount = quest.amount + collected_resource.amount
+    quest_save_data[current_quest.key] = quest
+
+    local amount = current_objective.values.amount
+
+    if quest.amount >= amount then
+        QuestManager.EndCurrentObjective()
+    else
+        QuestManager.PushQuestSaveData()
+        UpdateQuestHUD()
+    end
+end
+
+---@param item_key string
+function QuestManager.CheckPickUpKeyItemObjective(item_key)
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.PickUpKeyItem then
+        return
+    end
+
+    local obj_item_key = current_objective.values.item_key
+    if obj_item_key == item_key then
+        local quest = quest_save_data[current_quest.key]
+        quest.amount = 1
+        QuestManager.EndCurrentObjective()
+    end
+end
+
+---@param status_key string
+function QuestManager.CheckUnlockZoneObjective(status_key)
+    if not current_quest or not current_quest.objective then
+        return
+    end
+
+    local current_objective = current_quest.objective
+    if current_objective.type ~= QUEST_OBJECTIVE_TYPES.UnlockZone then
+        return
+    end
+
+    local obj_status_key = current_objective.values.status_key
+    if obj_status_key == status_key then
+        local quest = quest_save_data[current_quest.key]
+        quest.amount = 1
+        QuestManager.EndCurrentObjective()
+    end
+end
+
+---@param rewards table<QuestReward>
+function QuestManager.ClaimRewards(rewards)
+    for _, reward in ipairs(rewards) do
+        SaveDataManager.Modify(reward.key, reward.amount)
+    end
+    SaveDataManager.SendPresentationEvents()
+    SaveDataManager.CommitSaveData()
+
+    if not current_quest or not current_quest.key then
+        return
+    end
+
+    local quest_data = QuestData.GetQuestData(current_quest.key)
+    if not quest_data then
+        return
+    end
+
+    quest_save_data[current_quest.key].can_claim = nil
+    quest_save_data[current_quest.key].amount = 0
+
+    local current_step = quest_save_data[current_quest.key].step
+    local next_step = current_step + 1
+    if #quest_data.objectives < next_step then
+        QuestManager.EndCurrentQuest()
+    else
+        StartObjective(next_step)
+    end
+
+    QuestManager.PushQuestSaveData()
+end
+
+function QuestManager.EndCurrentObjective()
+    if not current_quest or not next(current_quest) or not current_quest.objective then
+        return
+    end
+
+    local quest_data = QuestData.GetQuestData(current_quest.key)
+    if not quest_data then
+        return
+    end
+
+    if current_quest.objective.rewards then
+        quest_save_data[current_quest.key].can_claim = true
+    end
+
+    UpdateQuestHUD()
+
+    QuestActionManager.ClearIndicators()
+    QuestManager.PushQuestSaveData()
+end
+
+---@return table
+function QuestManager.GetCurrentQuest()
+    return current_quest
+end
+
+function QuestManager.EndCurrentQuest()
+    if not current_quest or not current_quest.key then
+        return
+    end
+
+    Core.Event.SendPresentationEvent("QuestHUD.Complete")
+
+    quest_save_data[current_quest.key].step = FINISHED
+    current_quest = {}
+
+    local next_key = QuestQueue.Dequeue()
+    if next_key then
+        QuestManager.StartQuest(next_key)
+        QuestManager.PushQuestSaveData()
+    end
+end
+
+---@param key string
+function QuestManager.ResumeQuest(key)
+    quest_save_data[key] = quest_save_data[key] or {}
+    current_quest.key = key
+    StartObjective(quest_save_data[key].step)
+end
+
+---@param key string
+function QuestManager.StartQuest(key)
+    -- Check if quest is already started/finished
+    if QuestManager.IsQuestActive(key) or QuestManager.IsQuestFinished(key) then
+        return
+    end
+
+    -- Don't start a new quest if an old one is still active
+    if current_quest.key or QuestManager.CanClaimQuestRewards(current_quest.key) then
+        quest_save_data.quest_queue = QuestQueue.Queue(key)
+        QuestManager.PushQuestSaveData()
+        return
+    end
+
+    quest_save_data[key] = quest_save_data[key] or {}
+    quest_save_data[key].step = 1
+
+    current_quest.key = key
+    StartObjective(quest_save_data[key].step)
+
+    QuestManager.PushQuestSaveData()
+end
+
+function QuestManager.OpenQuestGuide()
+    Core.Event.SendPresentationEvent("Meta.QuestGuide.Open", quest_save_data)
+end
+
+function QuestManager.ReFocusObjective()
+    if not current_quest or not current_quest.objective then
+        return
+    end
+    QuestActionManager.ReFocusObjective(is_in_combat, current_quest.objective)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterSimulationEvent("QuestManager.LoadQuestSaveData", QuestManager.LoadQuestSaveData)
+Core.Event.RegisterSimulationEvent("QuestManager.ClaimRewards", QuestManager.ClaimRewards)
+
+Core.Event.RegisterSimulationEvent("QuestManager.CheckButtonObjective", CheckClickUiButtonObjective)
+Core.Event.RegisterSimulationEvent("QuestManager.CheckTriggerBuildingObjective", CheckTriggerBuildingObjective)
+Core.Event.RegisterSimulationEvent("QuestManager.CheckResourceObjective", CheckCollectResourceObjective)
+
+Core.Event.RegisterSimulationEvent("QuestManager.OpenQuestGuide", QuestManager.OpenQuestGuide)
+Core.Event.RegisterSimulationEvent("QuestManager.ReFocusObjective", QuestManager.ReFocusObjective)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return QuestManager

@@ -1,0 +1,51 @@
+---============================================================================
+---SECTION: Variables
+---============================================================================
+
+---@class QuestQueue
+local QuestQueue = {}
+
+---@type table<string>
+QuestQueue.queue = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Methods
+---============================================================================
+
+---@return string | nil
+function QuestQueue.Dequeue()
+    if not QuestQueue.queue or not next(QuestQueue.queue) then
+        return
+    end
+
+    local next_key = table.remove(QuestQueue.queue, 1)
+    return next_key
+end
+
+---@param key string
+---@return table
+function QuestQueue.Queue(key)
+    -- Don't queue same quest twice
+    for _, quest_key in ipairs(QuestQueue.queue) do
+        if quest_key == key then
+            return QuestQueue.queue
+        end
+    end
+
+    table.insert(QuestQueue.queue, key)
+
+    -- Add queue to save data
+    return QuestQueue.queue
+end
+
+---@param queue table<string>
+function QuestQueue.Initialize(queue)
+    QuestQueue.queue = queue
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return QuestQueue

@@ -1,0 +1,117 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Vector2 = require("Class/Vector2")
+local HostileData = require("Data/SimpleUnits/HostileData")
+
+local CampManager = require("Class/CampManager")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local STARTING_RADIUS = 10
+local STARTING_ANGLE = 0
+
+local DURATION = 15
+local ANGLE_SPEED = 30
+
+local SPAWN_COUNT = 20
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function GenerateTracker(position)
+    local tracker = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, DCEI.Unit("Global Caster"), position.x, position.y)
+    return tracker
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class SpiralSwarmEvent
+local SpiralSwarmEvent = {}
+SpiralSwarmEvent.__index = SpiralSwarmEvent
+
+---comment
+---@return SpiralSwarmEvent
+function SpiralSwarmEvent.New()
+    local self = setmetatable({}, SpiralSwarmEvent)
+    return self
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+---comment
+---@param spawner SpawnDirector
+function SpiralSwarmEvent:Initialize(spawner)
+    self.Spawner = spawner
+    local tracker_position = Vector2.NewFromAngle(STARTING_ANGLE) * STARTING_RADIUS
+    self.Tracker = GenerateTracker(tracker_position)
+
+    self.starting_position = tracker_position
+    self.time = 0
+    self.radius = STARTING_RADIUS
+    self.angle = STARTING_ANGLE
+
+    self.spawn_count = SPAWN_COUNT
+end
+
+function SpiralSwarmEvent:Update()
+    -- Update Variables
+    self.time = self.time + TICK_RATE
+    self.angle = self.angle + ANGLE_SPEED * TICK_RATE
+    self.radius = Help.Lerp(STARTING_RADIUS, 0, self.time / DURATION)
+
+    -- Update the Tracker
+    local tracker_position = Vector2.NewFromAngle(self.angle) * self.radius
+    DCEI.SetUnitPosition2D(self.Tracker, tracker_position.x, tracker_position.y)
+
+    if self.spawn_count > 0 then
+        self.spawn_count = self.spawn_count - 1
+        self.Spawner:SpawnFollow(HostileData.Runner, self.starting_position, self.Tracker)
+    end
+end
+
+function SpiralSwarmEvent:End()
+    DCEI.RemoveUnit(self.Tracker)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- ================================================================================================
+
+return SpiralSwarmEvent

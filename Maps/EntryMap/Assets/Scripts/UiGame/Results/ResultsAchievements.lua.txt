@@ -1,0 +1,168 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local AnimationBasic = require("Presentation/AnimationBasic")
+local Animation = require("Presentation/Animation")
+local DataManager = require("UiMeta/DataManager")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+-- CONSTANTS
+local ui = GMUI.ui
+local ITEM_DELAY = 0.25
+local FADE_TIME = 0.25
+local ITEM_LIFETIME = 3.25
+
+-- MODULE
+local ResultsAchievements = {}
+
+-- VARIABLES
+local layout
+local current_items = {}
+local total_duration = 0
+
+-- LOCAL FUNCTIONS
+local function AddItem(achievement_data)
+    local new_item = GMUI.Layout.New({
+        name = "Game/Results/Achievements/Item",
+        parent = layout.Content,
+    })
+    table.insert(current_items, new_item)
+
+    local controller = DCEI.GetFrameController(new_item.Frame)
+    controller:Lifetime()
+
+    DCEI.WaitForUiUpdateToComplete(function()
+        Animation.StarExplosionAtFrame(new_item.Frame)
+    end)
+
+    -- Setup display data
+    local current_breakpoint = DataManager.GetAchievementCurrentBreakpoint(achievement_data)
+
+    -- Current breakpoint will be false if achievement is maxed
+    if not current_breakpoint then
+        return
+    end
+
+    new_item.state.icon = achievement_data.Icon
+    new_item.state.display_name = achievement_data.MainObjectiveText
+    new_item.state.description = string.format(achievement_data.SubObjectiveText, current_breakpoint.required)
+    new_item.state.reward_amount = current_breakpoint.reward.amount
+    new_item.state.reward_icon = ResourceData[current_breakpoint.reward.type].icon
+end
+
+function CreateItems(achievements)
+    local index = 1
+    local delay = 0
+    for key in pairs(achievements) do
+        -- Check if we've been awarded an achievement
+        local can_claim = DataManager.CheckAchievementProgress(key)
+        local is_shown = DataManager.GetAchievementIsShown(key)
+        if can_claim and not is_shown then
+            -- Get display data
+            local achievement_data = DataManager.GetAchievementDataByName(key)
+
+            -- Create item one after the other on small delay
+            delay = index * ITEM_DELAY
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                AddItem(achievement_data)
+            end, delay)
+
+            index = index + 1
+
+            -- Flag that we have shown this achievement to
+            -- the player to not show same achievement twice
+            DataManager.AddShownAchievement(key)
+        end
+    end
+
+    -- Add total item delay to total duration for fading out
+    total_duration = total_duration + delay
+
+    -- Save shown achievements
+    DataManager.Save()
+end
+
+local function OnClickToContinue()
+    DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+    layout:Hide()
+    StepGameResultsChests()
+end
+
+local function AnimateClickToContinue()
+    DCEI.SetFrameActive(layout.Continue, true)
+    DCEI.SetFrameAlpha(layout.Continue, 1)
+    Animation.PopIn(layout.Continue)
+
+    -- Start fade loop
+    Animation.TextFadeLoop(layout.Continue)
+end
+
+-- METHODS
+function ResultsAchievements.Initialize(results_layout)
+    local achievements_layout = GMUI.Layout.New({
+        name = "Game/Results/Achievements",
+        parent = ui.z3.upper,
+    })
+    layout = achievements_layout
+    layout.RunPopup = ResultsAchievements.RunPopup
+
+    function layout:OnShow()
+        AnimationBasic.FadeIn(self.Frame, FADE_TIME)
+    end
+
+    layout.HideActual = layout.Hide
+    function layout:Hide()
+        AnimationBasic.FadeOut(self.Frame, FADE_TIME)
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            layout:HideActual()
+        end, FADE_TIME)
+    end
+
+    DCEI.SetOnClickCallback(layout.Continue, OnClickToContinue)
+
+    return achievements_layout
+end
+
+function ResultsAchievements.RunPopup(achievements)
+    total_duration = FADE_TIME
+
+    for _, item_layout in ipairs(current_items) do
+        item_layout:Destroy()
+    end
+    current_items = {}
+
+    -- Clear click to continue for animation
+    DCEI.SetFrameAlpha(layout.Continue, 0)
+
+    -- Check if we've been awarded any achievements
+    local can_claim = false
+    local is_shown = true
+    for key in pairs(achievements) do
+        can_claim = DataManager.CheckAchievementProgress(key)
+        is_shown = DataManager.GetAchievementIsShown(key)
+        if can_claim and not is_shown then
+            break
+        end
+    end
+
+    if can_claim and not is_shown then
+        layout:Show()
+
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            CreateItems(achievements)
+
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                AnimateClickToContinue()
+            end, total_duration)
+        end, FADE_TIME)
+
+        return true
+    end
+
+    return false
+end
+
+-- EXPORT
+return ResultsAchievements

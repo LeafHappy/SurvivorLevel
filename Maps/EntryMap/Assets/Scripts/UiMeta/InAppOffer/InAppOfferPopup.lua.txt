@@ -1,0 +1,214 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local InAppOfferManager = require("UiMeta/InAppOffer/InAppOfferManager")
+local Animation = require("Presentation/Animation")
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local ShopManager = require("UiMeta/Shop/ShopManager")
+local TimerComponent = require("UiMeta/Components/TimerComponent")
+local DataManager = require("UiMeta/DataManager")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local InAppOfferPopup = {}
+local is_initialized = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Functions
+---============================================================================
+
+local function CreateBundleItem(bundle_data, frame, index)
+    local bundle_item_data = bundle_data[index]
+    local resource_data = ResourceData[bundle_item_data.resource_id]
+
+    local state = DCEI.GetFrameState(frame)
+    state.item_image = resource_data.icon
+    state.amount = "x" .. tostring(bundle_item_data.amount)
+end
+
+---============================================================================
+---!SECTION: Functions
+---SECTION: Methods
+---============================================================================
+
+---@param offer_data BundleInAppOffer
+function InAppOfferPopup.UpdateBundleDisplay(offer_data)
+    -- Display
+    local bundle_display = InAppOfferPopup.layout.bundle_display
+    local state = InAppOfferPopup.layout.bundle_display.state
+    state.title_label = offer_data.title
+    state.description_label = offer_data.description
+    state.background_color = offer_data.background_color or "#ffffffff"
+
+    -- Cost
+    local cost_resource = ResourceData[offer_data.cost_type]
+    if offer_data.cost_type == "cash" then
+        state.hide_cost_icon = true
+        state.cost_label = string.format("$%.2f", offer_data.cost)
+    elseif cost_resource and cost_resource.icon then
+        state.hide_cost_icon = false
+        state.cost_icon = cost_resource.icon
+        state.cost_label = tostring(offer_data.cost)
+    else
+        state.hide_cost_icon = true
+        state.cost_label = tostring(offer_data.cost)
+    end
+
+    local controller = TimerComponent.Create(bundle_display.timer.Frame, offer_data.id)
+    local time_started = DataManager.GetInAppOfferTimeStarted(offer_data.id)
+    local current_time = os.time()
+    local time_remaining = offer_data.time_offered - (current_time - time_started)
+
+    if time_remaining > 0 then
+        controller:StartTimer(time_remaining)
+    else
+        InAppOfferManager.RemoveOffer(offer_data.id)
+    end
+
+   -- Hookup bundle item
+    DCEI.SetListFrameItemDataCallback(bundle_display.BundleItems, function(frame, index)
+        CreateBundleItem(offer_data.items, frame, index)
+    end)
+
+    -- Purchase item on click
+    DCEI.SetOnClickCallback(InAppOfferPopup.layout.bundle_display.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        InAppOfferPopup.layout:Hide()
+        InAppOfferManager.TryPurchaseBundle(offer_data.id)
+    end)
+
+    -- Refresh list
+    DCEI.SetListFrameItemCount(bundle_display.BundleItems, #offer_data.items)
+    DCEI.RefreshListFrameItems(bundle_display.BundleItems, 1, #offer_data.items)
+
+    -- Start ray animation
+    Animation.RotationLoop(bundle_display.Rays, { duration = 1 })
+end
+
+---@param offer_data ShopInAppOffer
+function InAppOfferPopup.UpdateShopDisplay(offer_data)
+    -- Display
+    local shop_display = InAppOfferPopup.layout.shop_display
+    local state = shop_display.state
+    state.title_label = offer_data.title
+    state.description_label = offer_data.description
+    state.item_image = offer_data.image
+    state.background_color = offer_data.background_color or "#ffffffff"
+
+    -- Cost
+    local cost_resource = ResourceData[offer_data.cost_type]
+    if offer_data.cost_type == "cash" then
+        state.hide_cost_icon = true
+        state.cost_label = string.format("$%.2f", offer_data.cost)
+    elseif cost_resource and cost_resource.icon then
+        state.hide_cost_icon = false
+        state.cost_icon = cost_resource.icon
+        state.cost_label = tostring(offer_data.cost)
+    else
+        state.hide_cost_icon = true
+        state.cost_label = tostring(offer_data.cost)
+    end
+
+    local controller = TimerComponent.Create(shop_display.timer.Frame, offer_data.id)
+    local time_started = DataManager.GetInAppOfferTimeStarted(offer_data.id)
+    local current_time = os.time()
+    local time_remaining = (current_time - time_started) - offer_data.time_offered
+
+    if time_remaining > 0 then
+        controller:StartTimer(time_remaining)
+    else
+        InAppOfferManager.RemoveOffer(offer_data.id)
+    end
+
+    -- Open shop layout on click
+    DCEI.SetOnClickCallback(shop_display.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        InAppOfferPopup.layout:Hide()
+        ShopManager.Open()
+    end)
+
+    -- Start ray animation
+    Animation.RotationLoop(shop_display.Rays, { duration = 1 })
+end
+
+function InAppOfferPopup.Initialize()
+    if is_initialized then
+        return
+    end
+
+    local layout = GMUI.Layout.New({
+        name = "Meta/AdPopup",
+        parent = ui.z3.Upper,
+    })
+    InAppOfferPopup.layout = layout
+
+    -- Initialize popup animations
+    local args = {
+        popup_frame = layout.Popup,
+        mask_layout = ui.camp.overlay.meta_mask,
+    }
+    PopupManager.ApplyPopupAnimations(layout, args)
+
+    -- Close hookups
+    DCEI.SetOnClickOutsideCallback(layout.Popup, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        layout:Hide()
+    end)
+    DCEI.SetOnClickCallback(layout.close.Frame, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        layout:Hide()
+    end)
+
+    -- Make sure it's hidden on init
+    DCEI.SetFrameActive(layout.Frame, false)
+
+    is_initialized = true
+    return layout
+end
+
+function InAppOfferPopup.Open(offer_data)
+    if not is_initialized then
+        InAppOfferPopup.Initialize()
+    end
+
+    if offer_data.is_bundle_offer then
+        InAppOfferPopup.UpdateBundleDisplay(offer_data)
+    elseif offer_data.is_shop_offer then
+        InAppOfferPopup.UpdateShopDisplay(offer_data)
+    end
+
+    InAppOfferPopup.layout.state.is_bundle = offer_data.is_bundle_offer
+    InAppOfferPopup.layout:Show()
+end
+
+function InAppOfferPopup.Hide()
+    if not is_initialized then
+        return
+    end
+
+    InAppOfferPopup.layout:Hide()
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return InAppOfferPopup

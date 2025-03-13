@@ -1,0 +1,747 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About Class
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local TeamManager = require("Class/TeamManager")
+local Camera = require("Class/FollowCamera")
+local Joystick = require("Class/Joystick")
+local Experience = require("Class/Experience")
+
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local UiHelper = require("Game/UiHelper")
+local Hero = require("Game/Hero")
+local Companion = require("Game/Companion")
+local Events = require("Game/Events")
+local Log = require("Game/Log")
+
+local Help = require("Help")
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+---ANCHOR: Customizable Properties
+local HERO_SPAWN_DISTANCE = 1.5
+local CAMERA_STARTING_DISTANCE = 3
+local CAMERA_TRANSITION_TIME = 2
+
+---ANCHOR: Internal Properties
+
+---ANCHOR: Testing
+local _SUPER_HEALTH = false
+local _STARTING_UPGRADES = 0
+local _STARTING_EXPERIENCE = nil
+local _PREVENT_COMPANION_SPAWN = nil
+
+if _Dev then
+    _SUPER_HEALTH = _Dev.Game.super_health
+    _STARTING_UPGRADES = _Dev.Game.starting_upgrades
+    _STARTING_EXPERIENCE = _Dev.Game.starting_experience
+    _PREVENT_COMPANION_SPAWN = _Dev.Game.prevent_companion_spawn
+end
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+-- Concurrent Stats
+local _TrackedStats = {}
+
+local function SetupTrackedStats()
+    _TrackedStats = {}
+
+    for _, stat in pairs(TRACKED_STATS) do
+        _TrackedStats[stat] = 0
+    end
+end
+
+local function UpdateTrackedStats()
+    -- Iterate through each Player
+    for _, player in pairs(PLAYER) do
+        -- Iterate through each Tracked Stat
+        for stat, value in pairs(_TrackedStats) do
+            local added_value = DCEI.GetPlayerStats(player, stat)
+
+            -- if added_value > 0 then
+            --     local message = string.format("Player: %d, Stat: %s, Value: %d", player, stat, added_value)
+            --     Help.Log(message)
+            -- end
+
+            -- Add to existing value.
+            _TrackedStats[stat] = value + added_value
+        end
+    end
+end
+
+---Transfers specific stats to the Hero.
+local function UpdateHeroStats()
+    -- Get all Terrain Stats and pass them over to each Active Hero.
+    local shared_stats = {}
+    for _, stat in pairs(GAME_STATS) do
+        local value = DCEI.GetPlayerStats(PLAYER.Terrain, stat)
+        if value > 0 then
+            shared_stats[stat] = value
+        end
+    end
+
+    -- Loop through all Heroes
+    local heroes = Hero.GetHeroes()
+    for _, hero in pairs(heroes) do
+        -- Loop through all GAME_STATS
+        for _, stat in pairs(GAME_STATS) do
+            local value = DCEI.GetPlayerStats(hero.player_id, stat)
+            if value > 0 then
+                hero:ModifyRecordedStats(stat, value)
+            end
+        end
+
+        -- Loop through all Shared Stats
+        for stat, value in pairs(shared_stats) do
+            hero:ModifyRecordedStats(stat, value)
+        end
+    end
+end
+
+-- Ideally, this can be hero specific (rather than for player 1)
+---Informs the Hero to Record their Damage Stat prior to it being erased.
+-- local function RecordHeroDamageStats()
+--     local hero = Hero.Fetch(PLAYER.Player1)
+--     hero:RecordDamage()
+-- end
+
+local XP_GAINED_SFX = DCEI.Sound("mana_orb_collect")
+
+local XP_GAINED_SFX_CD = TICK_RATE * 5
+local experience_gained_sfx_cooldown = 0
+local cached_experience_gained_for_sfx = 0
+
+local function ApplyExperience()
+    local xp_gained = 0
+    for _, player in pairs(PLAYER) do
+        xp_gained = xp_gained + DCEI.GetPlayerStats(player, "Experience")
+    end
+
+    -- Look for Hostile Kills and automate Experience Gained
+    local basic_kills = DCEI.GetPlayerStats(PLAYER.Hostile, TRACKED_STATS.BasicKills)
+
+    xp_gained = xp_gained + basic_kills
+
+    -- Check Experience Multiplier
+    local hero = Hero.Fetch(1)
+    local xp_multiplier = hero:GetStat(STAT.ExperienceMultiplier)
+
+    -- Apply Experience Gained to Player 1
+    if xp_gained > 0 then
+        Experience.Fetch(1):Gain(xp_gained * (1 + xp_multiplier))
+
+        ---SFX: Experience Gained
+        cached_experience_gained_for_sfx = cached_experience_gained_for_sfx + xp_gained
+        if experience_gained_sfx_cooldown > 0 then
+            experience_gained_sfx_cooldown = experience_gained_sfx_cooldown - TICK_RATE
+        else
+            local volume = math.sqrt(cached_experience_gained_for_sfx / 10)
+            volume = Help.Clamp(volume, 0.5, 2)
+
+            -- DCEI.PlaySound(XP_GAINED_SFX, volume)
+
+            cached_experience_gained_for_sfx = XP_GAINED_SFX_CD
+        end
+    end
+end
+
+local function ApplyLevelPoint()
+    local skill_point_gained = 0
+
+    for _, player in pairs(PLAYER) do
+        skill_point_gained = skill_point_gained + DCEI.GetPlayerStats(player, TRACKED_STATS.LevelPoint)
+    end
+
+    -- Apply Skill Point Gained to Player 1
+    if skill_point_gained > 0 then
+        -- Hero.Fetch(1):ModifyUpgradePoints(HERO_POINT.Level, skill_point_gained)
+        -- Experience.Fetch(1):Gain(skill_point_gained)
+        Experience.Fetch(1):GainLevel()
+    end
+end
+
+local function ApplyHeroicPoint()
+    local skill_point_gained = 0
+
+    for _, player in pairs(PLAYER) do
+        skill_point_gained = skill_point_gained + DCEI.GetPlayerStats(player, TRACKED_STATS.HeroicPoint)
+    end
+
+    -- Apply Skill Point Gained to Player 1
+    if skill_point_gained > 0 then
+        Hero.Fetch(1):ModifyUpgradePoints(HERO_POINT.Heroic, skill_point_gained)
+        Experience.Fetch(1):Gain(skill_point_gained)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Class Initialization
+---============================================================================
+
+---@class StageHelper
+local StageHelper = {}
+
+---============================================================================
+---!SECTION: Class Initialization
+---SECTION: Class Internal
+---============================================================================
+
+---============================================================================
+---!SECTION: Class Internal
+---SECTION: Class Getters
+---============================================================================
+
+---comment
+---@return table, integer
+function StageHelper.GetTrackedStats()
+    local t = {}
+
+    local count = 0
+    for key, value in pairs(_TrackedStats) do
+        if value > 0 then
+            t[key] = math.floor(value)
+            count = count + 1
+        end
+    end
+
+    return t, count
+end
+
+function StageHelper.GetTrackedStat(stat)
+    return _TrackedStats[stat] or 0
+end
+
+function StageHelper.SetTrackedStat(stats, value)
+    _TrackedStats[stats] = value
+end
+
+function StageHelper.ModifyTrackStat(stats, value)
+    _TrackedStats[stats] = _TrackedStats[stats] + value
+end
+
+---============================================================================
+---!SECTION: Class Getters
+---SECTION: Class Setters
+---============================================================================
+
+---============================================================================
+---!SECTION: Class Setters
+---SECTION: Class Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Class Functions
+---SECTION: Class Library
+---============================================================================
+
+---ANCHOR: UI Helpers
+
+---Removes all UI
+function StageHelper.ClearUI()
+    UiHelper.SetGameUIActive(false)
+    UiHelper.SetTryButtonsActive(false)
+    -- UiHelper.SetTestActive(false)
+end
+
+function StageHelper.ResetUI()
+    -- New
+    -- Top Panel (Level & Experience)
+    UiHelper.SetLevel(1)
+    UiHelper.SetXpFillAmount(0)
+    UiHelper.SetBossDisplayActive(false)
+
+    UiHelper.SetPauseButtonActive(true)
+
+    -- Right Panel (Time)
+    UiHelper.SetGameTimerActive(false, 0)
+
+    -- Left Panel (Kills & Currency)
+    -- UiHelper.SetKillCounter(0)
+    -- UiHelper.SetKillCounterActive(true)
+    -- UiHelper.SetCrystalCounter(0)
+    -- UiHelper.SetCrystalCounterActive(false)
+
+    -- Hide Try Buttons
+    UiHelper.SetTryButtonsActive(false)
+
+    -- Hide Test Buttons
+    -- UiHelper.SetTestActive(false)
+
+    -- Objectives
+    UiHelper.ClearObjectives()
+    UiHelper.SetMainObjectiveText("")
+
+    Core.Event.SendPresentationEvent("Game.SetConsumableActive", false)
+    Core.Event.SendPresentationEvent("Game.ResetGameStats")
+end
+
+---ANCHOR: Game Setup
+
+---Reset & Initialize Tracked Stats
+function StageHelper.InitializeTrackedStats(skip_reset)
+    if not skip_reset then
+        DCEI.ResetPlayerStats()
+    end
+
+    SetupTrackedStats()
+end
+
+---Initializes the TeamManager with Active Players on the Friendly Team.
+---@param count integer [1 - 4]
+function StageHelper.SetupPlayerCount(count)
+    if _PREVENT_COMPANION_SPAWN then
+        count = 1
+    else
+        count = Help.Clamp(count, 1, 4)
+    end
+
+    TeamManager:Reset()
+    TeamManager:NewPlayerWithTeam(PLAYER.Terrain, TEAM.Terrain, false)
+    TeamManager:NewPlayerWithTeam(PLAYER.Hostile, TEAM.Hostile, false)
+    TeamManager:NewPlayerWithTeam(PLAYER.Destructible, TEAM.Hostile, false)
+
+    for i = 1, count do
+        TeamManager:NewPlayerWithTeam(i, TEAM.Friendly, false)
+    end
+end
+
+---Generates a set of spawn positions based on player count.
+---@param spawn_center Vector2
+---@param player_count integer
+---@return table<Vector2>
+function StageHelper.GenerateSpawnPositions(spawn_center, player_count)
+    local spawn_positions = {}
+
+    if player_count == 1 then
+        table.insert(spawn_positions, spawn_center)
+    else
+        spawn_positions = Pattern.EllipseEdge(spawn_center, HERO_SPAWN_DISTANCE, HERO_SPAWN_DISTANCE, player_count)
+    end
+
+    return spawn_positions
+end
+
+---comment
+---@param player_id integer
+---@param hero_name string
+---@param hero_level integer
+---@param spawn_position Vector2
+---@param starting_upgrades table<SkillData> | nil
+---@param optional_upgrades table<SkillData> | nil
+---@param featured_skills table<SkillData> | nil
+---@return Hero
+function StageHelper.SetupPlayerHero(
+    player_id,
+    hero_name,
+    hero_level,
+    spawn_position,
+    starting_upgrades,
+    optional_upgrades,
+    featured_skills
+)
+    starting_upgrades = starting_upgrades or {}
+    optional_upgrades = optional_upgrades or {}
+    featured_skills = featured_skills or {}
+
+    local hero = Hero.Fetch(player_id, true)
+
+    hero:Reset()
+    hero:SpawnHero(spawn_position, hero_name, hero_level, starting_upgrades, optional_upgrades, featured_skills)
+
+    -- hero:SetUnitData(hero_name, upgrades) ---NOTE: HERE
+    -- hero:SpawnHero(spawn_position, hero_level)
+
+    if player_id == 1 then -- Player 1 -- IsUser
+        -- Joystick
+        local joystick = Joystick.Fetch(player_id)
+        joystick:Reset()
+        joystick:SetUnit(hero.unit, true)
+
+        -- Camera
+        local camera = Camera.Fetch(player_id)
+        camera:SetFollowUnit(hero.unit, true)
+        camera:SetSize(CAMERA_STARTING_DISTANCE)
+
+        -- Zoom Out
+        local target_camera_distance = hero:GetStat(STAT.CameraDistance)
+        camera:SetSize(target_camera_distance, CAMERA_TRANSITION_TIME)
+
+        -- Complex Collector
+        -- DCEI.ApplyBehaviorToSelf(hero.unit, DCEI.Behavior("Complex Collector"), 1)
+    else
+        local camera_offset = -45
+        local angle_factor = 360 / 2 -- Based on how many spaces we want.
+        local distance = 1.5
+        -- Companion.New(hero.unit, Vector2.NewFromAngle(camera_offset + angle_factor * player_id) * distance)
+
+        Companion.New(hero.unit, spawn_position)
+    end
+
+    if _SUPER_HEALTH then
+        -- Units.Set.Health(hero.unit, 100000, 100000)
+        SimpleUnit.ModifyHealth(hero.unit, 10000, 10000)
+    end
+
+    if _STARTING_UPGRADES then
+        for i = 1, _STARTING_UPGRADES do
+            hero:GainLevel()
+        end
+    end
+
+    return hero
+end
+
+-- Setup Experience (Individual vs Shared)
+
+---Generates and returns a shared experience.
+---@return Experience
+function StageHelper.SetupGlobalExperience()
+    local experience = Experience.New(1)
+    experience:Reset()
+
+    -- function experience:OnExperienceIncreased()
+    --     UiHelper.SetXpFillAmount(experience:GetFill())
+    -- end
+
+    -- function experience:OnLevelIncreased()
+    --     local players = TeamManager:GetTeamPlayers(TEAM.Friendly)
+
+    --     for _, player in pairs(players) do
+    --         Hero.Fetch(player.id):GainLevel()
+    --     end
+
+    --     UiHelper.SetLevel(experience:GetLevel())
+    --     UiHelper.LevelAnimation()
+    -- end
+
+    -- if _STARTING_EXPERIENCE then
+    --     experience:Gain(_STARTING_EXPERIENCE)
+    -- end
+
+    return experience
+end
+
+---ANCHOR: Stage Updates
+
+---Updates the Player's Hero Position and Update (Damage Flash).
+---@param automated boolean | nil
+function StageHelper.PlayerUpdate(automated)
+    local player_id = PLAYER.Player1
+
+    local hero = Hero.Fetch(player_id)
+    local unit = hero.unit
+
+    -- Player Movement
+    if Help.ValidateUnit(unit) then
+        hero:Update(automated)
+
+        -- Player Movement
+        local uncontrollable = Help.UnitHasBehavior(unit, DCEI.Behavior("Uncontrollable"))
+
+        if not uncontrollable then
+            Joystick.Fetch(player_id):MoveUnit()
+        end
+    end
+end
+
+---Check Out of Bounds - Damages the player when they are Out of Bounds.
+---DEPRECATED: This feature is being removed. Stage is no longer being used.
+---Instead, use your local FogOfWar Out of Bounds Detection and Damage the Hero.
+function StageHelper.CheckPlayerOutOfBounds()
+    local player_id = PLAYER.Player1
+
+    local unit = Hero.Fetch(player_id).unit
+
+    if not Help.ValidateUnit(unit) then
+        return
+    end
+
+    local position = Vector2.UnitPosition(unit)
+
+    if not Stage:IsOutside(position) then
+        return
+    end
+
+    DCEI.ApplyBehaviorToSelf(unit, DCEI.Behavior("Out of Bounds"))
+end
+
+---Updates Experience and Kills gained this Frame.
+---@param disable_experience boolean | nil Disables Experience Gain
+function StageHelper.UpdatePlayerStats(disable_experience)
+    UpdateTrackedStats()
+    UpdateHeroStats()
+
+    -- Experience
+    if not disable_experience then
+        ApplyExperience()
+    end
+
+    -- Skill Points
+    ApplyLevelPoint()
+    ApplyHeroicPoint()
+
+    -- Kills
+    -- if UiHelper.GetKillCounterActive() then
+    --     UiHelper.SetKillCounter(StageHelper.GetTrackedStat("Basic Kills"))
+    -- end
+
+    -- ApplyKills()
+
+    -- Reset Values
+    DCEI.ResetPlayerStats()
+end
+
+---ANCHOR: Hostile Generators
+
+---comment
+---@param units Table<SimpleUnit>
+function StageHelper.RegisterHostiles(units)
+    for _, unit in pairs(units) do
+        local simple_unit = SimpleUnit.Clone(unit.name, unit)
+    end
+end
+
+---ANCHOR: Cleanup
+
+---comment
+---@param position Vector2
+---@param width number
+---@param height number | nil Default: width
+function StageHelper.SetSimpleUnitBounds(position, width, height)
+    height = height or width
+
+    DCEI.SetSimpleUnitMapBounds({
+        center_x = position.x,
+        center_y = position.y,
+        width = width,
+        height = height,
+        player_id_remove_mask = 1 << PLAYER.Hostile,
+    })
+end
+
+---Removes all Heroes.
+function StageHelper.RemoveHeroes()
+    local players = TeamManager:GetTeamPlayers(TEAM.Friendly)
+
+    if players then
+        for _, player in pairs(players) do
+            Hero.Fetch(player.id):Remove()
+        end
+    end
+end
+
+function StageHelper.RemoveSimpleHostiles()
+    local hostile_units = DCEI.FindSimpleUnitsByPlayerId(PLAYER.Hostile)
+    for _, units in pairs(hostile_units) do
+        DCEI.RemoveSimpleUnit(units)
+    end
+end
+
+function StageHelper.RemoveHostiles()
+    local hostile_units = DCEI.FindUnitsByPlayerId(PLAYER.Hostile)
+    for _, units in pairs(hostile_units) do
+        DCEI.RemoveUnit(units)
+    end
+end
+
+function StageHelper.KillHostiles()
+    local hostile_units = DCEI.FindUnitsByPlayerId(PLAYER.Hostile)
+    for _, units in pairs(hostile_units) do
+        DCEI.KillUnit(units)
+    end
+end
+
+---Removes all Complex Units: Elites, Bosses, Complex Loot
+---NOTE: Make sure to remove heroes before calling.
+function StageHelper.RemoveComplexUnits()
+    local teams = TeamManager:GetTeams()
+    if teams then
+        for _, team in pairs(teams) do
+            local units = DCEI.FindUnitsByTeamId(team.id)
+            for _, unit in pairs(units) do
+                DCEI.RemoveUnit(unit)
+            end
+        end
+    end
+
+    local players = TeamManager:GetPlayers()
+    if players then
+        for _, player in pairs(players) do
+            local units = DCEI.FindUnitsByPlayerId(player.id)
+            for _, unit in pairs(units) do
+                DCEI.RemoveUnit(unit)
+            end
+        end
+    end
+end
+
+-- Removes all Simple Units: Friendly & Hostile.
+function StageHelper.RemoveSimpleUnits()
+    local players = TeamManager:GetPlayers()
+    if players then
+        for _, player in pairs(players) do
+            local units = DCEI.FindSimpleUnitsByPlayerId(player.id)
+            for _, unit in pairs(units) do
+                DCEI.RemoveSimpleUnit(unit)
+            end
+        end
+    end
+end
+
+---Removes all Terrain and Loot
+function StageHelper.RemoveNeutralUnits()
+    local player_id = PLAYER.Terrain
+
+    local units = DCEI.FindUnitsByPlayerId(player_id)
+    for _, unit in pairs(units) do
+        DCEI.RemoveUnit(unit)
+    end
+
+    local units = DCEI.FindSimpleUnitsByPlayerId(player_id)
+    for _, unit in pairs(units) do
+        DCEI.RemoveSimpleUnit(unit)
+    end
+end
+
+---Removes ALL units from the game.
+function StageHelper.RemoveAllUnits()
+    StageHelper.RemoveHeroes()
+    StageHelper.RemoveComplexUnits()
+    StageHelper.RemoveSimpleUnits()
+    StageHelper.RemoveNeutralUnits()
+
+    -- -- Sometimes there's an extra unit somewhere, should figure out why.
+    -- for i = 1, #PLAYER do
+    -- 	local units = DCEI.FindUnitsByPlayerId(i)
+    -- 	for _, unit in pairs(units) do
+    -- 		DCEI.RemoveUnit(unit)
+    -- 	end
+    -- end
+
+    -- for i = 1, #TEAM do
+    -- 	local units = DCEI.FindUnitsByTeamId(TEAM[i])
+    -- 	for _, unit in pairs(units) do
+    -- 		DCEI.KillUnit(unit)
+    -- 	end
+    -- end
+end
+
+---Returns the number of SImple Units owned by the Hostile Player.
+---@return integer
+function StageHelper.GetHostileCount()
+    return #DCEI.FindSimpleUnitsByPlayerId(PLAYER.Hostile)
+end
+
+---Kills all Simple Units owned by the player.
+---@param player_id PLAYER
+function StageHelper.KillSimpleUnits(player_id)
+    local simple_units = DCEI.FindSimpleUnitsByPlayerId(player_id)
+    for _, unit in pairs(simple_units) do
+        DCEI.KillSimpleUnit(unit)
+    end
+end
+
+-- function StageHelper.RecordHeroDamage()
+--     local heroes = Hero.GetHeroes()
+--     for _, hero in pairs(heroes) do
+--         hero:LogRecordedDamage()
+--     end
+-- end
+
+---comment
+---@param fade_time Time Time to fade.
+---@param steps integer Number of steps to fade.
+---@param callback_step integer Step to call the callback.
+---@param callback function Function to call after the fade.
+function StageHelper.GameOverSlowTimeAndZoom(fade_time, steps, callback_step, callback)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    local size = camera:GetSize()
+    local target_size = 4
+
+    for i = 1, steps do
+        local interpolated = Core.Math.Lerp(size, target_size, i / steps)
+        camera:SetSize(interpolated, TICK_RATE)
+
+        DCEI.SetSpeedFactor(1 * (1 - i / steps))
+        DCEI.Wait(fade_time / steps, true)
+
+        -- UI Fade
+        if i == callback_step then
+            callback()
+        end
+    end
+end
+
+function StageHelper.CollectAllLoot()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:SetCollisionRadius(25)
+end
+
+local LootProjectileUnit = DCEI.Unit("Generic - Loot - Projectile")
+local LootProjectileLaunch = DCEI.Effect("Generic - Loot - Projectile - Launch")
+
+---Spawn Loot at a nearby position.
+---@param position Vector2
+---@param loot_data LootData
+function StageHelper.DropLoot(position, loot_data)
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, LootProjectileUnit, position.x, position.y)
+
+    local loot_position = position + Vector2.RandomRange(3, 4)
+
+    DCEI.CreateEffectAtPosition(LootProjectileLaunch, instance, loot_position.x, loot_position.y)
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        loot_data:SpawnSyncStationary(PLAYER.Terrain, TEAM.Terrain, loot_position)
+    end)
+end
+
+-- Since Loot is collision based, setup a simple unit that can clear it instead.
+function StageHelper.ClearLoot()
+    local instance = Help.CreateDummyUnit()
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Item, 100)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(
+            DCEI.Effect("Simple Remove Target"),
+            CollisionTiming.Continue,
+            0,
+            SIMPLE_TAG.Collectable
+        ),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    Help.PeriodicGameTimer(1, 0.25, nil, function()
+        DCEI.RemoveUnit(instance)
+    end)
+end
+
+---============================================================================
+---!SECTION: Class Library
+---============================================================================
+
+return StageHelper

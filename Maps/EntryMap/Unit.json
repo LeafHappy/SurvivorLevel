@@ -1,0 +1,2905 @@
+{
+    "units": {
+        "Alchemist - Minion - Bear": {
+            "prefix": "",
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Alchemist - Minion - Bear - OnEnter",
+                "Alchemist - Minion - Bear - OnDeath"
+            ]
+        },
+        "Arcane Orb - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Artifact - Whirlwind - Projectile": {
+            "baseUnit": "_Projectile",
+            "references": {
+                "tagList": [
+                    {
+                        "name": "Whirlwind - Projectile",
+                        "count": 1
+                    }
+                ]
+            },
+            "dependentEffects": [
+                "Artifact - Whirlwind - OnEnter"
+            ]
+        },
+        "Boss - Alchemist": {
+            "baseUnit": "_Boss",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Alchemist"
+                ]
+            },
+            "dependentUnits": [
+                "Boss - Alchemist - Contaminate",
+                "Boss - Alchemist - Contaminate - Telegraph",
+                "Boss - Alchemist - Blast - Telegraph",
+                "Boss - Alchemist - Blast - Projectile",
+                "Boss - Alchemist - Teleport - From Telegraph",
+                "Boss - Alchemist - Teleport - To Telegraph"
+            ],
+            "dependentEffects": [
+                "Boss - Alchemist - OnStay",
+                "Boss - Alchemist - Contaminate - Throw",
+                "Boss - Alchemist - Blast - Impact Effects",
+                "Boss - Alchemist - Blast - Launch"
+            ],
+            "dependentBehaviors": [
+                "Boss - Alchemist - Blast - Projectile Speed"
+            ]
+        },
+        "Boss - Alchemist - Blast - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Boss - Alchemist - Blast - Projectile - OnEnter",
+                "Boss - Alchemist - Blast - Damage Applier"
+            ]
+        },
+        "Boss - Alchemist - Blast - Telegraph": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Boss - Alchemist - Contaminate": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "dependentEffects": [
+                "Boss - Alchemist - Contaminate - OnEnter"
+            ]
+        },
+        "Boss - Alchemist - Contaminate - Telegraph": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Boss - Alchemist - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Boss - Alchemist - Teleport - From Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Alchemist - Teleport - To Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Alchemist - Vial": {
+            "baseUnit": "_Projectile",
+            "dependentUnits": [
+                ""
+            ]
+        },
+        "Boss - Bloodstone": {
+            "components": {
+                "unitStats": {
+                    "radius": 0.5
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Boss - Explosion": {
+            "baseUnit": "_VFX",
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Boss - Explosion - Tick Delay"
+                ]
+            }
+        },
+        "Boss - Fulminyx": {
+            "baseUnit": "_Boss",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Fulminyx"
+                ]
+            },
+            "dependentUnits": [
+                "Boss - Fulminyx - Nova - Grow VFX",
+                "Minion - Fulminyx - Drone",
+                "Boss - Fulminyx - Lightning Spire"
+            ],
+            "dependentEffects": [
+                "Boss - Fulminyx - OnStay",
+                "Boss - Fulminyx - Nova - Explosion Effects"
+            ]
+        },
+        "Boss - Fulminyx - Ground Sparks": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Boss - Fulminyx - Lightning Ball - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Boss - Fulminyx - Lightning Ball - OnEnter"
+            ]
+        },
+        "Boss - Fulminyx - Lightning Ball - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Fulminyx - Lightning Spire": {
+            "baseUnit": "_CUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                }
+            },
+            "healthBar": {
+                "type": 8
+            },
+            "dependentEffects": [
+                "Boss - Fulminyx - Lightning Spire - Nova Effects"
+            ]
+        },
+        "Boss - Fulminyx - Lightning Spire - Nova - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Fulminyx - Nova - Grow VFX": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                }
+            }
+        },
+        "Boss - Fulminyx - Nova - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Fulminyx - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Boss - Fulminyx - Wake - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Generic Smoke Trail": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Boss - Giant": {
+            "baseUnit": "_Boss",
+            "components": {
+                "unitStats": {
+                    "radius": 0.2,
+                    "ignoreCollision": true
+                },
+                "movement": {
+                    "moveSpeed": 2
+                }
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Giant"
+                ]
+            },
+            "dependentEffects": [
+                "Boss - Giant - OnStay",
+                "Boss - Giant - Slam - Effects",
+                "Boss - Giant - Ground Pound - Launch",
+                "Boss - Giant - Ground Pound - Effects",
+                "Boss - Giant - Leap - Effects"
+            ],
+            "dependentBehaviors": [
+                "Boss - Giant - Ground Pound - Projectile Time"
+            ]
+        },
+        "Boss - Giant - Ground Pound - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Boss - Giant - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Boss - Knight": {
+            "baseUnit": "_Boss",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Knight"
+                ]
+            },
+            "dependentEffects": [
+                "Boss - Knight - OnEnter",
+                "Boss - Knight - Trample - Impact Effects",
+                "Boss - Knight - Dark Rift - Effects"
+            ]
+        },
+        "Boss - Knight - Cavalry": {
+            "baseUnit": "_StandardHelper",
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Boss - Knight - Cavalry - Birth VFX"
+                ],
+                "onUnitRemoveEffects": [
+                    "Boss - Knight - Cavalry - Death VFX"
+                ]
+            },
+            "dependentEffects": [
+                "Boss - Knight - Cavalry - OnEnter"
+            ]
+        },
+        "Boss - Knight - Dark Rift - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Knight - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Boss - Knight - Spear - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Knight - Spear - VFX": {
+            "baseUnit": "_StandardHelper",
+            "dependentEffects": [
+                "Boss - Knight - Spear - OnEnter"
+            ]
+        },
+        "Boss - Knight - Trample - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - OnDeath - VFX - Pops": {
+            "baseUnit": "_VFX"
+        },
+        "Boss - Phase Increase - VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Boss - Reaper": {
+            "baseUnit": "_Boss",
+            "references": {
+                "abilityList": [
+                    "Boss - Reaper - Dash",
+                    "Boss - Reaper - Summon Start",
+                    "Boss - Reaper - Summon End"
+                ],
+                "behaviorList": [
+                    "Boss - Reaper - Dark Speed"
+                ]
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Reaper"
+                ]
+            },
+            "dependentEffects": [
+                "Boss - Reaper - OnStay"
+            ]
+        },
+        "Boss - Reaper - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Boss - Shieldbearer": {
+            "baseUnit": "_Boss",
+            "references": {
+                "abilityList": [
+                    "Boss - Shieldbearer - Summon - Start",
+                    "Boss - Shieldbearer - Summon - Channel",
+                    "Boss - Shieldbearer - Summon - End",
+                    "Boss - Shieldbearer - Leap"
+                ]
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Shieldbearer"
+                ]
+            },
+            "dependentUnits": [
+                "Boss - Shieldbearer - Thrust - Telegraph",
+                "Boss - Shieldbearer - Charge - VFX"
+            ],
+            "dependentEffects": [
+                "Boss - Shieldbearer - OnStay",
+                "Boss - Shieldbearer - Cast Slam",
+                "Boss - Shieldbearer - Cast Thrust"
+            ]
+        },
+        "Boss - Shieldbearer - Charge - VFX": {
+            "baseUnit": "_StandardHelper",
+            "dependentEffects": [
+                "Boss - Shieldbearer - Charge - OnEnter"
+            ]
+        },
+        "Boss - Shieldbearer - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Boss - Shieldbearer - Slam - Telegraph": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Boss - Shieldbearer - Thrust - Telegraph": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Boss - Skeleton King": {
+            "baseUnit": "_Boss",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Boss - Skeleton King - OnStay",
+                    "Hostile - Gain Stats - Skeleton King"
+                ]
+            },
+            "dependentEffects": [
+                "Boss - Skeleton King - Horizontal Slash - Effects",
+                "Boss - Skeleton King - Vertical Slash - Effects",
+                "Boss - Skeleton King - Flame Strike - Primary Impact - Effects",
+                "Boss - Skeleton King - Flame Strike - Secondary Impact - Effects"
+            ]
+        },
+        "Boss - Skeleton King - Flame Strike - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Skeleton King - Horizontal - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Skeleton King - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Boss - Skeleton King - Vertical - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Spawn - Impact VFX": {
+            "baseUnit": "_Telegraph"
+        },
+        "Boss - Spawn - Status VFX": {
+            "baseUnit": "_Telegraph"
+        },
+        "Bramble - Minion - Thorns": {
+            "baseUnit": "_GenericControllableUnit",
+            "dependentEffects": [
+                "Bramble - Minion - Thorns - OnEnter"
+            ]
+        },
+        "Camp - Achievements": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Campfire": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Collider": {
+            "baseUnit": "_Camp",
+            "dependentBehaviors": [
+                "Collider Radius"
+            ]
+        },
+        "Camp - Home": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Chopping Block": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Dig Spot - 01": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Dirt Patch - 01": {
+            "baseUnit": "_Camp - Floor"
+        },
+        "Camp - Prop - Fence - Bottom - 01": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Fence - Left - 01": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Fence - Top - 01": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Ground Stake - 01": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Hay Bale": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Log - 01": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Pumpkin - 01": {
+            "baseUnit": "_Camp",
+            "dependentEffects": [
+                "Prop - Pumpkin - OnEnter"
+            ]
+        },
+        "Camp - Prop - Stone - 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Camp - Prop - Stone - OnDeath"
+            ]
+        },
+        "Camp - Prop - Stone - 02": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Camp - Prop - Stone - OnDeath"
+            ]
+        },
+        "Camp - Prop - Stone - 03": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Camp - Prop - Stone - OnDeath"
+            ]
+        },
+        "Camp - Prop - Stone - 04": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Camp - Prop - Stone - OnDeath"
+            ]
+        },
+        "Camp - Prop - Stone Path - 01": {
+            "baseUnit": "_Camp - Floor"
+        },
+        "Camp - Prop - Tree - 01": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Tree - 02": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Tree - 03": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Tree - 04": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Tree - 05": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Tree - 06": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Tree - 07": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Tree Stump": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Prop - Wood Pile": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Shrine of Blessing": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Stage Selection": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Vault": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Witch": {
+            "baseUnit": "_Camp"
+        },
+        "Camp - Zeppelin": {
+            "baseUnit": "_Camp"
+        },
+        "Campfire": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "health": {
+                    "maxHealth": 120
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Campfire - Behavior",
+                    "Degenerate"
+                ]
+            },
+            "healthBar": {
+                "type": 0
+            }
+        },
+        "Chest - Healing Totem": {
+            "baseUnit": "_Chest"
+        },
+        "Chest - Item": {
+            "baseUnit": "_Chest",
+            "dependentEffects": [
+                "Chest - Item - Launch Delay"
+            ]
+        },
+        "Chest - Item - Projectile": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Chest - Weapon": {
+            "baseUnit": "_Chest"
+        },
+        "Clawstorm - VFX": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Collector": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Crystal - Blue": {
+            "baseUnit": "_CUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0.25
+                },
+                "health": {
+                    "maxHealth": 1000
+                }
+            }
+        },
+        "Danger Zone - Barricade": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Death Blossom - VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Disposable Remover": {
+            "baseUnit": "_StandardHelper",
+            "dependentEffects": [
+                "Disposable Remover - OnExit"
+            ]
+        },
+        "Double Swing - VFX - Left": {
+            "baseUnit": "_VFX"
+        },
+        "Double Swing - VFX - Right": {
+            "baseUnit": "_VFX"
+        },
+        "Editor - Boundary Tile": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Camera Target": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Editor - Ghost - Desert": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Dig Spot - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Dirt Patch - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Dirt Patch - 02": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Flower - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Flower - 02": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Grasslands": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - KeyItem - Axe": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - KeyItem - Bow": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - KeyItem - Pickaxe": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - KeyItem - Shovel": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Pumpkin - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Road": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Standard Tile": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Stone - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Tree Degrade - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Wasteland": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Elite - Bloodstone": {
+            "baseUnit": "_Elite",
+            "dependentEffects": [
+                "Event - Bloodstone - Rush Trigger"
+            ]
+        },
+        "Elite - Bloodstone - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Bramble": {
+            "baseUnit": "_Elite",
+            "dependentUnits": [
+                "Bramble - Minion - Thorns"
+            ],
+            "dependentEffects": [
+                "Elite - Bramble - OnEnter"
+            ]
+        },
+        "Elite - Bramble - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Golem": {
+            "baseUnit": "_Elite",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Golem"
+                ]
+            },
+            "dependentEffects": [
+                "Elite - Golem - OnStay"
+            ]
+        },
+        "Elite - Golem - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Mad Scientist": {
+            "baseUnit": "_Elite",
+            "dependentEffects": [
+                "Elite - Mad Scientist - OnEnter",
+                "Elite - Mad Scientist - Speed Boost Effects"
+            ]
+        },
+        "Elite - Mad Scientist - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Mad Scientist - Speed Boost - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Elite - Necromancer": {
+            "baseUnit": "_Elite",
+            "references": {
+                "abilityList": [
+                    "Elite - Necromancer - Summon",
+                    "Elite - Necromancer - Speed Boost"
+                ]
+            },
+            "dependentEffects": [
+                "Elite - Necromancer - OnStay"
+            ]
+        },
+        "Elite - Necromancer - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Nightshade": {
+            "baseUnit": "_Elite",
+            "dependentUnits": [
+                "Elite - Nightshade - Marker"
+            ],
+            "dependentEffects": [
+                "Elite - Nightshade - OnEnter"
+            ]
+        },
+        "Elite - Nightshade - Marker": {
+            "baseUnit": "_CUnit"
+        },
+        "Elite - Nightshade - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Skeleton Mage": {
+            "baseUnit": "_Elite",
+            "components": {
+                "unitStats": {
+                    "radius": 0.5
+                }
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Elite - Skeleton Mage - OnDeath"
+                ]
+            },
+            "dependentUnits": [
+                "Elite - Skeleton Mage - Projectile"
+            ],
+            "dependentEffects": [
+                "Elite - Skeleton Mage - OnEnter"
+            ]
+        },
+        "Elite - Skeleton Mage - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Elite - Skeleton Mage - Projectile - OnEnter",
+                ""
+            ]
+        },
+        "Elite - Skeleton Mage - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Skull": {
+            "baseUnit": "_Elite",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hostile - Gain Stats - Skull"
+                ]
+            },
+            "dependentEffects": [
+                "Elite - Skull - OnStay"
+            ]
+        },
+        "Elite - Skull - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Elite - Training Dummy": {},
+        "Elite - Training Dummy - Shadow": {
+            "prefix": "",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Event - Abandoned Potion Shop": {
+            "baseUnit": "_Event"
+        },
+        "Event - Crate": {
+            "baseUnit": "_Event"
+        },
+        "Event - Dark Ritual - 1": {
+            "baseUnit": "_Event"
+        },
+        "Event - Dark Ritual - 2": {
+            "baseUnit": "_Event"
+        },
+        "Event - Dark Ritual - 3": {
+            "baseUnit": "_Event"
+        },
+        "Event - Drone Cache": {
+            "baseUnit": "_Event",
+            "dependentBehaviors": [
+                "Event - Move Nearby"
+            ]
+        },
+        "Event - Evil Altar": {
+            "baseUnit": "_Event"
+        },
+        "Event - Relic": {
+            "baseUnit": "_Event"
+        },
+        "Event - Test": {
+            "baseUnit": "_Event"
+        },
+        "Forest - Prop - Crate 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Forest - Prop - Crate - OnDeath"
+            ]
+        },
+        "Forest - Prop - Destroyed Crate 01": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Destroyed Crate 02": {
+            "prefix": "",
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Dirt Patch": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Flower 01": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Flower 02": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Rock 01": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Rock 02": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Tree - Degrade - 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Forest - Prop - Tree - OnDeath"
+            ]
+        },
+        "Forest - Prop - Tree - Degrade - 02": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Forest - Prop - Tree - Degrade - 02 - OnDeath"
+            ]
+        },
+        "Forest - Prop - Tree - Degrade - 03": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Forest - Prop - Tree - Degrade - 03 - OnDeath"
+            ]
+        },
+        "Forest - Prop - Tree - Degrade - 04": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Forest - Prop - Tree - Degrade - 04 - OnDeath"
+            ]
+        },
+        "Forest - Prop - Tree - Degrade - 05": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Tree 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Death",
+                "Forest - Prop - Tree - OnDeath"
+            ]
+        },
+        "Forest - Prop - Tree 02": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Tree 03": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Prop - Tree 04": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Forest - Tile - Standard": {
+            "baseUnit": "_Terrain"
+        },
+        "Generic - Loot - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Generic - Loot - Projectile - Launch"
+            ]
+        },
+        "Giant - Minion - Ogre": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Giant - Minion - Ogre - OnEnter",
+                "Giant - Minion - Ogre - OnDeath"
+            ]
+        },
+        "Heal - VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Hero - Ada": {
+            "baseUnit": "_Hero"
+        },
+        "Hero - Amber": {
+            "baseUnit": "_Hero"
+        },
+        "Hero - Amber - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Hero - Amber - Top": {
+            "baseUnit": "_GenericControllableUnit",
+            "references": {
+                "abilityList": [
+                    "Hero Top - Turn"
+                ]
+            }
+        },
+        "Hero - Annie": {
+            "baseUnit": "_Hero",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                }
+            }
+        },
+        "Hero - Annie - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Hero - Annie - Top": {
+            "baseUnit": "_HeroTop"
+        },
+        "Hero - Ellie": {
+            "baseUnit": "_Hero"
+        },
+        "Hero - Erik": {
+            "baseUnit": "_Hero"
+        },
+        "Hero - Erik - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Hero - Erik - Top": {
+            "baseUnit": "_HeroTop"
+        },
+        "Hero - Ghost": {
+            "baseUnit": "_Hero"
+        },
+        "Hero - Ghost - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Hero - Ghost - Top": {
+            "baseUnit": "_HeroTop"
+        },
+        "Hero - Jorian": {
+            "baseUnit": "_Hero"
+        },
+        "Hero - Jorian - Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Hero - Jorian - Top": {
+            "baseUnit": "_GenericControllableUnit",
+            "references": {
+                "abilityList": [
+                    "Hero Top - Turn"
+                ]
+            }
+        },
+        "Hero - Kokumo": {
+            "baseUnit": "_Hero"
+        },
+        "Hero - Viking": {
+            "baseUnit": "_Hero",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                }
+            }
+        },
+        "Hostile - Banshee": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Banshee - OnEnter",
+                "Hostile - Banshee - OnDeath"
+            ]
+        },
+        "Hostile - Boomer": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Boomer - OnEnter",
+                "Hostile - Boomer - OnDeath"
+            ]
+        },
+        "Hostile - Brute": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Brute - OnEnter",
+                "Hostile - Brute - OnDeath"
+            ]
+        },
+        "Hostile - Butcher": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Butcher - OnEnter",
+                "Hostile - Butcher - OnDeath"
+            ]
+        },
+        "Hostile - Gargoyle": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Gargoyle - OnEnter",
+                "Hostile - Gargoyle - OnDeath"
+            ]
+        },
+        "Hostile - Hazmat Masked": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Hazmat Masked - OnEnter",
+                "Hostile - Hazmat Masked - OnDeath"
+            ]
+        },
+        "Hostile - Hazmat Skull": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Hazmat Skull - OnEnter",
+                "Hostile - Hazmat Skull - OnDeath"
+            ]
+        },
+        "Hostile - Hound": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Hound - OnEnter",
+                "Hostile - Hound - OnDeath"
+            ]
+        },
+        "Hostile - Marauder": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Marauder - OnEnter",
+                "Hostile - Marauder - OnDeath"
+            ]
+        },
+        "Hostile - Prologue Walker": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Walker - OnEnter",
+                "Hostile - Prologue Walker - OnDeath"
+            ]
+        },
+        "Hostile - Runner": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Runner - OnEnter",
+                "Hostile - Runner - OnDeath"
+            ]
+        },
+        "Hostile - Walker": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Walker - OnEnter",
+                "Hostile - Walker - OnDeath"
+            ]
+        },
+        "Hostile - Witch": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Hostile - Witch - OnEnter",
+                "Hostile - Witch - OnDeath"
+            ]
+        },
+        "Hunt - Boss Chest": {
+            "baseUnit": "_StandardHelper",
+            "dependentEffects": [
+                "Hunt - Boss Chest - Ground Impact VFX",
+                "Hunt - Boss Chest - Ground Impact 2 VFX"
+            ]
+        },
+        "Hybrid - Archer - Rank 01": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "selectable": false,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "movement": {
+                    "moveSpeed": 1
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "Skill - Archer - Rank 01"
+                ],
+                "tagList": [
+                    {
+                        "name": "Archer_Lv1",
+                        "count": 1
+                    }
+                ]
+            },
+            "dependentBehaviors": [
+                "Hybrid - Archer - Projectile Speed"
+            ]
+        },
+        "Hybrid - Archer - Rank 02": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "selectable": false
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "Skill - Archer - Rank 02"
+                ],
+                "tagList": [
+                    {
+                        "name": "Archer_Lv2",
+                        "count": 1
+                    }
+                ]
+            },
+            "dependentBehaviors": [
+                "Hybrid - Archer - Projectile Speed"
+            ]
+        },
+        "Hybrid - ArcherBarrack - Rank 01": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - ArcherCamp - Rank 01": {
+            "baseUnit": "_GenericControllableUnit",
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Skill - Create - Archer - Rank 01"
+                ],
+                "onUnitDeathEffects": [
+                    "Skill - Remove - Archer - Rank 01"
+                ],
+                "onUnitRemoveEffects": [
+                    "Skill - Remove - Archer - Rank 01"
+                ]
+            }
+        },
+        "Hybrid - ArcherCamp - Rank 02": {
+            "baseUnit": "_GenericControllableUnit",
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Skill - Create Archer - Rank 02"
+                ],
+                "onUnitDeathEffects": [
+                    "Skill - Remove - Archer - Rank 02"
+                ],
+                "onUnitRemoveEffects": [
+                    "Skill - Remove - Archer - Rank 02"
+                ]
+            }
+        },
+        "Hybrid - ArcherCamp - Slot": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Barricade - Rank 01": {
+            "baseUnit": "_GenericControllableUnit",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hybrid - Barricade - OnDestroy"
+                ]
+            }
+        },
+        "Hybrid - Barricade - Rank 01 - Destroyed": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Barricade - Rank 02": {
+            "baseUnit": "_GenericControllableUnit",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hybrid - Barricade - OnDestroy"
+                ]
+            }
+        },
+        "Hybrid - Barricade - Rank 03": {
+            "baseUnit": "_GenericControllableUnit",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Hybrid - Barricade - OnDestroy"
+                ]
+            }
+        },
+        "Hybrid - Masonry": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Masonry - Worker": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "movement": {
+                    "moveSpeed": 5
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Hybrid - Meat Grinder": {
+            "baseUnit": "_GenericControllableUnit",
+            "dependentEffects": [
+                "Hybrid - Meat Grinder - Throw Meat",
+                "Hybrid - Meat Grinder - Spawn Coin",
+                "Hybrid - Meat Grinder - Throw Wood"
+            ]
+        },
+        "Hybrid - Meat Grinder - Coin": {
+            "baseUnit": "_StandardHelper",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Spawn - Loot - Gold - Stationary"
+                ]
+            }
+        },
+        "Hybrid - Meat Grinder - Meat": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Hybrid - Meat Grinder - Wood": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Hybrid - Mine": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 1
+                }
+            }
+        },
+        "Hybrid - MineSlot": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Miner": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "selectable": false,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "health": {
+                    "maxHealth": 1
+                },
+                "movement": {
+                    "moveSpeed": 2
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Hybrid - Perk Offer - Boomerang": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0.5
+                }
+            }
+        },
+        "Hybrid - Perk Offer - Heatwave": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0.5
+                }
+            }
+        },
+        "Hybrid - Perk Offer - Magma Orb": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0.5
+                }
+            }
+        },
+        "Hybrid - Perk Offer - Strafe": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0.5
+                }
+            }
+        },
+        "Hybrid - Shrine": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0.5
+                }
+            }
+        },
+        "Hybrid - Star": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 1
+                }
+            },
+            "dependentEffects": [
+                "Hybrid - Structure - OnEnter",
+                "Wave Defeat - VFX"
+            ]
+        },
+        "Hybrid - Talent": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 1
+                }
+            }
+        },
+        "Hybrid - Training Dummy": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Treasury - Rank 1": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Treasury - Rank 2": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Treasury - Rank 3": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Treasury - Slot": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Hybrid - Zone - Spend Area": {},
+        "Hydra - Impact VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Hydra - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Hydra - Unit": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "Hydra - Scan",
+                    "Hydra - Attack"
+                ]
+            }
+        },
+        "Hydra Fall - Missile": {
+            "baseUnit": "_Projectile"
+        },
+        "Indicator": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Item - Valor": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Item - Hero Detector"
+                ]
+            }
+        },
+        "KeyItem - Axe": {
+            "baseUnit": "_KeyItem",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "KeyItem - Axe - Picked Up"
+                ]
+            }
+        },
+        "KeyItem - Bow": {
+            "baseUnit": "_KeyItem",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "KeyItem - Bow - Picked Up"
+                ]
+            }
+        },
+        "KeyItem - Pickaxe": {
+            "baseUnit": "_KeyItem",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "KeyItem - Pickaxe - Picked Up"
+                ]
+            }
+        },
+        "KeyItem - Shovel": {
+            "baseUnit": "_KeyItem",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "KeyItem - Shovel - Picked Up"
+                ]
+            }
+        },
+        "Loot - Bomb": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Bomb - OnEnter"
+            ]
+        },
+        "Loot - Boss Chest": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Boss Chest - OnEnter"
+            ]
+        },
+        "Loot - Elite Chest": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Elite Chest - OnEnter"
+            ]
+        },
+        "Loot - Gold": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Gold - OnEnter"
+            ]
+        },
+        "Loot - Large Experience": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Experience - Large - OnEnter"
+            ]
+        },
+        "Loot - Magnet": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Magnet - OnEnter"
+            ]
+        },
+        "Loot - Meat": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Meat - OnEnter"
+            ]
+        },
+        "Loot - Medium Experience": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Experience - Medium - OnEnter"
+            ]
+        },
+        "Loot - Missile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Trigger - Spawn Loot"
+                ]
+            }
+        },
+        "Loot - Normal Chest": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Normal Chest - OnEnter"
+            ]
+        },
+        "Loot - Potion": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Potion - OnEnter"
+            ]
+        },
+        "Loot - Potion Charge": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Potion Charge - OnEnter"
+            ]
+        },
+        "Loot - Pumpkin": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Pumpkin - OnEnter"
+            ]
+        },
+        "Loot - Small Experience": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Experience - Small - OnEnter"
+            ]
+        },
+        "Loot - Small Potion": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Small Potion - OnEnter",
+                "Spawn - Loot - Small Potion"
+            ]
+        },
+        "Loot - Stone": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Stone - OnEnter"
+            ]
+        },
+        "Loot - Tome - Heroic Point": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Tome - Heroic Point - OnEnter",
+                "Spawn - Loot - Tome - Heroic Point"
+            ]
+        },
+        "Loot - Tome - Level Point": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Tome - Level Point - OnEnter",
+                "Spawn - Loot - Tome - Level Point"
+            ]
+        },
+        "Loot - Wood": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Wood - OnEnter"
+            ]
+        },
+        "Map Center": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Minion - Fulminyx - Drone": {
+            "baseUnit": "_Hostile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Minion - Fulminyx - Drone - OnEnter",
+                    "Minion - Fulminyx - Drone - OnDeath"
+                ]
+            }
+        },
+        "Minion - Knight - PanDead": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Minion - Knight - PanDead - OnEnter",
+                "Minion - Knight - PanDead - OnDeath"
+            ]
+        },
+        "Minion - Mad Scientist - Skullicopter": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Minion - Mad Scientist - Skullicopter - OnEnter",
+                "Minion - Mad Scientist - Skullicopter - OnDeath"
+            ]
+        },
+        "Mystic Archer - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Mystic Archer - Unit": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "Mystic Archer - Charged Shot"
+                ]
+            }
+        },
+        "Nexus - 1": {
+            "baseUnit": "_Nexus"
+        },
+        "Nexus - 2": {
+            "baseUnit": "_Nexus"
+        },
+        "Nexus - 3": {
+            "baseUnit": "_Nexus"
+        },
+        "Occupy - Amp": {
+            "baseUnit": "_Occupy",
+            "components": {
+                "health": {
+                    "maxHealth": 5
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Occupy - Amp - OnDeath"
+                ],
+                "tagList": [
+                    {
+                        "name": "Indicator Radius",
+                        "count": 250,
+                        "duration": -1
+                    }
+                ]
+            }
+        },
+        "Occupy - Dynamite": {
+            "baseUnit": "_Occupy",
+            "components": {
+                "health": {
+                    "maxHealth": 10
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Occupy - Dynamite - OnDeath"
+                ],
+                "tagList": [
+                    {
+                        "name": "Indicator Radius",
+                        "count": 250,
+                        "duration": -1
+                    }
+                ]
+            }
+        },
+        "Occupy - Inhibitor": {
+            "baseUnit": "_Occupy",
+            "components": {
+                "health": {
+                    "maxHealth": 3
+                }
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Inhibitor"
+                ]
+            }
+        },
+        "Occupy - Magnet": {
+            "baseUnit": "_Occupy",
+            "components": {
+                "health": {
+                    "maxHealth": 4
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Occupy - Magnet - OnDeath",
+                    "Occupy - Heals"
+                ],
+                "tagList": [
+                    {
+                        "name": "Indicator Radius",
+                        "count": 250,
+                        "duration": -1
+                    }
+                ]
+            }
+        },
+        "Occupy - Potion": {
+            "baseUnit": "_Occupy",
+            "components": {
+                "health": {
+                    "maxHealth": 3
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Occupy - Potion - OnDeath",
+                    "Occupy - Heals"
+                ],
+                "tagList": [
+                    {
+                        "name": "Indicator Radius",
+                        "count": 250,
+                        "duration": -1
+                    }
+                ]
+            },
+            "healthBar": {
+                "type": 6,
+                "showWhenFull": true
+            }
+        },
+        "Occupy - Relic": {
+            "baseUnit": "_Occupy"
+        },
+        "Occupy - Rocket": {
+            "baseUnit": "_Occupy",
+            "references": {
+                "behaviorList": [
+                    "Occupy - Rocket - OnDeath"
+                ],
+                "tagList": [
+                    {
+                        "name": "Indicator Radius",
+                        "count": 250,
+                        "duration": -1
+                    }
+                ]
+            }
+        },
+        "Prop - Barrel - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Dirt Ground Hole - 03": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Prop - Drop - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Prop - Gas Pump - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Gas Pump - 02": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Overgrown RV - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Pumpkin Field - 01": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Prop - RV - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Sandbags - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Sandbags - 02": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Simple - Tree": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Prop - Tire - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Tire - 02": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Traffic Blockade - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Traffic Cone - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Traffic Cone - 02": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Wooden Railing - 01": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Prop - Wooden Railing - 02": {
+            "baseUnit": "_Prop - FG"
+        },
+        "Pyroclasm - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Pyroclasm - OnEnter"
+            ]
+        },
+        "Reaper - Minion - Flying Skull": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Reaper - Minion - Flying Skull - OnEnter",
+                "Reaper - Minion - Flying Skull - OnDeath"
+            ]
+        },
+        "Salvo - Projectile - Bonus Bomb": {
+            "baseUnit": "_Projectile"
+        },
+        "Salvo - Projectile - Critical": {
+            "baseUnit": "_Projectile"
+        },
+        "Salvo - Projectile - Standard": {
+            "baseUnit": "_Projectile"
+        },
+        "Shieldbearer - Minion - Mummy": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Shieldbearer - Minion - Mummy - OnEnter",
+                "Shieldbearer - Minion - Mummy - OnDeath"
+            ]
+        },
+        "Shot - Missile": {
+            "baseUnit": "_Projectile",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Shrine - Fallen Star": {
+            "baseUnit": "_Shrine",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Fallen Star"
+                ]
+            }
+        },
+        "Shrine - Hall of Life": {
+            "baseUnit": "_Shrine",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Hall of Life"
+                ]
+            }
+        },
+        "Shrine - Meditation Fountain": {
+            "baseUnit": "_Shrine",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Meditation Fountain"
+                ]
+            }
+        },
+        "Shrine - Meditation Fountain 2": {
+            "components": {
+                "health": {
+                    "maxHealth": 100
+                }
+            },
+            "dependentEffects": [
+                "Shrine - Meditation Fountain - OnStay"
+            ]
+        },
+        "Shrine - Sprouting Oak": {
+            "baseUnit": "_Shrine",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Sprouting Oak"
+                ]
+            }
+        },
+        "Shrine - Stoneguard": {
+            "baseUnit": "_Shrine",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Stoneguard"
+                ]
+            }
+        },
+        "Shrine - Tavern": {
+            "baseUnit": "_Shrine",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Tavern"
+                ]
+            }
+        },
+        "Sifu - Guardian Shield": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "ForceCast"
+                ]
+            }
+        },
+        "Simple Collector": {
+            "baseUnit": "Simple Collider",
+            "dependentEffects": [
+                "Simple Collector - Force",
+                "Simple Collector - OnEnter"
+            ]
+        },
+        "Simple Collider": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Simple Collider with Shadow": {
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Simple Projectile Collider": {},
+        "Siphon - Missile": {
+            "baseUnit": "_Projectile",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Skeleton King - Minion - Skeleton": {
+            "baseUnit": "_Hostile",
+            "dependentEffects": [
+                "Skeleton King - Minion - Skeleton - OnEnter",
+                "Skeleton King - Minion - Skeleton - OnDeath"
+            ]
+        },
+        "Skill - Archer - Rank 01 - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Archer - Rank 01 - Projectile - OnEnter"
+            ]
+        },
+        "Skill - Archer - Rank 02 - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Archer - Rank 02 - Projectile - OnEnter"
+            ]
+        },
+        "Skill - Bash - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Skill - Bash - Death VFX"
+                ]
+            }
+        },
+        "Skill - Blade Trap - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Blade Trap - OnEnter"
+            ],
+            "dependentBehaviors": [
+                "Skill - Blade Trap - Seeking Blades"
+            ]
+        },
+        "Skill - Boomerang - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Boomerang - OnEnter",
+                "Skill - Boomerang - Snapback - Damage Amplifier"
+            ]
+        },
+        "Skill - Chakram - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Chakram - OnEnter"
+            ]
+        },
+        "Skill - Coin - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Skill - Fireball - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Skill - Fireball - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Skill - Fireball - OnEnter"
+            ]
+        },
+        "Skill - Frost Guard - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Skill - Frost Guard - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Skill - Frost Guard - OnEnter",
+                "Skill - Frost Guard - Ice Splash - Effects"
+            ]
+        },
+        "Skill - Frostfang - Hibernate Area Ground": {
+            "baseUnit": "_StandardHelper",
+            "dependentBehaviors": [
+                "Skill - Frostfang - Hibernation"
+            ]
+        },
+        "Skill - Frostfang - Hibernate Area Top": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Skill - Frostfang - Idle Blade": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Skill - Frostfang - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Frostfang - OnEnter"
+            ]
+        },
+        "Skill - Frostfang - Touch Indicator": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Skill - Guardian Shield - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Guardian Shield - OnEnter"
+            ]
+        },
+        "Skill - Heatwave - Telegraph": {
+            "baseUnit": "_Telegraph"
+        },
+        "Skill - Ice Barrage - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Skill - Ice Barrage - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Skill - Ice Barrage - OnEnter"
+            ]
+        },
+        "Skill - Magma Orb - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Skill - Marked for Death - Overhead": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Skill - Mighty Axe - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Skill - Mighty Axe - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Skill - Mighty Axe - OnEnter"
+            ]
+        },
+        "Skill - Spectral Arrow - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Skill - Spectral Arrow - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Skill - Spectral Arrow - OnEnter"
+            ]
+        },
+        "Skill - Static Remnants - Pylon": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Skill - Strafe - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Skill - Strafe - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Skill - Strafe - OnEnter"
+            ]
+        },
+        "Skill - Tesla Field - Aura": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Skill - Tesla Field - OnEnter"
+            ]
+        },
+        "Snap - VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Solar Crest - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Spectral Arrow - Actor": {
+            "baseUnit": "_VFX",
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Spectral Arrow - Launch Delay"
+                ]
+            }
+        },
+        "Spectral Arrow - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Stage 1 - Wall of Fire": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Stage 1 - Wall of Fire - Behavior"
+                ]
+            }
+        },
+        "Swamp - Prop - Destroyed Crate": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Dirt Patch - 01": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Dirt Patch - 02": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Grass": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Rock": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Tree - Degrade - 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Swamp - Prop - Tree - Degrade - 01 - OnDeath"
+            ]
+        },
+        "Swamp - Prop - Tree - Degrade - 02": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Swamp - Prop - Tree - Degrade - 02 - OnDeath"
+            ]
+        },
+        "Swamp - Prop - Tree - Degrade - 03": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Water - 01": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Water - 02": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Prop - Water - 03": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Swamp - Tile - Standard": {
+            "baseUnit": "_Terrain"
+        },
+        "Target Marker": {
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "Test Square": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Thicket - Prop - Destroyed Crate 01": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Thicket - Prop - Destroyed Crate 02": {
+            "prefix": "",
+            "baseUnit": "_Prop - BG"
+        },
+        "Thicket - Prop - Dirt Patch": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Thicket - Prop - Grass": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Thicket - Prop - Log": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Thicket - Prop - Tree - Degrade - 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Thicket - Prop - Tree - Degrade - 01 - OnDeath"
+            ]
+        },
+        "Thicket - Prop - Tree - Degrade - 02": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Thicket - Prop - Tree - Degrade - 02 - OnDeath"
+            ]
+        },
+        "Thicket - Prop - Tree - Degrade - 03": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Thicket - Prop - Tree - Degrade - 03 - OnDeath"
+            ]
+        },
+        "Thicket - Prop - Tree - Degrade - 04": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Simple - Tree - Collision",
+                "Thicket - Prop - Tree - Degrade - 04 - OnDeath"
+            ]
+        },
+        "Thicket - Prop - Tree - Degrade - 05": {
+            "baseUnit": "_Prop - BG"
+        },
+        "Thicket - Tile - Standard": {
+            "baseUnit": "_Terrain"
+        },
+        "Throw Resource - Gems": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Throw Resource - Gold": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Throw Resource - Meat": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Throw Resource - Pumpkin": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Throw Resource - Stone": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Throw Resource - Wood": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Tile - Base": {
+            "baseUnit": "_Terrain"
+        },
+        "Tile - Castle - Floor": {
+            "baseUnit": "_Terrain"
+        },
+        "Tile - Castle - Wall": {
+            "baseUnit": "_Terrain"
+        },
+        "Tracker": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Triple Strike - Stomp - VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Triple Strike - Sweep - VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Triple Strike - Thrust - VFX": {
+            "baseUnit": "_VFX"
+        },
+        "Viper Strike - Missile": {
+            "baseUnit": "_Projectile"
+        },
+        "Weapon - Orbital Shield - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Weapon - Orbital Shield - OnEnter"
+            ]
+        },
+        "Weapon - Revenant - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Weapon - Revenant - OnEnter",
+                "Weapon - Revenant - Projectile - Scan"
+            ]
+        },
+        "Weapon - Salvo - Projectile": {
+            "baseUnit": "_Projectile"
+        },
+        "Weapon - Scarlet Arrow - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Weapon - Scarlet Arrow - DeathVFX",
+                    "Weapon - Scarlet Arrow - Explosion - Learned"
+                ]
+            },
+            "dependentEffects": [
+                "Weapon - Scarlet Arrow - OnEnter"
+            ],
+            "dependentBehaviors": [
+                "Weapon - Scarlet Arrow - Explosion - Learned"
+            ]
+        },
+        "Weapon - Spitfire - Projectile": {
+            "baseUnit": "_Projectile",
+            "dependentEffects": [
+                "Weapon - Spitfire - OnEnter"
+            ]
+        },
+        "Weapon - Starblast - Projectile": {
+            "baseUnit": "_Projectile",
+            "unitEventTriggers": {
+                "onUnitRemoveEffects": [
+                    "Weapon - Starblast - Projectile - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Weapon - Starblast - OnEnter"
+            ]
+        },
+        "Wisp": {
+            "baseUnit": "_CUnit",
+            "references": {
+                "behaviorList": [
+                    "Wisp - Collected"
+                ]
+            }
+        },
+        "Zone - Available - Default": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Zone - Cleansed - Default": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Zone - Corrupted - Default": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Zone - Desert - 01": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Zone - Grass - 01": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Zone - Occupied - Default": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Zone - Road - 01": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "Zone - Wasteland - 01": {
+            "baseUnit": "_GenericControllableUnit"
+        },
+        "_Boss": {
+            "template": true,
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {
+                        "leashRadius": 1000
+                    }
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "AI - Scan for Target",
+                    "Boss - Stagger",
+                    "Boss - Taunt",
+                    "AI - Scan for Hero",
+                    "AI - Scan for Structure"
+                ],
+                "tagList": [
+                    {
+                        "name": "Boss",
+                        "count": 1
+                    }
+                ]
+            },
+            "healthBar": {
+                "type": 8
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Boss - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Boss - Spawn Position Marker (1s)",
+                "Boss - Health Lock - Armor",
+                "Boss - Rage Effects"
+            ],
+            "dependentBehaviors": [
+                "Stats - Move Speed"
+            ]
+        },
+        "_Camp": {
+            "template": true,
+            "baseUnit": "_CUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "selectable": false
+                }
+            }
+        },
+        "_Camp - Floor": {
+            "template": true,
+            "baseUnit": "_CUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "selectable": false
+                }
+            }
+        },
+        "_Chest": {
+            "template": true,
+            "baseUnit": "_Occupy",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "health": {
+                    "maxHealth": 2
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Occupy - Heals"
+                ],
+                "tagList": [
+                    {
+                        "name": "Indicator Radius",
+                        "count": 175,
+                        "duration": -1
+                    }
+                ]
+            },
+            "healthBar": {
+                "showWhenFull": false
+            }
+        },
+        "_Elite": {
+            "template": true,
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {
+                        "leashRadius": 1000
+                    }
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "AI - Scan for Target",
+                    "Boss - Stagger",
+                    "AI - Scan for Hero",
+                    "AI - Scan for Structure"
+                ],
+                "tagList": [
+                    {
+                        "name": "Elite",
+                        "count": 1
+                    }
+                ]
+            },
+            "healthBar": {
+                "type": 8
+            },
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Elite - OnSpawn"
+                ],
+                "onUnitDeathEffects": [
+                    "Elite - OnDeath"
+                ]
+            },
+            "dependentEffects": [
+                "Simple Unit Pusher"
+            ],
+            "dependentBehaviors": [
+                "Stats - Move Speed",
+                "Stats - Cast Speed"
+            ]
+        },
+        "_Event": {
+            "template": true,
+            "components": {
+                "unitStats": {
+                    "selectable": false,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 6,
+                "showWhenFull": true
+            },
+            "dependentEffects": [
+                "Event - OnEnter - Decay"
+            ],
+            "dependentBehaviors": [
+                "Event - Radius"
+            ]
+        },
+        "_GenericControllableUnit": {
+            "template": true,
+            "components": {
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "_Hero": {
+            "template": true,
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignorePathing": true
+                },
+                "health": {
+                    "maxHealth": 1
+                },
+                "turning": {
+                    "turningSpeed": 900
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Health Regeneration",
+                    "Knockout"
+                ],
+                "tagList": [
+                    {
+                        "name": "Hero",
+                        "count": 1,
+                        "duration": -1
+                    }
+                ]
+            },
+            "healthBar": {
+                "type": 8
+            },
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Hero - Death VFX"
+                ],
+                "onUnitDeathEffects": [
+                    "Hero - Death VFX"
+                ]
+            },
+            "dependentEffects": [
+                "Loot - Potion - Heal",
+                "Wave End - Heal",
+                "Hero - Level Up",
+                "Hero - Collision - OnStay",
+                "Hero - Retaliation Armor"
+            ],
+            "dependentBehaviors": [
+                "Complex Collector"
+            ]
+        },
+        "_HeroTop": {
+            "template": true,
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "Hero Top - Turn"
+                ]
+            }
+        },
+        "_Hostile": {
+            "template": true,
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "_KeyItem": {
+            "template": true,
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                }
+            },
+            "references": {
+                "abilityList": [
+                    "KeyItem - Pickup"
+                ]
+            }
+        },
+        "_Loot": {
+            "template": true,
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "tagList": [
+                    {
+                        "name": "Complex Loot",
+                        "count": 1,
+                        "duration": -1
+                    }
+                ]
+            }
+        },
+        "_Nexus": {
+            "template": true,
+            "baseUnit": "_Occupy",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Occupy - Heals"
+                ],
+                "tagList": [
+                    {
+                        "name": "Indicator Radius",
+                        "count": 300,
+                        "duration": -1
+                    }
+                ]
+            },
+            "healthBar": {
+                "showWhenFull": false
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Nexus"
+                ]
+            }
+        },
+        "_Occupy": {
+            "template": true,
+            "comment": "",
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Occupy - Detector"
+                ]
+            },
+            "healthBar": {
+                "type": 6,
+                "showWhenFull": true
+            },
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Event"
+                ]
+            },
+            "dependentBehaviors": [
+                "Indicator Radius"
+            ]
+        },
+        "_Projectile": {
+            "template": true,
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "health": {
+                    "maxHealth": 1
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "_Prop - BG": {
+            "template": true,
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "_Prop - FG": {
+            "template": true,
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "_Shrine": {
+            "template": true,
+            "baseUnit": "_Occupy",
+            "unitEventTriggers": {
+                "onUnitDeathEffects": [
+                    "Gain Stats - Shrine"
+                ]
+            }
+        },
+        "_Telegraph": {
+            "template": true,
+            "baseUnit": "_StandardHelper"
+        },
+        "_Terrain": {
+            "template": true,
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            }
+        },
+        "_VFX": {
+            "template": true,
+            "baseUnit": "_StandardHelper",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "immortal": false,
+                    "ground": false,
+                    "selectable": false,
+                    "targetPriority": -100,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "references": {
+                "behaviorList": [
+                    "Temporary - Remove"
+                ]
+            }
+        }
+    }
+}

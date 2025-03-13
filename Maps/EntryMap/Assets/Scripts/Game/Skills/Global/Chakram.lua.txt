@@ -1,0 +1,302 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Chakram"),
+
+    -- Behaviors
+
+    -- Effects
+    Trigger = DCEI.Effect("Skill - Chakram - Trigger"),
+
+    -- Collision Effects
+    OnEnter = DCEI.Effect("Skill - Chakram - OnEnter"),
+    Damage = DCEI.Effect("Skill - Chakram - Damage"),
+    Slow = DCEI.Effect("Skill - Chakram - Slow"),
+    Stagger = DCEI.Effect("Skill - Chakram - Stagger"),
+
+    -- VFX
+
+    -- Unit
+    Projectile = DCEI.Unit("Skill - Chakram - Projectile"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Chakram - Projectile") }),
+
+    -- Unique 1: Rend - Causes enemies to take stacking damage.
+    RendBreak = DCEI.Effect("Skill - Chakram - Rend - Break"),
+    -- Unique 2: Hyper Glaives - Boost Projectile Speed, Size, and Damage.
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@class ChakramProjectileData
+---@field player_id PLAYER
+---@field instance_id UnitId
+---@field instance SimpleUnit
+---@field projectile_speed number
+---@field lifetime number
+---@field duration number
+---@field starting_position Vector2
+---@field angle number
+---@field flipped boolean
+
+---@type table<PLAYER, ChakramProjectileData>
+local _Projectiles = {}
+
+local MODEL_SCALE = 0.75
+local MODEL_SCALE_TIME = 0.25
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+end
+
+---@param hero Hero
+---@param flipped boolean
+local function SpawnProjectile(hero, flipped)
+    --
+
+    local tags = hero:GetInheritedTags(SkillData.Chakram.Key)
+
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local duration = hero:GetStat(STAT.SkillDuration, tags)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+
+    local position = Vector2.UnitPosition(hero.unit)
+
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, position.x, position.y)
+
+    -- Set Model Size
+    Help.SetModelScale(instance, projectile_size * MODEL_SCALE, MODEL_SCALE_TIME)
+
+    -- Collision
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, projectile_size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 0),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Health
+    SimpleUnit.ModifyHealth(instance, 1)
+
+    local instance_id = Core.Unit.GetId(instance)
+
+    local projectile_data = {
+        player_id = hero.player_id,
+        instance_id = instance_id,
+        instance = instance,
+        projectile_speed = projectile_speed,
+        lifetime = 0,
+        duration = duration,
+        starting_position = position,
+        angle = Vector2.UnitForwardAngle(hero.unit),
+        flipped = flipped,
+    }
+
+    _Projectiles[hero.player_id][instance_id] = projectile_data
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        _Projectiles[hero.player_id][instance_id] = nil
+    end, true)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    -- Left
+    SpawnProjectile(hero, false)
+    SpawnProjectile(hero, true)
+
+    -- Right
+end
+
+local shift = 0.25
+
+---comment
+---@param hero Hero
+---@param data ChakramProjectileData
+local function DefaultProjectileMover(hero, data, lifetime_ratio)
+    data.lifetime = data.lifetime + TICK_RATE
+
+    local amplitude = 1.50 * (1 + data.projectile_speed * 0.01)
+    local frequency = 0.75 * (1 + data.projectile_speed * 0.01)
+
+    local forward = Vector2.NewFromAngle(data.angle)
+
+    -- Wave Calculation
+    local sin_x = amplitude * math.sin(shift + frequency * lifetime_ratio * data.projectile_speed)
+    local wave = Vector2.New(sin_x, 0)
+    local rotation = data.flipped and -90 or 90
+    local rotated = Vector2.RotateAround(wave, data.angle + rotation)
+
+    -- Movement Calculation
+    local destination = data.starting_position + forward * data.projectile_speed * data.duration
+    local distance_offset = Vector2.Lerp(data.starting_position, destination, lifetime_ratio)
+    local next_position = distance_offset + rotated
+
+    DCEI.SetUnitPosition2DWithInterpolation(data.instance, next_position.x, next_position.y)
+end
+
+---comment
+---@param hero Hero
+---@param data ChakramProjectileData
+local function UpdateProjectiles(hero, data)
+    local lifetime_ratio = data.lifetime / data.duration
+    DefaultProjectileMover(hero, data, lifetime_ratio)
+
+    if data.lifetime >= data.duration then
+        DCEI.KillUnit(data.instance)
+    end
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    local is_alive = hero and Help.ValidateUnit(hero.unit)
+
+    if is_alive then
+        local player_id = hero.player_id
+        local projectiles = _Projectiles[player_id]
+
+        for instance_id, projectile_data in pairs(projectiles) do
+            UpdateProjectiles(hero, projectile_data)
+        end
+    else
+        local player_id = hero.player_id
+        local projectiles = _Projectiles[player_id]
+
+        for instance_id, projectile_data in pairs(projectiles) do
+            DCEI.KillUnit(projectile_data.instance)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Cleanup Projectiles
+    local projectiles = _Projectiles[hero.player_id]
+    if projectiles then
+        for _, projectile_data in pairs(projectiles) do
+            DCEI.KillUnit(projectile_data.instance)
+        end
+    end
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _Projectiles[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Additive, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+    [STAT.Break] = {
+        EffectPath.New(REF.RendBreak, EJS.DamageIntake.Unscaled),
+    },
+    [STAT.DebuffDuration] = {
+        EffectPath.New(REF.RendBreak, EJS.DamageIntake.Duration),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        _Projectiles[hero.player_id] = {}
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    -- local tags = hero:GetInheritedTags(SkillData.SkillName.Key)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

@@ -1,0 +1,15 @@
+{
+    "cameraSettings": {
+        "focalPointX": 0,
+        "focalPointY": 0,
+        "pitchAngleDegree": 45,
+        "allowZoom": false,
+        "allowPanX": false,
+        "allowPanY": false,
+        "panAreaCenterX": 0,
+        "panAreaCenterY": 0,
+        "panAreaLengthX": 100000,
+        "panAreaHeightY": 100000,
+        "viewMode": 1
+    }
+}

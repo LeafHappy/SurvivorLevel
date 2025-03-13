@@ -1,0 +1,108 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+---@class TextCommand
+---@field key string What follows the '/' to activate the command
+---@field func function What executes when the command is entered
+
+-- Module
+local _DevTextCommand = {}
+
+-- Commands
+---@type table<TextCommand>
+local command_list = {
+    {
+        key = "Test",
+        func = function(...)
+            local message = ""
+            for i, v in ipairs({ ... }) do
+                message = message .. v .. " "
+            end
+            DCEI.LogMessage("Test Command: " .. message)
+        end,
+    },
+    {
+        -- NOTE: Example of command = "/OpenChest c_common c_rare c_legendary", this will open all three passed chest ids
+        key = "OpenChest",
+        func = function(...)
+            for _, chest_id in ipairs({ ... }) do
+                Core.Event.SendPresentationEvent("DebugQueueChest", chest_id)
+            end
+            Core.Event.SendPresentationEvent("DebugOpenChests")
+        end,
+    },
+}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@param text string
+local function OnTextCommand(text)
+    -- Match the command and the parameters after the slash
+    local command, params = string.match(text, "^/(%S+)%s*(.*)")
+
+    if command then
+        -- If there are parameters, split them into a table
+        local args = {}
+        if params then
+            for param in string.gmatch(params, "%S+") do
+                table.insert(args, param)
+            end
+        end
+
+        for _, command_item in ipairs(command_list) do
+            if command_item.key == command then
+                command_item.func(table.unpack(args))
+                DCEI.ShowFeedbackMessage("Command Executed!")
+                return
+            end
+        end
+
+        DCEI.ShowFeedbackMessage("Unknown Command")
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function _DevTextCommand.Init()
+    local check_duplicate_command = {}
+    for _, command in ipairs(command_list) do
+        if check_duplicate_command[command.key] then
+            DCEI.LogError("Duplicate command: " .. command.key)
+        else
+            check_duplicate_command[command.key] = true
+        end
+    end
+    DCEI.TriggerAddTextCommandEvent(OnTextCommand)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+-- EXPORT
+return _DevTextCommand

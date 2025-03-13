@@ -1,0 +1,211 @@
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Bosses = require("Game/AI/Bosses")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+local _Print = nil
+if _Dev then
+    _Print = _Dev.Log.stage_information
+end
+
+local Data = {}
+
+local DIFFICULTY_BASE = 10
+local DIFFICULTY_ADDED = 6
+
+local WAVE_POINT_BASE = 200
+local WAVE_POINT_INCREASE = 50
+
+---Get the Enemy Difficulty based on stage_level and phase.
+---@param stage_level number
+---@param wave_id number
+---@return number
+function Data.GetDifficulty(stage_level, wave_id)
+    local wave_multiplier = (1.01 + (stage_level - 1) * 0.001) ^ wave_id
+    local difficulty = DIFFICULTY_BASE + (stage_level - 1) * DIFFICULTY_ADDED + (wave_id - 1)
+
+    return math.floor(difficulty * wave_multiplier)
+end
+
+-- Game Statistics should be printable at startup
+function Data.GetStageDifficulty(stage_level)
+    local stage_difficulty = {}
+    for i = 1, 30 do
+        stage_difficulty[i] = Data.GetDifficulty(stage_level, i)
+    end
+
+    Help.Warn(string.format("===== Shadowfall Stage %d =====", stage_level), nil, stage_difficulty)
+end
+
+function Data.GetWavePoints(wave_count)
+    return WAVE_POINT_BASE + (wave_count - 1) * WAVE_POINT_INCREASE
+end
+
+Data.Enemies = {
+    {
+        RequiredDifficulty = 0,
+        Cost = 10,
+        Type = SimpleUnits.Data.Walker,
+        Modifiers = {
+            Modifier.New(STAT.Health, 1.5, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.05, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 1.15, SCALING.Multiplier),
+        },
+    },
+    {
+        RequiredDifficulty = 12,
+        Cost = 16,
+        Type = SimpleUnits.Data.Gargoyle,
+        Modifiers = {},
+    },
+    {
+        RequiredDifficulty = 25,
+        Cost = 12,
+        Type = SimpleUnits.Data.Hound,
+        Modifiers = {
+            Modifier.New(STAT.Thorns, 0.5, SCALING.Multiplier),
+        },
+    },
+    {
+        RequiredDifficulty = 40,
+        Cost = 19,
+        Type = SimpleUnits.Data.Witch,
+        Modifiers = {},
+    },
+    {
+        RequiredDifficulty = 80,
+        Cost = 66,
+        Type = SimpleUnits.Data.Butcher,
+        Modifiers = {},
+    },
+}
+
+Data.Formations = {
+    {
+        Name = "Blood Marked Stream",
+        RequiredDifficulty = 0,
+        CostMultiplier = 0.6,
+        Type = "Stream",
+        Properties = {
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+            [StreamProperties.spawn_angle_range] = 360,
+            [StreamProperties.width] = 5,
+        },
+        Modifiers = {
+            Modifier.New(STAT.Health, 0.4, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.3, SCALING.Multiplier),
+            Modifier.New(STAT.Thorns, 0.5, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Cave In",
+        RequiredDifficulty = 0,
+        CostMultiplier = 1.4,
+        Type = "Stream",
+        Properties = {
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+            [StreamProperties.spawn_angle_range] = 360,
+        },
+        Modifiers = {
+            Modifier.New(STAT.Health, 2.2, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.1, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Safe Large Fast Enclosure",
+        RequiredDifficulty = 10,
+        CostMultiplier = 1.5,
+        Type = "Enclosure",
+        Properties = {
+            [EnclosureProperties.offset] = "PositionPass",
+            [EnclosureProperties.move_angle_modifier] = 10,
+        },
+        Modifiers = {
+            Modifier.New(STAT.MoveSpeed, 1.3, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 1.6, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Hunter Pack",
+        RequiredDifficulty = 20,
+        CostMultiplier = 3.5,
+        Type = "Stream",
+        Properties = {
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+            [StreamProperties.width] = 1,
+        },
+        Modifiers = {
+            Modifier.New(STAT.Health, 3.6, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.05, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 2.4, SCALING.Multiplier),
+            Modifier.New(STAT.Thorns, 1.5, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Safe Small Fast Enclosure",
+        RequiredDifficulty = 30,
+        CostMultiplier = 1.5,
+        Type = "Enclosure",
+        Properties = {
+            [EnclosureProperties.offset] = "PositionPass",
+            [EnclosureProperties.move_angle_modifier] = 5,
+        },
+        Modifiers = {
+            Modifier.New(STAT.MoveSpeed, 1.3, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 1.6, SCALING.Multiplier),
+        },
+    },
+}
+
+Data.Mutations = {
+    {
+        Name = "Normal",
+        RequiredDifficulty = 0,
+        CostMultiplier = 1,
+        Modifiers = {},
+    },
+    {
+        Name = "Volatile",
+        RequiredDifficulty = 50,
+        CostMultiplier = 1.5,
+        Modifiers = {
+            Modifier.New(STAT.Health, 0.9, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.2, SCALING.Multiplier),
+            Modifier.New(STAT.Thorns, 1.3, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Slow and Steady",
+        RequiredDifficulty = 100,
+        CostMultiplier = 1.2,
+        Modifiers = {
+            Modifier.New(STAT.Health, 1.9, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 0.7, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 1.5, SCALING.Multiplier),
+        },
+    },
+}
+
+Data.Bosses = {
+    -- 1 to 5
+    Bosses.Types.Shieldbearer,
+    Bosses.Types.Alchemist,
+    Bosses.Types.SkeletonKing,
+    Bosses.Types.Knight,
+    Bosses.Types.Giant,
+    -- 6 to 10
+    Bosses.Types.Fulminyx,
+    Bosses.Types.Reaper,
+}
+
+return Data

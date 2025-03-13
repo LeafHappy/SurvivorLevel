@@ -1,0 +1,707 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Generates a list of skills that can be used by a character.
+    Skills should only selectable if the character has the prerequisites to use them.
+
+    We will need to keep track of what Skills and Stats have been added.
+
+
+    How do we keep track of Skill Tags + Stats?
+        -- Technically, Attributes do this already.
+        -- You pass SkillTags and a Stat
+    
+    Tag & Stat Combo
+        Each SKILL_TAG could be a List of Tags.
+
+        Example:
+        self.Tags = {
+            SKILL_TAG.ScarletArrow = {
+                STAT.AttackSpeed,
+                STAT.Damage,
+                STAT.Size,
+            }
+        }
+        
+        This way, we can just check to see if the Tag/Stat Combo exists.
+
+        We could also just loop through all of the Learned Upgrades and Check to see if the Tag/Stat Combo exists.
+
+    Stat Check:
+        - We would have to loop through all the SKILL_TAGS to find this.
+        - Or keep a separate Dictionary.
+
+    Skill Requirement: Check if the Skill Key is in the Learned Skills.
+
+    Skill + Level Combo
+        - Whenever we Learn a Skill, it will have a LevelId:
+            - The LevelId will be a separate Table, which contains our Final Level of the related Id.
+
+    
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class: Core
+-- ================================================================================================
+
+---@class SkillFilter
+---@field SkillType table<SKILL_TYPE> | SKILL_TYPE | nil
+
+---@class SkillSelector
+---@field hero_type SURVIVOR | nil
+---@field meta_level integer
+---@field skill_tag_levels table<string, integer>
+---@field inherited_skill_tags table<SkillId, SkillTagList>
+---@field available_skills table<string, SkillData>
+---@field learned_skills table<string, SkillData>
+local SkillSelector = {}
+SkillSelector.__index = SkillSelector
+
+---Generates a new Skill Selector that handles managing and selecting skills for a Survivor.
+---@param survivor_tag SURVIVOR | nil
+---@param meta_level integer | nil Default: 0
+---@param skill_data_table table<string, SkillData> | nil Default: {}
+---@return SkillSelector
+function SkillSelector.New(survivor_tag, meta_level, skill_data_table)
+    local self = setmetatable({}, SkillSelector)
+    self.hero_type = survivor_tag or nil
+    self.meta_level = meta_level or 0
+
+    self.skill_tag_levels = {
+        -- SKILL_TAG.ScarletArrow = 1
+        -- SKILL_TAG.Fire = 2,
+    }
+    self.inherited_skill_tags = {
+        ScarletArrow = {
+            -- SKILL_TAG.Global,
+            -- SKILL_TAG.ScarletArrow,
+            -- SKILL_TAG.Fire,
+            -- SKILL_TAG.Projectile,
+            -- SKILL_TAG.DirectDamage,
+        },
+    }
+
+    self.available_skills = skill_data_table and Core.Table.DeepCopy(skill_data_table) or {} -- Skills that can be learned
+    self.learned_skills = {} -- Skills that have been learned
+
+    return self
+end
+
+---comment
+function SkillSelector:Reset()
+    self.hero_type = nil
+    self.meta_level = 0
+    self.skill_tag_levels = {}
+    self.inherited_skill_tags = {}
+    self.available_skills = {}
+    self.learned_skills = {}
+end
+
+-- ================================================================================================
+-- !SECTION -- Class: Core
+-- SECTION -- Class: Private Methods
+-- ================================================================================================
+
+---Adds a Skill Tag to the Skill Group.
+---Handles initializing the skill group.
+---@param skill_id SkillId
+---@param skill_tag SKILL_TAG
+function SkillSelector:_AddSkillTagToSkillId(skill_id, skill_tag)
+    -- Initialize Skill Id in the Inherited Skill Tags table.
+    if not self.inherited_skill_tags[skill_id] then
+        self.inherited_skill_tags[skill_id] = {}
+    end
+
+    -- Loop through all of the Skill Tags
+    for _, tag in pairs(self.inherited_skill_tags[skill_id]) do
+        if tag == skill_tag then
+            return -- This Skill Tag already exists in the Skill Group.
+        end
+    end
+
+    -- Add the Skill Tag to the Skill Group
+    table.insert(self.inherited_skill_tags[skill_id], skill_tag)
+end
+
+---Removes a Skill Tag from a Skill Group.
+---@param skill_id SkillId
+---@param skill_tag SKILL_TAG
+function SkillSelector:_RemoveSkillTagFromSkillId(skill_id, skill_tag)
+    -- Check if the Skill Id Group exists
+    if not self.inherited_skill_tags[skill_id] then
+        return
+    end
+
+    -- Loop through all of the Skill Tags
+    for index, tag in pairs(self.inherited_skill_tags[skill_id]) do
+        if tag == skill_tag then
+            table.remove(self.inherited_skill_tags[skill_id], index)
+            break
+        end
+    end
+end
+
+---@private
+---comment
+---@param skill_data SkillData
+---@return SKILL_SELECTION_TYPE
+function SkillSelector:_LearnFromSkillData(skill_data)
+    local skill_selection_type = SKILL_SELECTION_TYPE.NonFirstLevel
+
+    -- Check if the Skill is in the Learned Skills, just increase its Level
+    if self.learned_skills[skill_data.Key] then
+        -- Increase the Level of the Skill
+        self.learned_skills[skill_data.Key].Level = self.learned_skills[skill_data.Key].Level + 1
+    elseif self.available_skills[skill_data.Key] then
+        -- Move it to the Learned Skills
+        self.learned_skills[skill_data.Key] = self.available_skills[skill_data.Key]
+        self.available_skills[skill_data.Key] = nil
+
+        -- Increase the level of the Skill
+        self.learned_skills[skill_data.Key].Level = 1
+
+        -- First Time Learning the Skill
+        skill_selection_type = SKILL_SELECTION_TYPE.FirstLevel
+    else
+        -- The Skill does not exist in either table.
+        -- We will add it to the Learned Skills and give it a Level of 1
+        self.learned_skills[skill_data.Key] = Core.Table.DeepCopy(skill_data)
+        self.learned_skills[skill_data.Key].Level = 1
+
+        -- First Time Learning the Skill
+        skill_selection_type = SKILL_SELECTION_TYPE.FirstLevel
+    end
+
+    -- Apply Skill Level Tags
+    if skill_data.AppliedSkillTagLevels then
+        self:AddSkillTagLevels(skill_data.AppliedSkillTagLevels)
+    end
+
+    -- Update Skill Tag Groups (Apply)
+    if skill_data.ApplyStatInheritance then
+        -- Loop through all of the Skill Tags
+        for skill_id, skill_tags in pairs(skill_data.ApplyStatInheritance) do
+            -- Add each Skill Tag to the Skill Group
+            for _, skill_tag in pairs(skill_tags) do
+                self:_AddSkillTagToSkillId(skill_id, skill_tag)
+            end
+        end
+    end
+
+    -- Update Skill Tag Groups (Remove)
+    if skill_data.RemoveStatInheritance then
+        -- Loop through all of the Skill Tags
+        for skill_id, skill_tags in pairs(skill_data.RemoveStatInheritance) do
+            -- Check and remove any Skill Tags from the Skill Group
+            for _, skill_tag in pairs(skill_tags) do
+                -- Check if this Skill Tag exists in the Skill Group
+                self:_RemoveSkillTagFromSkillId(skill_id, skill_tag)
+            end
+        end
+    end
+
+    return skill_selection_type
+end
+
+---@private
+---comment
+---@param skill_key string
+---@return SKILL_SELECTION_TYPE | nil
+function SkillSelector:_LearnFromSkillKey(skill_key)
+    -- Verify that the skill_key exists in the available_skills
+    if self.available_skills[skill_key] then
+        return self:_LearnFromSkillData(self.available_skills[skill_key])
+    elseif self.learned_skills[skill_key] then
+        return self:_LearnFromSkillData(self.learned_skills[skill_key])
+    else
+        Help.Warn("Attempting to Learn Skill Key that has not been added to the Skill Selector", skill_key)
+        return nil
+    end
+end
+
+---@private
+---comment
+---@param requirements Requirement
+---@return boolean
+function SkillSelector:_CompareRequirements(requirements)
+    local comparison_type = requirements.Comparison or COMPARISON_TYPE.GreaterThanOrEqual
+    local required_level = requirements.Level or 1
+
+    -- Check if the Hero is the same
+    if requirements.Hero and requirements.Hero ~= self.hero_type then
+        -- Help.Log("Hero: Failed")
+        return false
+    end
+
+    -- Check if the Skill Level is the same
+    if requirements.Tag then
+        -- Checks to see if we have at least 1 Level in the Skill Tag.
+        if not self.skill_tag_levels[requirements.Tag] then
+            -- Help.Log("Skill Tag Failed", requirements.Tag, self.skill_tag_levels)
+            return false
+        end
+
+        -- Check if the Level meets or exceeds the requirement
+        if
+            requirements.Level
+            and not Help.Compare(self.skill_tag_levels[requirements.Tag], requirements.Level, comparison_type)
+        then
+            -- Help.Log("Skill Tag Level: Failed")
+            return false
+        end
+    end
+
+    -- Checks to see if the Skill Group exists (Typically the Skill Name)
+    if requirements.Group then
+        -- check skill tag group
+        if not self.inherited_skill_tags[requirements.Group] then
+            -- Help.Log("Skill Group Failed", requirements.Group, self.skill_tag_groups)
+            return false
+        end
+
+        if requirements.GroupTag then
+            local match = false
+
+            -- Check the Group to see if the Tag exists
+            for _, tag in pairs(self.inherited_skill_tags[requirements.Group]) do
+                if tag == requirements.GroupTag then
+                    match = true
+                    break
+                end
+            end
+
+            if not match then
+                -- Help.Log("Skill Group Tag Failed", requirements.GroupTag, self.skill_tag_groups)
+                return false
+            end
+        end
+    elseif requirements.GroupTag then
+        -- Need to check if any of the Skill Groups contains the GroupTag
+        local match = false
+        for _, skill_tag_list in pairs(self.inherited_skill_tags) do
+            for _, skill_tag in pairs(skill_tag_list) do
+                if skill_tag == requirements.GroupTag then
+                    match = true
+                    break
+                end
+            end
+        end
+
+        if not match then
+            -- Help.Log("Skill Group Tag Failed", requirements.GroupTag, self.skill_tag_groups)
+            return false
+        end
+    end
+
+    -- Checks to see if the Total Level of the Skill Tags meets the requirement
+    if requirements.InheritedLevel then
+        local primary, secondary = self:GetSkillLevels(requirements.InheritedLevel)
+        local current_inherited_level = primary + secondary
+
+        local result = Help.Compare(current_inherited_level, required_level, comparison_type)
+        if not result then
+            return false
+        end
+    end
+
+    -- Check for Upgrade Level
+    if requirements.SkillLevel then
+        local skill_level = self:GetSkillLevel(requirements.SkillLevel)
+        return Help.Compare(skill_level, required_level, comparison_type)
+    end
+
+    return true
+end
+
+---comment
+---@param requirements table<table | Requirement>
+---@return boolean
+function SkillSelector:_CheckRequirements(requirements)
+    if type(requirements[1]) == "table" then
+        -- AND check
+        for _, subset in pairs(requirements) do
+            if not self:_CheckRequirements(subset) then
+                -- Help.Log("Subset Requirements", "false", requirements)
+                return false
+            end
+        end
+
+        -- Help.Log("Subset Requirements", "false", requirements)
+        return true
+    end
+
+    -- Help.Log("Subset Requirements", "true", requirements)
+    return self:_CompareRequirements(requirements)
+end
+
+---@private
+---Check if the Skill Requirements are met.
+---NOTE: AND/OR Logic is supported with table usage. All elements inside the table are treated as AND.
+---Multiple tables are treated as OR.
+---@param skill_data SkillData
+function SkillSelector:_CheckSkillRequirements(skill_data)
+    local requirements = skill_data.Requirements
+
+    -- Help.Log("Checking Requirements", skill_data.DisplayName, requirements)
+
+    -- No Requirements Provided
+    if not requirements or #requirements <= 0 then
+        return true
+    end
+
+    -- OR
+    for _, subset in pairs(requirements) do
+        if self:_CheckRequirements(subset) then
+            return true
+        end
+    end
+
+    return false
+end
+
+-- ================================================================================================
+-- !SECTION -- Class: Private Methods
+-- SECTION -- Class: Public Methods
+-- ================================================================================================
+
+-- Add a skill to the number of available skills (retrieved by Get)
+
+---Increases the Level of the provided Skill Tag
+---@param tag SKILL_TAG
+---@param count integer | nil Default: 1
+function SkillSelector:AddSkillTagLevel(tag, count)
+    count = count or 1
+
+    if not self.skill_tag_levels[tag] then
+        self.skill_tag_levels[tag] = count
+    else
+        self.skill_tag_levels[tag] = self.skill_tag_levels[tag] + count
+    end
+end
+
+---Increases the Level of the provided Skill Tags
+---@param tags table<SKILL_TAG>
+function SkillSelector:AddSkillTagLevels(tags)
+    for _, tag in pairs(tags) do
+        self:AddSkillTagLevel(tag)
+    end
+end
+
+---Gets the current Level of the provided Skill Tag
+---@param tag SKILL_TAG
+---@return integer
+function SkillSelector:GetSkillTagLevel(tag)
+    return self.skill_tag_levels[tag] or 0
+end
+
+---Returns the combined level of all provided Skill Tags
+---@param skill_tags SkillTagList
+---@return integer
+function SkillSelector:GetSkillTagLevels(skill_tags)
+    local total_level = 0
+    for _, tag in pairs(skill_tags) do
+        total_level = total_level + self:GetSkillTagLevel(tag)
+    end
+
+    return total_level
+end
+
+---Returns the current Skill Tags and their Levels
+---@return table<string, integer>
+function SkillSelector:GetSkillTags()
+    return self.skill_tag_levels
+end
+
+---Gets the Primary and Secondary Skill Levels
+---Example: ScarletArrow = 1, Fire = 2, Projectile = 3
+---GetSkillLevel(ScarletArrow) -> 1, 5
+---@param skill_tag SKILL_TAG
+---@return integer, integer
+function SkillSelector:GetSkillLevels(skill_tag)
+    -- Ideally , the Skill Id and Skill Tag should be the same?
+    local primary = self:GetSkillTagLevel(skill_tag)
+
+    local inherited_tags = self:GetInheritedTags(skill_tag)
+
+    -- Remove the Primary from the Inherited (so we only get secondary tags)
+    for i = 1, #inherited_tags do
+        if inherited_tags[i] == skill_tag then
+            table.remove(inherited_tags, i)
+            break
+        end
+    end
+
+    local secondary = self:GetSkillTagLevels(inherited_tags)
+
+    return primary, secondary
+end
+
+-- Set the Hero
+function SkillSelector:SetHeroType(hero_type)
+    self.hero_type = hero_type
+end
+
+---Set the Meta Level
+---@param level integer
+function SkillSelector:SetMetaLevel(level)
+    self.meta_level = level
+end
+
+---Adds the provided Skill Option to the available skills.
+---@param skill SkillData | string
+function SkillSelector:AddSkillOption(skill)
+    -- Use String to get the associated SkillData
+    if type(skill) == "string" then
+        -- Invalid Key Check
+        if not SkillData[skill] then
+            Help.Warn("Received a Key that does not exist in the SkillData Table", skill)
+            return
+        end
+
+        skill = SkillData[skill]
+    end
+
+    --
+    self.available_skills[skill.Key] = Core.Table.DeepCopy(skill)
+
+    -- We need to add a Base Level to the Skill
+    self.available_skills[skill.Key].Level = 0
+end
+
+---Adds the provided Skill Options to the available skills.
+---@param skill_data_table table<SkillData | string>
+function SkillSelector:AddSkillOptions(skill_data_table)
+    if not skill_data_table then
+        return
+    end
+
+    for _, skill_data in pairs(skill_data_table) do
+        self:AddSkillOption(skill_data)
+    end
+end
+
+---TODO: Provide some way to distinguish what Skills we want (Random, Unique Tags, Active/Passive, etc.)
+---Returns a number of Skill Options to choose from.
+---@param count integer | nil Default: all
+---@return table
+function SkillSelector:GetSkillOptions(count, filter)
+    local options = {}
+
+    -- Check Learned Skills (where Level < Max Level)
+    for _, skill_data in pairs(self.learned_skills) do
+        -- Help.Log("Learned Skill Check", nil, skill_data)
+
+        if skill_data.Level < skill_data.MaxLevel then
+            table.insert(options, skill_data)
+        end
+    end
+
+    -- Check Available Skills
+    for _, skill_data in pairs(self.available_skills) do
+        if self:_CheckSkillRequirements(skill_data) then
+            table.insert(options, skill_data)
+        end
+    end
+
+    -- Help.Log("Skill Options", nil, options)
+
+    -- Filter Options
+    if filter then
+        if filter.SkillType then
+            local filtered_options = {}
+            for _, skill_data in pairs(options) do
+                -- Check if the Skill Type matches the Filter
+                -- If it's a table, check if the Skill Type is in the table
+                if type(filter.SkillType) == "table" then
+                    for _, skill_type in pairs(filter.SkillType) do
+                        if skill_data.Type == skill_type then
+                            table.insert(filtered_options, skill_data)
+                            break
+                        end
+                    end
+                else
+                    if skill_data.Type == filter.SkillType then
+                        table.insert(filtered_options, skill_data)
+                    end
+                end
+            end
+
+            options = filtered_options
+        elseif filter.Key then
+            local filtered_options = {}
+            for _, skill_data in pairs(options) do
+                if skill_data.Key == filter.Key then
+                    table.insert(filtered_options, skill_data)
+                end
+            end
+
+            options = filtered_options
+        end
+    end
+
+    -- Remove Random Indices from Options until we've reached the count
+    if count and count > 0 then
+        while #options > count do
+            table.remove(options, math.random(#options))
+        end
+    end
+
+    return options
+end
+
+---comment
+---@return table<string, SkillData>
+function SkillSelector:GetLearnedSkills()
+    return self.learned_skills
+end
+
+function SkillSelector:GetLearnedActiveSkills()
+    local active_skills = {}
+
+    for _, skill_data in pairs(self.learned_skills) do
+        if skill_data.Type == SKILL_TYPE.Active then
+            table.insert(active_skills, skill_data)
+        end
+    end
+
+    return active_skills
+end
+
+function SkillSelector:GetLearnedPassiveSkills()
+    local passive_skills = {}
+
+    for _, skill_data in pairs(self.learned_skills) do
+        if skill_data.Type == SKILL_TYPE.Passive then
+            table.insert(passive_skills, skill_data)
+        end
+    end
+
+    return passive_skills
+end
+
+-- Uses tags to determine if any learned skills are upgrading the passed skill
+function SkillSelector:GetLearnedSkillUpgrades(check_skill_data)
+    local function IsTagInTable(table, tag)
+        for _, check_tag in ipairs(table) do
+            if check_tag == tag then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function IsSkillUpgradingActive(skill_data)
+        for _, tag in ipairs(skill_data.AppliedSkillTagLevels) do
+            local is_matching_tag = IsTagInTable(check_skill_data.AppliedSkillTagLevels, tag)
+            if is_matching_tag then
+                return true
+            end
+        end
+        return false
+    end
+
+    local upgrades = {}
+    for _, skill_data in pairs(self.learned_skills) do
+        if skill_data ~= check_skill_data and IsSkillUpgradingActive(skill_data) then
+            table.insert(upgrades, skill_data)
+        end
+    end
+
+    return upgrades
+end
+
+---comment
+---@param key string
+---@return boolean
+function SkillSelector:IsSkillLearned(key)
+    return self.learned_skills[key] and true or false
+end
+
+---comment
+---@param key string
+---@return integer
+function SkillSelector:GetSkillLevel(key)
+    if self.learned_skills[key] then
+        return self.learned_skills[key].Level
+    end
+
+    return 0
+end
+
+---comment
+---@param skill_id string
+---@return SkillTagList
+function SkillSelector:GetInheritedTags(skill_id)
+    if not self.inherited_skill_tags[skill_id] then
+        return {}
+    end
+
+    return Core.Table.DeepCopy(self.inherited_skill_tags[skill_id])
+end
+
+---Checks to see if the Skill has any of the provided tags
+---@param skill_id SkillId
+---@param checked_tags table<SKILL_TAG>
+---@return boolean
+function SkillSelector:GetSkillHasTag(skill_id, checked_tags)
+    if not self.inherited_skill_tags[skill_id] then
+        return false
+    end
+
+    -- Get the associated Skill Tags to the Active Skill Id
+    local skill_tags = self.inherited_skill_tags[skill_id]
+
+    for _, skill_tag in pairs(skill_tags) do
+        for _, checked_tag in pairs(checked_tags) do
+            if skill_tag == checked_tag then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+-- 2 Cases: Data is in skill_options or not
+-- The reason for this is to automatically learn the skill (starting skills)
+-- Otherwise, the player will have to learn the skill manually (leveling up, Get)
+-- We may also have a case where we learn it based on the Key?
+
+---comment
+---@param skill SkillData | string Can either be a SkillData or a string Key
+---@return SKILL_SELECTION_TYPE | nil
+function SkillSelector:LearnSkill(skill)
+    if type(skill) == "string" then
+        return self:_LearnFromSkillKey(skill)
+    elseif type(skill) == "table" then
+        return self:_LearnFromSkillData(skill)
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Class: Public Methods
+-- ================================================================================================
+
+return SkillSelector

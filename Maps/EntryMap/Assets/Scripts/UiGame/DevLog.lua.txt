@@ -1,0 +1,41 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "DevLog",
+    parent = ui.z3.Upper,
+})
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    self.items = self.items or {}
+end
+
+function layout:Log(data)
+    local key = data.key
+    local item_layout = self.items[key]
+    if not item_layout then
+        item_layout = GMUI.Layout.New({
+            name = "DevLog/Item",
+            parent = self.LogStack,
+        })
+        self.items[key] = item_layout
+    end
+    local text = tostring(data.value)
+    DCEI.SetTextFrameText(item_layout.Label, text)
+end
+
+function layout:Reset()
+    for _, item_layout in pairs(self.items) do
+        item_layout:Destroy()
+    end
+    self.items = {}
+end
+
+-- EXPORT
+return layout

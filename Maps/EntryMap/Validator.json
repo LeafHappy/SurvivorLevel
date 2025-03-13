@@ -1,0 +1,1056 @@
+{
+    "validators": {
+        "AI - Danger Level > 10": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "AI - Danger Level"
+                            }
+                        }
+                    },
+                    "op": 2,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 10
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "AI - Flee - OnCooldown": {
+            "expression": {
+                "value": {
+                    "behaviorElapsedTime": {
+                        "behavior": "AI - Flee - Cooldown"
+                    }
+                }
+            }
+        },
+        "AI - Home - OffCooldown": {
+            "negate": true,
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "AI - Home - Cooldown"
+                    }
+                }
+            }
+        },
+        "AI - Home - OnCooldown": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "AI - Home - Cooldown"
+                    }
+                }
+            }
+        },
+        "AI - Is Map Center": {
+            "unitType": {
+                "unitTypeName": "Map Center"
+            }
+        },
+        "AI - IsMoving": {
+            "unitIsMoving": {
+                "whichUnit": 3
+            }
+        },
+        "AI - Prioritize Healing": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "AI - Prioritize Healing"
+                    }
+                }
+            }
+        },
+        "AI - Pursue - OnCooldown": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "AI - Pursue - Cooldown"
+                    }
+                }
+            }
+        },
+        "AI - Stationary": {
+            "negate": true,
+            "unitIsMoving": {
+                "whichUnit": 3
+            }
+        },
+        "AI - Turn - OffCooldown": {
+            "negate": true,
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "AI - Turn - Cooldown"
+                    }
+                }
+            }
+        },
+        "AI - Turn - OnCooldown": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "AI - Turn - Cooldown"
+                    }
+                }
+            }
+        },
+        "AI - Wander - OffCooldown": {
+            "negate": true,
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "AI - Wander - Cooldown"
+                    }
+                }
+            }
+        },
+        "Avoidance Stack (>25)": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Avoidance Stack"
+                            }
+                        }
+                    },
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 25
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Caster Life > 50%": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "healthFraction": {}
+                        }
+                    },
+                    "op": 2,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.5
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "CasterUnit Life LT 30%": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "healthFraction": {}
+                        }
+                    },
+                    "op": 3,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.3
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "CasterUnit Life LT 70%": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "healthFraction": {}
+                        }
+                    },
+                    "op": 3,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.7
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Death Blossom - Chance": {
+            "expression": {
+                "namedExpression": {
+                    "name": "RandomChance 10%"
+                }
+            }
+        },
+        "Death Blossom - Learned": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Death Blossom - Learned"
+                    }
+                }
+            }
+        },
+        "Death Blossom - On Cooldown": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Death Blossom - Cooldown"
+                    }
+                }
+            }
+        },
+        "Double Swing - Critical Chance": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "random": {
+                                "int32Value": {
+                                    "min": 1,
+                                    "max": 100
+                                }
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Double Swing - Critical Chance - Stacks"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "FALSE": {
+            "expression": {
+                "value": {
+                    "constant": {
+                        "boolValue": false
+                    }
+                }
+            }
+        },
+        "Hero - Has Thorns": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Has Thorns"
+                    }
+                }
+            }
+        },
+        "Hydra - Capacity Reached": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Hydra - Active"
+                            }
+                        }
+                    },
+                    "op": 4,
+                    "right": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Hydra - Capacity"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Hydra - Stacks Available": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Hydra - Stack"
+                            }
+                        }
+                    },
+                    "op": 4,
+                    "right": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Hydra - Stacks Required"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "IsForceCast": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "ForceCast"
+                    }
+                }
+            }
+        },
+        "IsUncontrollable": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Uncontrollable"
+                    }
+                }
+            }
+        },
+        "Mana <= 0": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "mana": {}
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Mana > 0": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "mana": {}
+                        }
+                    },
+                    "op": 2,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Missile - Pierce - NoStack": {
+            "negate": true,
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "unit": 1,
+                        "behavior": "Missile - Pierce"
+                    }
+                }
+            }
+        },
+        "Missile - Pierce - Stack": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "unit": 1,
+                        "behavior": "Missile - Pierce"
+                    }
+                }
+            }
+        },
+        "Missing Hit Count - Source": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "tagCount": {
+                                "unit": 1,
+                                "tagName": "Hit Count"
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 0
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Mystic Archer - Rotation Reset": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Mystic Archer - Rotation Stack"
+                            }
+                        }
+                    },
+                    "op": 4,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 360
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Occupy - Heal": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Occupy - Heals"
+                    }
+                }
+            }
+        },
+        "RandomChance 75%": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "random": {
+                                "int32Value": {
+                                    "min": 1,
+                                    "max": 100
+                                }
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 75
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Range (<2)": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "unitsDistance": {
+                                "toUnit": 2
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 2
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Range (<3)": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "unitsDistance": {
+                                "toUnit": 2
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 3
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Range (<4)": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "unitsDistance": {
+                                "toUnit": 2
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 4
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Range (<5)": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "unitsDistance": {
+                                "toUnit": 2
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 5
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Range (<6)": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "unitsDistance": {
+                                "toUnit": 2
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 6
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Range <1": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "unitsDistance": {
+                                "toUnit": 2
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 1
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Salvo - Bonus Bomb Success": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "max": 100
+                                }
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Salvo - Bonus Bomb Chance"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Salvo - Critical Cast Chance": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "max": 100
+                                }
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Salvo - Critical Cast Chance"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Shot - Learned - Double Shot": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Shot - Learned - Double Shot"
+                    }
+                }
+            }
+        },
+        "Skill - Blade Trap - Learned - Maim": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Skill - Blade Trap - Learned - Maim"
+                    }
+                }
+            }
+        },
+        "Skill - Ice Rupture - Ice Locked": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Skill - Ice Rupture - Learned - Ice Locked"
+                    }
+                }
+            }
+        },
+        "Skill - Lightning Strike - Lightning Splash - Learned": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Skill - Lightning Splash - Learned"
+                    }
+                }
+            }
+        },
+        "Skill - Tesla Field - Learned - Static Discharge": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Skill - Tesla Field - Learned - Static Discharge"
+                    }
+                }
+            }
+        },
+        "Source - IsAlive": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "health": {
+                                "unit": 1
+                            }
+                        }
+                    },
+                    "op": 2,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 0
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Source - IsDead": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "health": {
+                                "unit": 1
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 0
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Spectral Arrow - Angle Stack Reset": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Spectral Arrow - Angle Stack"
+                            }
+                        }
+                    },
+                    "op": 4,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 3
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "TRUE": {
+            "expression": {
+                "value": {
+                    "constant": {
+                        "int32Value": 1
+                    }
+                }
+            }
+        },
+        "Type - Occupy - Rocket": {
+            "unitType": {
+                "unitTypeName": "Occupy - Rocket"
+            }
+        },
+        "Unit - Is Boss": {
+            "negate": false,
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Boss - Phase"
+                    }
+                }
+            }
+        },
+        "Weapon - Homerun Bat - IsPrimaryWeapon": {
+            "expression": {
+                "value": {
+                    "tagCount": {
+                        "tagName": "Weapon - Homerun Bat - IsPrimaryWeapon"
+                    }
+                }
+            }
+        },
+        "Weapon - Mighty Axe - IsPrimaryWeapon": {
+            "expression": {
+                "value": {
+                    "tagCount": {
+                        "tagName": "Weapon - Mighty Axe - IsPrimaryWeapon"
+                    }
+                }
+            }
+        },
+        "Weapon - Revenant - IsPrimaryWeapon": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "tagCount": {
+                                "tagName": "Weapon - Revenant - IsPrimaryWeapon"
+                            }
+                        }
+                    },
+                    "op": 4,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 1
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Weapon - Salvo - IsPrimaryWeapon": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "tagCount": {
+                                "tagName": "Weapon - Salvo - IsPrimaryWeapon"
+                            }
+                        }
+                    },
+                    "op": 4,
+                    "right": {
+                        "value": {
+                            "constant": {
+                                "int32Value": 1
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Weapon - Scarlet Arrow - Explosion - Learned": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "unit": 1,
+                        "behavior": "Weapon - Scarlet Arrow - Explosion - Learned"
+                    }
+                }
+            }
+        },
+        "Weapon - Scarlet Arrow - IsPrimaryWeapon": {
+            "expression": {
+                "value": {
+                    "tagCount": {
+                        "tagName": "Weapon - Bow - IsPrimaryWeapon"
+                    }
+                }
+            }
+        },
+        "Weapon - Scarlet Arrow - Quick Draw - Chance": {
+            "expression": {
+                "compare": {
+                    "left": {
+                        "value": {
+                            "random": {
+                                "int32Value": {
+                                    "min": 1,
+                                    "max": 100
+                                }
+                            }
+                        }
+                    },
+                    "op": 5,
+                    "right": {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Weapon - Scarlet Arrow - Quick Draw - Learned"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "Weapon - Scarlet Arrow - Quick Draw - Learned": {
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Weapon - Scarlet Arrow - Quick Draw - Learned"
+                    }
+                }
+            }
+        },
+        "Weapon - Scarlet Arrow - Quick Draw - Ready": {
+            "negate": true,
+            "expression": {
+                "value": {
+                    "behaviorStackCount": {
+                        "behavior": "Weapon - Scarlet Arrow - Quick Draw - OnCooldown"
+                    }
+                }
+            }
+        },
+        "Weapon - Scarlet Arrow - Quick Draw - Success": {
+            "combine": {
+                "validatorList": [
+                    "Weapon - Scarlet Arrow - Quick Draw - Learned",
+                    "Weapon - Scarlet Arrow - Quick Draw - Ready",
+                    "Weapon - Scarlet Arrow - Quick Draw - Chance"
+                ]
+            }
+        }
+    },
+    "expressions": {
+        "Ability Speed Divisor": {
+            "add": {
+                "expressions": [
+                    {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 1
+                            }
+                        }
+                    },
+                    {
+                        "namedExpression": {
+                            "name": "Boss - Danger - Ability Speed Scaling"
+                        }
+                    },
+                    {
+                        "namedExpression": {
+                            "name": "Boss - Phase - Ability Speed Scaling"
+                        }
+                    }
+                ]
+            }
+        },
+        "Boss - Danger - Ability Speed Scaling": {
+            "multiply": {
+                "expressions": [
+                    {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Boss - Danger"
+                            }
+                        }
+                    },
+                    {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.01
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "Boss - Phase - Ability Speed Scaling": {
+            "multiply": {
+                "expressions": [
+                    {
+                        "value": {
+                            "behaviorStackCount": {
+                                "behavior": "Boss - Phase"
+                            }
+                        }
+                    },
+                    {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.2
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "Clockwise Rotation": {
+            "multiply": {
+                "expressions": [
+                    {
+                        "value": {
+                            "behaviorStackCount": {
+                                "unit": 1,
+                                "behavior": "Clockwise Stack"
+                            }
+                        }
+                    },
+                    {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.01
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "Counter Clockwise Rotation": {
+            "multiply": {
+                "expressions": [
+                    {
+                        "value": {
+                            "behaviorStackCount": {
+                                "unit": 1,
+                                "behavior": "Counter Clockwise Stack"
+                            }
+                        }
+                    },
+                    {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.01
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "Missile - Travel - Size": {
+            "multiply": {
+                "expressions": [
+                    {
+                        "value": {
+                            "behaviorStackCount": {
+                                "unit": 1,
+                                "behavior": "Actor - Size"
+                            }
+                        }
+                    },
+                    {
+                        "value": {
+                            "constant": {
+                                "doubleValue": 0.01
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "Random Angle (0 - 360)": {
+            "value": {
+                "random": {
+                    "doubleValue": {
+                        "max": 360
+                    }
+                }
+            }
+        },
+        "RandomChance 75%": {
+            "compare": {
+                "left": {
+                    "value": {
+                        "random": {
+                            "int32Value": {
+                                "min": 1,
+                                "max": 100
+                            }
+                        }
+                    }
+                },
+                "op": 5,
+                "right": {
+                    "value": {
+                        "constant": {
+                            "int32Value": 75
+                        }
+                    }
+                }
+            }
+        },
+        "TICK_RATE": {
+            "value": {
+                "constant": {
+                    "doubleValue": 0.03125
+                }
+            }
+        }
+    }
+}

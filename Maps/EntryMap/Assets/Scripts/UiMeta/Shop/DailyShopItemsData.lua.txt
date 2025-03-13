@@ -1,0 +1,44 @@
+return {
+    keys = {
+        "c_rare",
+        "shards",
+        "gems",
+        "gold",
+    },
+    c_rare = {
+        [1] = {
+            cost_type = "gems",
+            cost_amount = 40,
+            amount = "Rare Chest",
+        }
+    },
+    shards = {
+        [1] = {
+            cost_type = "gems",
+            cost_amount = 10,
+            amount = 2,
+        },
+        [2] = {
+            cost_type = "gems",
+            cost_amount = 25,
+            amount = 5,
+        }
+    },
+    gems = {
+        [1] = {
+            cost_icon = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
+            cost_type = "gold",
+            cost_amount = 200,
+            amount = 5,
+            display = DCEI.Texture("cartoon_icon_gem_level1_store_wildsurvivor"),
+        }
+    },
+    gold = {
+        [1] = {
+            cost_type = "gems",
+            cost_amount = 5,
+            amount = 100,
+            display = DCEI.Texture("cartoon_icon_coin_level1_store_wildsurvivor"),
+        }
+    },
+}

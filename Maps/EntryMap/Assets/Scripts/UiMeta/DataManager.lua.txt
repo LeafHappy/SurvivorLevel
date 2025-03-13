@@ -1,0 +1,1119 @@
+-- Libraries
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local json = require("json")
+
+-- Data
+local AchievementData = require("SharedData/AchievementData")
+local ChestData = require("SharedData/ChestData")
+local DefaultSavedData = require("DefaultSavedData")
+local Heroes = require("SharedData/Heroes")
+local ModeData = require("SharedData/ModeData")
+local StageData = require("SharedData/Stages/StageData")
+local HeroUnlockData = require("SharedData/HeroUnlockData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local EquipmentData = require("SharedData/GearData/EquipmentData")
+
+-- Helper
+local ui = GMUI.ui
+
+-- Module
+local DataManager = {}
+
+local function GetHeroState(name)
+    local saveData = DataManager.save_data
+    if saveData.heroes[name] == nil then
+        saveData.heroes[name] = {
+            level = 0,
+            rank = 0,
+            trophies = {},
+            challenges = {},
+        }
+    end
+    return saveData.heroes[name]
+end
+
+local function FindRewardInList(reward_to_find, list)
+    for _, new_reward in ipairs(list) do
+        if reward_to_find.key == new_reward.key then
+            return new_reward
+        end
+    end
+end
+
+---@param rewards table<ChestReward>
+local function RollReward(rewards)
+    local generated_rewards = {}
+    for _, reward_config in ipairs(rewards) do
+        local roll = math.random()
+        local chance = reward_config.chance / 100
+        if roll <= chance then
+            table.insert(generated_rewards, {
+                key = reward_config.key,
+                value = math.random(reward_config.minValue, reward_config.maxValue),
+            })
+            DCEI.LogMessage(
+                string.format("> [RollReward]: Gained %s with roll %s and chance %s", reward_config.key, roll, chance)
+            )
+        else
+            DCEI.LogMessage(
+                string.format("> [RollReward]: Failed %s with roll %s and chance %s", reward_config.key, roll, chance)
+            )
+        end
+    end
+
+    if #generated_rewards == 0 then
+        local reward_config = rewards[1]
+        table.insert(generated_rewards, {
+            key = reward_config.key,
+            value = math.random(reward_config.minValue, reward_config.maxValue),
+        })
+        DCEI.LogMessage(string.format("> [RollReward]: NO REWARDS, gained %s as default reward", reward_config.key))
+    end
+
+    return generated_rewards
+end
+
+function DataManager.GetChestConfig(key)
+    for _, v in ipairs(ChestData.configs) do
+        if v.key == key then
+            return v
+        end
+    end
+    DCEI.LogError("Invalid chest key: " .. key)
+end
+
+function DataManager.OpenChest(chestKey, showing_results, quiet)
+    local chestConfig = DataManager.GetChestConfig(chestKey)
+    local rewards = RollReward(chestConfig.rewards)
+
+    if not showing_results then
+        ui.camp.chest_page:ShowChestPage(chestConfig.rarity, rewards, showing_results)
+    end
+
+    DataManager.ClaimRewards(rewards, quiet)
+    DataManager.Save()
+
+    return rewards
+end
+
+function DataManager.OpenAllChests(chests)
+    local chest_rewards = {}
+    for _ = 1, chests.value do
+        local rewards = DataManager.OpenChest(chests.key, true, true)
+        chest_rewards = DataManager.MergeChestRewards(rewards, chest_rewards)
+    end
+    return chest_rewards
+end
+
+function DataManager.MergeChestRewards(new_rewards, old_rewards)
+    for _, reward in ipairs(new_rewards) do
+        local matching_reward = FindRewardInList(reward, old_rewards)
+        if matching_reward then
+            matching_reward.value = matching_reward.value + reward.value
+        else
+            table.insert(old_rewards, reward)
+        end
+    end
+    return old_rewards
+end
+
+function DataManager.SetInventoryItem(name, value, quiet)
+    local SaveData = DataManager.save_data
+    if name == "gems" then
+        SaveData.currency.gems = value
+    elseif name == "gold" then
+        DataManager.SetGold(value)
+    elseif name:sub(1, 2) == "s_" then
+        local card_name = DataManager.GetCardNameFromShardName(name)
+        local heroState = GetHeroState(card_name)
+        if heroState.level == 0 then
+            -- unlock
+            heroState.level = 1
+            DataManager.SetMaterial(name, value - 1)
+            if not quiet then
+                ui.camp.item_unlock:Open(name)
+            end
+        else
+            DataManager.SetMaterial(name, value)
+        end
+    else
+        DCEI.LogError("Unknown item: " .. name)
+    end
+end
+
+function DataManager.GetInventoryItem(name)
+    local SaveData = DataManager.save_data
+    if name == "gems" then
+        return SaveData.currency.gems
+    elseif name == "gold" then
+        return DataManager.GetGold()
+    else
+        DCEI.LogError("Unknown item: " .. name)
+        return -1
+    end
+end
+
+-- (optional) quiet prevent popups from showing when unlocking new items
+function DataManager.AddInventoryResource(name, value, quiet)
+    -- Validate that the resource exists
+    if not ResourceData[name] then
+        DCEI.LogError("Unknown item: " .. tostring(name) .. ". Make sure to define the item in ResourceData.lua")
+        return
+    end
+
+    -- Make sure the resource is typed to add correct resource to inventory
+    local resource_type = ResourceData[name].type
+    if not resource_type then
+        DCEI.LogError(
+            "No type found on resource [" .. tostring(name) .. "]. Be sure to assign one from RESOURCE_TYPE enum"
+        )
+        return
+    end
+
+    -- Add correct resource to inventory
+    if resource_type == RESOURCE_TYPE.Currency then
+        DataManager.AddCurrency(name, value)
+    elseif resource_type == RESOURCE_TYPE.Material then
+        DataManager.IncrementMaterial(name, value)
+    elseif resource_type == RESOURCE_TYPE.Shard then
+        DataManager.AddHeroShard(name, value)
+    elseif resource_type == RESOURCE_TYPE.Chest then
+        DataManager.OpenChest(name, false, quiet)
+    elseif resource_type == RESOURCE_TYPE.Upgrade then
+        DataManager.UnlockUpgrade(name)
+    elseif resource_type == RESOURCE_TYPE.Passive then
+        DataManager.UnlockPassive(name)
+    else
+        DCEI.LogError("Unknown resource: " .. tostring(name))
+    end
+
+    if not quiet then
+        ui.camp.item_unlock:Open(name)
+    end
+end
+
+function DataManager.ClaimRewards(items, quiet)
+    for _, item in ipairs(items) do
+        DataManager.AddInventoryResource(item.key, item.value, quiet)
+    end
+end
+
+-- SECTION Equipment Management
+---@class EquipmentSaveData
+---@field index number
+---@field id string
+---@field quality EQUIPMENT_QUALITY
+---@field modifiers table
+
+---@param hero_name string
+local function ValidateHeroEquipment(hero_name)
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+    hero_meta.equipment = hero_meta.equipment
+        or {
+            weapon = 0,
+            consumable = 0,
+            ring = 0,
+            head = 0,
+            chest = 0,
+            boot = 0,
+        }
+
+    DataManager.save_data.heroes[hero_name] = hero_meta
+end
+
+---@param index integer
+---@return EquipmentSaveData | nil
+function DataManager.GetEquipmentSaveData(index)
+    if index <= 0 then
+        return
+    end
+
+    for _, equipment_save_data in ipairs(DataManager.save_data.meta_inventory.equipment) do
+        if equipment_save_data.index == index then
+            return equipment_save_data
+        end
+    end
+end
+
+---@param name string
+---@return ItemData | nil
+function DataManager.GetEquipmentDisplayData(name)
+    for _, item in ipairs(EquipmentData.Equipment) do
+        if item.Name == name then
+            return item
+        end
+    end
+
+    DCEI.LogError("No equipment data with name " .. tostring(name))
+end
+
+---@return table<EquipmentSaveData>
+function DataManager.GetEquipmentInventory()
+    local equipment = DataManager.save_data.meta_inventory.equipment
+
+    -- Validate save data
+    equipment = equipment or {}
+    DataManager.save_data.meta_inventory.equipment = equipment
+
+    return equipment
+end
+
+---@param hero_name string
+---@return table<EquipmentSaveData>
+function DataManager.GetHeroEquipmentIndices(hero_name)
+    ValidateHeroEquipment(hero_name)
+    return DataManager.save_data.heroes[hero_name].equipment
+end
+
+---@param hero_name string
+---@return table<EquipmentSaveData>
+function DataManager.GetHeroEquipment(hero_name)
+    local equipment = {}
+    local indices = DataManager.GetHeroEquipmentIndices(hero_name)
+    for slot, index in pairs(indices) do
+        local equipment_save_data = DataManager.GetEquipmentSaveData(index)
+        if equipment_save_data then
+            table.insert(equipment, equipment_save_data)
+        end
+    end
+
+    return equipment
+end
+
+---@param hero_name string -- Which hero to equip to
+---@param slot_type EQUIPMENT_SLOT
+function DataManager.UnEquipEquipment(hero_name, slot_type)
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+    ValidateHeroEquipment(hero_name)
+
+    hero_meta.equipment[slot_type] = 0
+    DataManager.save_data.heroes[hero_name] = hero_meta
+    DataManager.Save()
+end
+
+---@param hero_name string -- Which hero to equip to
+---@param equipment_save_data EquipmentSaveData
+function DataManager.EquipEquipment(hero_name, equipment_save_data)
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+    ValidateHeroEquipment(hero_name)
+
+    local equipment_data = DataManager.GetEquipmentDisplayData(equipment_save_data.id)
+    if equipment_data then
+        hero_meta.equipment[equipment_data.SlotType] = equipment_save_data.index
+        DataManager.save_data.heroes[hero_name] = hero_meta
+        DataManager.Save()
+    end
+end
+
+---@param equipment_data EquipmentData
+function DataManager.AddEquipment(equipment_data)
+    DataManager.save_data.meta_inventory.equipment = DataManager.save_data.meta_inventory.equipment or {}
+
+    -- Increment global id
+    local global_id = DataManager.save_data.meta_inventory.global_id
+    global_id = global_id + 1
+
+    ---@type EquipmentSaveData
+    local new_equipment = {
+        index = global_id,
+        id = equipment_data.Name,
+        quality = equipment_data.Quality,
+        modifiers = equipment_data.Modifiers,
+    }
+
+    table.insert(DataManager.save_data.meta_inventory.equipment, new_equipment)
+    DataManager.save_data.meta_inventory.global_id = global_id
+    DataManager.Save()
+end
+
+---@return EquipmentSaveData | nil
+function DataManager.GetHeroEquippedConsumable(hero_name)
+    local hero_equipment = DataManager.GetHeroEquipment(hero_name)
+    for _, equipment_save_data in ipairs(hero_equipment) do
+        local equipment_data = DataManager.GetEquipmentDisplayData(equipment_save_data.id)
+        if equipment_data and equipment_data.SlotType == EQUIPMENT_SLOT.Consumable then
+            return equipment_save_data
+        end
+    end
+end
+
+-- SECTION Talents
+
+-- TODO: These are all temp until talent system is figured out
+
+---@class TalentSave
+---@field key string
+---@field level integer
+
+---@type table<TalentSave>
+local _test_talent_saves = {}
+local _test_talent_points = 10
+
+---@param talent_key string
+---@return TalentSave
+function DataManager.GetTalentSave(talent_key)
+    _test_talent_saves[talent_key] = _test_talent_saves[talent_key] or {}
+
+    ---@type TalentSave
+    local talent_save = {
+        key = talent_key,
+        level = _test_talent_saves[talent_key].level or 0,
+    }
+    _test_talent_saves[talent_key] = talent_save
+
+    return talent_save
+end
+
+---@param talent_key string
+---@param level integer
+function DataManager.SetTalentSave(talent_key, level)
+    ---@type TalentSave
+    local talent_save = {
+        key = talent_key,
+        level = level or 0,
+    }
+    _test_talent_saves[talent_key] = talent_save
+end
+
+---@param talent_key string
+function DataManager.IncrementTalentLevel(talent_key)
+    local talent_save = DataManager.GetTalentSave(talent_key)
+    local level = talent_save.level or 0
+    level = level + 1
+    DataManager.SetTalentSave(talent_key, level)
+end
+
+---@return number
+function DataManager.GetTalentPoints()
+    return _test_talent_points
+end
+
+---@param value number
+function DataManager.SetTalentPoints(value)
+    _test_talent_points = value
+end
+
+---@param value number
+function DataManager.SpendTalentPoint(value)
+    local current = DataManager.GetTalentPoints()
+    local new = current - value
+    DataManager.SetTalentPoints(new)
+end
+
+function DataManager.ResetTalents()
+    local total_points = DataManager.GetTalentPoints()
+    for _, talent_save in pairs(_test_talent_saves) do
+        total_points = total_points + talent_save.level
+    end
+
+    _test_talent_saves = {}
+    DataManager.SetTalentPoints(total_points)
+    return total_points
+end
+
+-- SECTION Material Management
+function DataManager.SetMaterial(material, amount)
+    local material_inventory = DataManager.save_data.meta_inventory.materials
+
+    -- Increment existing material by amount
+    for _, material_data in ipairs(material_inventory) do
+        if material_data.id == material then
+            material_data.amount = amount
+
+            -- Escape here as material is already in inventory
+            return
+        end
+    end
+
+    -- If we get to this point we need to add new material to inventory
+    DataManager.AddMaterial(material, amount)
+end
+
+function DataManager.AddMaterial(material, amount)
+    local material_inventory = DataManager.save_data.meta_inventory.materials
+    local new_material_data = {
+        id = material,
+        amount = amount,
+    }
+    table.insert(material_inventory, new_material_data)
+
+    -- Save changes
+    DataManager.Save()
+end
+
+function DataManager.IncrementMaterial(material, amount)
+    local material_inventory = DataManager.save_data.meta_inventory.materials
+
+    -- Increment existing material by amount
+    for _, material_data in ipairs(material_inventory) do
+        if material_data.id == material then
+            material_data.amount = material_data.amount + amount
+
+            -- Escape here as material is already in inventory
+            return
+        end
+    end
+
+    -- If we get to this point we need to add new material to inventory
+    DataManager.AddMaterial(material, amount)
+end
+
+-- Gold
+function DataManager.GetGold()
+    local material_inventory = DataManager.save_data.meta_inventory.materials
+
+    for _, material_data in ipairs(material_inventory) do
+        if material_data.id == "gold" then
+            return material_data.amount
+        end
+    end
+
+    return 0
+end
+
+function DataManager.SetGold(value)
+    local material_inventory = DataManager.save_data.meta_inventory.materials
+
+    -- Increment existing material by amount
+    for _, material_data in ipairs(material_inventory) do
+        if material_data.id == "gold" then
+            material_data.amount = value
+
+            -- Escape here as material is already in inventory
+            return
+        end
+    end
+
+    -- If we get to this point we need to add new material to inventory
+    local new_material_data = {
+        id = "gold",
+        amount = value,
+    }
+    table.insert(material_inventory, new_material_data)
+
+    -- Save changes
+    DataManager.Save()
+end
+
+function DataManager.AddGold(amount)
+    local current_gold = DataManager.GetGold()
+    local next_gold = current_gold + amount
+    DataManager.SetGold(next_gold)
+end
+
+function DataManager.AddCurrency(currency_type, amount)
+    if currency_type == "gems" then
+        if amount > 0 then
+            DCEI.PlaySound(DCEI.Sound("ui_gems_purchased"))
+        end
+        local SaveData = DataManager.save_data
+        SaveData.currency.gems = SaveData.currency.gems + amount
+    elseif currency_type == "gold" then
+        if amount > 0 then
+            DCEI.PlaySound(DCEI.Sound("smh_coin_land"))
+        end
+        DataManager.AddGold(amount)
+    end
+end
+
+function DataManager.UnlockPassive(name)
+    -- Make sure we have the unlocked_passives table
+    local SaveData = DataManager.save_data
+    local display_name = ResourceData[name].display_name
+    if not SaveData.unlocked_passives then
+        SaveData.unlocked_passives = {}
+    end
+
+    -- Check if the passive already exists
+    for _, v in ipairs(SaveData.unlocked_passives) do
+        if v == display_name then
+            DCEI.LogError("Already unlocked passive: " .. display_name)
+            return
+        end
+    end
+
+    -- Add the passive to the unlocked_passives table
+    table.insert(SaveData.unlocked_passives, display_name)
+end
+
+function DataManager.UnlockUpgrade(name)
+    local SaveData = DataManager.save_data
+
+    -- Make sure upgrade not unlocked already
+    local display_name = ResourceData[name].display_name
+    for _, v in ipairs(SaveData.unlocked_upgrades) do
+        if v == display_name then
+            DCEI.LogError("Already unlocked upgrade: " .. display_name)
+            return
+        end
+    end
+
+    table.insert(SaveData.unlocked_upgrades, display_name)
+end
+
+function DataManager.AddHeroShard(shard_name, amount)
+    local hero_name = DataManager.GetCardNameFromShardName(shard_name)
+    local hero_state = GetHeroState(hero_name)
+    if hero_state.level == 0 then
+        -- unlock
+        hero_state.level = 1
+        DataManager.IncrementMaterial(shard_name, amount - 1)
+    else
+        DataManager.IncrementMaterial(shard_name, amount)
+    end
+end
+
+function DataManager.GetChallengeSaveData(hero_name, challenge_index)
+    local challenge_save_data = DataManager.save_data.heroes[hero_name].challenges or {}
+    for _, challenge_data in ipairs(challenge_save_data) do
+        if challenge_data.index == challenge_index then
+            return challenge_data
+        end
+    end
+end
+
+function DataManager.SetHeroChallengeProgress(hero_name, challenge_index, progress)
+    local challenge_data = DataManager.GetChallengeSaveData(hero_name, challenge_index)
+    if challenge_data then
+        challenge_data.progress = progress
+    else
+        local challenge_save_data = DataManager.save_data.heroes[hero_name].challenges
+        table.insert(challenge_save_data, {
+            index = challenge_index,
+            progress = progress,
+            is_claimed = false,
+        })
+    end
+
+    -- Save changes
+    DataManager.Save()
+end
+
+function DataManager.ClaimHeroChallengeReward(hero_name, challenge_index, reward_data)
+    -- TODO: Make claim reward unlock perk
+    local reward_perk_id = reward_data.add_perk
+    DCEI.LogMessage("CLAIMING REWARD: " .. reward_perk_id .. ", TODO: SETUP PERK UNLOCK")
+
+    -- Mark challenge as claimed
+    local challenge_data = DataManager.GetChallengeSaveData(hero_name, challenge_index)
+    challenge_data.is_claimed = true
+
+    -- Save changes
+    DataManager.Save()
+end
+
+function DataManager.UpdateSaveData(save_data)
+    if save_data.version and save_data.version <= 6 then
+        -- Full Reset
+        save_data = DefaultSavedData
+    end
+
+    return save_data
+end
+
+function DataManager.Load()
+    ---TEMP: Set Saved Data for 2D Animation Internal Test
+    -- if true then
+    --     local data = DefaultSavedData
+
+    --     DataManager.save_data = data
+    --     DataManager.Save()
+
+    --     return data
+    -- end
+
+    local data = DCEI.Save.Get("save_data")
+
+    -- local data
+    if not data then
+        data = DefaultSavedData
+        -- DCEI.Save.Set("save_data", json.encode(data))
+        -- DCEI.Save.Commit()
+    else
+        data = json.decode(data)
+    end
+
+    DataManager.save_data = DataManager.UpdateSaveData(data)
+    DataManager.Save()
+
+    -- DataManager.SendQuestSaveDataToSimulation()
+
+    return data
+end
+
+function DataManager.Save()
+    -- DCEI.Save.Set("save_data", json.encode(DataManager.save_data))
+    -- DCEI.Save.Commit()
+end
+
+function DataManager.GetModeTrophy(hero, mode)
+    local save = DataManager.save_data
+    if not save.heroes[hero] or not save.heroes[hero].trophies[mode] then
+        return 0
+    end
+    return save.heroes[hero].trophies[mode] or 0
+end
+
+function DataManager.SetModeTrophy(hero, mode, value)
+    local save = DataManager.save_data
+    if not save.heroes[hero] then
+        save.heroes[hero] = {
+            rank = 0,
+            level = 1,
+            trophies = {},
+            challenges = {},
+        }
+    end
+    save.heroes[hero].trophies[mode] = value
+end
+
+function DataManager.GetHeroTrophy(hero)
+    local save = DataManager.save_data
+    local trophy = 0
+    if not save.heroes[hero] then
+        return 0
+    end
+    for _, v in pairs(save.heroes[hero].trophies) do
+        trophy = trophy + v
+    end
+    return trophy
+end
+
+function DataManager.GetHeroLevel(hero)
+    local save = DataManager.save_data
+    if not save.heroes[hero] then
+        return 0
+    end
+    return save.heroes[hero].level
+end
+
+function DataManager.GetHeroRank(hero)
+    local save = DataManager.save_data
+    if not save.heroes[hero] then
+        return 0
+    end
+    return save.heroes[hero].rank
+end
+
+function DataManager.GetTotalTrophy()
+    local save = DataManager.save_data
+    local trophy = 0
+    for _, hero in pairs(save.heroes) do
+        for _, v in pairs(hero.trophies) do
+            trophy = trophy + v
+        end
+    end
+    return trophy
+end
+
+function DataManager.GetCardData(name)
+    for _, v in ipairs(Heroes) do
+        if v.Name == name then
+            return v
+        end
+    end
+end
+
+function DataManager.GetHeroIcon(name)
+    for _, v in ipairs(Heroes) do
+        if v.Name == name then
+            return v.Portrait
+        end
+    end
+end
+
+-- returns list of unlocked heroes
+function DataManager.GetUnlockedCards()
+    local unlocked = {}
+    for _, v in ipairs(Heroes) do
+        if DataManager.IsCardUnlocked(v.Name) then
+            table.insert(unlocked, v)
+        end
+    end
+    return unlocked
+end
+
+-- returns list of unlocked heroes
+function DataManager.GetLockedCards()
+    local locked = {}
+    for _, v in ipairs(Heroes) do
+        if not DataManager.IsCardUnlocked(v.Name) then
+            table.insert(locked, v)
+        end
+    end
+    return locked
+end
+
+-- returns list of heros that are currently locked but can be unlocked by chest
+function DataManager.GetChestUnlockableCards()
+    local locked_cards = DataManager.GetLockedCards()
+    local chest_available = {}
+    for _, value in ipairs(locked_cards) do
+        if HeroUnlockData[value.Name].UnlockWeight > 0 then
+            table.insert(chest_available, HeroUnlockData[value.Name])
+        end
+    end
+    return #chest_available > 0 and chest_available or nil
+end
+
+function DataManager.IsCardUnlocked(name)
+    local save = DataManager.save_data
+    if not save.heroes then
+        return false
+    end
+    -- if hero is not unlocked, save data for hero is empty, returning nil. '== true' to only return bool value
+    return (save.heroes[name] and save.heroes[name].level > 0) == true
+end
+
+function DataManager.GetModeData(mode_id)
+    for _, mode in ipairs(ModeData.list) do
+        if mode.id == mode_id then
+            return mode
+        end
+    end
+end
+
+function DataManager.GetCardNameFromShardName(shard)
+    for _, v in ipairs(Heroes) do
+        if v.Shard == shard then
+            return v.Name
+        end
+    end
+    DCEI.LogError("Invalid Shard name: " .. shard)
+end
+
+function DataManager.GetShardNameFromCardName(card)
+    for _, v in ipairs(Heroes) do
+        if v.Name == card then
+            return v.Shard
+        end
+    end
+    DCEI.LogError("Invalid Card name: " .. card)
+end
+
+-- ACHIEVEMENTS
+function DataManager.GetAchievementLevel(achievement_name)
+    local save = DataManager.save_data
+    return save.achievements.levels[achievement_name] or 1
+end
+
+function DataManager.GetAchievementValue(achievement_name)
+    local save = DataManager.save_data
+    return save.achievements.current_values[achievement_name] or 0
+end
+
+function DataManager.GetAchievementIsShown(achievement_name)
+    local save = DataManager.save_data
+    local achievement_level = DataManager.GetAchievementLevel(achievement_name)
+    local is_shown_level = save.achievements.shown_achievements[achievement_name] or 0
+    local is_shown = is_shown_level >= achievement_level
+    return is_shown
+end
+
+function DataManager.SetAchievementLevel(achievement_name, level)
+    local save = DataManager.save_data
+    save.achievements.levels[achievement_name] = level
+end
+
+function DataManager.SetAchievementValue(achievement_name, value)
+    local save = DataManager.save_data
+    save.achievements.current_values[achievement_name] = value
+end
+
+function DataManager.AddShownAchievement(achievement_name)
+    local save = DataManager.save_data
+    local achievement_level = DataManager.GetAchievementLevel(achievement_name)
+    save.achievements.shown_achievements[achievement_name] = achievement_level
+end
+
+function DataManager.AddAchievementLevel(achievement_name, level)
+    local save = DataManager.save_data
+    save.achievements.levels[achievement_name] = DataManager.GetAchievementLevel(achievement_name) + level
+end
+
+function DataManager.AddAchievementValue(achievement_name, value)
+    local achievement_data = DataManager.GetAchievementDataByName(achievement_name)
+    if not achievement_data then
+        return
+    end
+
+    if achievement_data.IsAccumulative then
+        local next_value = DataManager.GetAchievementValue(achievement_name) + value
+        DataManager.SetAchievementValue(achievement_name, next_value)
+    else
+        local old_value = DataManager.GetAchievementValue(achievement_name)
+        if value > old_value then
+            DataManager.SetAchievementValue(achievement_name, value)
+        end
+    end
+end
+
+function DataManager.GetAchievementDataByName(item_name)
+    for _, item_data in ipairs(AchievementData.List) do
+        if item_name == item_data.Name then
+            return item_data
+        end
+    end
+end
+
+function DataManager.GetAchievementCurrentBreakpoint(item_data)
+    local max_level = #AchievementData.Breakpoints[item_data.Type]
+    local current_level = DataManager.GetAchievementLevel(item_data.Name)
+
+    -- We are maxed out so don't send nil breakpoint
+    if current_level > max_level then
+        return false
+    end
+
+    local current_breakpoint = AchievementData.Breakpoints[item_data.Type][current_level]
+    return current_breakpoint
+end
+
+function DataManager.CheckAchievementProgress(item_name)
+    -- Get achievement data
+    local item_data = DataManager.GetAchievementDataByName(item_name)
+
+    if item_data then
+        -- Get levels
+        local max_level = #AchievementData.Breakpoints[item_data.Type]
+        local current_level = DataManager.GetAchievementLevel(item_data.Name)
+
+        -- Get progress
+        local current_progress = DataManager.GetAchievementValue(item_data.Name)
+        local current_breakpoint = DataManager.GetAchievementCurrentBreakpoint(item_data)
+
+        -- At max level so cannot claim
+        if not current_breakpoint then
+            return false
+        end
+
+        local max_progress = current_breakpoint.required
+
+        -- Check if we can claim
+        local can_claim = (current_progress >= max_progress) and current_level < max_level
+        return can_claim
+    end
+
+    return false
+end
+
+function DataManager.GetShopNextRotation()
+    local save = DataManager.save_data
+
+    if save and save.shop and save.shop.next_rotation then
+        return save.shop.next_rotation
+    end
+
+    return nil
+end
+
+function DataManager.GetAdButtonRemaining(key)
+    local save = DataManager.save_data
+
+    if save and save.shop and save.shop.ad_buttons and save.shop.ad_buttons[key] then
+        return save.shop.ad_buttons[key]
+    end
+
+    return nil -- or nil
+end
+
+function DataManager.GetDailyShopItem(index)
+    local save = DataManager.save_data
+
+    if save and save.shop and save.shop.daily_shop and save.shop.daily_shop[index] then
+        return save.shop.daily_shop[index]
+    end
+
+    return nil
+end
+
+function DataManager.SetShopNextRotation(timestamp)
+    local save = DataManager.save_data
+    if save.shop then
+        save.shop.next_rotation = timestamp
+    end
+end
+
+function DataManager.SetAdButtonRemaining(key, value)
+    local save = DataManager.save_data
+
+    if save and save.shop and save.ad_buttons and save.shop.ad_button[key] then
+        save.shop.ad_buttons[key] = value
+    end
+
+    return nil
+end
+
+function DataManager.SetDailyShopItem(index, item)
+    local save = DataManager.save_data
+    save.shop.daily_shop[index] = item
+end
+
+function DataManager.GetCumulativeAdData()
+    local save = DataManager.save_data
+    return save.cumulative_ads
+end
+
+function DataManager.SetCumulativeAdData(data)
+    local save = DataManager.save_data
+    save.cumulative_ads = data
+end
+
+function DataManager.IncrementAdsWatched()
+    local save = DataManager.save_data
+    save.cumulative_ads.current_progress = save.cumulative_ads.current_progress + 1
+end
+
+function DataManager.GetCurrentStage()
+    return DataManager.save_data.stage_progress.current_stage
+end
+
+function DataManager.SetCurrentStage(stage)
+    DataManager.save_data.stage_progress.current_stage = stage
+
+    -- Check to add stage data to save data
+    if stage > #DataManager.save_data.stage_progress.stages then
+        local new_stage_save = {
+            selected_difficulty = 1,
+            current_difficulty = 1,
+        }
+
+        DataManager.save_data.stage_progress.stages[stage] = new_stage_save
+        DataManager.SetSelectedStage(stage)
+    end
+end
+
+function DataManager.GetSelectedStage()
+    return DataManager.save_data.stage_progress.selected_stage
+end
+
+function DataManager.SetSelectedStage(stage)
+    DataManager.save_data.stage_progress.selected_stage = stage
+end
+
+function DataManager.GetSelectedDifficulty(stage)
+    local stage_progress = DataManager.save_data.stage_progress.stages[stage]
+    return stage_progress.selected_difficulty
+end
+
+function DataManager.SetSelectedDifficulty(stage, difficulty)
+    local stage_progress = DataManager.save_data.stage_progress.stages[stage]
+    stage_progress.selected_difficulty = difficulty
+end
+
+function DataManager.GetCurrentDifficulty(stage)
+    local stage_progress = DataManager.save_data.stage_progress.stages[stage]
+    return stage_progress.current_difficulty
+end
+
+function DataManager.SetCurrentDifficulty(stage, difficulty)
+    local stage_progress = DataManager.save_data.stage_progress.stages[stage]
+
+    -- Don't go over difficulty level 3
+    if difficulty > 3 then
+        difficulty = 3
+    end
+
+    -- Select difficulty if we are increasing it
+    if stage_progress.current_difficulty < difficulty then
+        DataManager.SetSelectedDifficulty(stage, difficulty)
+    end
+
+    stage_progress.current_difficulty = difficulty
+end
+
+function DataManager.GetBossTags(boss)
+    -- TODO: Need to implement tags for each boss
+    return {
+        { display_name = "Test Tag 1", icon = DCEI.Texture("guild_badge_icons11"), description = "this is a test 1" },
+        { display_name = "Test Tag 2", icon = DCEI.Texture("guild_badge_icons12"), description = "this is a test 2" },
+        { display_name = "Test Tag 3", icon = DCEI.Texture("guild_badge_icons13"), description = "this is a test 3" },
+    }
+end
+
+function DataManager.GetStageFeaturedSkills(stage, difficulty)
+    if StageData[stage].featured_skills and StageData[stage].featured_skills[difficulty] then
+        return StageData[stage].featured_skills[difficulty]
+    else
+        return StageData[stage].skills[difficulty]
+    end
+end
+
+function DataManager.GetStageFeaturedLoot(stage, difficulty)
+    return StageData[stage].loot_tables[difficulty].featured_loot or {}
+end
+
+---@return boolean
+function DataManager.GetIsOfferExpired(offer_id)
+    local offers = DataManager.save_data.offers or {}
+    if offers[offer_id] then
+        return offers[offer_id].is_expired or false
+    end
+    return false
+end
+
+function DataManager.SetIsOfferExpired(offer_id, is_expired)
+    DataManager.save_data.offers = DataManager.save_data.offers or {}
+
+    local offers = DataManager.save_data.offers
+    offers[offer_id] = offers[offer_id] or {}
+    offers[offer_id].is_expired = is_expired
+
+    DataManager.Save()
+end
+
+---@return number | nil
+function DataManager.GetInAppOfferTimeStarted(offer_id)
+    local offers = DataManager.save_data.offers or {}
+    if offers[offer_id] then
+        return offers[offer_id].time_started
+    end
+end
+
+function DataManager.SetInAppOfferTimeStarted(offer_id, time)
+    DataManager.save_data.offers = DataManager.save_data.offers or {}
+
+    local offers = DataManager.save_data.offers
+    offers[offer_id] = offers[offer_id] or {}
+    offers[offer_id].time_started = time
+
+    DataManager.Save()
+end
+
+function DataManager.SelectHero(hero_name)
+    -- Initialize Hero Data if not already done
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+    if not hero_meta then
+        DataManager.save_data.heroes[hero_name] = {
+            level = 1,
+            rank = 0,
+            trophies = {},
+            equipment = {
+                weapon = 0,
+                consumable = 0,
+                ring = 0,
+                head = 0,
+                chest = 0,
+                boot = 0,
+            },
+            challenges = {},
+        }
+    end
+
+    DataManager.save_data.player.hero = hero_name
+    DataManager.Save()
+end
+
+---============================================================================
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("DataManager.AddEquipment", DataManager.AddEquipment)
+Core.Event.RegisterPresentationEvent("DataManager.SelectHero", DataManager.SelectHero)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return DataManager

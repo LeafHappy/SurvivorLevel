@@ -1,0 +1,100 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local TalkingHead = require("UiMeta/TalkingHead")
+
+-- DATA
+local DataManager = require("UiMeta/DataManager")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+-- MODULE
+local DevPanel = {}
+local current_rank = 0
+
+-- FUNCTIONS
+local function ProgressChallenge()
+    local challenge_index = tonumber(DCEI.GetInputFrameText(DevPanel.layout.ChallengeToProgress)) or 1
+    if type(challenge_index) == "number" then
+        local amount_to_progress = 1 -- Change to increase progress faster
+        local hero_name = DataManager.save_data.player.hero
+        local save_data = DataManager.GetChallengeSaveData(hero_name, challenge_index) or {}
+        local current_progress = save_data.progress or 0
+        local next_progress = current_progress + amount_to_progress
+        DataManager.SetHeroChallengeProgress(hero_name, challenge_index, next_progress)
+    end
+end
+
+local function TestDialogue()
+    local image = DCEI.Texture("cartoon_fantasy_icon_portrait_hero_slayer_wildsurvivor")
+    local messages = {
+        "This is a test message to display the talking head functionality.",
+        "You can do many things with the talking head.",
+        "TEST TEST TEST. TEST TEST TEST.",
+    }
+    local title = "Name"
+    TalkingHead.ShowDialogue(title, image, messages, {})
+end
+
+local function TryCreateGearLayout()
+    if DevPanel.add_gear then
+        DevPanel.add_gear:Show()
+        return
+    end
+
+    DevPanel.add_gear = GMUI.Layout.New({
+        name = "Meta/DevPanel/AddGear",
+        parent = GMUI.ui.z2.Lower,
+    })
+    DevPanel.add_gear.items = {}
+
+    DCEI.SetOnClickCallback(DevPanel.add_gear.close.Frame, function() 
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        DevPanel.add_gear:Hide()
+        DevPanel.layout.state.show_options = true
+    end)
+
+    -- TODO: Update for new equipment system
+    -- local new_item = GMUI.Layout.New({
+    --     name = "Meta/DevPanel/AddGear/Item",
+    --     parent = DevPanel.add_gear.GearInventory,
+    -- })
+    -- new_item.state.display_name = resource_data.display_name
+    -- new_item.state.icon = resource_data.icon
+end
+
+-- METHODS
+function DevPanel.Create()
+    local layout = GMUI.Layout.New({
+        name = "Meta/DevPanel",
+        parent = GMUI.ui.z2.Lower,
+    })
+
+    DevPanel.layout = layout
+
+    DCEI.SetOnClickCallback(layout.OpenDevOptions, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        layout.state.show_options = not layout.state.show_options
+    end)
+
+    DCEI.SetOnClickCallback(layout.AddGear, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        TryCreateGearLayout()
+        layout.state.show_options = false
+    end)
+
+    DCEI.SetOnClickCallback(layout.TestDialogue, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        TestDialogue()
+        layout.state.show_options = false
+    end)
+
+    DCEI.SetOnClickCallback(layout.IncreaseChallenge, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ProgressChallenge()
+    end)
+end
+
+-- EXPORT
+return DevPanel

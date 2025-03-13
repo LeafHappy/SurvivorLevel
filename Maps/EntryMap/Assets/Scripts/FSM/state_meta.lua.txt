@@ -1,0 +1,309 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+-- LIBRARIES
+local GMUI = require("GMUI")
+local Core = require("Core")
+local Json = require("json")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New(Help.GetStateName())
+
+-- Classes
+local Vector2 = require("Class/Vector2")
+
+-- Data
+local SkillData = require("SharedData/Skills/SkillData")
+
+-- SCRIPTS
+local ReviewInviteManager = require("Meta/ReviewInviteManager")
+local UiHelper = require("Game/UiHelper")
+
+-- Default Saved Data
+local DefaultSavedData = require("DefaultSavedData")
+
+-- DEBUG
+local _Dev = require("_Dev")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Camera Unit Functionality
+-- ================================================================================================
+
+-- Dictionary of camera units.
+---@type table<string, table<string, Vector2, Vector2>>
+local camera_units = {}
+
+local function RemoveCameraUnit(key)
+    local index = camera_units[key]
+
+    if not index then
+        return
+    end
+
+    local instance = index.Unit
+
+    if Help.ValidateUnit(instance) then
+        DCEI.RemoveUnit(instance)
+        camera_units[key] = nil
+    end
+end
+
+local function SpawnCameraUnit(key, unit, position, rotation)
+    RemoveCameraUnit(key)
+
+    ---NOTE: This is preventing Spawning of Boss Camera Unit.
+    -- if not FSM:IsCurrentState(State) then
+    --     return
+    -- end
+
+    local instance = DCEI.CreateUnit(1, 1, unit, position.x, position.y, rotation.x, rotation.y)
+    Help.SendActorEvent(instance, "Create Top") -- Used for Heroes since they are split in half.
+
+    ---NOTE: Not sure if we need Position/Rotation Saved.
+    camera_units[key] = { Unit = instance, Position = position, Rotation = rotation }
+end
+
+local function RemoveAllCameraUnits()
+    for key, _ in pairs(camera_units) do
+        RemoveCameraUnit(key)
+    end
+end
+
+local function SendCameraUnitEvent(key, event_id)
+    local index = camera_units[key]
+
+    if not index then
+        return
+    end
+
+    local instance = index.Unit
+
+    if not Help.ValidateUnit(instance) then
+        return
+    end
+
+    Help.SendActorEvent(instance, event_id)
+end
+
+local function SetCameraUnitScale(key, scale)
+    local index = camera_units[key]
+
+    if not index then
+        return
+    end
+
+    local instance = index.Unit
+
+    if not Help.ValidateUnit(instance) then
+        return
+    end
+
+    Help.SetModelScale(instance, scale)
+end
+
+-- ================================================================================================
+-- !SECTION -- Camera Unit Functionality
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Gets the player's total trophy count.
+---@return nil | integer
+local function GetTotalTrophyCount()
+    local save_data = DCEI.Save.Get("save_data")
+    if not save_data then
+        return nil
+    end
+
+    save_data = Json.decode(save_data)
+
+    -- Loop through save data
+    local total_trophies = 0
+    for _, hero in pairs(save_data.heroes) do
+        for _, trophy_count in pairs(hero.trophies) do
+            total_trophies = total_trophies + trophy_count
+        end
+    end
+
+    return total_trophies
+end
+
+local function UpdateItemUnlockCameraHero(unit)
+    SpawnCameraUnit("ItemUnlockHero", unit, Vector2.New(50, 50), Vector2.New(0, -1))
+end
+
+local function UpdateHeroCollectionCameraHero(unit)
+    SpawnCameraUnit("HeroCollection", unit, Vector2.New(999, 999), Vector2.New(-2, -1))
+end
+
+local function UpdateHomeCameraBoss(unit)
+    SpawnCameraUnit("HomeCameraBoss", unit, Vector2.New(100, 100), Vector2.New(-2, -1))
+end
+
+local function SendDeathEventToHomeCameraBoss()
+    RemoveCameraUnit("HomeCameraBoss")
+end
+
+local function CheckReviewInvite()
+    local user_data = DCEI.Save.Get("user_data")
+    if not user_data then
+        user_data = {}
+    else
+        user_data = Json.decode(user_data)
+    end
+
+    -- Check if the player has been prompted to review the game.
+    if user_data.review_invite then
+        return
+    end
+
+    -- Check if the player has 20 trophies.
+    if GetTotalTrophyCount() < 20 then
+        return
+    end
+
+    -- Review Invite Process
+    user_data.review_invite = true
+    -- DCEI.Save.Set("user_data", Json.encode(user_data))
+    -- DCEI.Save.Commit()
+
+    ReviewInviteManager.StartReviewInviteFlow()
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- UI Callbacks
+-- ================================================================================================
+
+---comment
+---@param ctx GameModeContext
+local function GameStart(ctx)
+    -- Help.Log("Game Start Data", nil, ctx)
+
+    -- Determine what Game Mode to start.
+    if ctx.game_mode_id == FSM.States.Hunt.name then
+        FSM:Transition(FSM.States.Hunt, ctx)
+    elseif ctx.game_mode_id == FSM.States.Try.name then
+        FSM:Transition(FSM.States.Try, ctx)
+    end
+end
+
+local function StartRun(game_mode, ctx)
+    FSM:Transition(game_mode, ctx)
+end
+
+---Presentation Event Callback when the "Start" button is pressed.
+---@param data GameModeContext
+local function ClickStartGame(data)
+    ---TESTING: If you want to add tutorials.
+    -- data.tutorials = {
+    --     Movement = true,
+    -- }
+
+    GameStart(data)
+
+    -- StartRun(data.game_mode_id, {
+    --     hero = data.hero_name,
+    --     hero_meta_level = data.hero_level,
+    --     starting_upgrades = data.starting_upgrades,
+    --     optional_upgrades = data.optional_upgrades,
+    --     -- upgrades = data.upgrades,
+    --     -- passives = data.passives,
+    --     trophy_count = data.trophies,
+    -- })
+end
+
+local function TestMode()
+    if not DCEI.IsDev() then
+        return
+    end
+
+    FSM:Transition(FSM.States.Test, {})
+end
+
+-- ================================================================================================
+-- !SECTION -- UI Callbacks
+-- SECTION -- Register UI Context
+-- ================================================================================================
+
+-- REGISTER UI CONTEXT
+
+Core.Event.RegisterSimulationEvent("Home.ClickStartGame", ClickStartGame)
+Core.Event.RegisterSimulationEvent("FSM.state_meta.TestMode", TestMode)
+Core.Event.RegisterSimulationEvent("UpdateHeroCollectionCameraHero", UpdateHeroCollectionCameraHero)
+Core.Event.RegisterSimulationEvent("UpdateHomeCameraBoss", UpdateHomeCameraBoss)
+Core.Event.RegisterSimulationEvent("SendDeathEventToHomeCameraBoss", SendDeathEventToHomeCameraBoss)
+Core.Event.RegisterSimulationEvent("UpdateItemUnlockCameraHero", UpdateItemUnlockCameraHero)
+
+-- ================================================================================================
+-- !SECTION -- Register UI Context
+-- SECTION -- State Functions
+-- ================================================================================================
+
+-- STATE FUNCTIONS
+function State:OnTransitionEnter()
+    -- if not self.data.is_first_session and self.data.is_new_session or self.data.is_return then
+    UiHelper.FadeIn(0.50)
+    -- end
+end
+
+function State:OnEnter()
+    if not self.data.is_new_session then
+        CheckReviewInvite()
+    end
+end
+
+function State:OnGameUpdate(delta)
+    -- if self.data.is_first_session then
+    --     ---TESTING: Prologue
+    --     FSM:Transition(FSM.States.Prologue)
+    -- end
+
+    -- if self.data.is_first_session then
+    --     StartRun(FSM.States.Hunt, {
+    --         hero = DefaultSavedData.player.hero,
+    --         hero_meta_level = 1,
+    --         upgrades = DefaultSavedData.unlocked_upgrades,
+    --         active_tutorial = true,
+    --     })
+    -- end
+
+    -- if Help.Chance(0.001) then
+    --     -- Send Actor Event to Home Camera Boss
+    --     SendCameraUnitEvent("HomeCameraBoss", "Taunt")
+    -- end
+end
+
+function State:OnTransitionExit()
+    if self.data.is_first_session then
+        RemoveAllCameraUnits()
+        return
+    end
+
+    local input_key = "fsm_meta_end"
+    GMUI.InputState.BlockUserInput(input_key)
+
+    local duration = 0.5
+    GMUI.SendUiLayoutCommand("ui.game.transition_mask", "FadeOut", duration)
+    DCEI.Wait(duration)
+
+    GMUI.InputState.UnblockUserInput(input_key)
+
+    RemoveAllCameraUnits()
+end
+
+function State:OnExit() end
+
+-- ================================================================================================
+-- !SECTION -- State Functions
+-- ================================================================================================
+
+return State

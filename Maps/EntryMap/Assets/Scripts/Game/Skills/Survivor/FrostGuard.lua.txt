@@ -1,0 +1,432 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Frost Guard"),
+
+    -- Behaviors
+    PierceStack = DCEI.Behavior("Missile - Pierce"),
+
+    -- Activation Effects
+    ScanHostile = DCEI.Effect("Skill - Frost Guard - Scan - Hostile"),
+    ScanAll = DCEI.Effect("Skill - Frost Guard - Scan - All"),
+    Success = DCEI.Effect("Skill - Frost Guard - Success"),
+
+    -- Effects
+    Trigger = "",
+
+    -- Collision Effects
+    OnEnter = DCEI.Effect("Skill - Frost Guard - OnEnter"),
+    Damage = DCEI.Effect("Skill - Frost Guard - Damage"),
+    Stagger = DCEI.Effect("Skill - Frost Guard - Stagger"),
+
+    -- VFX
+    DeathVFX = DCEI.Effect("Skill - Frost Guard - Death VFX"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Skill - Frost Guard - Projectile"),
+
+    -- Filter
+
+    -- Ice Splash
+    IceSplashEffects = DCEI.Effect("Skill - Frost Guard - Ice Splash - Effects"),
+    IceSplashScan = DCEI.Effect("Skill - Frost Guard - Ice Splash - Scan"),
+    IceSplashDamage = DCEI.Effect("Skill - Frost Guard - Ice Splash - Damage"),
+    IceSplashImpactVFX = DCEI.Effect("Skill - Frost Guard - Ice Splash - Impact VFX"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@class FrostGuardProjectileData
+---@field instance_id string
+---@field player_id PLAYER
+---@field hero Hero
+---@field instance UnitInstance
+---@field projectile_speed number
+---@field target_position Vector2
+
+---@type table<PLAYER, FrostGuardProjectileData>
+local _Projectiles = {}
+
+-- The cast-point of the animation
+local ATTACK_ANIMATION_TIME = 0.90
+local ATTACK_CAST_POINT = 15 / 30
+
+---@class FrostboundFrenzyData
+---@field Cooldown number
+---@field CooldownTimer number
+---@field IsReady boolean
+
+---@type table<PLAYER, FrostboundFrenzyData>
+local _FrostboundFrenzyData = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---@param data FrostGuardProjectileData
+local function OnProjectileDeath(data)
+    -- Check if Ice Splash has been learned
+    local hero = data.hero
+    local ice_splash_learned = hero:IsSkillLearned(SkillData.IceSplash.Key)
+
+    if ice_splash_learned then
+        local position = Vector2.UnitPosition(data.instance)
+        DCEI.CreateEffectAtPosition(REF.IceSplashEffects, hero.unit, position.x, position.y)
+    end
+
+    _Projectiles[data.player_id][data.instance_id] = nil
+end
+
+---comment
+---@param hero Hero
+---@param spawn_position Vector2
+---@return UnitInstance
+local function SpawnProjectile(hero, spawn_position, target_position)
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, spawn_position.x, spawn_position.y)
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.FrostGuard)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local health = hero:GetStat(STAT.ProjectileHealth, tags)
+
+    Help.SetModelScale(instance, projectile_size, 0.10, Ease.OutCubic)
+
+    -- Collision
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, projectile_size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 0),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Projectile Health
+    DCEI.ApplyBehaviorToSelf(instance, REF.PierceStack, health)
+
+    -- Add to Projectiles
+    local instance_id = Core.Unit.GetId(instance)
+
+    local data = {
+        instance_id = instance_id,
+        player_id = hero.player_id,
+        hero = hero,
+        instance = instance,
+        projectile_speed = projectile_speed,
+        target_position = target_position,
+    }
+
+    _Projectiles[hero.player_id][instance_id] = data
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        OnProjectileDeath(_Projectiles[hero.player_id][instance_id])
+    end)
+
+    return instance
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+local function LaunchProjectile(hero, target_position)
+    local hero_position = hero:GetPosition()
+    local instance = SpawnProjectile(hero, hero_position, target_position)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.FrostGuard)
+    local projectile_count = hero:GetStat(STAT.ProjectileCount, tags)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local projectile_distance = hero:GetStat(STAT.SkillRange, tags)
+
+    local attack_speed = hero:GetStat(STAT.AttackSpeed, tags)
+    local action_speed_modifier = 1 / (1 + attack_speed)
+    local cast_speed = ATTACK_ANIMATION_TIME * action_speed_modifier
+    local cast_point = cast_speed * ATTACK_CAST_POINT
+
+    local count_delay = 0.25 * action_speed_modifier
+
+    hero:AttackTargetCallback(
+        ctx.target,
+        cast_speed,
+        ---@param target_position Vector2
+        function(target_position)
+            if not Help.ValidateUnit(hero.unit) then
+                return
+            end
+
+            local hero_position = hero:GetPosition()
+            local launch_position = hero_position
+                + Vector2.Normalized(target_position - hero_position) * projectile_distance
+            LaunchProjectile(hero, launch_position)
+
+            -- Additional Projectiles
+            local condition = function()
+                return Help.ValidateUnit(hero.unit)
+            end
+
+            Help.PeriodicGameTimer(projectile_count - 1, count_delay, condition, function()
+                local random_offset = Vector2.RandomInside(math.sqrt(1 + projectile_size))
+                LaunchProjectile(hero, launch_position + random_offset)
+            end, false)
+        end,
+        cast_point
+    )
+end
+
+---comment
+---@param hero Hero
+---@param data FrostGuardProjectileData
+---@return boolean
+local function UpdateProjectile(hero, data)
+    -- Validate Hero
+    if not hero:IsUnitAlive() then
+        return true -- Flag to remove
+    end
+
+    local position = Vector2.UnitPosition(data.instance)
+    local target_position = data.target_position
+
+    -- Move Projectile
+    local move_position = Vector2.MoveTowards(position, target_position, data.projectile_speed * TICK_RATE)
+    DCEI.SetUnitPosition2DWithInterpolation(data.instance, move_position.x, move_position.y)
+
+    -- Check destination reached
+    local distance = Vector2.Distance(move_position, target_position)
+    if distance < 0.1 then
+        return true -- Flag to remove
+    end
+
+    return false
+end
+
+---comment
+---@param hero Hero
+local function TryFrostboundFrenzy(hero)
+    local frostbound_frenzy_data = _FrostboundFrenzyData[hero.player_id]
+    if not frostbound_frenzy_data then
+        return
+    end
+
+    -- Update Frostbound Frenzy Data
+    if not frostbound_frenzy_data.IsReady then
+        frostbound_frenzy_data.CooldownTimer = frostbound_frenzy_data.CooldownTimer - TICK_RATE
+        if frostbound_frenzy_data.CooldownTimer <= 0 then
+            frostbound_frenzy_data.IsReady = true
+        end
+        return
+    end
+
+    local damage_taken = hero:GetRecordedStat(GAME_STATS.DamageTakenInstance)
+    if not damage_taken or damage_taken <= 0 then
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.FrostGuard)
+    local projectile_distance = hero:GetStat(STAT.SkillRange, tags)
+    local projectile_count = hero:GetStat(STAT.ProjectileCount, { SKILL_TAG.FrostboundFrenzy })
+    Help.Log("Frostbound Frenzy Projectile Count", projectile_count)
+
+    local condition = function()
+        return Help.ValidateUnit(hero.unit)
+    end
+
+    local action = function()
+        local hero_position = hero:GetPosition()
+        local random_direction = Vector2.Random() * projectile_distance * Help.RandomNumber(0.80, 1.20)
+
+        LaunchProjectile(hero, hero_position + random_direction)
+    end
+
+    Help.PeriodicGameTimer(projectile_count, 0.10, condition, action, true)
+
+    frostbound_frenzy_data.IsReady = false
+    frostbound_frenzy_data.CooldownTimer = frostbound_frenzy_data.Cooldown
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    TryFrostboundFrenzy(hero)
+
+    local projectiles = _Projectiles[hero.player_id]
+
+    -- Update all projectiles
+    local projectiles_to_remove = {}
+    for instance_id, projectile_data in pairs(projectiles) do
+        local is_remove = UpdateProjectile(hero, projectile_data)
+        if is_remove then
+            table.insert(projectiles_to_remove, instance_id)
+        end
+    end
+
+    -- Remove outside of projectile update loop (prevent iterator issues)
+    for _, value in ipairs(projectiles_to_remove) do
+        if Help.ValidateUnit(projectiles[value].instance) then
+            DCEI.KillUnit(projectiles[value].instance)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Cleanup Projectiles
+    local projectiles = _Projectiles[hero.player_id]
+
+    if projectiles then
+        for _, projectile_data in pairs(projectiles) do
+            DCEI.KillUnit(projectile_data.instance)
+        end
+    end
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _Projectiles[hero.player_id] = nil
+    _FrostboundFrenzyData[hero.player_id] = nil
+end
+
+---comment
+---@param hero Hero
+local function InitializeFrostboundFrenzy(hero)
+    local player_id = hero.player_id
+
+    local is_frostbound_frenzy_learned = hero:IsSkillLearned(SkillData.FrostboundFrenzy.Key)
+    if not is_frostbound_frenzy_learned then
+        return
+    end
+
+    -- local tags = hero:GetInheritedTags(SKILL_TAG.Frostguar)
+    local cooldown = hero:GetStat(STAT.Cooldown, { SKILL_TAG.FrostboundFrenzy })
+
+    -- Initialize Frostbound Frenzy Data
+    _FrostboundFrenzyData[player_id] = {
+        Cooldown = cooldown,
+        CooldownTimer = 0,
+        IsReady = true,
+    }
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.ScanHostile, EJS.AreaSearch.Radius, nil, 1.00),
+        EffectPath.New(REF.ScanAll, EJS.AreaSearch.Radius, nil, 0.80),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.DeathVFX, EJS.Actor.Scale),
+
+        EffectPath.New(REF.IceSplashScan, EJS.AreaSearch.Radius, { SKILL_TAG.IceSplash }),
+        EffectPath.New(REF.IceSplashImpactVFX, EJS.Actor.Scale, { SKILL_TAG.IceSplash }),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        _Projectiles[hero.player_id] = {}
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    -- Skill Tags
+    local tags = hero:GetInheritedTags(SkillData.FrostGuard.Key)
+    local ice_splash_tags = Core.Table.DeepCopy(tags)
+    table.insert(ice_splash_tags, SKILL_TAG.IceSplash)
+
+    -- Set Detection Range for Hero Animation
+    local detection_range = hero:GetStat(STAT.SkillRange, tags)
+    hero:SetDetectionRange(detection_range)
+
+    -- Ice Splash Damage
+    local damage = hero:GetStat(STAT.Damage, tags)
+    local area_damage = hero:GetStat(STAT.AreaDamage, ice_splash_tags)
+    local area_damage_final = damage * area_damage
+    hero:SetEffectValue(REF.IceSplashDamage, EJS.Damage.Value, area_damage_final)
+
+    InitializeFrostboundFrenzy(hero)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess)
+-- DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

@@ -1,0 +1,35 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Meta = require("Meta:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Tutorial/Movement",
+    parent = ui.z1.Upper,
+})
+
+function layout:OnShow()
+    local delay = 0.25
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        local offset = -50
+
+        Meta.BigHand.AnimateBetweenTargets({
+            start_frame = self.DummyJoystickButton,
+            end_frame = self.Label,
+            start_y_offset = offset,
+            end_y_offset = offset,
+            loop_type = "Yoyo",
+        })
+    end, delay)
+end
+
+function layout:OnHide()
+    Meta.BigHand.DismissOldest()
+end
+
+-- EXPORT
+return layout

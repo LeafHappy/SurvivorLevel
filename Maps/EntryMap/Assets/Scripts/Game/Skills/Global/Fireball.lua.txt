@@ -1,0 +1,297 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Fireball"),
+
+    -- Behaviors
+    ProjectileSpeed = DCEI.Behavior("Skill - Fireball - Projectile Speed"),
+
+    -- Effects
+    ScanHostile = DCEI.Effect("Skill - Fireball - Scan - Hostile"),
+    ScanAll = DCEI.Effect("Skill - Fireball - Scan - All"),
+    Trigger = DCEI.Effect("Skill - Fireball - Trigger"),
+    Launch = DCEI.Effect("Skill - Fireball - Launch"),
+
+    -- Collision Effects
+    OnEnter = DCEI.Effect("Skill - Fireball - OnEnter"),
+    ImpactDamage = DCEI.Effect("Skill - Fireball - Impact Damage"),
+
+    -- Impact/Explosion Effects (Death Effects)
+    ExplosionEffects = DCEI.Effect("Skill - Fireball - Explosion Effects"),
+    ImpactArea = DCEI.Effect("Skill - Fireball - Impact Area"),
+    AreaDamage = DCEI.Effect("Skill - Fireball - Area Damage"),
+
+    -- VFX
+    ImpactVFX = DCEI.Effect("Skill - Fireball - Impact VFX"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Skill - Fireball - Projectile"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Fireball - Projectile") }),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+local MODEL_SCALE = 1.25
+local MODEL_SCALE_TIME = 0.10
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---NOTE: This doesn't seem to be randomizable in a Persistent Effect.
+---Generate additional explosions around the initial explosion.
+---@param hero Hero
+---@param instance Unit
+---@param count integer
+---@param frequency number
+---@param radius number
+local function TriggerAdditionalExplosions(hero, instance, count, frequency, radius)
+    local instance_position = Vector2.UnitPosition(instance)
+
+    for i = 1, count do
+        local delay = frequency * i
+        DCEI.TriggerAddTimerEventElapsed(function()
+            if not hero:IsUnitAlive() then
+                return
+            end
+
+            local random_position = Vector2.RandomInside(radius)
+            local target_position = instance_position + random_position
+
+            DCEI.CreateEffectAtPosition(REF.ExplosionEffects, hero.unit, target_position.x, target_position.y)
+        end, delay)
+    end
+end
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+
+    if not hero or not Help.ValidateUnit(hero.unit) then
+        DCEI.KillUnit(instance)
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.Fireball)
+
+    -- Collision
+    local collision_size = hero:GetStat(STAT.CollisionSize, tags)
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, collision_size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, TICK_RATE),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Model Scale
+    Help.SetModelScale(instance, collision_size * MODEL_SCALE, MODEL_SCALE_TIME, Ease.OutCubic)
+
+    -- Health
+    SimpleUnit.ModifyHealth(instance, 1)
+
+    -- Check Explosion Count
+    local explosion_count = hero:GetStat(STAT.Count, tags)
+    if explosion_count > 1 then
+        local explosion_frequency = hero:GetStat(STAT.Frequency, tags)
+        local explosion_radius = hero:GetStat(STAT.SkillSize, tags)
+
+        DCEI.TriggerAddUnitDiedEvent(instance, function()
+            TriggerAdditionalExplosions(hero, instance, explosion_count - 1, explosion_frequency, explosion_radius)
+        end)
+    end
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+local function LaunchProjectile(hero, target_position)
+    DCEI.CreateEffectAtPosition(REF.Launch, hero.unit, target_position.x, target_position.y)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.Fireball)
+    local projectile_count = hero:GetStat(STAT.ProjectileCount, tags)
+    local projectile_distance = hero:GetStat(STAT.SkillRange, tags)
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+
+    local hero_position = hero:GetPosition()
+    local target_position = Vector2.NewFromTable(ctx.target_location)
+
+    local target_angle = Vector2.AngleBetween(hero_position, target_position)
+
+    local launch_position = hero_position + Vector2.NewFromAngle(target_angle) * projectile_distance
+    LaunchProjectile(hero, launch_position)
+
+    -- Additional Projectiles
+    if projectile_count <= 1 then
+        return
+    end
+
+    -- Decrement the number of projectiles to launch
+    projectile_count = projectile_count - 1
+
+    -- Spread on additional projectiles
+    local spread = hero:GetStat(STAT.Spread, tags)
+
+    local condition = function()
+        return Help.ValidateUnit(hero.unit)
+    end
+
+    local action = function()
+        local hero_position = hero:GetPosition()
+        local random_angle = Help.RandomNumber(-spread / 2, spread / 2)
+        local launch_position = hero_position + Vector2.NewFromAngle(target_angle + random_angle) * projectile_distance
+
+        LaunchProjectile(hero, launch_position)
+    end
+
+    local timer = Help.PeriodicGameTimer(projectile_count, frequency, condition, action)
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero) end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    -- hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.ScanHostile, EJS.AreaSearch.Radius, nil, 1.00),
+        EffectPath.New(REF.ScanAll, EJS.AreaSearch.Radius, nil, 0.80),
+    },
+    -- [STAT.ProjectileSize] = {
+    --     EffectPath.New(REF.Launch, EJS.Launch.Launch.Distance, nil, 0.50), -- Moves Projectile forward 50% of Projectile Size
+    -- },
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Launch, EJS.Launch.Impact.Distance), -- Projectile Distance
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.ImpactDamage, EJS.Damage.Value), -- Impact Damage
+
+        -- Alternative way to handle Explosion Damage with Area Tag
+        -- EffectPath.New(REF.AreaDamage, EJS.Damage.Value, { SKILL_TAG.Area }), -- Area Damage
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.ImpactDamage, EJS.Damage.CriticalChance), -- Impact Damage Only
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.ImpactDamage, EJS.Damage.CriticalMultiplier), -- Impact Damage Only
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.Radius, { SKILL_TAG.FireballExplosion }), -- Explosion Size
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, { SKILL_TAG.FireballExplosion }), -- Explosion Size VFX
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Update Loop
+        -- hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.Fireball.Key)
+    local explosion_tags = Core.Table.DeepCopy(tags)
+    table.insert(explosion_tags, SKILL_TAG.FireballExplosion)
+
+    -- Apply Projectile Speed Behavior
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_speed_stacks = math.floor(projectile_speed * 100)
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileSpeed, projectile_speed_stacks)
+
+    -- Manual Explosion Setup
+    -- Damage
+    local damage = hero:GetStat(STAT.Damage, tags)
+    local area_damage_multiplier = hero:GetStat(STAT.AreaDamage, explosion_tags)
+    local area_damage_final = damage * area_damage_multiplier
+
+    -- Help.Log("Area Damage", area_damage_final)
+    hero:SetEffectValue(REF.AreaDamage, EJS.Damage.Value, area_damage_final)
+
+    -- local explosion_tags = Core.Table.DeepCopy(tags)
+    -- table.insert(explosion_tags, SKILL_TAG.FireballExplosion)
+
+    -- local explosion_area = hero:GetStat(STAT.SkillSize, explosion_tags)
+    -- hero:SetEffectValue(REF.ImpactArea, EJS.AreaSearch.Radius, explosion_area)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

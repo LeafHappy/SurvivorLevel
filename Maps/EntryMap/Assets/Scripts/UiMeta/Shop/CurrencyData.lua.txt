@@ -1,0 +1,18 @@
+local Currencies = {
+    {
+        name = "gold",
+        icon = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
+        priority = 500,
+    },
+    {
+        name = "gems",
+        icon = DCEI.Texture("cartoon_icon_gem2_wildsurvivor"),
+        priority = 600,
+    },
+    {
+        name = "ads",
+        icon = DCEI.Texture("flat_icon_emoji_television_1f4fa_wildsurvivor"),
+    },
+}
+
+return Currencies

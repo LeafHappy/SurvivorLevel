@@ -1,0 +1,59 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Meta = require("Meta:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.Layout.New({
+    name = "Game/Tutorial/PopupInfo",
+    parent = ui.z1.Upper,
+})
+
+function layout:Initialize()
+    -- since this layout isn't lazy, we call Initialize manually before export
+    self:Show()
+
+    -- Setup Close Button Callback
+    DCEI.SetOnClickCallback(self.CloseButton.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Hide()
+    end)
+
+    self:Hide()
+end
+
+-- function layout:OnShow() end
+
+-- function layout:OnHide() end
+
+function layout:ShowGameModeInfo(data, Callback)
+    DCEI.SetUpdateFrequency(0)
+
+    DCEI.LogMessage("Showing Game Mode Information")
+
+    data.Title = data.Title or "What Game Mode?"
+    data.Description = data.Description or "This is a description of the game mode."
+    data.ButtonLabel = data.ButtonLabel or "Let's go!"
+
+    local state = layout.state
+    state.Title = data.Title
+    state.Description = data.Description
+    state.ButtonLabel = data.ButtonLabel
+
+    layout:Update()
+    layout:Show()
+
+    DCEI.SetOnClickCallback(self.CloseButton.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        DCEI.SetUpdateFrequency(1)
+        layout:Hide()
+        GMUI.RunSimulationCallback(Callback)
+    end)
+end
+
+-- EXPORT
+layout:Initialize()
+return layout

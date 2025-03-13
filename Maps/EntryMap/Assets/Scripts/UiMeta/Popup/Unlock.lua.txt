@@ -1,0 +1,105 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local PopupManager = require("UiMeta/Popup/PopupManager")
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Popup/MetaUnlock",
+})
+
+-- CONSTANTS
+local CONTINUE_TEXT = {
+    "Awesome!",
+    "Amazing!",
+    "Great!",
+    "Fantastic!",
+    "Let's Go!",
+}
+
+-- LOCAL FUNCTIONS
+local function HidePopup()
+    layout:Hide()
+
+    -- check to run continue callback, as passed from layout Update method
+    if layout.on_continue_callback then
+        -- use a delay so the unlock popup has time to animate out
+        local delay = 0.1875
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            GMUI.RunSimulationCallback(layout.on_continue_callback)
+
+            -- clear the callback as it should only run once
+            layout.on_continue_callback = nil
+        end, delay)
+    end
+end
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    PopupManager.ApplyPopupAnimations(self, { popup_frame = self.Popup })
+
+    -- hookup callbacks
+    DCEI.SetOnClickCallback(self.continue_button.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        HidePopup()
+    end)
+
+    DCEI.SetOnClickOutsideCallback(self.Popup, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        HidePopup()
+    end)
+end
+
+function layout:Update(data)
+    local title = data.title
+    local unlock_name = data.unlock_name
+    local unlock_description = data.unlock_description
+    local unlock_icon = data.unlock_icon
+
+    -- Update UI
+    DCEI.SetTextFrameText(self.Title, tostring(title))
+    DCEI.SetTextFrameText(self.IconLabel, tostring(unlock_name))
+    DCEI.SetTextFrameText(self.Description, tostring(unlock_description))
+    DCEI.SetFrameImage(self.Icon, unlock_icon)
+
+    -- Randomize continue text
+    local text = Core.Table.GetRandomValue(CONTINUE_TEXT)
+    DCEI.SetTextFrameText(self.continue_button.Label, text)
+end
+
+function layout:SetOnContinueCallback(_, context)
+    -- if context is passed, run the context as a callback when the popup is dismissed
+    -- disable popup mask transitions since the callback is expected to trigger another popup
+    if context then
+        self.on_continue_callback = context
+        PopupManager.SetMaskTransitionsEnabled(false)
+    end
+end
+
+function layout:OnShow()
+    -- Unblock user input after short delay so the contents aren't skipped
+    local delay = 0.25
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        local key = "tutorial_unlock"
+        GMUI.InputState.UnblockUserInput(key)
+    end, delay)
+
+    -- glow animation
+    local k1, k2 = { z = 0 }, { z = 90 }
+    local duration = 8
+    local ease = "Linear"
+    self.glow_anim = DCEI.AnimateFrameRotation(self.Glow, k1, k2, duration, ease)
+    DCEI.SetFrameAnimationLoops(self.glow_anim, -1, "Incremental")
+end
+
+function layout:OnHide()
+    if self.glow_anim then
+        DCEI.StopFrameAnimation(self.glow_anim)
+        self.glow_anim = nil
+    end
+end
+
+-- EXPORT
+return layout

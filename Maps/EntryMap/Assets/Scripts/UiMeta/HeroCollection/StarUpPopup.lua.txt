@@ -1,0 +1,74 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local StarBarComponent = require("UiMeta/Components/StarBarComponent")
+
+-- Tabs
+local HeroStarup = require("UiMeta/HeroCollection/HeroStarup")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+---@class StarUpPopup
+local StarUpPopup = {}
+
+-- LOCAL FUNCTIONS
+local function InitializeHeroTab(layout, HeroCollection)
+    HeroStarup.Initialize(HeroCollection)
+    StarBarComponent:Initialize(layout.hero_tab.stars)
+end
+
+-- METHODS
+function StarUpPopup.Open(hero_data)
+    local layout = StarUpPopup.layout
+
+    -- Show star popup if it's not showing
+    if not DCEI.IsFrameActive(layout.Frame) then
+        layout:Show()
+    end
+
+    -- Open tab with correct tab helper script
+    HeroStarup.Open(hero_data)
+end
+
+---@return LazyLayout
+function StarUpPopup.Create()
+    StarUpPopup.layout = GMUI.LazyLayout.New({
+        name = "Meta/HeroCollection/StarupPopup",
+        parent = ui.z3.Lower,
+    })
+
+    return StarUpPopup.layout
+end
+
+function StarUpPopup.Initialize(HeroCollection)
+    local layout = StarUpPopup.layout
+
+    -- Setup popup animations
+    local args = {
+        popup_frame = layout.Background,
+        mask_layout = ui.camp.overlay.meta_mask,
+    }
+    PopupManager.ApplyPopupAnimations(layout, args)
+
+    -- Setup click callbacks
+    DCEI.SetOnClickCallback(layout.close.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        layout:Hide()
+    end)
+    DCEI.SetOnClickOutsideCallback(layout.Background, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        layout:Hide()
+    end)
+
+    -- Initialize item slot buttons
+    InitializeHeroTab(layout, HeroCollection)
+end
+
+-- EXPORT
+return StarUpPopup

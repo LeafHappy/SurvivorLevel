@@ -1,0 +1,262 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.StaticRemnants = {
+    Key = "StaticRemnants",
+
+    -- UI Information
+    DisplayName = "Static Remnants",
+    ShortDescription = "Leave behind a Remnant that explodes when you stop moving.",
+    Icon = DCEI.Texture("cartoon_icon_skill_static_remnants_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.StaticRemnants,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Static Remnants"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.RequiredTravelDistance, 2, SCALING.Scaled, { SKILL_TAG.StaticRemnants }),
+
+                -- Impact
+                Modifier.New(STAT.SkillSize, 1.50, SCALING.Scaled, { SKILL_TAG.StaticRemnants }),
+                Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.StaticRemnants }),
+
+                -- Extras
+                Modifier.New(STAT.SummonLimit, 5, SCALING.Scaled, { SKILL_TAG.StaticRemnants }),
+
+                -- Storm Serpent
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.StaticRemnants }), -- Storm Serpent
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.StaticRemnants }), -- Storm Serpent
+
+                -- Reset
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.StaticRemnants] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.StaticRemnants,
+
+            -- Exposed Tags
+            SKILL_TAG.Shock,
+            SKILL_TAG.Travel,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.Overcharge = {
+    Key = "Overcharge",
+
+    -- UI Information
+    DisplayName = "Overcharge",
+    ShortDescription = "Increases Move Speed.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_lightinventor_skill_animadischarge"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        -- SKILL_TAG.Shock,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.StaticRemnants,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.MoveSpeed, 0.05, SCALING.Additive),
+                -- Modifier.New(STAT.Damage, 0.20, SCALING.Additive, { SKILL_TAG.Shock }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Flux = {
+    Key = "Flux",
+
+    -- UI Information
+    DisplayName = "Flux",
+    ShortDescription = "Shock Skills gain Increased Size.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_blackhole_skill_accretiondisk"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Shock,
+        -- SKILL_TAG.Travel,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.StaticRemnants,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Modifier.New(STAT.PickupRange, 0.10, SCALING.Additive),
+                -- Modifier.New(STAT.SkillSize, 0.10, SCALING.Additive, { SKILL_TAG.Travel }),
+                Modifier.New(STAT.SkillSize, 0.15, SCALING.Additive, { SKILL_TAG.Shock }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+-- Storm Serpent
+-- Whenever you stop moving, cause a burst of electricity forward
+-- Damage is increased for each Static Remnant you have.
+Data.StormSerpent = {
+    Key = "StormSerpent",
+
+    -- UI Information
+    DisplayName = "Storm Serpent",
+    ShortDescription = "Whenever you stop moving, release a burst of electricity forward based on the number of active Remnants.",
+    Icon = DCEI.Texture("cartoon_icon_skill_static_remnants_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.StaticRemnants,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.StaticRemnants,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 3, SCALING.Scaled, { SKILL_TAG.StormSerpent }),
+                Modifier.New(STAT.SkillSize, 0.15, SCALING.Additive, { SKILL_TAG.StormSerpent }),
+                Modifier.New(STAT.DamageBoost, 0.20, SCALING.Additive, { SKILL_TAG.StormSerpent }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Accumulator = {
+    Key = "Accumulator",
+
+    -- UI Information
+    DisplayName = "Accumulator",
+    ShortDescription = "You can spawn additional Remnants.",
+    Icon = DCEI.Texture("cartoon_icon_skill_static_remnants_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.StaticRemnants,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.StaticRemnants,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.RequiredTravelDistance, 0.75, SCALING.Multiplier, { SKILL_TAG.StaticRemnants }),
+                Modifier.New(STAT.SummonLimit, 5, SCALING.Scaled, { SKILL_TAG.StaticRemnants }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

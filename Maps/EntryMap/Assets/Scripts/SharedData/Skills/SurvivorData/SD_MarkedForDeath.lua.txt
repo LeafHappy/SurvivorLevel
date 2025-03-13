@@ -1,0 +1,202 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.MarkedForDeath = {
+    Key = "MarkedForDeath",
+
+    -- UI Information
+    DisplayName = "Hunter's Mark",
+    ShortDescription = "Marked targets take more damage and drop bonus experience.",
+    Icon = DCEI.Texture("cartoon_icon_skill_marked_death_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MarkedForDeath,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Marked for Death"),
+            },
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.BaseAttackTime, 5, SCALING.Scaled, { SKILL_TAG.MarkedForDeath }),
+                Modifier.New(STAT.SkillRange, 6, SCALING.Scaled, { SKILL_TAG.MarkedForDeath }),
+                Modifier.New(STAT.Exposed, 0.25, SCALING.Scaled, { SKILL_TAG.MarkedForDeath }),
+                Modifier.New(STAT.DebuffDuration, 10, SCALING.Scaled, { SKILL_TAG.MarkedForDeath }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.MarkedForDeath] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.MarkedForDeath,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+-- Possible Unique Options
+-- Explodes on Death, dealing Damage
+
+-- Reset Cooldown on Kill
+Data.KillStreak = {
+    Key = "KillStreak",
+
+    -- UI Information
+    DisplayName = "Kill Streak",
+    ShortDescription = "Marked for Death Cooldown is Reset when you Kill the Marked Target.",
+    Icon = DCEI.Texture("cartoon_icon_skill_marked_death_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MarkedForDeath,
+    },
+    Requirements = {
+        {
+            InheritedLevel = SKILL_TAG.MarkedForDeath,
+            Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+            Level = 1,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Drop Experience on Kill
+Data.BountyHunter = {
+    Key = "BountyHunter",
+
+    -- UI Information
+    DisplayName = "Bounty Hunter",
+    ShortDescription = "Marked Targets drop additional experience.",
+    Icon = DCEI.Texture("cartoon_icon_skill_marked_death_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MarkedForDeath,
+    },
+    Requirements = {
+        {
+            InheritedLevel = SKILL_TAG.MarkedForDeath,
+            Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+            Level = 1,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Drop Experience on Kill
+Data.UnstableMarker = {
+    Key = "UnstableMarker",
+
+    -- UI Information
+    DisplayName = "Unstable Marker",
+    ShortDescription = "Marked Targets explodes on death. Damage is 20% of your Max Health.",
+    Icon = DCEI.Texture("cartoon_icon_skill_marked_death_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MarkedForDeath,
+    },
+    Requirements = {
+        {
+            InheritedLevel = SKILL_TAG.MarkedForDeath,
+            Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+            Level = 1,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 1.75, SCALING.Scaled, { SKILL_TAG.MarkedForDeath }),
+                Modifier.New(STAT.AreaDamage, 0.20, SCALING.Scaled, { SKILL_TAG.MarkedForDeath }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

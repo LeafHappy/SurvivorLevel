@@ -1,0 +1,182 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Golem
+
+    Moves towards the Player.
+    Only Updates position every 1-3 seconds.
+
+    ---TODO: Increase Speed and Travel Distance over time.
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Elite
+local Elite = {}
+
+---@type EliteData
+Elite.Data = {
+    Name = "Golem",
+    Type = DCEI.Unit("Elite - Golem"),
+    Stats = {
+        Modifier.New(STAT.Health, 320, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 6, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.85, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 1.31, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 100, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 50, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 2.50
+
+local states = {
+    -- Elite Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+    Move = "Move",
+}
+
+local behaviors = {
+    Stagger = DCEI.Behavior("Stagger"),
+}
+
+local effects = {
+    OnStay = DCEI.Effect("Elite - Golem - OnStay"),
+}
+
+local overrides = {
+    EffectPath.New(DCEI.Effect("Elite - Golem - Contact Damage"), EJS.Damage.Value, STAT.Thorns, 1),
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Patterns
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Local Casters
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---@param ai AIHandler
+local function Move(ai)
+    -- Validate Unit
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local distance = Vector2.Distance(position, ai.Data.MovePosition)
+
+    DCEI.Move(ai.unit, ai.Data.MovePosition.x, ai.Data.MovePosition.y)
+
+    if distance <= 0.1 then
+        ai:SetState(states.BaseDecision)
+    end
+
+    ai.Data.MoveTime = ai.Data.MoveTime - TICK_RATE
+    if ai.Data.MoveTime <= 0 then
+        ai:SetState(states.BaseDecision)
+    end
+
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(unit_position, target_position)
+
+    ai.Data.MovePosition = target_position
+    ai.Data.MoveTime = Core.Random.GetNumber(1, 2)
+
+    ai:SetState(states.Move)
+
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Elite.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, overrides)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, effects.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    -- Core States
+    ai:AddState(states.Move, Move)
+    ai:AddState(states.AdvancedDecision, AdvancedDecision)
+
+    -- Stagger
+    AIHelper.RegisterOverheadStaggerUpdate(ai)
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Elite

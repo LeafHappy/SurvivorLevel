@@ -1,0 +1,261 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.Boomerang = {
+    Key = "Boomerang",
+
+    -- UI Information
+    DisplayName = "Boomerang",
+    ShortDescription = "Throws a boomerang that returns to you.",
+    Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Boomerang,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Boomerang"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 2.00, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                Modifier.New(STAT.Cooldown, 0.50, SCALING.Scaled, { SKILL_TAG.Boomerang }), -- Time between Launches (Projectile Count)
+
+                -- Projectile
+                Modifier.New(STAT.SkillSize, 0.75, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                Modifier.New(STAT.SkillRange, 4.50, SCALING.Scaled, { SKILL_TAG.Boomerang }), -- Projectile Distance
+                Modifier.New(STAT.ProjectileSpeed, 16, SCALING.Scaled, { SKILL_TAG.Boomerang }), -- Launch Speed
+                ---NOTE: Acceleration of Boomerang is automatically calulated based on distance and speed.
+
+                -- Impact
+                Modifier.New(STAT.Damage, 11, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+
+                Modifier.New(STAT.Stagger, 3, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                Modifier.New(STAT.SlowEffectiveness, 1, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                Modifier.New(STAT.SlowDuration, 0.20, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+
+                -- Extras
+
+                -- Reset
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        Boomerang = {
+            SKILL_TAG.Global,
+            SKILL_TAG.Boomerang,
+
+            SKILL_TAG.Physical,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.PowerThrow = {
+    Key = "PowerThrow",
+
+    -- UI Information
+    DisplayName = "Power Throw",
+    ShortDescription = "Increase Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_axemantower_skill_noescape"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Global,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Boomerang,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.20, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Precision = {
+    Key = "Precision",
+
+    -- UI Information
+    DisplayName = "Precision",
+    ShortDescription = "Increase Range.",
+    Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_flamemage_skill_flaredovercahrge"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Global,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Boomerang,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillRange, 0.10, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+Data.Snapback = {
+    Key = "Snapback",
+
+    -- UI Information
+    DisplayName = "Snapback",
+    ShortDescription = "Boomerang gains a burst of speed when returning, dealing 50% more damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Boomerang,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Boomerang,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.DamageBoost, 0.50, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.DoubleThrow = {
+    Key = "DoubleThrow",
+
+    -- UI Information
+    DisplayName = "Double Throw",
+    ShortDescription = "Boomerang throws twice as fast.",
+    Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Boomerang,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Boomerang,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 1, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+                -- Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.Boomerang }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

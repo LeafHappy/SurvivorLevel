@@ -1,0 +1,36 @@
+---@class HeroChestData
+---@field Shard string
+---@field UnlockCondition string
+---@field UnlockWeight number
+
+---@class Heroes<HeroUnlockData>
+---@readonly
+local Heroes = {
+    ["Annie"] = {
+        Shard = "s_annie",
+        UnlockCondition = "",
+        UnlockWeight = 0, -- how likely is this hero to be unlocked from a chest
+    },
+    ["Jorian"] = {
+        Shard = "s_jorian",
+        UnlockCondition = "Trophy Road",
+        UnlockWeight = 0,
+    },
+    ["Erik"] = {
+        Shard = "s_erik",
+        UnlockCondition = "Trophy Road",
+        UnlockWeight = 0,
+    },
+    ["Ghost"] = {
+        Shard = "s_ghost",
+        UnlockCondition = "Trophy Road",
+        UnlockWeight = 0,
+    },
+    ["Amber"] = {
+        Shard = "s_amber",
+        UnlockCondition = "Trophy Road",
+        UnlockWeight = 0,
+    },
+}
+
+return Heroes

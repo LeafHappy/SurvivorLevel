@@ -1,0 +1,83 @@
+-- This is a copy from GMUI timer, as we can't require GMUI presentation in UI controller to preview
+-- VARIABLES
+local time = 0
+local timer_table = {}
+local timer_id = 0
+
+-- PRESENTATION TIMER
+local PresentationTimer = {}
+
+-- LOCAL FUNCTIONS
+function PresentationTimer.CheckIfKeyExists(key)
+    -- Add "0" to end of key until it is unique
+    while timer_table[key] do
+        DCEI.LogWarning("Key exists presentation : " .. key)
+        key = key .. "0"
+    end
+
+    return key
+end
+
+local function GetNextTimerId(timer_data)
+    local new_timer_key = tostring(timer_data)
+
+    -- Make sure we are not overriding old timer
+    new_timer_key = PresentationTimer.CheckIfKeyExists(new_timer_key)
+    return new_timer_key
+end
+
+function PresentationTimer.Update(delta_time)
+    -- advance presentation timer time
+    time = time + delta_time
+
+    -- iterate through timers and update each
+    -- when a timer expires, run its callback and destroy its reference
+    for key, timer_data in pairs(timer_table) do
+        if timer_data.execute_on_update then
+            timer_data.callback(delta_time)
+        elseif time >= timer_data.expire_at then
+            timer_data.callback(delta_time)
+            timer_table[key] = nil
+        end
+
+        if timer_data.condition then
+            timer_table[key] = nil
+        end
+    end
+end
+
+function PresentationTimer.Create(callback, duration)
+    local timer_data = {
+        expire_at = time + duration,
+        callback = callback,
+        execute_on_update = false,
+        condition = false,
+        z = "t",
+    }
+
+    -- create unique key for each timer
+    local key = GetNextTimerId(timer_data)
+    timer_table[key] = timer_data
+end
+
+-- creates a timer that execute every frame until condition
+function PresentationTimer.CreateUpdateTimerWithCondition(callback, condition)
+    local timer_data = {
+        expire_at = time + 9999,
+        callback = callback,
+        execute_on_update = true,
+        condition = condition,
+    }
+
+    -- create unique key for each timer
+    local key = GetNextTimerId(timer_data)
+    timer_table[key] = timer_data
+end
+
+DCEI.LogWarning("TIMER INIT, add this message to check it registered only once")
+DCEI.TriggerAddUpdateEvent(function(delta_time)
+    PresentationTimer.Update(delta_time)
+end)
+
+-- EXPORT
+return PresentationTimer

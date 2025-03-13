@@ -1,0 +1,269 @@
+--[[
+    About
+        Finite State Machine (FSM) to handle GameStates.
+    
+    -- TODO
+        Sub-States
+        State Tracking - Automatically track state times.
+        Transition Stack - Better way to handle multiple Transitions to happen concurrently.
+        Classify with annotations.
+        Rework States (something similar to):
+            1. OnEnable - Used to Register Callbacks
+            2. OnTransitionEnter - Used for Transitions (Real Time)
+            3. OnEnter - Called once after OnTransitionEnter
+            4. OnUpdate - Called every Frame post OnEnter
+            5. OnExit - Called once before OnTransitionExit
+            6. OnTransitionExit - Used for Transitions (Real Time)
+            7. OnDisable - Used to Unregister Callbacks
+]]
+
+local Help = require("Help")
+local Log = require("Game/Log")
+
+local _Dev = require("_Dev")
+
+local _PRINT = false
+
+if _Dev then
+    _PRINT = _Dev.Log.state_transitions
+end
+
+---@enum TransitionType
+TRANSITION_TYPE = {
+    -- Runs concurrently, OnExit and OnEnter may happen in any order
+    SIMULTANEOUS = 1,
+    -- Runs OnTransitionExit, OnExit, OnTransitionEnter, OnEnter
+    SEQUENTIAL = 2,
+    -- Runs OnTransitionExit, OnExit, OnEnter
+    EXIT_ONLY = 3,
+    -- Runs OnExit, OnTransitionEnter, OnEnter
+    ENTER_ONLY = 4,
+}
+
+---@class StateMachine
+---@field States table Simple Registry when adding States
+---@field states table Internal Name for registered states.
+local StateMachine = {}
+StateMachine.__index = StateMachine
+
+---Creates a State Machine.
+---@param update_frequency number
+---@return StateMachine
+function StateMachine.New(update_frequency)
+    local self = setmetatable({}, StateMachine)
+    self.States = {}
+
+    self.states = {}
+    self.current_state = nil
+    self.last_state = nil
+    self.next_state = nil
+
+    self.in_transition = false
+
+    -- Real Time Update
+    -- DCEI.TriggerAddTimerEventPeriodicIndefinite(function()
+    --     self:RealUpdate()
+    -- end, TICK_RATE, true, true)
+
+    -- Game Time Update
+    TickRate:Subscribe(update_frequency, function(delta)
+        self:GameUpdate(delta)
+    end)
+
+    return self
+end
+
+-- function StateMachine:RealUpdate()
+--     if self.current_state then
+--         self.current_state:OnRealUpdate()
+--     end
+-- end
+
+function StateMachine:GameUpdate(delta)
+    if not self.in_transition and self.next_state then
+        self:Transition(self.next_state)
+    end
+
+    if self.current_state then
+        self.current_state:OnGameUpdate(delta)
+    end
+end
+
+---Adds a GameState to the StateMachine.
+---@param state GameState
+---@param show_log any
+function StateMachine:AddState(state, show_log)
+    self.states[state.name] = state
+    state.machine = self
+
+    if show_log then
+        Help.Log("Adding State", state.name)
+    end
+end
+
+---Adds multiple GameStates to the StateMachine.
+---@param states table<GameState>
+function StateMachine:AddStates(states)
+    local message_log = {}
+    for _, state in ipairs(states) do
+        table.insert(message_log, state.name)
+        self:AddState(state, false)
+    end
+
+    Help.Log("Adding States", nil, message_log)
+end
+
+---Standard Transition to the given state. Accepts the *state* or *state_name*.
+---@param state_request any
+---@param data_pass table | nil Custom Data that you can pass to the state.
+function StateMachine:Transition(state_request, data_pass)
+    self:CustomTransition(state_request, nil, nil, data_pass)
+end
+
+---Customizable Transition to the given state. Accepts the *state* or *state_name*.
+---@param state_request any
+---@param transition_type TransitionType | nil
+---@param use_real_time boolean | nil
+---@param data_pass table | nil
+function StateMachine:CustomTransition(state_request, transition_type, use_real_time, data_pass)
+    local state = self.states[state_request] or self.states[state_request.name] or false
+    local transition = transition_type or TRANSITION_TYPE.SEQUENTIAL
+    local real_time = use_real_time or false
+
+    state.data = data_pass or {}
+
+    self.next_state = state
+
+    -- Prevent Invalid State Transition
+    if not state then
+        Help.Error("Invalid State Receieved", state_request)
+        return
+    end
+
+    -- Prevent Transition during Transition
+    if _PRINT and self.in_transition then
+        Help.Warn("Already in Transition, cancelling Transition call.")
+        return
+    end
+
+    -- Exiting State Message -- Can be nil on game start
+    if _PRINT and self.current_state then
+        Help.Warn("Exiting State", self.current_state.name)
+    end
+
+    self.last_state = self.current_state
+    self.current_state = nil
+    self.in_transition = true
+
+    -- Create a separate thread so we can use DCEI.Wait() in Transitions
+    DCEI.TriggerAddTimerEventPeriodic(
+        DCEI.Coroutine(function()
+            if transition == TRANSITION_TYPE.SIMULTANEOUS then
+                self:_TransitionSimultaneous(state)
+            elseif transition == TRANSITION_TYPE.SEQUENTIAL then
+                self:_TransitionSequential(state)
+            elseif transition == TRANSITION_TYPE.EXIT_ONLY then
+                self:_TransitionExitOnly(state)
+            elseif transition == TRANSITION_TYPE.ENTER_ONLY then
+                self:_TransitionEnterOnly(state)
+            end
+
+            -- State Logging
+            Log.Generic.NewState(self.current_state.name)
+        end),
+        0,
+        1,
+        real_time,
+        false
+    )
+end
+
+---@private
+function StateMachine:_TransitionChange(state)
+    if _PRINT then
+        Help.Warn("Entering State", state.name, state.data)
+    end
+
+    self.in_transition = false
+    self.current_state = state
+    self.next_state = nil
+end
+
+-- Exit and Enter Transitions occur Simultaneously
+---@private
+function StateMachine:_TransitionSimultaneous(state)
+    if self.last_state then
+        self.last_state:TransitionExit()
+    end
+
+    state:TransitionEnter(function()
+        self:_TransitionChange(state)
+    end)
+end
+
+-- Exit Transition then Enter Transition
+---@private
+function StateMachine:_TransitionSequential(state)
+    if self.last_state then
+        self.last_state:TransitionExit(function()
+            state:TransitionEnter(function()
+                self:_TransitionChange(state)
+            end)
+        end)
+    else
+        -- No last_state, just Enter
+        state:TransitionEnter(function()
+            self:_TransitionChange(state)
+        end)
+    end
+end
+
+-- Exit Transition Only
+---@private
+function StateMachine:_TransitionExitOnly(state)
+    if self.last_state then
+        self.last_state:TransitionExit(function()
+            state:OnEnter()
+            self:_TransitionChange(state)
+        end)
+    else
+        -- No last_state
+        state:OnEnter()
+        self:_TransitionChange(state)
+    end
+end
+
+-- Enter Transition Only
+---@private
+function StateMachine:_TransitionEnterOnly(state)
+    self.current_state = nil
+
+    state:TransitionEnter(function()
+        self:_TransitionChange(state)
+    end)
+end
+
+---Returns if the current State matches the provided State.
+---@param state GameState
+---@return boolean
+function StateMachine:IsCurrentState(state)
+    return self.current_state and state and self.current_state.name == state.name
+end
+
+---Returns if the next State matches the provided State.
+---@param state GameState
+---@return boolean
+function StateMachine:IsUpcomingState(state)
+    return self.next_state and state and self.next_state.name == state.name
+end
+
+---Returns if the current or upcoming State matches the provided State.
+---@param state GameState
+---@return boolean
+function StateMachine:IsCurrentOrUpcomingState(state)
+    local is_current_state = self:IsCurrentState(state)
+    local is_next_state = self:IsUpcomingState(state)
+    return is_current_state or is_next_state
+end
+
+return StateMachine

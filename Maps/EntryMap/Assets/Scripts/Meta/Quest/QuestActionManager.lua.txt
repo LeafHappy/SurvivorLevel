@@ -1,0 +1,395 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Help = require("Help")
+
+local Camera = require("Class/Camera")
+local SequenceManager = require("Class/SequenceManager")
+local Vector2 = require("Class/Vector2")
+local Joystick = require("Class/Joystick")
+local Hero = require("Game/Hero")
+
+local QuestIndicators = require("Meta/Quest/QuestIndicators")
+
+-- DATA
+local QuestData = require("Meta/Quest/QuestData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+---@class QuestActionManager
+local QuestActionManager = {}
+
+-- CONSTANTS
+local TICK_RATE = TICK_RATE or 0.0625
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function DisablePlayerControl()
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    joystick:SetActive(false)
+end
+
+local function EnablePlayerControl()
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    joystick:SetActive(true)
+end
+
+local function FocusHero()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    camera:SetFollowUnit(hero.unit)
+end
+
+local Actions = {
+    GeneratePanSequenceFrom = {
+        StartAction = function(data)
+            Help.Log("Pan Sequence From")
+            data.Camera = Camera.Fetch(PLAYER.Player1)
+            data.CameraSpeed = 10
+            data.CameraTarget = Help.CreateDummyUnit(data.StartPosition)
+
+            ---NOTE: We can change this to a speed if needed
+            data.Timer = 2
+            data.TotalTime = data.Timer
+
+            data.CameraPosition = data.StartPosition
+            data.TargetPosition = data.EndPosition
+
+            DCEI.SetUnitPosition2D(data.CameraTarget, data.CameraPosition.x, data.CameraPosition.y)
+            data.Camera:SetFollowUnit(data.CameraTarget)
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+
+            local new_position =
+                Vector2.MoveTowards(data.CameraPosition, data.TargetPosition, data.CameraSpeed * TICK_RATE)
+            data.CameraPosition = new_position
+            DCEI.SetUnitPosition2DWithInterpolation(data.CameraTarget, new_position.x, new_position.y)
+        end,
+        CompletionCondition = function(data)
+            return Vector2.Distance(data.CameraPosition, data.TargetPosition) < 0.1
+        end,
+        CompletionAction = function(data)
+            data.Camera:ClearFollowUnits(nil)
+
+            -- Remove Camera Target
+            DCEI.RemoveUnit(data.CameraTarget)
+        end,
+    },
+    GeneratePanSequenceTo = {
+        StartAction = function(data)
+            Help.Log("Pan Sequence To")
+
+            data.Camera = Camera.Fetch(PLAYER.Player1)
+            data.CameraSpeed = 10
+            data.CameraTarget = Help.CreateDummyUnit(data.EndPosition)
+
+            ---NOTE: We can change this to a speed if needed
+            data.Timer = 2
+            data.TotalTime = data.Timer
+
+            data.CameraPosition = data.EndPosition
+            data.TargetPosition = data.StartPosition
+
+            DCEI.SetUnitPosition2D(data.CameraTarget, data.CameraPosition.x, data.CameraPosition.y)
+            data.Camera:SetFollowUnit(data.CameraTarget)
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+
+            local new_position =
+                Vector2.MoveTowards(data.CameraPosition, data.TargetPosition, data.CameraSpeed * TICK_RATE)
+            data.CameraPosition = new_position
+            DCEI.SetUnitPosition2DWithInterpolation(data.CameraTarget, new_position.x, new_position.y)
+        end,
+        CompletionCondition = function(data)
+            return Vector2.Distance(data.CameraPosition, data.TargetPosition) < 0.1
+        end,
+        CompletionAction = function(data)
+            data.Camera:ClearFollowUnits()
+
+            -- Remove Camera Target
+            DCEI.RemoveUnit(data.CameraTarget)
+        end,
+    },
+    GenerateIndication = {
+        StartAction = function(data)
+            if not data.UnitRef then
+                return
+            end
+            QuestIndicators.GenerateIndicator(data.UnitRef)
+        end,
+        CompletionCondition = function(data)
+            return true
+        end,
+    },
+    GenerateIndicationShake = {
+        StartAction = function(data)
+            if not data.UnitRef then
+                return
+            end
+            QuestIndicators.ShakeIndicator(data.UnitRef)
+        end,
+        CompletionCondition = function(data)
+            return true
+        end,
+    },
+    GenerateDialogue = {
+        StartAction = function(data)
+            data.DialogueFinished = false
+            Core.Event.SendPresentationEvent("TalkingHead.StartDialogue", data.Dialogue, function()
+                data.DialogueFinished = true
+            end)
+        end,
+        CompletionCondition = function(data)
+            return data.DialogueFinished
+        end,
+    },
+    GenerateUpdateQuestHUD = {
+        StartAction = function(data)
+            QuestActionManager.UpdateQuestHUD(data.Key, data.Objective, data.QuestSaveData, data.IsComplete)
+        end,
+        CompletionCondition = function(data)
+            return true
+        end,
+    },
+    GenerateFocusHero = {
+        StartAction = function(data)
+            Help.Log("Focus Hero")
+
+            FocusHero()
+            EnablePlayerControl()
+        end,
+        CompletionCondition = function(data)
+            return true
+        end,
+    },
+    GenerateDelay = {
+        StartAction = function(data)
+            data.Timer = data.Delay
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+    },
+}
+
+---@param objective_data QuestObjective
+---@param quest_key string
+---@param quest_save_data any
+---@param is_complete boolean
+local function PlayAddIndicatorsSequence(objective_data, quest_key, quest_save_data, is_complete)
+    if SequenceManager.Instance:IsPlaying() then
+        return
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero or not hero.unit then
+        return
+    end
+
+    if not objective_data.indicator_values then
+        return
+    end
+
+    local end_position = objective_data.indicator_values.position
+    local unit_instance = DCEI.FindUnitAtPosition(objective_data.indicator_values.unit_type, end_position.x, end_position.y)
+    local unit_ref = GMUI.CreateUnitReference(unit_instance)
+
+    if not unit_instance or not DCEI.UnitIsAlive(unit_instance) then
+        return
+    end
+
+    SequenceManager.Instance:InsertActionsInFront({
+        Actions.GenerateIndication,
+        Actions.GenerateUpdateQuestHUD,
+    }, {
+        UnitRef = unit_ref,
+        Key = quest_key,
+        Objective = objective_data,
+        QuestSaveData = quest_save_data,
+        IsComplete = is_complete,
+    })
+end
+
+---@param objective_data QuestObjective
+---@param quest_key string
+---@param quest_save_data any
+---@param is_complete boolean
+local function PlayFocusSequence(objective_data, quest_key, quest_save_data, is_complete)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero or not hero.unit then
+        return
+    end
+
+    if not objective_data.indicator_values then
+        return
+    end
+
+    local start_position = Vector2.UnitPosition(hero.unit)
+    local end_position = objective_data.indicator_values.position
+    local unit_type = objective_data.indicator_values.unit_type
+    local unit_instance = DCEI.FindUnitAtPosition(unit_type, end_position.x, end_position.y)
+
+    DisablePlayerControl()
+
+    if not unit_type or not unit_instance or not DCEI.UnitIsAlive(unit_instance) then
+        unit_instance = Help.CreateDummyUnit(end_position)
+    end
+
+    local unit_ref = GMUI.CreateUnitReference(unit_instance)
+
+    SequenceManager.Instance:InsertActionsInFront({
+        Actions.GenerateDelay,
+        Actions.GeneratePanSequenceFrom,
+        Actions.GenerateIndication,
+        Actions.GenerateUpdateQuestHUD,
+        Actions.GenerateDelay,
+        Actions.GeneratePanSequenceTo,
+        Actions.GenerateFocusHero,
+    }, {
+        Delay = 1,
+        StartPosition = start_position,
+        EndPosition = end_position,
+        UnitRef = unit_ref,
+        Key = quest_key,
+        Objective = objective_data,
+        QuestSaveData = quest_save_data,
+        IsComplete = is_complete,
+    })
+end
+
+---@param objective_data QuestObjective
+local function PlayReFocusSequence(objective_data)
+    if SequenceManager.Instance:IsPlaying() then
+        return
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero or not hero.unit then
+        return
+    end
+
+    if not objective_data.indicator_values then
+        return
+    end
+
+    local start_position = Vector2.UnitPosition(hero.unit)
+    local end_position = objective_data.indicator_values.position
+    local unit_instance =
+        DCEI.FindUnitAtPosition(objective_data.indicator_values.unit_type, end_position.x, end_position.y)
+    local unit_ref = GMUI.CreateUnitReference(unit_instance)
+
+    if not unit_instance or not DCEI.UnitIsAlive(unit_instance) then
+        return
+    end
+
+    DisablePlayerControl()
+
+    SequenceManager.Instance:InsertActionsInFront({
+        Actions.GeneratePanSequenceFrom,
+        Actions.GenerateIndicationShake,
+        Actions.GenerateDelay,
+        Actions.GeneratePanSequenceTo,
+        Actions.GenerateFocusHero,
+    }, {
+        Delay = 0.5,
+        StartPosition = start_position,
+        EndPosition = end_position,
+        UnitRef = unit_ref,
+    })
+end
+
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@param key string
+---@param objective QuestObjective
+---@param quest_save_data any
+---@param is_complete boolean
+function QuestActionManager.UpdateQuestHUD(key, objective, quest_save_data, is_complete)
+    local quest_data = QuestData.GetQuestData(key)
+    if not quest_data then
+        return
+    end
+
+    local rewards
+    if quest_save_data[key].can_claim and objective.rewards then
+        rewards = objective.rewards
+    end
+
+    Core.Event.SendPresentationEvent("QuestHUD.Update", {
+        quest_data = quest_data,
+        objective_data = objective,
+        quest_save_data = quest_save_data,
+        is_complete = is_complete,
+        rewards = rewards,
+    })
+end
+
+function QuestActionManager.ClearIndicators()
+    QuestIndicators.ClearIndicators()
+end
+
+---@param objective_data QuestObjective
+---@param quest_key string
+---@param quest_save_data any
+---@param is_complete boolean
+function QuestActionManager.AddIndicators(objective_data, quest_key, quest_save_data, is_complete)
+    PlayAddIndicatorsSequence(objective_data, quest_key, quest_save_data, is_complete)
+end
+
+---@param is_in_combat boolean
+---@param objective_data QuestObjective
+function QuestActionManager.ReFocusObjective(is_in_combat, objective_data)
+    if is_in_combat then
+        return
+    end
+    PlayReFocusSequence(objective_data)
+end
+
+---@param objective_data QuestObjective
+---@param quest_key string
+---@param quest_save_data any
+---@param is_complete boolean
+function QuestActionManager.FocusObjective(objective_data, quest_key, quest_save_data, is_complete)
+    if objective_data.indicator_values then
+        PlayFocusSequence(objective_data, quest_key, quest_save_data, is_complete)
+    else
+        SequenceManager.Instance:InsertActionsInFront({
+            Actions.GenerateUpdateQuestHUD,
+        }, {
+            Key = quest_key,
+            Objective = objective_data,
+            QuestSaveData = quest_save_data,
+            IsComplete = is_complete,
+        })
+    end
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return QuestActionManager

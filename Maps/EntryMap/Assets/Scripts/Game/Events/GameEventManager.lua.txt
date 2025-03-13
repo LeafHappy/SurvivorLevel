@@ -1,0 +1,176 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local Hero = require("Game/Hero")
+local Event = require("Class/Event")
+local Attributes = require("Class/Attributes")
+local GameEvent = require("Game/Events/GameEvent")
+local GameEventSequence = require("Game/Events/GameEventSequence")
+
+local CommonDataAccess = require("Class/CommonDataAccess")
+
+local Help = require("Help")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Class
+---============================================================================
+
+---@class GameEventManager
+---@field Modifiers table<Modifier>
+---@field Stats table<GAME_TRACKED_STAT, number>
+---@field Attributes Attributes
+---@field Events table<GameEvent | GameEventSequenceData>
+---@field Spawner SpawnDirector
+---@field Target Unit
+local GameEventManager = {}
+GameEventManager.__index = GameEventManager
+
+---comment
+---@return GameEventManager
+local function New()
+    local self = setmetatable({}, GameEventManager)
+    self:Reset()
+    return self
+end
+
+function GameEventManager:Reset()
+    self.Modifiers = {}
+    self.Stats = {}
+    self.Attributes = Attributes.New()
+
+    -- Game Events
+    self.Events = {}
+
+    -- Spawn Director
+    self.Spawner = nil
+    self.Target = nil
+end
+
+local Instance = New()
+GameEventManager.Instance = Instance
+
+---Set the Spawn Director for the Game Event Manager
+---@param spawner SpawnDirector
+function GameEventManager:SetSpawner(spawner)
+    self.Spawner = spawner
+end
+
+---Set the Spawn Director Target
+---@param target Unit
+function GameEventManager:SetTarget(target)
+    self.Target = target
+end
+
+---Adds a Modifier to the Game Event Manager
+---@param modifier Modifier
+function GameEventManager:AddModifier(modifier)
+    table.insert(self.Modifiers, modifier)
+
+    self.Attributes:Add(modifier)
+end
+
+---Adds a list of Modifiers to the Game Event Manager
+---@param modifiers table<Modifier>
+function GameEventManager:AddModifiers(modifiers)
+    for _, modifier in ipairs(modifiers) do
+        self:AddModifier(modifier)
+    end
+end
+
+---Returns all Modifiers in the Game Event Manager
+---@return table<Modifier>
+function GameEventManager:GetModifiers()
+    return self.Modifiers
+end
+
+---comment
+---@param event_data GameEventData | GameEventSequenceData
+function GameEventManager:LoadNewEvent(event_data)
+    local event
+    if event_data.Sequence then -- GameEventSequenceData
+        event = GameEventSequence.New(event_data, self)
+    else -- GameEventData
+        event = GameEvent.New(event_data, self)
+    end
+
+    table.insert(self.Events, event)
+end
+
+---comment
+---@param event_data table<GameEventData | GameEventSequenceData>
+function GameEventManager:LoadNewEvents(event_data)
+    Help.Log("Loading New Game Events", nil, event_data)
+
+    for _, data in ipairs(event_data) do
+        self:LoadNewEvent(data)
+    end
+end
+
+function GameEventManager:UpdateStats(delta)
+    self.Stats[GAME_TRACKED_STAT.GameTime] = CommonDataAccess.Get("game_time")
+    self.Stats[GAME_TRACKED_STAT.PlayerHealthPercentage] = Hero.Fetch(PLAYER.Player1):GetHealthPercentage()
+    self.Stats[GAME_TRACKED_STAT.BasicHostileCount] = #DCEI.FindSimpleUnitsByPlayerId(PLAYER.Hostile)
+
+    local hostile_units = DCEI.FindUnitsByPlayerId(PLAYER.Hostile)
+    local elite_units = {}
+    local boss_units = {}
+
+    for i = 1, #hostile_units do
+        local is_elite = DCEI.GetUnitTagCount(hostile_units[i], "Elite") > 0
+        if is_elite then
+            table.insert(elite_units, hostile_units[i])
+        end
+
+        local is_boss = DCEI.GetUnitTagCount(hostile_units[i], "Boss") > 0
+        if is_boss then
+            table.insert(boss_units, hostile_units[i])
+        end
+    end
+
+    self.Stats[GAME_TRACKED_STAT.EliteCount] = #elite_units
+    self.Stats[GAME_TRACKED_STAT.BossCount] = #boss_units
+end
+
+function GameEventManager:Update(delta)
+    -- Update Stats
+    self:UpdateStats(delta)
+
+    -- Update all Generated Events
+    for _, event in ipairs(self.Events) do
+        event:Update(delta)
+    end
+end
+
+-- Provides a way to get Hero Stats, Game Stats, etc. for the Event
+---@param stat GAME_TRACKED_STAT
+---@return number
+function GameEventManager:GetGameStat(stat)
+    return self.Stats[stat]
+end
+
+---Provides a way to access Modifier Values
+---@param stat STAT | string
+---@param tags SkillTagList | table<SkillTagList> | nil
+function GameEventManager:GetCalculatedStat(stat, tags)
+    return self.Attributes:Get(stat, tags)
+end
+
+---============================================================================
+---!SECTION: Class
+---============================================================================
+
+return GameEventManager

@@ -1,0 +1,109 @@
+local Player = require("Class/Player")
+local Team = require("Class/Team")
+
+local TeamManager = {}
+
+---@type table<Team>
+local _teams = {}
+
+---@type table<Player>
+local _players = {}
+
+---comment
+---@param id any
+---@param is_controlled any
+---@return Player
+function TeamManager:NewPlayer(id, is_controlled)
+    -- Create the Player.
+    local player = Player.New(id, is_controlled)
+
+    -- Add the player to _players as a reference.
+    _players[id] = player
+
+    -- Return the player
+    return player
+end
+
+---Creates a new Player and assigns them to the given Team Id (creates a new Team if needed).
+---@param player_id integer
+---@param team_id integer
+---@param is_controlled boolean | nil
+---@return Player
+function TeamManager:NewPlayerWithTeam(player_id, team_id, is_controlled)
+    -- Create the Player.
+    local player = self:NewPlayer(player_id, is_controlled)
+
+    -- Generate a New Team if needed.
+    local team = TeamManager:NewTeam(team_id)
+
+    -- Assign the Player to the Team.
+    team:Add(player)
+
+    -- Returns the player if needed.
+    return player
+end
+
+---Creates a New Team with the associated Id.
+---@param id any
+---@return Team
+function TeamManager:NewTeam(id)
+    -- Check to see if the team already exists and return it.
+    if _teams[id] then
+        return _teams[id]
+    end
+
+    -- Create the new Team
+    _teams[id] = Team.New(id)
+
+    -- Returns the team if needed.
+    return _teams[id]
+end
+
+---Resets the Team Manager.
+function TeamManager.Reset()
+    _teams = {}
+    _players = {}
+end
+
+-- ANCHOR: Getters
+
+---Get all registered Players.
+---@return table<Player>
+function TeamManager:GetPlayers()
+    return _players
+end
+
+---Get the Player with the associated Id.
+---@param id integer
+---@return Player
+function TeamManager:GetPlayer(id)
+    return _players[id]
+end
+
+---Get all registered Teams.
+---@return table<Team>
+function TeamManager:GetTeams()
+    return _teams
+end
+
+---Get the Team with the associated Id.
+---@param id integer
+---@return Team
+function TeamManager:GetTeam(id)
+    return _teams[id]
+end
+
+---Get all Players associated to the Team Id.
+---@param id integer
+---@return table<Player> | table
+function TeamManager:GetTeamPlayers(id)
+    local team = self:GetTeam(id)
+
+    if not team then
+        return {}
+    end
+
+    return team:GetPlayers()
+end
+
+return TeamManager

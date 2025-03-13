@@ -1,0 +1,667 @@
+---@type table<GameEvent.Condition>
+local Conditions = {}
+
+---============================================================================
+-- SECTION -- Game Stat Comparisons
+---============================================================================
+
+-- Prevents Spawning when the Hostile Count is above the Stage Density.
+Conditions.StageDensity = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = {
+        CalculatedStat = STAT.StageDensity,
+    },
+}
+
+Conditions.StageDensityPercentageUnder_25 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = {
+        CalculatedStat = STAT.StageDensity,
+        Multiplier = 0.25,
+    },
+}
+
+Conditions.StageDensityPercentageUnder_50 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = {
+        CalculatedStat = STAT.StageDensity,
+        Multiplier = 0.50,
+    },
+}
+
+Conditions.StageDensityPercentageUnder_75 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = {
+        CalculatedStat = STAT.StageDensity,
+        Multiplier = 0.50,
+    },
+}
+
+Conditions.StageDensityPercentageOver_25 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = {
+        CalculatedStat = STAT.StageDensity,
+        Multiplier = 0.25,
+    },
+}
+
+Conditions.StageDensityPercentageOver_50 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = {
+        CalculatedStat = STAT.StageDensity,
+        Multiplier = 0.50,
+    },
+}
+
+Conditions.StageDensityPercentageOver_75 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = {
+        CalculatedStat = STAT.StageDensity,
+        Multiplier = 0.75,
+    },
+}
+
+-- Checks if the Calcualted Stage Density is over 100.
+Conditions.StageDensityOver_100 = {
+    -- A = STAT.StageDensity,
+    A = {
+        CalculatedStat = STAT.StageDensity,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 100,
+}
+
+-- Checks if the Calcualted Stage Density is over 200.
+Conditions.StageDensityOver_200 = {
+    -- A = STAT.StageDensity,
+    A = {
+        CalculatedStat = STAT.StageDensity,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 200,
+}
+
+-- Checks if the Calcualted Stage Density is over 300.
+Conditions.StageDensityOver_300 = {
+    -- A = STAT.StageDensity,
+    A = {
+        CalculatedStat = STAT.StageDensity,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 300,
+}
+
+Conditions.BossIsActive = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BossCount,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 1,
+}
+
+Conditions.BossNotActive = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BossCount,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 0,
+}
+
+Conditions.PlayerHasLowHealth = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.PlayerHealthPercentage,
+    },
+    Comparison = COMPARISON_TYPE.LessThanOrEqualTo,
+    B = 0.35,
+}
+
+Conditions.BasicHostileCountUnder_100 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 100,
+}
+
+Conditions.BasicHostileCountUnder_200 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 200,
+}
+
+Conditions.BasicHostileCountUnder_300 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.BasicHostileCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 300,
+}
+
+Conditions.PlayerHasLowHealth = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.PlayerHealthPercentage,
+    },
+    Comparison = COMPARISON_TYPE.LessThanOrEqualTo,
+    B = 0.35,
+}
+
+Conditions.GameTime_1 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 1,
+}
+
+Conditions.GameTime_5 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 5,
+}
+
+Conditions.GameTime_10 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 10,
+}
+
+Conditions.GameTime_15 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 15,
+}
+
+Conditions.GameTime_60 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 60,
+}
+
+Conditions.GameTime_120 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 120,
+}
+
+Conditions.GameTime_180 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 180,
+}
+
+Conditions.GameTime_240 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.EqualTo,
+    B = 240,
+}
+
+Conditions.GameTimeUnder_120 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 120,
+}
+
+Conditions.GameTimeUnder_150 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 150,
+}
+
+Conditions.GameTimeUnder_240 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 240,
+}
+
+Conditions.GameTimeAbove_10 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 10,
+}
+
+Conditions.GameTimeAbove_30 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 30,
+}
+
+Conditions.GameTimeAbove_50 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 50,
+}
+
+Conditions.GameTimeAbove_60 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 60,
+}
+
+Conditions.GameTimeAbove_100 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 100,
+}
+
+Conditions.GameTimeAbove_120 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 120,
+}
+
+Conditions.GameTimeAbove_150 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 150,
+}
+
+Conditions.GameTimeAbove_200 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 200,
+}
+
+Conditions.GameTimeAbove_240 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThan,
+    B = 240,
+}
+
+Conditions.GameTimeUnder_295 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 295,
+}
+
+Conditions.GameTimeAbove_300 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 300,
+}
+
+Conditions.GameTimeAbove_400 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 400,
+}
+
+Conditions.GameTimeAbove_450 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 450,
+}
+
+Conditions.GameTimeAbove_600 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 600,
+}
+
+Conditions.GameTimeNot_120 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.NotEqualTo,
+    B = 120,
+}
+
+Conditions.GameTimeNot_240 = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.NotEqualTo,
+    B = 240,
+}
+
+Conditions.Every120Seconds = {
+    A = {
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+    },
+    Comparison = COMPARISON_TYPE.Modulo,
+    B = 120,
+}
+
+---============================================================================
+-- !SECTION -- Game Stat Comparisons
+-- SECTION -- Tracked Stat Comparisons
+---============================================================================
+
+Conditions.KilledHostiles_100 = {
+    A = {
+        TrackedStat = TRACKED_STATS.BasicKills,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 100,
+}
+
+---============================================================================
+-- !SECTION -- Tracked Stat Comparisons
+-- SECTION -- Event Comparisons
+---============================================================================
+
+Conditions.EventCountLimit_1 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.ActiveCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 1,
+}
+
+Conditions.EventCountLimit_3 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.ActiveCount,
+    },
+    Comparison = COMPARISON_TYPE.LessThan,
+    B = 3,
+}
+
+Conditions.TravelDistance_1 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 1,
+}
+
+Conditions.TravelDistance_5 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 5,
+}
+
+Conditions.TravelDistance_10 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 10,
+}
+
+Conditions.TravelDistance_15 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 15,
+}
+
+Conditions.TravelDistance_25 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 25,
+}
+
+Conditions.TravelDistance_30 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 30,
+}
+
+Conditions.TravelDistance_50 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 50,
+}
+
+Conditions.TravelDistance_75 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 75,
+}
+
+Conditions.TravelDistance_100 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 100,
+}
+
+Conditions.TravelDistance_250 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 250,
+}
+
+Conditions.TravelDistance_500 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 500,
+}
+
+Conditions.EventCooldown_1 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 1,
+}
+
+Conditions.EventCooldown_2 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 2,
+}
+
+Conditions.EventCooldown_3 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 3,
+}
+
+Conditions.EventCooldown_4 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 4,
+}
+
+Conditions.EventCooldown_5 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 5,
+}
+
+Conditions.EventCooldown_10 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 10,
+}
+
+Conditions.EventCooldown_15 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 15,
+}
+
+Conditions.EventCooldown_20 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 20,
+}
+
+Conditions.EventCooldown_30 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 30,
+}
+
+Conditions.EventCooldown_40 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 40,
+}
+
+Conditions.EventCooldown_45 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 45,
+}
+
+Conditions.EventCooldown_60 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 60,
+}
+
+Conditions.EventCooldown_90 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 90,
+}
+
+Conditions.EventCooldown_120 = {
+    A = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+    },
+
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 120,
+}
+
+---============================================================================
+-- !SECTION -- Event Comparisons
+-- SECTION -- Instance Comparisons
+---============================================================================
+
+Conditions.InstanceDistance_25 = {
+    A = {
+        InstanceStat = EVENT_INSTANCE_STAT.Distance,
+    },
+
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 25,
+}
+
+Conditions.InstanceDistance_50 = {
+    A = {
+        InstanceStat = EVENT_INSTANCE_STAT.Distance,
+    },
+
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 50,
+}
+
+Conditions.InstanceDistance_100 = {
+    A = {
+        InstanceStat = EVENT_INSTANCE_STAT.Distance,
+    },
+
+    Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+    B = 100,
+}
+
+---============================================================================
+-- !SECTION -- Instance Comparisons
+---============================================================================
+
+return Conditions

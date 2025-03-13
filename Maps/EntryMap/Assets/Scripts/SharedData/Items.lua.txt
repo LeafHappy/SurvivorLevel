@@ -1,0 +1,112 @@
+---@readonly
+local Items = {}
+
+Items.AttractorCrest = {
+    Name = "Attractor Crest",
+    Icon = DCEI.Texture("icon_catalyst_main_item10_violet_01_wildsurvivor"),
+    Description = "Pickup Range +10%",
+}
+
+Items.BookOfAlacrity = {
+    Name = "Book of Alacrity",
+    Icon = DCEI.Texture("icon_catalyst_main_item3_cerulean_01"),
+    Description = "Cast Speed +3%",
+}
+
+Items.BookOfChance = {
+    Name = "Book of Chance",
+    Icon = DCEI.Texture("icon_catalyst_main_item3_purple_01_wildsurvivor"),
+    Description = "Spell Critical Chance +3%",
+}
+
+Items.BookOfPower = {
+    Name = "Book of Power",
+    Icon = DCEI.Texture("icon_catalyst_main_item3_pansy_01_wildsurvivor"),
+    Description = "Spell Critical Damage +10%",
+}
+
+Items.BookOfStrength = {
+    Name = "Book of Strength",
+    Icon = DCEI.Texture("icon_catalyst_main_item3_orange_01_wildsurvivor"),
+    Description = "Spell Damage +5%",
+}
+
+Items.GrowStone = {
+    Name = "Grow Stone",
+    Icon = DCEI.Texture("icon_catalyst_main_item4_violet_01_wildsurvivor"),
+    Description = "Health Regneneration +1",
+}
+
+Items.HeartStone = {
+    Name = "Heart Stone",
+    Icon = DCEI.Texture("icon_catalyst_main_item4_pink_01_wildsurvivor"),
+    Description = "Health +25",
+}
+
+Items.MagicalStone = {
+    Name = "Magical Stone",
+    Icon = DCEI.Texture("icon_catalyst_main_item4_blue_01_wildsurvivor"),
+    Description = "Bonus Spell Damage +1",
+}
+
+Items.OverflowingChalice = {
+    Name = "Overflowing Chalice",
+    Icon = DCEI.Texture("icon_catalyst_main_item6_green_01_wildsurvivor"),
+    Description = "Healing +10%",
+}
+
+Items.PhysicalStone = {
+    Name = "Physical Stone",
+    Icon = DCEI.Texture("icon_catalyst_main_item4_orange_01_wildsurvivor"),
+    Description = "Bonus Weapon Damage +1",
+}
+
+Items.RejuvenationStone = {
+    Name = "Rejuvenation Stone",
+    Icon = DCEI.Texture("icon_catalyst_main_item4_green_01_wildsurvivor"),
+    Description = "Health Regeneration +1",
+}
+
+Items.Stopwatch = {
+    Name = "Stopwatch",
+    Icon = DCEI.Texture("icon_catalyst_main_item8_hyacinth_01_wildsurvivor"),
+    Description = "Duration +8%",
+}
+
+Items.SwiftFeather = {
+    Name = "Swift Feather",
+    Icon = DCEI.Texture("icon_catalyst_main_item9_cerulean_01_wildsurvivor"),
+    Description = "Move Speed +7%",
+}
+
+Items.TabletOfAlacrity = {
+    Name = "Tablet of Alacrity",
+    Icon = DCEI.Texture("icon_catalyst_main_item11_cerulean_01_wildsurvivor"),
+    Description = "Attack Speed +7%",
+}
+
+Items.TabletOfChance = {
+    Name = "Tablet of Chance",
+    Icon = DCEI.Texture("icon_catalyst_main_item11_purple_01_wildsurvivor"),
+    Description = "Weapon Critical Chance +6%",
+}
+
+Items.TabletOfPower = {
+    Name = "Tablet of Power",
+    Icon = DCEI.Texture("icon_catalyst_main_item11_pansy_01_wildsurvivor"),
+    Description = "Weapon Critical Damage +20%",
+}
+
+Items.TabletOfStrength = {
+    Name = "Tablet of Strength",
+    Icon = DCEI.Texture("icon_catalyst_main_item11_orange_01_wildsurvivor"),
+    Description = "Weapon Damage +10%",
+}
+
+Items.ThornsCrest = {
+    Name = "Thorns Crest",
+    Icon = DCEI.Texture("icon_catalyst_main_item10_green_01_wildsurvivor"),
+    Description = "Thorns +20",
+}
+
+return Items

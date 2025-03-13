@@ -1,0 +1,385 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About Class
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+local Help = require("Help")
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+---ANCHOR: Customizable Properties
+local default_angle = 0
+local default_pitch = 45
+local default_distance = 8
+local default_transition_time = 0.3
+
+local TICK_RATE = TICK_RATE or 0.0625
+local MIN_ORTHOGRAPHIC_SIZE = 1
+local MAX_ORTHOGRAPHIC_SIZE = 1000
+
+---ANCHOR: Internal
+local _Cameras = {}
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+-- Camera Min/Max Orthographic Size
+DCEI.SetCameraMinOrthographicSize(MIN_ORTHOGRAPHIC_SIZE)
+DCEI.SetCameraMaxOrthographicSize(MAX_ORTHOGRAPHIC_SIZE)
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Class Initialization
+---============================================================================
+
+---@class FollowCamera
+---@field player_id integer
+---@field angle number
+---@field pitch number
+---@field distance number
+---@field transition_time number
+---@field offset Vector2
+---@field target any
+local FollowCamera = {}
+FollowCamera.__index = FollowCamera
+
+---Create a Camera Instance.
+---@param player_id number
+---@return FollowCamera
+function FollowCamera.New(player_id)
+    local self = setmetatable({}, FollowCamera)
+
+    self.player_id = player_id
+    _Cameras[self.player_id] = self
+
+    self.angle = default_angle
+    self.pitch = default_pitch
+    self.distance = default_distance
+    self.transition_time = default_transition_time
+    self.offset = Vector2.Zero()
+
+    self.target = nil
+
+    self:SetPitch()
+    self:SetAngle()
+
+    DCEI.SetEnabledCameraClamp(false)
+
+    return self
+end
+
+---============================================================================
+---!SECTION: Class Initialization
+---SECTION: Class Internal
+---============================================================================
+
+---Clear and Focus Unit for Player.
+---@param snap_to_target any
+---@private
+function FollowCamera:_SetFollowUnit(snap_to_target)
+    local transition_time = snap_to_target and 0 or self.transition_time
+
+    DCEI.ClearCameraFocusUnitForPlayer(self.player_id)
+    DCEI.SetCameraFocusUnitForPlayer(self.player_id, self.target, transition_time, self.offset.x, self.offset.y)
+end
+
+---Sets the Camera's Offset value.
+---@param offset Vector2
+---@param ignore_angle boolean | nil
+---@private
+function FollowCamera:_SetOffset(offset, ignore_angle)
+    if ignore_angle then
+        self.offset = offset
+    else
+        self.offset = Vector2.RotateAround(offset, self.angle - 90)
+    end
+
+    if self.target then
+        self:SetFollowUnit(self.target)
+    end
+end
+
+---============================================================================
+---!SECTION: Class Internal
+---SECTION: Class Getters
+---============================================================================
+
+---Returns the Camera's World Position.
+---@return Vector2
+function FollowCamera:GetPosition()
+    return Vector2.NewFromTable(DCEI.GetCameraCurrentFocalPoint())
+end
+
+---Returns the Camera's Size.
+---@return number
+function FollowCamera:GetSize()
+    return DCEI.GetCameraOrthographicSize()
+end
+
+---Returns the Camera's Aspect Ratio.
+---NOTE: This is just an estimate.
+---@return Vector2
+function FollowCamera:GetAspectRatio()
+    return Vector2.New(1.2, 1.6) -- Estimate
+end
+
+---Returns the Camera's Dimensions.
+---NOTE: This is just an estimate.
+---@return Vector2
+function FollowCamera:GetDimensions()
+    return self:GetAspectRatio() * self:GetSize()
+end
+
+---Returns the Camera Bounds.
+---NOTE: This is just an estimate.
+---@return table table {min, max}
+function FollowCamera:GetWorldSpaceBounds()
+    local camera_position = self:GetPosition()
+    local camera_dimensions = self:GetDimensions()
+
+    return {
+        min = camera_position - camera_dimensions / 2,
+        max = camera_position + camera_dimensions / 2,
+    }
+end
+
+---Returns the Distance to the Camera Corner.
+---NOTE: This is just an estimate.
+---@return number
+function FollowCamera:GetCornerDistance()
+    local dimensions = self:GetDimensions()
+    return math.sqrt(dimensions.x * dimensions.x + dimensions.y * dimensions.y)
+end
+
+---============================================================================
+---!SECTION: Class Getters
+---SECTION: Class Setters
+---============================================================================
+
+---Sets this Player's Camera to the given angle.
+---@param pitch number | nil Default: default_pitch (45)
+---@param duration number | nil Default: 0
+---@param use_real_time boolean | nil Default: false
+function FollowCamera:SetPitch(pitch, duration, use_real_time)
+    self.pitch = pitch or default_pitch
+    duration = duration or 0
+    use_real_time = use_real_time or false
+
+    self.pitch = 45
+
+    DCEI.SetCameraPitchSmoothOvertimeForPlayer(self.player_id, self.pitch, duration, use_real_time)
+end
+
+---Sets this Player's Camera to the given Angle.
+---@param angle number | nil Default: default_angle (45)
+---@param duration number | nil Default: 0
+---@param use_real_time boolean | nil Default: false
+function FollowCamera:SetAngle(angle, duration, use_real_time)
+    self.angle = angle or default_angle
+    duration = duration or 0
+    use_real_time = use_real_time or false
+
+    DCEI.SetCameraYawSmoothOvertimeForPlayer(self.player_id, self.angle, duration, use_real_time)
+end
+
+---Sets the Camera's distance.
+---@param distance number
+---@param transition_time number | nil
+---@param use_real_time boolean | nil
+function FollowCamera:SetSize(distance, transition_time, use_real_time)
+    self.distance = distance
+    transition_time = transition_time or self.transition_time
+    use_real_time = use_real_time or false
+
+    self.distance = distance
+    DCEI.SetCameraOrthographicSize(self.distance, transition_time, use_real_time)
+end
+
+---Adds the distance to the current Camera's distance.
+---@param distance number
+---@param transition_time number | nil
+---@param use_real_time boolean | nil
+function FollowCamera:ModifySize(distance, transition_time, use_real_time)
+    self:SetSize(self.distance + distance, transition_time, use_real_time)
+end
+
+---Sets the Camera's target offset.
+---@param offset Vector2
+function FollowCamera:SetOffset(offset)
+    self:_SetOffset(offset)
+end
+
+---Modify the Camera's offset.
+---@param offset any
+function FollowCamera:ModifyOffset(offset)
+    -- Account for Camera Angle
+    offset = Vector2.RotateAround(offset, self.angle)
+    self:_SetOffset(self.offset + offset, true)
+end
+
+---Sets the Player's Camera to follow the specified unit.
+---When no target is provided, the Camera will stop following its current target.
+---@param target any
+---@param snap_to_target boolean | nil
+function FollowCamera:SetFollowUnit(target, snap_to_target)
+    self.target = target
+
+    local target_data_type = type(self.target)
+
+    -- We assume "userdata" is a Unit
+    -- Otherwise, we just clear and return
+    if target_data_type ~= "userdata" then
+        DCEI.ClearCameraFocusUnitForPlayer(self.player_id)
+        return
+    end
+
+    if snap_to_target then
+        self:_SetFollowUnit(true)
+
+        -- Gives 1 Frame for the SnapToTarget to take effect.
+        DCEI.TriggerAddTimerEventElapsed(function()
+            self:_SetFollowUnit()
+        end, TICK_RATE, false, true)
+    else
+        self:_SetFollowUnit()
+    end
+end
+
+---============================================================================
+---!SECTION: Class Setters
+---SECTION: Class Functions
+---============================================================================
+
+---Returns whether the provided position in in view of the Camera.
+---@param position Vector2
+---@return boolean
+function FollowCamera:IsPositionInView(position)
+    local bounds = self:GetWorldSpaceBounds()
+
+    return position.x >= bounds.min.x
+        and position.x <= bounds.max.x
+        and position.y >= bounds.min.y
+        and position.y <= bounds.max.y
+end
+
+---============================================================================
+---!SECTION: Class Functions
+---SECTION: Class Library
+---============================================================================
+
+---Allows you to access the specific player's Camera
+---@param player_id integer
+---@return FollowCamera
+function FollowCamera.Fetch(player_id)
+    if not _Cameras[player_id] then
+        return FollowCamera.New(player_id)
+    else
+        return _Cameras[player_id]
+    end
+end
+
+---============================================================================
+---!SECTION: Class Library
+---SECTION: Developer
+---============================================================================
+
+if _Dev then
+    local main_camera = FollowCamera.Fetch(1)
+
+    local zoom_modifier = 0
+    local pitch_modifier = 0
+    local offset_modifier = Vector2.Zero()
+
+    _Dev.Events.Register("Camera Reset", function()
+        main_camera:ModifySize(-zoom_modifier, TICK_RATE, true)
+        main_camera:ModifyOffset(-offset_modifier)
+
+        main_camera:SetPitch(default_pitch, TICK_RATE, true)
+        main_camera:SetAngle(default_angle, TICK_RATE, true)
+
+        zoom_modifier = 0
+        offset_modifier = Vector2.Zero()
+
+        pitch_modifier = 0
+        main_camera:SetPitch(default_pitch, TICK_RATE, true)
+    end)
+
+    _Dev.Events.Register("Camera Zoom In", function()
+        local zoom_mod = 2
+        zoom_modifier = zoom_modifier + zoom_mod
+        main_camera:ModifySize(zoom_mod, TICK_RATE, true)
+
+        local pitch_mod = 1
+        pitch_modifier = pitch_modifier + pitch_mod
+        main_camera:SetPitch(main_camera.pitch + pitch_mod, TICK_RATE, true)
+    end)
+
+    _Dev.Events.Register("Camera Zoom Out", function()
+        local zoom_mod = -2
+        zoom_modifier = zoom_modifier + zoom_mod
+        main_camera:ModifySize(zoom_mod, TICK_RATE, true)
+
+        local pitch_mod = -1
+        pitch_modifier = pitch_modifier + pitch_mod
+        main_camera:SetPitch(main_camera.pitch + pitch_mod, TICK_RATE, true)
+    end)
+
+    _Dev.Events.Register("Camera Up", function()
+        local zoom_mod = Vector2.New(0, 1)
+        offset_modifier = offset_modifier + zoom_mod
+        main_camera:ModifyOffset(zoom_mod)
+    end)
+
+    _Dev.Events.Register("Camera Down", function()
+        local offset_mod = Vector2.New(0, -1)
+        offset_modifier = offset_modifier + offset_mod
+        main_camera:ModifyOffset(offset_mod)
+    end)
+
+    _Dev.Events.Register("Camera Left", function()
+        local offset_mod = Vector2.New(-1, 0)
+        offset_modifier = offset_modifier + offset_mod
+        main_camera:ModifyOffset(offset_mod)
+    end)
+
+    _Dev.Events.Register("Camera Right", function()
+        local offset_mod = Vector2.New(1, 0)
+        offset_modifier = offset_modifier + offset_mod
+        main_camera:ModifyOffset(offset_mod)
+    end)
+
+    _Dev.Events.Register("Camera Preset 1", function()
+        local target_zoom = 30
+        local target_pitch = default_pitch
+
+        -- Adjust for modifier
+        local zoom_change = target_zoom - zoom_modifier
+
+        -- Update Modifier Values
+        zoom_modifier = target_zoom
+        pitch_modifier = target_pitch
+
+        -- Update Camera
+        main_camera:ModifySize(zoom_change, TICK_RATE, true)
+        main_camera:SetPitch(default_pitch + pitch_modifier, TICK_RATE, true)
+    end)
+end
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return FollowCamera

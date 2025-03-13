@@ -1,0 +1,131 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+
+-- MODULE
+local StarExplosion = {}
+
+-- LOCAL FUNCTION
+local function CreateStar(end_pos, start_pos, offset_duration)
+    -- Create star ui
+    local star_layout = GMUI.Layout.New({
+        name = "Meta/Star",
+    })
+
+    -- Set starting position
+    local empty_offset = {right = 0, up = 0, front = 0}
+    DCEI.MoveFrameToCanvasPosition(star_layout.Frame, start_pos, empty_offset)
+
+    DCEI.WaitForUiUpdateToComplete(function()
+        -- Scale image up to make it pop in
+        local k1 = { x = 0, y = 0, z = 0 }
+        local k2 = { x = 1, y = 1, z = 1 }
+        local duration = 0.25
+        local ease = "OutBack"
+        DCEI.AnimateFrameScale(star_layout.Frame, k1, k2, duration, ease)
+
+        -- Calculate offsets
+        local layout_pos = DCEI.GetFrameCanvasPosition3D(star_layout.Frame)
+        local offset = {
+            x = end_pos.x - layout_pos.x,
+            y = end_pos.y - layout_pos.y,
+        }
+        star_layout.offset = offset
+
+        -- Animate offsets towards target
+        local duration = offset_duration or 0.1875
+        local ease = "InCubic"
+        DCEI.AnimateFrameHorizontalOffset(star_layout.Anchor, 0, offset.x, duration, "Linear")
+        DCEI.AnimateFrameVerticalOffset(star_layout.Anchor, 0, offset.y, duration, ease)
+
+        -- Reset to final position and remove all offsets so it moves to display frame correct
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            DCEI.MoveFrameToCanvasPosition(star_layout.Frame, end_pos, empty_offset)
+            DCEI.SetFrameHorizontalOffsetInParent(star_layout.Anchor, 0)
+            DCEI.SetFrameVerticalOffsetInParent(star_layout.Anchor, 0)
+        end, duration)
+    end)
+
+    return star_layout
+end
+
+local function GetStarExplosionOffsets(stars_to_spawn)
+    local function AddOffsetForCount(offsets, on_count, radius, count)
+        local x = radius * math.cos(((on_count * 2 * math.pi) / count))
+        local y = radius * math.sin(((on_count * 2 * math.pi) / count))
+        table.insert(offsets, { x, y })
+    end
+
+    local max_stars_inner = 10
+    local offsets = {}
+
+    -- space points evenly around edge of circle
+    local r = 0.5 -- a decent offset radius
+    local count = math.min(stars_to_spawn, max_stars_inner)
+
+    for n = 0, count - 1 do
+        AddOffsetForCount(offsets, n, r, count)
+    end
+
+    -- create 2nd ring if max inner stars exceeded
+    if count == max_stars_inner then
+        count = stars_to_spawn - max_stars_inner
+        r = 0.875
+
+        for n = 0, count - 1 do
+            AddOffsetForCount(offsets, n, r, count)
+        end
+    end
+
+    return offsets
+end
+
+-- MODULE FUNCTIONS
+function StarExplosion.PlayStarExplosionAnimation(frame)
+    -- Create stars for explosion
+    local stars = {}
+    local star_amount = 12
+    local max_multiplier = 280
+    local min_multiplier = 180
+    local offsets = GetStarExplosionOffsets(star_amount)
+    for _, offset in ipairs(offsets) do
+        -- Get target position from frame and calculate the offset
+        local target_pos = DCEI.GetFrameCanvasPosition3D(frame)
+        local offset_multiplier = math.random(min_multiplier, max_multiplier)
+        local offset_pos = {
+            x = target_pos.x + (offset[1] * offset_multiplier),
+            y = target_pos.y + (offset[2] * offset_multiplier),
+        }
+
+        -- Get a random duration
+        local min_duration = 0.2
+        local max_duration = 0.5
+        local duration = math.random()
+        duration = math.max(duration, min_duration)
+        duration = math.min(duration, max_duration)
+
+        -- Create the star ui and add to list
+        local star = CreateStar(offset_pos, target_pos, duration)
+        star.duration = duration
+        table.insert(stars, star)
+    end
+
+    -- Move all star ui elements
+    local delay = 0.125
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        for _, star in pairs(stars) do
+            local duration = star.duration
+            Animation.FadeOut(star.Frame, duration)
+
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                star:Destroy()
+            end, duration)
+        end
+    end, delay)
+end
+
+-- EXPORT
+return StarExplosion

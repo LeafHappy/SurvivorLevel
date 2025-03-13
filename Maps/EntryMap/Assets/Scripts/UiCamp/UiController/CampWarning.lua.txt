@@ -1,0 +1,51 @@
+-- Import animation functions.
+
+local UiUtil = require("UiUtil")
+
+-- Constructor function for the controller object. Automatically used in UI Editor by controller="Controller".
+return function(ui)
+    local Controller = {}
+    local layout = UiUtil.GetChildrenFrames(ui)
+
+    -- Define handlers of OnEnable/OnDisable event.
+    -- This implementation adds a floating animation to the UI frame.
+    function Controller:OnEnable()
+        self:Animate()
+    end
+    function Controller:OnDisable()
+        self:StopAnimate()
+    end
+
+    -- Define the public interface of this controller. This one only has a single Animate function.
+    function Controller:Animate()
+        local duration = 0.125
+        local start_rot = -2
+        local end_rot = 2
+        local k1 = { x = 0, y = 0, z = start_rot }
+        local k2 = { x = 0, y = 0, z = end_rot }
+        local ease = "Linear"
+        layout.anim = DCEI.AnimateFrameRotation(layout.Button, k1, k2, duration, ease)
+
+        DCEI.SetFrameAnimationLoops(layout.anim, -1, "Yoyo")
+        -- GMUI.RunFunctionAfterTimeElapsed(function()
+        --     local k1 = { x = 0, y = 0, z = 0 }
+        --     DCEI.AnimateFrameRotation(frame, k1, k1, 0, ease)
+        -- end, duration * 2)
+    end
+
+    function Controller:StopAnimate()
+        if layout and layout.anim then
+            DCEI.StopFrameAnimation(layout.anim, false)
+        end
+    end
+
+    -- Define helper UI to test the UI component in the UI previewer.
+    -- This OnPreview function will be called automatically when viewed in the UI previewer.
+    function Controller:OnPreview()
+        DCEI.SetOnClickCallback(layout.button, function()
+            DCEI.LogError("asd")
+            self:Animate()
+        end)
+    end
+    return Controller
+end

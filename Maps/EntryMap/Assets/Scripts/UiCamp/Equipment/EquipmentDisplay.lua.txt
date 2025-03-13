@@ -1,0 +1,138 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- DATA
+local DataManager = require("UiMeta/DataManager")
+local SkillTagData = require("SharedData/Skills/SkillTagData")
+local StatData = require("SharedData/Skills/StatData")
+local EquipmentDataHelper = require("SharedData/Class/EquipmentDataHelper")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- MODULE
+local EquipmentDisplay = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@param modifier ModifierData
+---@param compare_modifiers table<ModifierData>
+---@return number -- 0 = no change, 1 = positive change, 2 = negative change
+local function CompareEquipmentModifier(modifier, compare_modifiers)
+    local compare_value = 0
+    for _, compare_modifier in ipairs(compare_modifiers) do
+        if EquipmentDataHelper.CompareModifier(modifier, compare_modifier) then
+            if compare_modifier.Value < modifier.Value then
+                compare_value = 1
+            elseif compare_modifier.Value > modifier.Value then
+                compare_value = 2
+            end
+            break
+        end
+    end
+    return compare_value
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function EquipmentDisplay.Initialize(layout)
+    -- Create layout
+    layout.modifier_layouts = {}
+
+    ---@param parent table
+    ---@param tag SKILL_TAG
+    ---@return table
+    local function CreateTagLayout(parent, tag)
+        local tag_layout = GMUI.Layout.New({
+            name = "Camp/Vault/EquipmentPopup/Modifier/Tag",
+            parent = parent.TagContainer,
+        })
+
+        local skill_tag_data = SkillTagData[tag] or SkillTagData.Default
+        tag_layout.state.icon = skill_tag_data.Icon
+
+        return tag_layout
+    end
+
+    ---@param modifier_data ModifierData
+    ---@param compare_modifiers table<ModifierData> | nil
+    local function CreateModifierLayout(modifier_data, compare_modifiers)
+        local modifier_layout = GMUI.Layout.New({
+            name = "Camp/Vault/EquipmentPopup/Modifier",
+            parent = layout.Modifiers,
+        })
+
+        local mod_text = StatData.ConvertModifierDataToText(modifier_data)
+        modifier_layout.state.mod_text = mod_text
+
+        if modifier_data.Tags then
+            modifier_layout.tag_layouts = {}
+            for _, tag in ipairs(modifier_data.Tags) do
+                local tag_layout = CreateTagLayout(modifier_layout, tag)
+                table.insert(modifier_layout.tag_layouts, tag_layout)
+            end
+        end
+
+        if compare_modifiers then
+            local compare_value = CompareEquipmentModifier(modifier_data, compare_modifiers)
+            modifier_layout.state.compare = compare_value
+        end
+
+        table.insert(layout.modifier_layouts, modifier_layout)
+    end
+
+    ---@param equipment_save_data EquipmentSaveData
+    ---@param compare_equipment_save_data EquipmentSaveData | nil
+    function layout.Populate(equipment_save_data, compare_equipment_save_data)
+        compare_equipment_save_data = compare_equipment_save_data or {}
+        compare_equipment_save_data.modifiers = compare_equipment_save_data.modifiers
+
+        for _, modifier_layout in ipairs(layout.modifier_layouts) do
+            modifier_layout:Destroy()
+        end
+
+        local modifiers = equipment_save_data.modifiers
+        for _, modifier in ipairs(modifiers) do
+            CreateModifierLayout(modifier, compare_equipment_save_data.modifiers)
+        end
+
+        local display_data = DataManager.GetEquipmentDisplayData(equipment_save_data.id)
+        if not display_data then
+            return
+        end
+
+        layout.state.name = display_data.Name
+        layout.state.icon = display_data.Icon
+    end
+
+    return layout
+end
+
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return EquipmentDisplay

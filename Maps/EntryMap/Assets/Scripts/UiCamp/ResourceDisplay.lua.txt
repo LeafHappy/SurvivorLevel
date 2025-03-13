@@ -1,0 +1,195 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local DataManager = require("UiMeta/DataManager")
+local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local FlyingLocationData = require("UiMeta/FlyingLocationData")
+local ui = GMUI.ui
+
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- MODULE
+local ResourceDisplay = {}
+ResourceDisplay.animation_values = {}
+ResourceDisplay.animation_values.start = {}
+ResourceDisplay.animation_values.do_animation = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@return number
+local function GetBarFill(currency_type)
+    if not ui.GameState[currency_type].value then
+        ui.GameState[currency_type].value = 0
+    end
+
+    local percentage = ui.GameState[currency_type].value / ui.GameState[currency_type].limit
+    return math.min(percentage, 1)
+end
+
+---@param currency_type TRACKED_STATS
+---@param value_expression string
+---@param parent Layout
+local function CreateResourceBar(currency_type, value_expression, parent)
+    local layout = GMUI.Layout.New({
+        name = "Camp/Overlay/Resources/Item",
+        parent = parent.Frame,
+    })
+
+    layout.state.icon = DisplayedGameStats[currency_type].Icon
+    DCEI.SetTextFrameTextExpression(layout.Label, value_expression)
+    DCEI.SetFrameImageFillAmountExpression(layout.Mask, "Game." .. currency_type .. ".fill")
+
+    DCEI.WaitForUiUpdateToComplete(function()
+        if FlyingLocationData[currency_type] then
+            FlyingLocationData[currency_type].frame = layout.Frame
+        end
+    end)
+end
+
+local function AnimateValueOverTime(currency_type)
+    -- Setup values
+    local start_value = ResourceDisplay.animation_values.start[currency_type]
+    local end_value = DataManager.GetInventoryItem(currency_type)
+
+    -- Setup animation arguments
+    local args = {
+        duration = 0.5,
+        do_round = true,
+        start_value = start_value,
+        end_value = end_value,
+    }
+
+    -- Animate value over timer
+    Animation.ValueOverTime(function(value)
+        ui.GameState[currency_type].value = value
+        ui.GameState[currency_type].fill = GetBarFill(currency_type)
+    end, args)
+
+    -- Reset after duration of animation
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        ui.GameState[currency_type].value = end_value
+        ui.GameState[currency_type].fill = GetBarFill(currency_type)
+
+        ResourceDisplay.animation_values.do_animation[currency_type] = false
+    end, args.duration)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function ResourceDisplay.SetStartAnimationValue(currency_type, value)
+    ResourceDisplay.animation_values.start[currency_type] = value
+    ResourceDisplay.animation_values.do_animation[currency_type] = true
+end
+
+function ResourceDisplay.UpdateBar(currency_type, target_amount, skip_animation)
+    -- Check to animate over time or not
+    if ResourceDisplay.animation_values.do_animation[currency_type] and not skip_animation then
+        -- Wait a little for the fly animation
+        local fly_delay = 0.15
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            AnimateValueOverTime(currency_type)
+        end, fly_delay)
+    elseif target_amount then
+        ui.GameState[currency_type].value = target_amount
+        ui.GameState[currency_type].fill = GetBarFill(currency_type)
+    end
+end
+
+function ResourceDisplay.Create(parent)
+    CreateResourceBar(TRACKED_STATS.Wood, "{Game." .. TRACKED_STATS.Wood .. ".value}", parent)
+    CreateResourceBar(TRACKED_STATS.Stone, "{Game." .. TRACKED_STATS.Stone .. ".value}", parent)
+    CreateResourceBar(TRACKED_STATS.Pumpkin, "{Game." .. TRACKED_STATS.Pumpkin .. ".value}", parent)
+    CreateResourceBar(TRACKED_STATS.Meat, "{Game." .. TRACKED_STATS.Meat .. ".value}", parent)
+    CreateResourceBar(TRACKED_STATS.Gold, "{Game." .. TRACKED_STATS.Gold .. ".value}", parent)
+    CreateResourceBar(TRACKED_STATS.Gems, "{Game." .. TRACKED_STATS.Gems .. ".value}", parent)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+---@param amount number
+local function SetWood(amount)
+    local currency_type = TRACKED_STATS.Wood
+    ui.GameState[currency_type].value = amount
+    ResourceDisplay.UpdateBar(currency_type, amount, true)
+end
+
+---@param amount number
+local function SetStone(amount)
+    local currency_type = TRACKED_STATS.Stone
+    ui.GameState[currency_type].value = amount
+    ResourceDisplay.UpdateBar(currency_type, amount, true)
+end
+
+---@param amount number
+local function SetPumpkin(amount)
+    local currency_type = TRACKED_STATS.Pumpkin
+    ui.GameState[currency_type].value = amount
+    ResourceDisplay.UpdateBar(currency_type, amount, true)
+end
+
+---@param amount number
+local function SetMeat(amount)
+    local currency_type = TRACKED_STATS.Meat
+    ui.GameState[currency_type].value = amount
+    ResourceDisplay.UpdateBar(currency_type, amount, true)
+end
+
+---@param amount number
+local function SetGems(amount)
+    local currency_type = TRACKED_STATS.Gems
+    ui.GameState[currency_type].value = amount
+    ResourceDisplay.UpdateBar(currency_type, amount, true)
+end
+
+---@param amount number
+local function SetGold(amount)
+    local currency_type = TRACKED_STATS.Gold
+    ui.GameState[currency_type].value = amount
+    ResourceDisplay.UpdateBar(currency_type, amount, true)
+end
+
+---@param limit number
+local function SetGoldLimit(limit)
+    local currency_type = TRACKED_STATS.Gold
+    ui.GameState[currency_type].limit = limit
+    ui.GameState[currency_type].fill = GetBarFill(currency_type)
+end
+
+Core.Event.RegisterPresentationEvent("Camp.Overlay.SetWood", SetWood)
+Core.Event.RegisterPresentationEvent("Camp.Overlay.SetStone", SetStone)
+Core.Event.RegisterPresentationEvent("Camp.Overlay.SetPumpkin", SetPumpkin)
+Core.Event.RegisterPresentationEvent("Camp.Overlay.SetMeat", SetMeat)
+Core.Event.RegisterPresentationEvent("Camp.Overlay.SetGems", SetGems)
+Core.Event.RegisterPresentationEvent("Camp.Overlay.SetGold", SetGold)
+Core.Event.RegisterPresentationEvent("Camp.Overlay.SetGoldLimit", SetGoldLimit)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+-- EXPORT
+return ResourceDisplay

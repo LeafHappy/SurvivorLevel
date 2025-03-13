@@ -1,0 +1,261 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.Heatwave = {
+    Key = "Heatwave",
+
+    -- UI Information
+    DisplayName = "Heatwave",
+    ShortDescription = "Release a wave of fire.",
+    Icon = DCEI.Texture("cartoon_icon_skill_flamebreak_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Heatwave,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Heatwave"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 0.25, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+                Modifier.New(STAT.Cooldown, 5, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+                Modifier.New(STAT.CastRange, 6.00, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+
+                -- Impact
+                Modifier.New(STAT.SkillSize, 4.00, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+
+                -- Explosion
+                Modifier.New(STAT.Damage, 100, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+                Modifier.New(STAT.AreaDamage, 1.00, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+
+                -- Extras
+
+                -- Reset
+                Modifier.New(STAT.Break, 0, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+                Modifier.New(STAT.DebuffDuration, 0, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.Heatwave] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.Heatwave,
+
+            -- Exposed Tags
+            SKILL_TAG.Fire,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.FlameSwell = {
+    Key = "FlameSwell",
+
+    -- UI Information
+    DisplayName = "Flame Swell",
+    ShortDescription = "Fire Skills gain Increased Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_flamebreak_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_seagod_skill_flowingaegis"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Fire,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Heatwave,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.20, SCALING.Additive, { SKILL_TAG.Fire }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.VitalSurge = {
+    Key = "VitalSurge",
+
+    -- UI Information
+    DisplayName = "Vital Surge",
+    ShortDescription = "Gain Health Regeneration.",
+    Icon = DCEI.Texture("cartoon_icon_skill_flamebreak_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_scorchedearth_skill_flamebornvitality"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Heatwave,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.HealthRegeneration, 1, SCALING.Scaled),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+Data.Meltdown = {
+    Key = "Meltdown",
+
+    -- UI Information
+    DisplayName = "Meltdown",
+    ShortDescription = "Heatwave inflicts Break on enemies, causing them to take additional damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_flamebreak_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Heatwave,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Heatwave,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Break, 5, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+                Modifier.New(STAT.DebuffDuration, 10, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Detonation = {
+    Key = "Detonation",
+
+    -- UI Information
+    DisplayName = "Detonation",
+    ShortDescription = "Heatwave deals even more damage with a larger radius.",
+    Icon = DCEI.Texture("cartoon_icon_skill_flamebreak_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Heatwave,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Heatwave,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.50, SCALING.Additive, { SKILL_TAG.Heatwave }),
+                Modifier.New(STAT.SkillSize, 0.25, SCALING.Additive, { SKILL_TAG.Heatwave }),
+                -- Modifier.New(STAT.BaseAttackTime, 1, SCALING.Scaled, { SKILL_TAG.Heatwave }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.Heatwave] = {
+            SKILL_TAG.Explosive,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+return Data

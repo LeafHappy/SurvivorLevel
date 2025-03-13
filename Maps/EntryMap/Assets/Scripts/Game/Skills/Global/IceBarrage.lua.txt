@@ -1,0 +1,256 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Ice Barrage"),
+
+    -- Behaviors
+    ProjectileSpeed = DCEI.Behavior("Skill - Ice Barrage - Projectile Speed"),
+
+    -- Effects
+    Trigger = DCEI.Effect("Skill - Ice Barrage - Trigger"),
+    Launch = DCEI.Effect("Skill - Ice Barrage - Launch"),
+
+    -- Collision Effects
+    OnEnter = DCEI.Effect("Skill - Ice Barrage - OnEnter"),
+    Damage = DCEI.Effect("Skill - Ice Barrage - Damage"),
+    Break = DCEI.Effect("Skill - Ice Barrage - Break"),
+    Stagger = DCEI.Effect("Skill - Ice Barrage - Stagger"),
+    Slow = DCEI.Effect("Skill - Ice Barrage - Slow"),
+
+    -- VFX
+    ImpactVFX = DCEI.Effect("Skill - Ice Barrage - Impact VFX"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Skill - Ice Barrage - Projectile"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Ice Barrage - Projectile") }),
+
+    -- Ice Fracture
+    IceFractureChance = DCEI.Effect("Skill - Ice Barrage - Ice Fracture - Chance"),
+    IceFractureTrigger = DCEI.Effect("Skill - Ice Barrage - Ice Fracture - Trigger"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+local MODEL_SCALE_TIME = 0.05
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SkillData.IceBarrage.Key)
+
+    -- Collision
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, TICK_RATE),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Model Scale
+    local model_scale = size * Help.RandomNumber(0.75, 1.25) -- Gives some variance to the visual size
+    Help.SetModelScale(instance, model_scale, MODEL_SCALE_TIME, Ease.OutCubic)
+
+    local health = hero:GetStat(STAT.ProjectileHealth, tags)
+    SimpleUnit.ModifyHealth(instance, health)
+end
+
+---comment
+---@param hero Hero
+---@param spawn_position Vector2
+---@param target_position Vector2
+local function LaunchProjectile(hero, spawn_position, target_position)
+    local tags = hero:GetInheritedTags(SKILL_TAG.IceBarrage)
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_speed_stacks = math.floor(projectile_speed * 100)
+
+    local distance = Vector2.Distance(spawn_position, target_position)
+    local duration = distance / projectile_speed + 0.10 -- Padding Duration
+
+    local caster = Help.CreateEffect(hero.player_id, REF.Launch, spawn_position, target_position, duration)
+    Core.Unit.SetBehaviorCount(caster, REF.ProjectileSpeed, projectile_speed_stacks)
+end
+
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    --
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.IceBarrage)
+    local count = hero:GetStat(STAT.ProjectileCount, tags)
+    local projectile_distance = hero:GetStat(STAT.SkillRange, tags)
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local collision_size = hero:GetStat(STAT.CollisionSize)
+
+    local condition = function()
+        return hero and Help.ValidateUnit(hero.unit)
+    end
+
+    local action = function()
+        local hero_position = hero:GetPosition()
+        local hero_forward = Vector2.UnitForward(hero.unit)
+
+        local spawn_position = hero_position + Vector2.RandomInside(collision_size + projectile_size)
+        local target_position = spawn_position + hero_forward * projectile_distance
+
+        LaunchProjectile(hero, spawn_position, target_position)
+    end
+
+    Help.PeriodicGameTimer(count, frequency, condition, action)
+end
+
+---@param ctx EffectContext
+local function OnIceFractureTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.IceBarrage)
+    local projectile_distance = hero:GetStat(STAT.SkillRange, tags)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local collision_size = projectile_size + 0.50 -- Estimate of target's collision size so we don't hit the same target
+
+    local target_position = Vector2.NewFromTable(ctx.target_location)
+    local random_direction = Vector2.Random()
+    local spawn_position = target_position + random_direction * collision_size
+    local launch_position = spawn_position + random_direction * projectile_distance
+
+    LaunchProjectile(hero, spawn_position, launch_position)
+end
+
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Initialized Data
+    _Heroes[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Launch, EJS.Launch.Impact.Distance),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.Break] = {
+        EffectPath.New(REF.Break, EJS.DamageIntake.Unscaled),
+    },
+    [STAT.DebuffDuration] = {
+        EffectPath.New(REF.Break, EJS.DamageIntake.Duration),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+    [STAT.Chance] = {
+        EffectPath.New(REF.IceFractureChance, EJS.Chance),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Additive, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        -- Initialize Hero Data
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Hero Events
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.IceBarrage)
+
+    -- Apply Projectile Speed Behavior
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_speed_stacks = math.floor(projectile_speed * 100)
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileSpeed, projectile_speed_stacks)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+DCEI.TriggerAddEffectEvent(REF.IceFractureTrigger, OnIceFractureTrigger, true)
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

@@ -1,0 +1,725 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+local Help = require("UiHelp")
+
+-- DATA
+local Heroes = require("SharedData/Heroes")
+local GameStats = require("SharedData/GameStats")
+local SkillData = require("SharedData/Skills/SkillData")
+-- local Upgrades = require("SharedData/Upgrades")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Data
+---============================================================================
+
+local HOSTILES = {
+    GameStats["Runner"],
+    GameStats["Banshee"],
+    GameStats["Walker"],
+    GameStats["Marauder"],
+    GameStats["Boomer"],
+    GameStats["Brute"],
+}
+
+local BOSS_INFO = {
+    {
+        Key = "Shieldbearer",
+        Icon = GameStats["Shieldbearer"].Icon,
+    },
+    {
+        Key = "Alchemist",
+        Icon = GameStats["Alchemist"].Icon,
+    },
+    {
+        Key = "SkeletonKing",
+        Icon = GameStats["Skeleton King"].Icon,
+    },
+    {
+        Key = "Knight",
+        Icon = GameStats["Knight"].Icon,
+    },
+    {
+        Key = "Giant",
+        Icon = GameStats["Giant"].Icon,
+    },
+    {
+        Key = "Fulminyx",
+        Icon = GameStats["Fulminyx"].Icon,
+    },
+    {
+        Key = "Reaper",
+        Icon = GameStats["Reaper"].Icon,
+    },
+}
+
+local SKILL_TYPE_COLORS = {
+    -- Orange
+    [SKILL_TYPE.Active] = "#bd4415ff",
+    -- Light Blue
+    [SKILL_TYPE.Passive] = "#abdbe3ff",
+    -- Purple?
+    [SKILL_TYPE.Unique] = "#ff00aaff",
+}
+
+-- LAYOUT
+local Layout = GMUI.Layout.New({
+    name = "Test/Configuration",
+    parent = ui.z1.Lower,
+})
+
+local _Options = {
+    Hero = Heroes[1],
+    MetaLevel = 1,
+    Upgrades = {},
+    Bosses = {
+        -- Example:
+        -- [1] = {
+        --     Active = true,
+        --     Key = "Shieldbearer",
+        -- },
+    },
+    Hostiles = {
+        -- Example:
+        -- [1] = {
+        --     Active = true,
+        --     Key = "Walker",
+        --     Count = 100,
+        -- },
+    },
+    Settings = {
+        Difficulty = 10,
+        SpawnImmediately = true,
+        RandomizeHero = false,
+        AutoLevel = false,
+        TargetHeroLevel = 10,
+        TimedReset = false,
+        TimedResetTime = 30,
+    },
+}
+
+local _Stars = {}
+local _SkillSlots = {}
+local _Bosses = {}
+local _Hostiles = {}
+
+---TODO: Turn this into SaveData for Test Mode.
+-- Allows you to quickly set the listed skills as active.
+local _ActiveSkillConfigurations = {
+    ---ANCHOR: Survivors
+
+    ---ANCHOR: Annie
+
+    -- -- Marked for Death
+    -- SkillData.MarkedForDeath,
+    -- SkillData.KillStreak,
+    -- SkillData.UnstableMarker,
+
+    -- -- Annie Passives
+    -- SkillData.Scavenger,
+    -- SkillData.EvasiveManeuvers,
+    -- SkillData.SpeedForce,
+
+    -- -- Strafe
+    -- SkillData.Strafe,
+    -- SkillData.Agility,
+    -- SkillData.SpectralArrow,
+    -- SkillData.HighVelocity,
+    -- SkillData.Trickshot,
+
+    -- SkillData.QuickDraw,
+
+    ---ANCHOR: Jorian
+    -- SkillData.FrostGuard,
+    -- SkillData.IceSplash,
+    -- SkillData.FrostboundFrenzy,
+
+    ---ANCHOR: Stage Skills
+
+    ---ANCHOR: Stage 1
+
+    -- Bash
+    -- SkillData.Bash,
+    -- SkillData.DeadlyReach,
+    -- SkillData.ImpactForce,
+    -- SkillData.HollowStrike,
+    -- SkillData.DoubleStrike,
+
+    -- Boomerang
+    -- SkillData.Boomerang,
+    -- SkillData.PowerThrow,
+    -- SkillData.Precision,
+    -- SkillData.Snapback,
+    -- SkillData.DoubleThrow,
+
+    -- Guardian Shield
+    -- SkillData.GuardianShield,
+    -- SkillData.BluntForce,
+    -- SkillData.TakeCover,
+    -- SkillData.Bodyguard,
+    -- SkillData.Concussion,
+
+    ---ANCHOR: Stage 2
+
+    -- Fireball
+    -- SkillData.Fireball,
+    -- SkillData.BloodBoil,
+    -- SkillData.BurningCrusade,
+    -- SkillData.Flamethrower,
+    -- SkillData.FlameExtension,
+
+    -- Heatwave
+    -- SkillData.Heatwave,
+    -- SkillData.FlameSwell,
+    -- SkillData.VitalSurge,
+    -- SkillData.Meltdown,
+    -- SkillData.Detonation,
+
+    ---ANCHOR: Stage 3
+
+    -- Tesla Field
+    -- SkillData.TeslaField,
+    -- SkillData.Energize,
+    -- SkillData.Magnetism,
+    -- SkillData.StaticDischarge,
+    -- SkillData.ClosedCircuit,
+
+    -- Lightning Strike
+    -- SkillData.LightningStrike,
+    -- SkillData.Surge,
+    -- SkillData.Amplify,
+    -- SkillData.LightningDouble,
+    -- SkillData.LightningSplash,
+
+    ---ANCHOR: Stage 4
+
+    -- -- Ice Barrage
+    -- SkillData.IceBarrage,
+    -- SkillData.Permafrost,
+    -- SkillData.ColdShoulder,
+    -- SkillData.IceFracture,
+    -- SkillData.SnowPiercer,
+
+    -- -- Ice Rupture
+    -- SkillData.IceRupture,
+    -- SkillData.Frostborn,
+    -- SkillData.FrostfieldPlate,
+    -- SkillData.GlacialExpansion,
+    -- SkillData.IceLocked,
+
+    ---ANCHOR: Stage 5
+
+    -- Magma Orb
+    -- SkillData.MagmaOrb,
+    -- SkillData.InfernalEngine,
+    -- SkillData.Everflame,
+    -- SkillData.MoltenCore,
+    -- SkillData.Returnal,
+
+    -- Static Remnants
+    -- SkillData.StaticRemnants,
+    -- SkillData.Overcharge,
+    -- SkillData.Flux,
+    -- SkillData.StormSerpent,
+    -- SkillData.Accumulator,
+
+    ---ANCHOR: Stage 6
+
+    -- Frostfang
+    -- SkillData.Frostfang,
+    -- SkillData.FrostStrider,
+    -- SkillData.ColdStepping,
+    -- SkillData.Hibernation,
+    -- SkillData.ScatterHail,
+
+    -- Chakram
+    -- SkillData.Chakram,
+    -- SkillData.Juggernaut,
+    -- SkillData.PressurePoint,
+    -- SkillData.Rend,
+    -- SkillData.HyperGlaives,
+
+    ---ANCHOR: TBD
+
+    -- Blade Trap
+    -- SkillData.BladeTrap,
+    -- SkillData.Persistence,
+    -- SkillData.Rearm,
+    -- SkillData.Maim,
+    -- SkillData.SeekingBlades,
+
+    -- Frost Blast
+    -- SkillData.FrostBlast,
+}
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+---Converts a String to a Number
+---@param input string
+---@param min_value number
+---@return number?
+local function InputToNumber(input, min_value)
+    input = input:gsub("%D", "") -- Force to number
+    input = (input == "") and 0 or input -- Empty Input
+
+    input = tonumber(input) -- Convert to Number
+    input = (input < min_value) and min_value or input -- Minimum Value
+    return tonumber(input)
+end
+
+---============================================================================
+---ANCHOR: Star Buttons
+---============================================================================
+
+---Set the Meta Level and Update the Star Buttons Display
+---@param index number
+local function OnStarButtonPress(index)
+    if _Options.MetaLevel == index then
+        _Options.MetaLevel = 0
+    else
+        _Options.MetaLevel = index
+    end
+
+    -- Update Star Display
+    for i = 1, #_Stars do
+        local alpha = (i <= _Options.MetaLevel) and 1 or 0.2
+        DCEI.SetFrameAlpha(_Stars[i].Button, alpha)
+    end
+end
+
+---Generates Star Buttons to represent the Hero Meta Level
+---First Star is Active, the rest are Inactive
+---First 5 Stars are Standard Levels, the second 5 Stars are Ascended Levels
+---@param parent Layout
+---@param index number
+local function GenerateStarLayout(parent, index)
+    -- Generate Stars
+    local star_layout = GMUI.Layout.New({
+        name = "Test/Configuration/Star",
+        parent = parent,
+    })
+
+    -- Initial States
+    -- 1: Active
+    -- 2: Inactive
+    -- 6+: Red Star Inactive
+
+    -- Set Frame Image Color
+    local color = (index <= 5) and "#ffffff" or "#ff0000"
+    local alpha = (index == 1) and 1 or 0.2
+
+    DCEI.SetFrameImageColor(star_layout.Button, color)
+    DCEI.SetFrameAlpha(star_layout.Button, alpha)
+
+    DCEI.SetOnClickCallback(star_layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        OnStarButtonPress(index)
+    end)
+
+    _Stars[index] = star_layout
+end
+
+---============================================================================
+---ANCHOR: Skill Buttons
+---============================================================================
+
+local function OnSkillButtonPress(index)
+    -- Toggles Active State
+
+    local layout = _SkillSlots[index].Layout
+    _SkillSlots[index].IsActive = not _SkillSlots[index].IsActive
+
+    local state = layout.state
+    state.is_active = _SkillSlots[index].IsActive
+end
+
+---comment
+---@param parent Layout
+---@param index integer
+---@param skill_data SkillData
+local function GenerateSkillSlotLayout(parent, index, skill_data)
+    --
+    local skill_layout = GMUI.Layout.New({
+        name = "Test/Configuration/SkillSlot",
+        parent = parent,
+    })
+
+    -- Setup Display Information
+    DCEI.SetTextFrameText(skill_layout.Label, skill_data.DisplayName)
+    DCEI.SetFrameImage(skill_layout.Button, skill_data.Icon)
+
+    if skill_data.SecondaryIcon then
+        DCEI.SetFrameImage(skill_layout.SecondaryIcon, skill_data.SecondaryIcon)
+    end
+
+    -- Callback
+    DCEI.SetOnClickCallback(skill_layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        OnSkillButtonPress(index)
+    end)
+
+    -- Set Color
+    local color = SKILL_TYPE_COLORS[skill_data.Type]
+    skill_layout.state.frame_color = color
+
+    -- Set Active State
+    local is_active = false
+    if Core.Table.Contains(_ActiveSkillConfigurations, skill_data) then
+        is_active = true
+    end
+    skill_layout.state.is_active = is_active
+
+    _SkillSlots[index] = {
+        Layout = skill_layout,
+        Upgrade = skill_data,
+        IsActive = is_active, -- Default State
+    }
+end
+
+---============================================================================
+---ANCHOR: Boss Buttons
+---============================================================================
+
+local function OnBossButtonPress(index)
+    _Options.Bosses[index].Active = not _Options.Bosses[index].Active
+
+    -- Set State
+    local state = _Bosses[index].Layout.state
+    state.is_active = not state.is_active
+end
+
+local function GenerateBossLayout(parent, index, boss_info)
+    --
+    local boss_layout = GMUI.Layout.New({
+        name = "Test/Configuration/Boss",
+        parent = parent,
+    })
+
+    -- Set state
+    local state = boss_layout.state
+    state.is_active = false
+    state.icon = boss_info.Icon
+
+    -- Callbacks
+    DCEI.SetOnClickCallback(boss_layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        OnBossButtonPress(index)
+    end)
+
+    _Bosses[index] = {
+        Layout = boss_layout,
+    }
+
+    _Options.Bosses[index] = {
+        Active = false,
+        Key = boss_info.Key,
+    }
+end
+
+---============================================================================
+---ANCHOR: Hostile Buttons
+---============================================================================
+
+---Set whether this Hostile is Active or not.
+---@param index integer
+local function OnHostileButtonPress(index)
+    _Options.Hostiles[index].Active = not _Options.Hostiles[index].Active
+
+    -- Set state
+    local state = _Hostiles[index].Layout.state
+    state.is_active = _Options.Hostiles[index].Active
+end
+
+-- Increase the Count by 25 and Update the Display
+---@param index integer
+local function OnHostileUpArrowButtonPress(index)
+    local current = _Options.Hostiles[index].Count
+    local change = (current >= 25) and 25 or 5
+
+    _Options.Hostiles[index].Count = _Options.Hostiles[index].Count + change
+
+    if _Options.Hostiles[index].Count > 300 then
+        _Options.Hostiles[index].Count = 300
+    end
+
+    DCEI.SetTextFrameText(_Hostiles[index].Layout.Label, _Options.Hostiles[index].Count)
+end
+
+---Reduce the Count by 25 and Update the Display
+---@param index integer
+local function OnHostileDownArrowButtonPress(index)
+    local current = _Options.Hostiles[index].Count
+    local change = (current > 25) and 25 or 5
+
+    _Options.Hostiles[index].Count = _Options.Hostiles[index].Count - change
+
+    if _Options.Hostiles[index].Count < 5 then
+        _Options.Hostiles[index].Count = 5
+    end
+
+    DCEI.SetTextFrameText(_Hostiles[index].Layout.Label, _Options.Hostiles[index].Count)
+end
+
+---Generate a Hostile Layout Component
+---@param parent Layout
+---@param index integer
+---@param hostile_data any
+---@param start_active boolean | nil Default: false
+local function GenerateHostileLayout(parent, index, hostile_data, start_active)
+    if not start_active then
+        start_active = false
+    end
+
+    --
+    local hostile_layout = GMUI.Layout.New({
+        name = "Test/Configuration/Hostile",
+        parent = parent,
+    })
+
+    -- Set state
+    local state = hostile_layout.state
+    state.is_active = start_active
+
+    -- Set Display Information
+    DCEI.SetFrameImage(hostile_layout.Icon, hostile_data.Icon)
+    DCEI.SetTextFrameText(hostile_layout.Label, "100") -- Default Count
+
+    -- Callbacks
+    DCEI.SetOnClickCallback(hostile_layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        OnHostileButtonPress(index)
+    end)
+
+    DCEI.SetOnClickCallback(hostile_layout.Up, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        OnHostileUpArrowButtonPress(index)
+    end)
+
+    DCEI.SetOnClickCallback(hostile_layout.Down, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        OnHostileDownArrowButtonPress(index)
+    end)
+
+    _Hostiles[index] = {
+        Layout = hostile_layout,
+    }
+
+    _Options.Hostiles[index] = {
+        Active = start_active,
+        Key = hostile_data.Key,
+        Count = 100,
+    }
+end
+
+local function OnConfirmationButtonPress()
+    -- Close GUI
+    Layout:Hide()
+
+    -- Check: Randomize Hero
+    if _Options.Settings.RandomizeHero then
+        _Options.Hero = Heroes[math.random(1, #Heroes)]
+    end
+
+    -- Check: Upgrade Options
+    _Options.Upgrades = {}
+    for _, value in pairs(_SkillSlots) do
+        if value.IsActive then
+            table.insert(_Options.Upgrades, value.Upgrade)
+        end
+    end
+
+    -- Check: GUI Spawn Toggle
+    ui.test.gui:SetSpawningActive(_Options.Settings.SpawnImmediately)
+
+    -- Send Data to the Game
+    Core.Event.SendSimulationEvent("test.configuration.confirm", _Options)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Custom Functions
+---============================================================================
+
+function Layout:Initialize()
+    self:OnShow()
+
+    ---ANCHOR: Survivor Options
+
+    -- Hero Button Press (Hero Select)
+    DCEI.SetOnClickCallback(self.HeroSelect.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ui.test.configuration.hero_select:Show()
+    end)
+
+    -- Generate Stars
+    for i = 1, 10 do
+        GenerateStarLayout(self.StarContainer, i)
+    end
+
+    -- Generate Skill Container
+    -- First, sort the Skill Data
+    local sorted_skill_data = {}
+    for _, skill_data in pairs(SkillData) do
+        table.insert(sorted_skill_data, skill_data)
+    end
+
+    -- Sort by Key
+    table.sort(sorted_skill_data, function(a, b)
+        return a.Key < b.Key
+    end)
+
+    -- Generate Skill Container
+    for i = 1, #sorted_skill_data do
+        GenerateSkillSlotLayout(self.SkillContainer, i, sorted_skill_data[i])
+    end
+
+    ---ANCHOR: Spawning Options
+
+    -- Boss Buttons
+    for i = 1, #BOSS_INFO do
+        GenerateBossLayout(self.BossContainer, i, BOSS_INFO[i])
+    end
+
+    -- Hostile Buttons
+    for i = 1, #HOSTILES do
+        local is_active = (i == 3)
+        -- local is_active = false
+        GenerateHostileLayout(self.HostileContainer, i, HOSTILES[i], is_active)
+    end
+
+    -- Set Initial Difficulty
+    DCEI.SetInputFrameText(self.Difficulty.Input, _Options.Settings.Difficulty)
+
+    DCEI.SetOnClickOutsideCallback(self.Difficulty.Input, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local input = DCEI.GetInputFrameText(self.Difficulty.Input)
+        input = InputToNumber(input, 0)
+
+        DCEI.SetInputFrameText(self.Difficulty.Input, input)
+        _Options.Settings.Difficulty = tonumber(input)
+    end)
+
+    -- Spawn Immediately Checkbox
+    self.SpawnCheckbox.state.is_active = _Options.Settings.SpawnImmediately
+    DCEI.SetOnClickCallback(self.SpawnCheckbox.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local state = self.SpawnCheckbox.state
+        state.is_active = not state.is_active
+        _Options.Settings.SpawnImmediately = state.is_active
+    end)
+
+    ---ANCHOR: Settings
+
+    -- Randomize Hero Toggle
+    DCEI.SetOnClickCallback(self.Settings.RandomizeHero.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local state = self.Settings.RandomizeHero.state
+        state.is_active = not state.is_active
+
+        _Options.Settings.RandomizeHero = state.is_active
+    end)
+
+    -- Starting Level Toggle
+    DCEI.SetOnClickCallback(self.Settings.InputLevel.Checkbox.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local state = self.Settings.InputLevel.Checkbox.state
+        state.is_active = not state.is_active
+        self.Settings.InputLevel.state.is_active = state.is_active
+
+        _Options.Settings.AutoLevel = state.is_active
+    end)
+
+    -- Starting Level Default Value
+    DCEI.SetInputFrameText(self.Settings.InputLevel.Input.Input, _Options.Settings.TargetHeroLevel)
+
+    -- Starting Level Input
+    DCEI.SetOnClickOutsideCallback(self.Settings.InputLevel.Input.Input, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local input = DCEI.GetInputFrameText(self.Settings.InputLevel.Input.Input)
+        input = InputToNumber(input, 2)
+
+        DCEI.SetInputFrameText(self.Settings.InputLevel.Input.Input, input)
+        _Options.Settings.TargetHeroLevel = tonumber(input)
+    end)
+
+    -- Timed Reset Toggle
+    DCEI.SetOnClickCallback(self.Settings.InputTimer.Checkbox.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local state = self.Settings.InputTimer.Checkbox.state
+        state.is_active = not state.is_active
+        self.Settings.InputTimer.state.is_active = state.is_active
+
+        _Options.Settings.TimedReset = state.is_active
+    end)
+
+    -- Timed Reset Default Value
+    DCEI.SetInputFrameText(self.Settings.InputTimer.Input.Input, _Options.Settings.TimedResetTime)
+
+    -- Timed Reset Input
+    DCEI.SetOnClickOutsideCallback(self.Settings.InputTimer.Input.Input, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local input = DCEI.GetInputFrameText(self.Settings.InputTimer.Input.Input)
+        input = InputToNumber(input, 5)
+
+        DCEI.SetInputFrameText(self.Settings.InputTimer.Input.Input, input)
+        _Options.Settings.TimedResetTime = tonumber(input)
+    end)
+
+    ---ANCHOR: Confirmation
+
+    -- Confirmation
+    DCEI.SetOnClickCallback(self.Confirm.Button, OnConfirmationButtonPress)
+
+    self:Hide()
+end
+
+function Layout:UpdateSelectedHero(hero_data)
+    _Options.Hero = hero_data
+
+    DCEI.SetFrameImage(self.HeroSelect.Button, hero_data.Portrait)
+
+    -- This will also have to update the first Skill Slot (which it locked based on the selected hero)
+end
+
+function Layout:SetActive(auto_start)
+    if auto_start then
+        OnConfirmationButtonPress()
+    else
+        self:Show()
+    end
+end
+
+---============================================================================
+---!SECTION: Custom Functions
+---SECTION: Core Functions
+---============================================================================
+
+function Layout:OnShow(auto_start)
+    --
+    if auto_start then
+        OnConfirmationButtonPress()
+    end
+end
+
+function Layout:OnHide()
+    --
+    -- ui.test.configuration:Hide()
+end
+
+---============================================================================
+---!SECTION: Core Functions
+---============================================================================
+
+Layout:Initialize()
+return Layout

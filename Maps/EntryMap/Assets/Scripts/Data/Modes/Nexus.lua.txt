@@ -1,0 +1,224 @@
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Bosses = require("Game/AI/Bosses")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+local _Print = nil
+if _Dev then
+    _Print = _Dev.Log.stage_information
+end
+
+local Data = {}
+
+local DIFFICULTY_BASE = 10
+local DIFFICULTY_INCREASE = 5
+local DIFFICULTY_MULTIPLIER = 0.15
+
+---Get the Enemy Difficulty based on stage_level and phase.
+---@param stage_level number
+---@param phase number
+---@return number
+function Data.GetDifficulty(stage_level, phase)
+    local factor = stage_level + phase - 2
+    local base = DIFFICULTY_BASE + factor * DIFFICULTY_INCREASE
+    local multiplier = (1 + DIFFICULTY_MULTIPLIER) ^ factor
+
+    local difficulty = math.floor(base * multiplier)
+    return difficulty
+end
+
+-- Game Statistics should be printable at startup
+function Data.PrintStageDifficulty(stage_level)
+    local stage_difficulty = {}
+    for i = 1, 10 do
+        stage_difficulty[i] = Data.GetDifficulty(stage_level, i)
+    end
+
+    Help.Warn(string.format("===== Nexus Stage %d =====", stage_level), nil, stage_difficulty)
+end
+
+Data.Enemies = {
+    {
+        RequiredDifficulty = 0,
+        Cost = 6,
+        Type = SimpleUnits.Data.Runner,
+        Modifiers = {},
+    },
+    {
+        RequiredDifficulty = 5,
+        Cost = 21,
+        Type = SimpleUnits.Data.HazmatSkull,
+        Modifiers = {},
+    },
+    {
+        RequiredDifficulty = 25,
+        Cost = 27,
+        Type = SimpleUnits.Data.HazmatMasked,
+        Modifiers = {},
+    },
+    {
+        RequiredDifficulty = 45,
+        Cost = 36,
+        Type = SimpleUnits.Data.Butcher,
+        Modifiers = {},
+    },
+    {
+        RequiredDifficulty = 70,
+        Cost = 41,
+        Type = SimpleUnits.Data.Hound,
+        Modifiers = {},
+    },
+}
+
+Data.Formations = {
+    {
+        Name = "Small Directed Cluster",
+        RequiredDifficulty = 0,
+        CostMultiplier = 0.9,
+        Type = "Stream",
+        Properties = {
+            [StreamProperties.width] = 3,
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+        },
+        Modifiers = {
+            Modifier.New(STAT.MoveSpeed, 1.15, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Wide Wall Stream",
+        RequiredDifficulty = 0,
+        CostMultiplier = 0.8,
+        Type = "Stream",
+        Properties = {
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.width] = 9,
+        },
+        Modifiers = {
+            Modifier.New(STAT.MoveSpeed, 1.3, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Follow Cluster",
+        RequiredDifficulty = 4,
+        CostMultiplier = 1.1,
+        Type = "Stream",
+        Properties = {
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.spawn_rate] = 2,
+            [StreamProperties.width] = 1,
+        },
+        Modifiers = {
+            Modifier.New(STAT.MoveSpeed, 0.9, SCALING.Multiplier),
+            Modifier.New(STAT.Health, 1.15, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Weak Half Enclosure",
+        RequiredDifficulty = 8,
+        CostMultiplier = 0.7,
+        Type = "Enclosure",
+        Properties = {
+            [EnclosureProperties.offset] = "PositionPass",
+            [EnclosureProperties.gap_size] = 180,
+            [EnclosureProperties.move_angle_modifier] = 10,
+        },
+        Modifiers = {
+            Modifier.New(STAT.MoveSpeed, 0.9, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 1.3, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Quarter Gap Enclosure Follow",
+        RequiredDifficulty = 16,
+        CostMultiplier = 0.9,
+        Type = "Enclosure",
+        Properties = {
+            [EnclosureProperties.target] = "TargetPass",
+            [EnclosureProperties.gap_size] = 90,
+            [EnclosureProperties.move_angle_modifier] = 1,
+        },
+        Modifiers = {
+            Modifier.New(STAT.Health, 4.25, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 0.3, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 2.5, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Spiratic Large Horde",
+        RequiredDifficulty = 32,
+        CostMultiplier = 0.4,
+        Type = "Stream",
+        Properties = {
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+            [StreamProperties.spawn_angle_range] = 30,
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.move_angle_range] = 30,
+        },
+        Modifiers = {
+            Modifier.New(STAT.MoveSpeed, 1.35, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Spiral Enclosure",
+        RequiredDifficulty = 64,
+        CostMultiplier = 1.2,
+        Type = "Enclosure",
+        Properties = {
+            [EnclosureProperties.offset] = "PositionPass",
+            [EnclosureProperties.move_angle_modifier] = 15,
+        },
+        Modifiers = {
+            Modifier.New(STAT.Health, 1.45, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.35, SCALING.Multiplier),
+        },
+    },
+}
+
+Data.Mutations = {
+    {
+        Name = "Normal",
+        RequiredDifficulty = 0,
+        CostMultiplier = 1,
+        Modifiers = {},
+    },
+    {
+        Name = "Volatile",
+        RequiredDifficulty = 50,
+        CostMultiplier = 1.5,
+        Modifiers = {
+            Modifier.New(STAT.Health, 0.9, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.2, SCALING.Multiplier),
+            Modifier.New(STAT.Thorns, 1.3, SCALING.Multiplier),
+        },
+    },
+    {
+        Name = "Slow and Steady",
+        RequiredDifficulty = 100,
+        CostMultiplier = 1.2,
+        Modifiers = {
+            Modifier.New(STAT.Health, 1.9, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 0.7, SCALING.Multiplier),
+            Modifier.New(STAT.Mass, 1.5, SCALING.Multiplier),
+        },
+    },
+}
+
+Data.Bosses = {
+    -- 1 to 5
+    Bosses.Types.Shieldbearer,
+    Bosses.Types.Alchemist,
+    Bosses.Types.SkeletonKing,
+    Bosses.Types.Knight,
+    Bosses.Types.Giant,
+    -- 6 to 10
+    Bosses.Types.Fulminyx,
+    Bosses.Types.Reaper,
+}
+
+return Data

@@ -1,0 +1,56 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Game/Leaderboard",
+    parent = ui.z1.Upper,
+})
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    self.items = self:GetChildCollection("item")
+    self.summary_item = self.items[#self.items]
+
+    -- set initial summary text
+    local text = "Remaining"
+    DCEI.SetTextFrameText(self.summary_item.Name, text)
+end
+
+function layout:UpdateItem(data)
+    local index = data.index
+    local item_layout = self.items[index]
+    Core.Util.Assert(item_layout, "Leaderboard item layout not found")
+    item_layout.state.is_player = data.is_player or false
+
+    local name = data.name
+    if name then
+        DCEI.SetTextFrameText(item_layout.Name, name)
+    end
+
+    local rank = data.rank
+    if rank and item_layout.RankText then
+        DCEI.SetTextFrameText(item_layout.RankText, tostring(rank))
+    end
+
+    local portrait = data.portrait
+    if portrait then
+        DCEI.SetFrameImage(item_layout.Portrait, portrait)
+    end
+
+    local score = data.score
+    if score then
+        DCEI.SetTextFrameText(item_layout.ScoreLabel, tostring(score))
+    end
+end
+
+function layout:UpdateItemSummary(player_count)
+    DCEI.SetTextFrameText(self.summary_item.RankText, tostring(player_count))
+end
+
+-- EXPORT
+return layout

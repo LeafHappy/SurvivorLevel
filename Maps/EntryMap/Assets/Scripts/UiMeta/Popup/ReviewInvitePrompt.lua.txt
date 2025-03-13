@@ -1,0 +1,114 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local FlyingRewards = require("UiMeta/FlyingRewards")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+---@class ReviewInvitePrompt
+local ReviewInvitePrompt = {}
+
+-- CONSTANTS
+local MAX_RATING = 5
+local DISMISS_DELAY = 0.25
+
+-- VARIABLES
+---@type table<QuestReward>
+local review_rewards = {}
+
+local is_initialized = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@param select_index integer
+local function UpdateStars(select_index)
+    for index, star_layout in ipairs(ReviewInvitePrompt.stars) do
+        DCEI.SetButtonFrameEnable(star_layout.Button, false)
+
+        local can_highlight = index <= select_index
+        if can_highlight then
+            DCEI.SetFrameImageGrayScale(star_layout.Icon, false)
+            DCEI.SetFrameImageColor(star_layout.Icon, "#ffffffff")
+        end
+    end
+end
+
+---@param select_index integer
+local function TrySpawnRewards(select_index)
+    if select_index == MAX_RATING and review_rewards then
+        for _, reward in ipairs(review_rewards) do
+            FlyingRewards.SpawnRewards(reward.type, reward.amount, 50)
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function ReviewInvitePrompt.Initialize()
+    if is_initialized then
+        return
+    end
+
+    local layout = GMUI.Layout.New({
+        name = "Popup/ReviewInviteRating",
+        parent = GMUI.ui.z2.Upper,
+    })
+    ReviewInvitePrompt.layout = layout
+
+    -- Hookup callbacks
+    ReviewInvitePrompt.stars = layout:GetChildCollection("star")
+    for index, star_button in ipairs(ReviewInvitePrompt.stars) do
+        DCEI.SetOnClickCallback(star_button.Button, function()
+            UpdateStars(index)
+
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                TrySpawnRewards(index)
+                layout:Hide()
+                Core.Event.SendSimulationEvent("ReviewInviteManager.OnDismissPrompt", index)
+            end, DISMISS_DELAY)
+        end)
+    end
+end
+
+---@param rewards table<QuestReward>
+function ReviewInvitePrompt.Open(rewards)
+    if not is_initialized then
+        ReviewInvitePrompt.Initialize()
+    end
+
+    review_rewards = rewards
+
+    ReviewInvitePrompt.layout:Show()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("ReviewInvitePrompt.Open", ReviewInvitePrompt.Open)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return ReviewInvitePrompt

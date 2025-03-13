@@ -1,0 +1,152 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Data Structures
+---============================================================================
+
+---@class ShopInAppOffer
+---@field id string
+---@field shop_id string
+---@field title string
+---@field description string
+---@field image string | nil -- Will be replaced by shop laps data image instead if nil
+---@field background_color string
+---@field cost_type string -- Can be: "cash", "gold", or "gems"
+---@field cost number
+---@field time_offered number
+
+---@class BundleItem
+---@field resource_id string
+---@field amount number
+
+---@class BundleInAppOffer
+---@field id string
+---@field title string
+---@field description string
+---@field background_color string
+---@field cost_type string -- Can be: "cash", "gold", or "gems"
+---@field cost number
+---@field time_offered number
+---@field items table<BundleItem>
+
+---============================================================================
+---!SECTION: Data Structures
+---SECTION: Scripts
+---============================================================================
+
+local SHOP_PRODUCT_ID = require("UiMeta/Shop/ShopProductID")
+local ShopIapData = require("UiMeta/Shop/ShopIapData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Data
+---============================================================================
+
+local InAppOfferData = {}
+
+---@type table<ShopInAppOffer>
+local shop_offers = {
+    -- NOTE: Temporary data until this is defined by designers
+    ["test_data"] = {
+        id = "test_data",
+        shop_id = SHOP_PRODUCT_ID.SHOP_CHEST_03,
+        title = "Chest offer!",
+        description = "Chest contains new character shards and 500 gold",
+        image = nil,
+        background_color = "#ca89ffff",
+        cost_type = "cash",
+        cost = 9.99,
+        time_offered = 999999,
+    },
+}
+
+---@type table<BundleInAppOffer>
+local bundle_offers = {
+    -- NOTE: Temporary data until this is defined by designers
+    ["test_data"] = {
+        id = "test_data",
+        title = "Unlock new character!",
+        description = "Will grant new character shards and 500 gold",
+        background_color = "#ca89ffff",
+        cost_type = "cash",
+        cost = 99.99,
+        time_offered = 630,
+        items = {
+            {
+                resource_id = "s_annie",
+                amount = 100,
+            },
+            {
+                resource_id = "gold",
+                amount = 500,
+            },
+        },
+    },
+}
+
+---============================================================================
+---!SECTION: Data
+---SECTION: Functions
+---============================================================================
+
+local function GetShopLapDataById(id)
+    for _, shop_data in ipairs(ShopIapData) do
+        if shop_data.product_id then
+            return shop_data
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Functions
+---SECTION: Methods
+---============================================================================
+
+---@return ShopInAppOffer | nil
+function InAppOfferData.GetShopOfferDataById(id)
+    if not shop_offers[id] then
+        return
+    end
+
+    local offer_data = Core.Table.ShallowCopy(shop_offers[id])
+    offer_data.is_shop_offer = true
+
+    -- Use shop laps image if there isn't one already
+    if not offer_data.image then
+        local shop_lap_data = GetShopLapDataById(offer_data.shop_id)
+        offer_data.image = shop_lap_data.display
+    end
+
+    return offer_data
+end
+
+---@return BundleInAppOffer | nil
+function InAppOfferData.GetBundleOfferDataById(id)
+    if not bundle_offers[id] then
+        return
+    end
+
+    local offer_data = Core.Table.ShallowCopy(bundle_offers[id])
+    offer_data.is_bundle_offer = true
+    return offer_data
+end
+
+---@return BundleInAppOffer | ShopInAppOffer | nil
+function InAppOfferData.GetOfferDataById(id)
+    if InAppOfferData.GetBundleOfferDataById(id) then
+        return InAppOfferData.GetBundleOfferDataById(id)
+    else
+        return InAppOfferData.GetShopOfferDataById(id)
+    end
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return InAppOfferData

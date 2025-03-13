@@ -1,0 +1,301 @@
+local LootData = require("Data/SimpleUnits/LootData")
+
+---@class DropTable
+---@field Key string
+---@field Drops table<LootData, Chance>
+
+--[[
+    Game Drops:
+        SmallExperience - Grants 2 Experience
+        MediumExperience - Grants 5 Experience
+        LargeExperience - Grants 11 Large Experience
+        Tome - Grants 1 Skill Point
+        Potion - Heals the player
+        Magnet - Increases Pickup Range
+        Bomb - Damages enemies around the player
+        PotionCharge - Drops a Potion for Consumable
+
+    Meta Resources:
+        Gold - Grants 1 Gold for Meta
+        Normal Chest
+        Elite Chest
+        Boss Chest
+
+]]
+
+---@type table<string, DropTable>
+local DropTables = {
+    EliteStandard = {
+        Key = "EliteStandard",
+        Drops = {
+            {
+                [LootData.Gold] = 100,
+            },
+            {
+                [LootData.Gold] = 100,
+            },
+            {
+                [LootData.Gold] = 100,
+            },
+            {
+                [LootData.Gold] = 100,
+            },
+            {
+                [LootData.Gold] = 100,
+            },
+        },
+    },
+}
+
+-- DropTables.LevelTome = {
+--     {
+--         [LootData.TomeLevel] = 1,
+--     },
+-- }
+
+-- DropTables.HeroicTome = {
+--     {
+--         [LootData.TomeHeroic] = 1,
+--     },
+-- }
+
+-- DropTables.EliteStandard = {
+--     {
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [LootData.Gold] = 100,
+--     },
+-- }
+
+-- DropTables.EliteSpecial = {
+--     -- Economy
+--     {
+--         [LootData.TomeHeroic] = 100,
+--     },
+--     -- Special Game Pickup
+--     {
+--         [LootData.Bomb] = 30,
+--         [LootData.Potion] = 20,
+--         [LootData.Magnet] = 10,
+--     },
+--     -- Meta Reward
+--     {
+--         [LootData.NormalChest] = 100, -- Bonus
+--     },
+--     {
+--         [LootData.EliteChest] = 100,
+--     },
+-- }
+
+-- DropTables.Boss101 = {
+--     {
+--         [LootData.BossChest] = 100,
+--     },
+--     {
+--         [LootData.BossChest] = 100,
+--     },
+--     {
+--         [LootData.BossChest] = 100,
+--     },
+-- }
+
+-- DropTables.Boss102 = {
+--     {
+--         [LootData.BossChest] = 100,
+--     },
+-- }
+
+-- DropTables.Drone101 = {
+--     -- Experience
+--     {
+--         [LootData.SmallExperience] = 200,
+--         [LootData.MediumExperience] = 100,
+--         [LootData.LargeExperience] = 10,
+--     },
+--     {
+--         [LootData.SmallExperience] = 200,
+--         [LootData.MediumExperience] = 100,
+--         [LootData.LargeExperience] = 10,
+--     },
+--     {
+--         [LootData.SmallExperience] = 200,
+--         [LootData.MediumExperience] = 100,
+--         [LootData.LargeExperience] = 10,
+--     },
+--     -- Special Drops
+--     {
+--         [LootData.Magnet] = 10,
+--         [LootData.Bomb] = 10,
+--     },
+--     -- Potions
+--     {
+--         [LootData.SmallPotion] = 50,
+--         [LootData.Potion] = 10,
+--     },
+--     {
+--         [LootData.PotionCharge] = 100,
+--     },
+--     -- Meta
+--     {
+--         [""] = 300,
+--         [LootData.NormalChest] = 100,
+--     },
+-- }
+
+-- DropTables.Crate101 = {
+--     -- Guaranteed Experience (Small Chance for Medium)
+--     {
+--         [LootData.SmallExperience] = 100,
+--         [LootData.MediumExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 100,
+--         [LootData.MediumExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 100,
+--         [LootData.MediumExperience] = 1,
+--     },
+--     -- Special Pickups
+--     {
+--         [""] = 30,
+--         [LootData.SmallPotion] = 30,
+--         [LootData.Potion] = 30,
+--         [LootData.Bomb] = 60,
+--         [LootData.Magnet] = 30,
+--     },
+
+--     -- 3 Guaranteed Gold
+--     {
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [LootData.Gold] = 100,
+--     },
+--     -- Up to 3 Extra Gold
+--     {
+--         [0] = 100,
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [0] = 100,
+--         [LootData.Gold] = 100,
+--     },
+--     {
+--         [0] = 100,
+--         [LootData.Gold] = 100,
+--     },
+-- }
+
+-- DropTables.AbandonedPotionShop = {
+--     {
+--         [LootData.Potion] = 1,
+--     },
+--     {
+--         [LootData.SmallPotion] = 50,
+--         [LootData.Potion] = 50,
+--     },
+--     {
+--         [0] = 50,
+--         [LootData.SmallPotion] = 50,
+--         [LootData.Potion] = 50,
+--     },
+-- }
+
+-- DropTables.DarkRitual = {
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.SmallExperience] = 1,
+--     },
+--     {
+--         [LootData.MediumExperience] = 1,
+--     },
+--     {
+--         [LootData.MediumExperience] = 1,
+--     },
+--     {
+--         [LootData.MediumExperience] = 1,
+--     },
+--     {
+--         [LootData.MediumExperience] = 1,
+--     },
+--     {
+--         [LootData.MediumExperience] = 1,
+--     },
+--     {
+--         [LootData.Magnet] = 1,
+--     },
+-- }
+
+-- DropTables.Bloodstone = {
+--     {
+--         [LootData.TomeLevel] = 75,
+--         -- [LootData.TomeHeroic] = 25,
+--     },
+--     -- {
+--     --     [LootData.TomeHeroic] = 1,
+--     -- },
+--     -- {
+--     --     [LootData.SmallExperience] = 1,
+--     -- },
+--     -- {
+--     --     [LootData.SmallExperience] = 1,
+--     -- },
+--     -- {
+--     --     [LootData.SmallExperience] = 1,
+--     -- },
+--     -- {
+--     --     [LootData.SmallExperience] = 1,
+--     --     [LootData.MediumExperience] = 1,
+--     -- },
+--     -- {
+--     --     [LootData.SmallExperience] = 1,
+--     --     [LootData.MediumExperience] = 1,
+--     -- },
+--     -- {
+--     --     [LootData.SmallExperience] = 1,
+--     --     [LootData.MediumExperience] = 1,
+--     --     [LootData.LargeExperience] = 1,
+--     -- },
+-- }
+
+return DropTables

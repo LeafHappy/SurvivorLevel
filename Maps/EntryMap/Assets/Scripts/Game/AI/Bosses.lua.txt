@@ -1,0 +1,241 @@
+-- ================================================================================================
+-- SECTION: Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Vector2 = require("Class/Vector2")
+local Attributes = require("Class/Attributes")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local EJS = require("Data/EJS")
+
+local Help = require("Help")
+
+-- Script References
+local Reaper = require("Game/AI/Bosses/Reaper")
+local Knight = require("Game/AI/Bosses/Knight")
+local Giant = require("Game/AI/Bosses/Giant")
+local SkeletonKing = require("Game/AI/Bosses/SkeletonKing")
+local Fulminyx = require("Game/AI/Bosses/Fulminyx")
+local Alchemist = require("Game/AI/Bosses/Alchemist")
+local Shieldbearer = require("Game/AI/Bosses/Shieldbearer")
+
+-- ================================================================================================
+-- !SECTION: Libraries
+-- SECTION: Variables
+-- ================================================================================================
+
+---@class BossData
+---@field Key string Type Key
+---@field Name string Display Name
+---@field Type string Unit Type
+---@field Stats table<Modifier>
+---@field StaggerAnimation string
+
+---@class Boss
+---@field Data BossData
+---@field StartAI function
+
+local simple_collider = DCEI.SimpleUnit("Simple Collider")
+local simple_unit_pusher = DCEI.Effect("Simple Unit Pusher")
+
+-- Simple Unit
+-- local elite_collider = SimpleUnit.New("Boss Collision Effects")
+-- elite_collider:SetUnitType(simple_collider)
+-- elite_collider:SetCollisionEffect(elite_on_stay, CollisionTiming.Start | CollisionTiming.Continue, 1)
+
+-- ================================================================================================
+-- !SECTION: Libraries
+-- SECTION: Module Initialization
+-- ================================================================================================
+
+local Bosses = {}
+
+Bosses.Types = {
+    Reaper = Reaper,
+    Knight = Knight,
+    Giant = Giant,
+    SkeletonKing = SkeletonKing,
+    Fulminyx = Fulminyx,
+    Alchemist = Alchemist,
+    Shieldbearer = Shieldbearer,
+}
+
+-- ================================================================================================
+-- !SECTION: Module Initialization
+-- SECTION: Module Functions
+-- ================================================================================================
+
+local function ApplySimpleUnitPusher(unit, radius)
+    local pusher = SimpleUnit.New("Simple Unit Pusher")
+    pusher:SetUnitType(simple_collider)
+    pusher:SetCollision(CollisionLayers.None, CollisionLayers.Hostile, radius)
+    pusher:SetCollisionEffect(simple_unit_pusher, CollisionTiming.Start | CollisionTiming.Continue, 0)
+    pusher:Register()
+
+    local position = Vector2.UnitPosition(unit)
+    local instance = pusher:SpawnSyncStationary(PLAYER.Terrain, TEAM.Terrain, position)
+
+    DCEI.AttachUnit(instance, unit, {})
+
+    DCEI.TriggerAddUnitRemovedEvent(unit, function()
+        DCEI.RemoveSimpleUnit(instance)
+    end)
+end
+
+---Spawn an Boss.
+---@param unit_type UnitType
+---@param position Vector2
+---@param modifiers table<Modifier>
+function Bosses.Spawn(unit_type, position, modifiers)
+    local boss = Bosses.Types[unit_type]
+
+    DCEI.PlaySound(DCEI.Sound("warning"))
+
+    modifiers = modifiers or {}
+
+    -- Setup Attributes
+    local attributes = Attributes.New()
+
+    -- Get base Stats from Boss Data
+    for _, modifier in ipairs(boss.Data.Stats) do
+        attributes:Add(modifier)
+    end
+
+    -- Add Modifiers
+    for _, modifier in ipairs(modifiers) do
+        attributes:Add(modifier)
+    end
+
+    local facing = Vector2.Down()
+
+    local elite_data = boss.Data
+
+    local instance =
+        DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, elite_data.Type, position.x, position.y, facing.x, facing.y)
+
+    -- Collision Size: Collision, Shadow, Pusher
+    local collision_size = attributes:Get(STAT.CollisionSize)
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.Hostile, CollisionLayers.Friendly, collision_size)
+    SimpleUnits.Helpers.AttachComplexShadow(instance, collision_size)
+    ApplySimpleUnitPusher(instance, collision_size)
+
+    -- Health
+    local health = attributes:Get(STAT.Health)
+    SimpleUnit.ModifyHealth(instance, health)
+
+    -- Armor
+    DamageAffinity.Instance:SetArmorFromAttributes(DAMAGE_TYPES.Physical, ARMOR_TYPES.Boss, attributes)
+    DamageAffinity.Instance:SetArmorFromAttributes(DAMAGE_TYPES.Fire, ARMOR_TYPES.Boss, attributes)
+    DamageAffinity.Instance:SetArmorFromAttributes(DAMAGE_TYPES.Cold, ARMOR_TYPES.Boss, attributes)
+    DamageAffinity.Instance:SetArmorFromAttributes(DAMAGE_TYPES.Shock, ARMOR_TYPES.Boss, attributes)
+    DamageAffinity.Instance:SetArmorFromAttributes(DAMAGE_TYPES.Toxic, ARMOR_TYPES.Boss, attributes)
+    DamageAffinity.Instance:SetArmorFromAttributes(DAMAGE_TYPES.Void, ARMOR_TYPES.Boss, attributes)
+    SimpleUnit.ModifyArmor(instance, ARMOR_TYPES.Boss)
+
+    -- Taunt Armor
+    local TAUNT_ARMOR = DCEI.Effect("Boss - Taunt Armor")
+    Help.CreateEffect(PLAYER.Hostile, TAUNT_ARMOR, instance)
+
+    local message = string.format("%s Spawned Health: %s", boss.Data.Name, health)
+    Help.Log(message)
+
+    -- Tag
+    DCEI.SetUnitSimpleTag(instance, { value = SIMPLE_TAG.Hostile })
+
+    -- Grant Move Speed Stacks
+    local move_speed = attributes:Get(STAT.MoveSpeed)
+    local move_speed_stacks = math.floor(move_speed * 100)
+    DCEI.ApplyBehaviorToSelf(instance, DCEI.Behavior("Stats - Move Speed"), move_speed_stacks)
+
+    -- Grant Cast Speed Stacks
+    -- local cast_speed = attributes:Get(STAT.AttackSpeed)
+    -- local cast_speed_stacks = math.floor(cast_speed * 100)
+    -- DCEI.ApplyBehaviorToSelf(instance, DCEI.Behavior("Stats - Cast Speed"), cast_speed_stacks)
+
+    -- Activate the AI
+    boss.StartAI(instance, attributes)
+
+    return instance
+end
+
+---Attach a Simple Collider.
+---@param unit Unit
+---@param radius number
+---@param effect string
+function Bosses.AttachSimpleCollider(unit, radius, effect)
+    local unit_type = DCEI.GetUnitType(unit)
+    local position = Vector2.UnitPosition(unit)
+
+    local collider = SimpleUnit.New(unit_type .. " - Collider")
+    collider:SetUnitType(simple_collider)
+    collider:SetCollisionEffect(effect, CollisionTiming.Start | CollisionTiming.Continue, 1, SIMPLE_TAG.Hero)
+    collider:SetCollision(CollisionLayers.None, CollisionLayers.Friendly, radius)
+
+    local instance = collider:SpawnSyncStationary(PLAYER.Terrain, TEAM.Terrain, position)
+    DCEI.AttachUnit(instance, unit, {})
+    DCEI.TriggerAddUnitDiedEvent(unit, function()
+        DCEI.RemoveSimpleUnit(instance)
+    end)
+end
+
+-- ================================================================================================
+-- !SECTION: Module Functions
+-- SECTION: UI
+-- ================================================================================================
+
+---Generates a Health Bar above the Unit.
+---@param unit Unit
+function Bosses.ApplyOverheadHealthbar(unit)
+    local unit_ref = GMUI.CreateUnitReference(unit)
+    Core.Event.SendPresentationEvent("StatusBarManager.NewEliteStatus", unit_ref)
+end
+
+---Generates an Onscreen Health Bar of the Unit.
+---@param unit Unit
+---@param label string
+function Bosses.ApplyOnScreenHealthBar(unit, label)
+    local data = { unit_ref = GMUI.CreateUnitReference(unit), display_name = label }
+    GMUI.SendUiLayoutCommand("ui.game", "HookupBossHealth", data)
+
+    function HideBossUI()
+        GMUI.SendUiLayoutCommand("ui.game.boss", "Hide")
+    end
+
+    DCEI.TriggerAddUnitDiedEvent(unit, HideBossUI, true)
+    DCEI.TriggerAddUnitRemovedEvent(unit, HideBossUI, true)
+end
+
+---Generates an Offscreen Indicator of the Unit.
+---@param unit Unit
+---@param background_image string Texture
+---@param background_color any Need to figure out how this works.
+function Bosses.ApplyOffscreenIndicator(unit, background_image, background_color)
+    local data = { background_image = background_image, background_color = background_color }
+    data.unit_ref = GMUI.CreateUnitReference(unit)
+
+    -- generate new offscreen indicator
+    Core.Event.SendPresentationEvent("NewOffscreenIndicator", data)
+
+    local does_indicator_exist = true
+    local function AttemptDestroyIndicator()
+        if does_indicator_exist then
+            Core.Event.SendPresentationEvent("DestroyOffscreenIndictor", data.unit_ref)
+            does_indicator_exist = false
+        end
+    end
+
+    -- Remove the indicator if the unit dies or is removed
+    DCEI.TriggerAddUnitDiedEvent(unit, AttemptDestroyIndicator)
+    DCEI.TriggerAddUnitRemovedEvent(unit, AttemptDestroyIndicator)
+end
+
+-- ================================================================================================
+-- !SECTION: UI
+-- ================================================================================================
+
+return Bosses

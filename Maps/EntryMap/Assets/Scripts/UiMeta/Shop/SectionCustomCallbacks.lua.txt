@@ -1,0 +1,195 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Shop = require("DFShop:Presentation")
+
+-- SCRIPTS
+local SHOP_PRODUCT_ID = require("UiMeta/Shop/ShopProductID")
+local DataManager = require("UiMeta/DataManager")
+local AdsManager = require("UiMeta/AdsManager")
+local ItemCustomCallbacks = require("UiMeta/Shop/ItemCustomCallbacks")
+local DailyShopItemsData = require("UiMeta/Shop/DailyShopItemsData")
+
+-- MODULE
+local SectionCustomCallbacks = {}
+
+-- CONSTANTS
+-- 1/1/2024 06:00:00 PST
+EPOCH_START = 1704117600
+
+local ad_button_layout_info = {
+    gems = {
+        max_available = 3,
+        reward_type = "gems",
+        reward_amount = 30,
+        reward_icon = DCEI.Texture("cartoon_icon_gem2_wildsurvivor"),
+    },
+    gold = {
+        max_available = 3,
+        reward_type = "gold",
+        reward_amount = 300,
+        reward_icon = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
+    },
+    daily = {
+        max_available = 1,
+    },
+}
+
+local function ResetAdsButtons(timestamp)
+    for button_name, data in pairs(ad_button_layout_info) do
+        DataManager.SetAdButtonRemaining(button_name, data.max_available)
+    end
+    DataManager.Save()
+end
+
+local function GenerateRandomDailyItem()
+    local item = {}
+    local n_items = #DailyShopItemsData.keys
+    local item_key = DailyShopItemsData.keys[math.random(n_items)]
+    local item_data = DailyShopItemsData[item_key]
+    local level = math.random(#item_data)
+    local item_type = item_key
+    if item_type == "shards" then
+        local unlocked_cards = DataManager.GetUnlockedCards()
+        local card = unlocked_cards[math.random(#unlocked_cards)].Name
+        item_type = DataManager.GetShardNameFromCardName(card)
+    end
+    item.type = item_type
+    item.level = level
+    return item
+end
+
+local function ResetDailyShop(timestamp)
+    DataManager.SetShopNextRotation(timestamp)
+
+    local daily_items = {
+        SHOP_PRODUCT_ID.SHOP_DAILY_01,
+        SHOP_PRODUCT_ID.SHOP_DAILY_02,
+        SHOP_PRODUCT_ID.SHOP_DAILY_03,
+    }
+
+    for i = 1, #daily_items, 1 do
+        DataManager.SetDailyShopItem(i, GenerateRandomDailyItem())
+    end
+
+    DataManager.Save()
+    for _, product_id in ipairs(daily_items) do
+        Shop.ClearItemPurchaseData(product_id)
+        local item_layouts = Shop.GetItemLayouts(product_id)
+        local item_data = Shop.GetProductFromID(product_id)
+        for _, layout in pairs(item_layouts) do
+            Shop.ItemUIFunctions.UpdateItemStock(item_data, layout)
+            ItemCustomCallbacks.UpdateDailyShopItem(item_data, layout)
+        end
+    end
+end
+
+function SectionCustomCallbacks.OnShopNewDay(timestamp)
+    ResetAdsButtons(timestamp)
+    ResetDailyShop(timestamp)
+end
+
+Core.Event.RegisterPresentationEvent("SectionCustomCallbacks.OnShopNewDay", SectionCustomCallbacks.OnShopNewDay)
+
+function SectionCustomCallbacks.HighlightNavButton(section_data, nav_layout)
+    nav_layout.state.highlight = true
+end
+
+function SectionCustomCallbacks.UnHighlightNavButton(section_data, nav_layout)
+    nav_layout.state.highlight = false
+end
+
+function SectionCustomCallbacks.OnAdRewardSectionCreated(section_data, layout)
+    layout.state.display_adbutton = true
+
+    local data = ad_button_layout_info[section_data.name]
+
+    -- constants
+    local max_available = data.max_available
+    local reward_type = data.reward_type
+    local reward_amount = data.reward_amount
+    local reward_icon = data.reward_icon
+
+    local ad_button_state = layout.AdButtonLayout.state
+    ad_button_state.display_title_icon = true
+    local curr_available = DataManager.GetAdButtonRemaining(section_data.name) or max_available
+    ad_button_state.button_enable = curr_available > 0
+    ad_button_state.title_label = "+" .. tostring(reward_amount)
+    ad_button_state.title_icon = reward_icon
+    ad_button_state.max_available = max_available
+    ad_button_state.curr_available = curr_available
+
+    DCEI.SetOnClickCallback(layout.AdButtonLayout.AdButton, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        if ad_button_state.curr_available > 0 then
+            ad_button_state.curr_available = ad_button_state.curr_available - 1
+            ad_button_state.button_enable = ad_button_state.curr_available > 0
+
+            -- watch ad, grant rewards if completed
+            AdsManager.ShowShopSectionAds(function()
+                DataManager.SetAdButtonRemaining(section_data.name, ad_button_state.curr_available)
+                DataManager.AddInventoryResource(reward_type, reward_amount, true)
+                DataManager.IncrementAdsWatched()
+                DataManager.Save()
+            end)
+        end
+    end)
+end
+
+function SectionCustomCallbacks.OnAdRefreshSectionCreated(section_data, layout)
+    layout.state.display_adbutton = false
+    layout.state.display_subtitle = true
+    local server = GMUI.ui.server
+    if server.Initialized() then
+        DCEI.DestroyFrame(layout.OfflineText)
+        layout.state.display_adbutton = true
+    end
+
+    local data = ad_button_layout_info[section_data.name]
+
+    -- constants
+    local max_available = data.max_available
+
+    local ad_button_state = layout.AdButtonLayout.state
+    ad_button_state.display_title_icon = false
+    local curr_available = DataManager.GetAdButtonRemaining(section_data.name) or max_available
+    ad_button_state.button_enable = curr_available > 0
+    ad_button_state.title_label = "REFRESH"
+    ad_button_state.max_available = max_available
+    ad_button_state.curr_available = curr_available
+
+    DCEI.SetOnClickCallback(layout.AdButtonLayout.AdButton, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        if ad_button_state.curr_available > 0 then
+            ad_button_state.curr_available = ad_button_state.curr_available - 1
+            ad_button_state.button_enable = ad_button_state.curr_available > 0
+
+            -- watch ad, grant rewards if completed
+            AdsManager.ShowShopSectionAds(function()
+                DataManager.SetAdButtonRemaining(section_data.name, ad_button_state.curr_available)
+                ResetDailyShop(server.GetServerTime())
+                DataManager.IncrementAdsWatched()
+                DataManager.Save()
+            end)
+        end
+    end)
+end
+
+function SectionCustomCallbacks.AddDailySectionTimer(server, duration)
+    local label = "Refresh in: "
+    local expires_at = duration
+
+    local timer_option = {
+        label = label,
+        duration = duration,
+        expires_at = expires_at,
+        on_expire_callback = function()
+            SectionCustomCallbacks.OnShopNewDay(server.GetServerTime())
+        end,
+    }
+
+    Shop.AddSectionTimer("daily", timer_option)
+end
+
+-- EXPORT
+return SectionCustomCallbacks

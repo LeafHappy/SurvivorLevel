@@ -1,0 +1,366 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Sapper
+
+    Moves towards the Player.
+    
+    ---TODO: Increase Speed over time.
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Elite
+local Elite = {}
+
+---@type EliteData
+Elite.Data = {
+    Name = "Necromancer",
+    Type = DCEI.Unit("Elite - Necromancer"),
+    Stats = {
+        Modifier.New(STAT.Health, 875, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 6, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.65, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 3.00, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 100, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 50, SCALING.Scaled),
+
+        -- Modifier.New(STAT.AttackSpeed, 0.50, SCALING.Scaled),
+        Modifier.New(STAT.SkillSize, 3, SCALING.Scaled),
+
+        Modifier.New(STAT.MinionCount, 5, SCALING.Scaled),
+        Modifier.New(STAT.MinionHealth, 20, SCALING.Scaled),
+        Modifier.New(STAT.MinionDamage, 3, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 1.35, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 2.00
+
+local behaviors = {
+    Stagger = DCEI.Behavior("Stagger"),
+}
+
+local effects = {
+    OnStay = DCEI.Effect("Elite - Necromancer - OnStay"),
+}
+
+local BCT = {
+    SpeedBoost = 2,
+}
+
+local overrides = {
+    EffectPath.New(DCEI.Effect("Elite - Necromancer - Speed Boost VFX"), EJS.Actor.Scale, STAT.SkillSize, 1),
+    EffectPath.New(DCEI.Effect("Elite - Necromancer - Speed Boost - Scan"), EJS.AreaSearch.Radius, STAT.SkillSize, 1),
+    EffectPath.New(DCEI.Effect("Elite - Necromancer - Contact Damage"), EJS.Damage.Value, STAT.Thorns, 1),
+    EffectPath.New(DCEI.Effect("Reaper - Minion - Flying Skull - Damage"), EJS.Damage.Value, STAT.MinionDamage, 1),
+}
+
+local simple_units = {
+    [SimpleUnits.Data.FlyingSkull] = SimpleUnit.New(SimpleUnits.Data.FlyingSkull.Type),
+}
+
+local REF = {
+    Summon = DCEI.Ability("Elite - Necromancer - Summon"),
+    SpeedBoost = DCEI.Ability("Elite - Necromancer - Speed Boost"),
+}
+
+local STATES = {
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Custom
+    Move = "Move",
+    Idle = "Idle",
+    Summon = "Summon",
+    SpeedBoostAllies = "SpeedBoostAllies",
+}
+
+local ACTION_ORDER = {
+    STATES.Move,
+    STATES.Summon,
+    STATES.Move,
+    STATES.SpeedBoostAllies,
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function RegisterSimpleUnits(attributes)
+    for unit_data, _ in pairs(simple_units) do
+        simple_units[unit_data] = SimpleUnits.Helpers.QuickRegister(unit_data, attributes)
+    end
+end
+
+local function SpawnFlyingSkull(ai, position)
+    -- Validate AI is Alive
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    -- Validate Target is Alive
+    if not Help.ValidateUnit(ai.Data.Target) then
+        return
+    end
+
+    simple_units[SimpleUnits.Data.FlyingSkull]:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, ai.Data.Target)
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Patterns
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Local Casters
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---@param ai AIHandler
+local function Idle(ai)
+    -- Validate Unit
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    if ai.Data.StateTimer == ai.Data.StateTime then
+        local position = Vector2.UnitPosition(ai.unit)
+        local target_position = Vector2.UnitPosition(ai.Data.Target)
+        local direction = target_position - position
+
+        DCEI.TurnUnitTowards(ai.unit, direction.x, direction.y, 0)
+        Help.PlayAnimation(ai.unit, "attack1")
+    end
+
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function Summon(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local direction = target_position - position
+
+    DCEI.TurnUnitTowards(ai.unit, direction.x, direction.y, 0)
+    DCEI.CastAbilityAtUnit(REF.Summon, ai.unit, ai.unit, true)
+
+    -- Custom Spawn Stuff
+    local spawn_count = ai.attributes:Get(STAT.MinionCount)
+    local radius = ai.attributes:Get(STAT.SkillSize)
+
+    local condition = function()
+        return Help.ValidateUnit(ai.unit)
+    end
+
+    local action = function()
+        local spawn_position = position + Vector2.RandomInside(radius)
+        AIHelper.SpawnMarker(ai.unit, spawn_position, function()
+            -- Spawn Unit
+            SpawnFlyingSkull(ai, spawn_position)
+        end)
+    end
+
+    Help.PeriodicGameTimer(spawn_count, 0.25, condition, action)
+
+    ai:SetState(STATES.BaseDecision)
+end
+
+---@param ai AIHandler
+local function SpeedBoostAllies(ai)
+    DCEI.CastAbilityAtUnit(REF.SpeedBoost, ai.unit, ai.unit, true)
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local radius = ai.attributes:Get(STAT.SkillSize)
+    local cast_speed = ai.attributes:Get(STAT.AttackSpeed)
+
+    local duration = BCT.SpeedBoost / (1 + cast_speed)
+
+    local i1, i2 = AIHelper.SpawnTimedIndicators(position, radius, duration)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function()
+        DCEI.RemoveUnit(i1)
+        DCEI.RemoveUnit(i2)
+    end
+
+    Help.GameTimer(duration, condition, nil, nil, action)
+
+    ai:SetState(STATES.BaseDecision)
+end
+
+---@param ai AIHandler
+local function Move(ai)
+    -- Validate Unit
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local move_speed = ai.attributes:Get(STAT.MoveSpeed)
+    local distance = Vector2.Distance(position, target_position)
+
+    local target_distance = Core.Math.Lerp(distance, ai.Data.TargetDistance, ai.Data.StateTimer / ai.Data.StateTime)
+
+    -- Chance to change direction
+    ai.Data.Direction = Help.Chance(0.01) and -ai.Data.Direction or ai.Data.Direction
+    ai.Data.Angle = ai.Data.Angle + ai.Data.Direction * move_speed
+
+    local move_position = target_position + Vector2.NewFromAngle(ai.Data.Angle) * target_distance
+
+    DCEI.Move(ai.unit, move_position.x, move_position.y)
+
+    if distance <= 0.1 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    -- local distance = Vector2.Distance(unit_position, target_position)
+    -- local move_speed = ai.attributes:Get(STAT.MoveSpeed)
+
+    -- Update State
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #ACTION_ORDER then
+        ai.Data.StateIndex = 1
+    end
+
+    -- Determine State and Action Setup
+    local action_speed = ai.attributes:Get(STAT.AttackSpeed)
+
+    local state = ACTION_ORDER[ai.Data.StateIndex]
+    if state == STATES.Idle then
+        ai.Data.StateTime = Core.Random.GetNumber(2, 3) / (1 + action_speed)
+        ai.Data.StateTimer = ai.Data.StateTime
+
+        ai:SetState(STATES.Idle)
+    elseif state == STATES.Move then
+        ai.Data.StateTime = Core.Random.GetNumber(3, 5) / (1 + action_speed)
+        ai.Data.StateTimer = ai.Data.StateTime
+        ai.Data.TargetDistance = Help.RandomNumber(3, 6)
+        ai.Data.Angle = Vector2.AngleBetween(target_position, unit_position)
+        ai.Data.Direction = Help.Flip() and -1 or 1
+
+        ai:SetState(STATES.Move)
+    elseif state == STATES.Summon then
+        ai:SetState(STATES.Summon)
+    elseif state == STATES.SpeedBoostAllies then
+        ai:SetState(STATES.SpeedBoostAllies)
+    end
+
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Elite.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, overrides)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, effects.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    RegisterSimpleUnits(attributes)
+
+    -- Core States
+    ai:AddState(STATES.Move, Move)
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+
+    -- Custom States
+    ai:AddState(STATES.Idle, Idle)
+    ai:AddState(STATES.Summon, Summon)
+    ai:AddState(STATES.SpeedBoostAllies, SpeedBoostAllies)
+
+    -- Register to the Elite Stagger Bar
+    AIHelper.RegisterOverheadStaggerUpdate(ai)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Elite

@@ -1,0 +1,53 @@
+-- SCRIPTS
+local DataManager = require("UiMeta/DataManager")
+
+-- DATA
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+-- MODULE
+---@class MaterialInventory
+local MaterialInventory = {}
+
+-- METHODS
+---@return boolean
+function MaterialInventory.HasEnoughOfMaterial(material)
+    -- Case for gold as material
+    if material.id == "gold" then
+        local needed_gold = material.amount
+        local current_gold = DataManager.GetGold()
+        local has_enough_gold = current_gold >= needed_gold
+
+        -- Not enough Gold feedback message
+        if not has_enough_gold then
+            local message = "Not enough Gold"
+            DCEI.ShowFeedbackMessage(message)
+        end
+
+        return has_enough_gold
+    end
+
+    -- All other materials
+    local material_id = material.id
+    local material_save_data = MaterialInventory.GetMaterialData(material_id)
+    local has_enough_of_material = material_save_data and material_save_data.amount >= material.amount
+
+    -- Not enough of material feedback message
+    if not has_enough_of_material then
+        local message = "Not enough " .. ResourceData[material_id].display_name
+        DCEI.ShowFeedbackMessage(message)
+    end
+
+    return has_enough_of_material
+end
+
+function MaterialInventory.GetMaterialData(material_id)
+    local material_inventory = DataManager.save_data.meta_inventory.materials
+    for _, material_data in ipairs(material_inventory) do
+        if material_data.id == material_id then
+            return material_data
+        end
+    end
+end
+
+-- EXPORT
+return MaterialInventory

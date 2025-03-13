@@ -1,0 +1,2101 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Joystick = require("Class/Joystick")
+local Attributes = require("Class/Attributes")
+local Hero = require("Game/Hero")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local EJS = require("Data/EJS")
+local PropData = require("Map/PropData")
+
+local Modifier = require("SharedData/Class/Modifier")
+local SkillData = require("SharedData/Skills/SkillData")
+local CampData = require("SharedData/H_CampData")
+
+local SaveDataManager = require("Class/SaveDataManager")
+local QuestManager = require("Meta/Quest/QuestManager")
+local QuestIndicators = require("Meta/Quest/QuestIndicators")
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    Collider = DCEI.Unit("Camp - Collider"),
+    ColliderSize = DCEI.Behavior("Collider Radius"),
+
+    CoinSpend = DCEI.Effect("Skill - Launch Coin"),
+
+    MasonryWorker = DCEI.Unit("Hybrid - Masonry - Worker"),
+
+    TrainingDummy = DCEI.Unit("Hybrid - Training Dummy"),
+}
+
+local MINER_STATE = {
+    IDLE = 1,
+    MOVING_TO_BASE = 2,
+    DELIVER = 3,
+    MOVING_TO_MINE = 4,
+    WORKING = 5,
+    PANIC = 6, -- hide and prepare for battle
+}
+
+local REPAIR_RATE = 150
+
+local REMOVE_CAST_RANGE = Modifier.New(STAT.CastRange, -100, SCALING.Scaled, { SKILL_TAG.Global }, "PerkTesting")
+local ADD_CAST_RANGE = Modifier.New(STAT.CastRange, 2, SCALING.Scale, { SKILL_TAG.Global }, "PerkTesting")
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+
+local function SetCampObjectPhaseBasedOnHealth(health_fraction, target_unit)
+    if health_fraction <= 0.25 then
+        DCEI.SendSendCustomEventActorAction(target_unit, { identifier = "NoHP" })
+    elseif health_fraction <= 0.75 then
+        DCEI.SendSendCustomEventActorAction(target_unit, { identifier = "HalfHP" })
+    else
+        DCEI.SendSendCustomEventActorAction(target_unit, { identifier = "FullHP" })
+    end
+end
+
+---@param camp_data HybridCampData
+local function SpawnCampObject(camp_data)
+    -- Default Values
+    local rotation = camp_data.Rotation or Vector2.Down()
+    -- local scale = camp_data.Scale or 1.0
+    local player_id = camp_data.Player or PLAYER.Player1
+    local team_id = player_id == PLAYER.Hostile and TEAM.Hostile or TEAM.Friendly
+
+    local instance = DCEI.CreateUnit(
+        team_id,
+        player_id,
+        camp_data.UnitType,
+        camp_data.Position.x,
+        camp_data.Position.y,
+        rotation.x,
+        rotation.y
+    )
+
+    SimpleUnit.ModifyTag(instance, SIMPLE_TAG.Structure)
+
+    -- Help.SetModelScale(instance, scale)
+
+    -- if camp_data.ActorEvents then
+    --     for _, event_id in ipairs(camp_data.ActorEvents) do
+    --         Help.SendActorEvent(instance, event_id)
+    --     end
+    -- end
+
+    return instance
+end
+
+local function SpawnCampObjectDestroyed(camp_data)
+    local player_id = PLAYER.Terrain
+    local team_id = TEAM.Terrain
+    local position = camp_data.Position
+    local rotation = camp_data.Rotation or Vector2.Down()
+
+    local instance =
+        DCEI.CreateUnit(team_id, player_id, camp_data.DestroyedVersion, position.x, position.y, rotation.x, rotation.y)
+
+    return instance
+end
+
+---comment
+---@param effect string
+---@param path table
+---@param value number
+local function SetEffectValue(effect, path, value)
+    DCEI.SetEffectFieldValueForPlayer(PLAYER.Player1, effect, path, value)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+local unique_id = 0
+
+local function GetUniqueId()
+    unique_id = unique_id + 1
+    return unique_id
+end
+
+---@class CampObject.ResourceCost
+---@field type SAVE_KEY
+---@field stored number
+---@field max_cost number
+
+---@class CampObject
+---@field data HybridCampData
+---@field manager CampManager
+---@field instance UnitInstance
+---@field uid integer
+---@field colliders table<UnitInstance>
+---@field BarkTracking table<string, any>
+---@field UIMessageEventAvailable boolean
+---@field core_modifiers table<Modifier>
+---@field passed_modifiers table<Modifier>
+---@field attributes Attributes
+---@field resource_cost CampObject.ResourceCost
+---@field show_button_status boolean
+---@field is_overhead_display_active boolean
+---@field overhead_display_cooldown number
+---@field time_in_spending_range number
+---@field training_dummy UnitInstance | nil
+local CampObject = {}
+CampObject.__index = CampObject
+
+---comment
+---@param camp_data HybridCampData
+---@param manager CampManager
+---@param modifiers table<Modifier>
+---@return CampObject
+function CampObject.New(camp_data, manager, modifiers)
+    -- Help.Log("Spawning new Camp Object", camp_data.Name, camp_data)
+    local self = setmetatable({}, CampObject)
+    self.data = camp_data
+    self.manager = manager
+
+    ---TODO: Setup Requirements to Spawn Instance
+
+    -- Initialize Collider Table
+    self.colliders = {}
+
+    -- Stats
+    self.core_modifiers = camp_data.Modifiers or {}
+    self.passed_modifiers = modifiers and Core.Table.DeepCopy(modifiers) or {}
+    self.attributes = Attributes.New()
+    self.attributes:AddModifiers(self.core_modifiers)
+    self.attributes:AddModifiers(self.passed_modifiers)
+
+    -- Save State
+    local save_state = camp_data.StatusSaveKey and SaveDataManager.GetReference(camp_data.StatusSaveKey) or {}
+
+    -- Instance
+    local health_percentage = 1
+    if save_state and save_state.health then
+        health_percentage = save_state.health or health_percentage
+    end
+
+    self:SpawnInstance(health_percentage)
+
+    -- ID
+    self.uid = GetUniqueId()
+
+    -- Speech Tracking
+    self.BarkTracking = {
+        Active = false,
+        TimeRemaining = 0,
+        Cooldown = 0,
+    }
+
+    self.UIMessageEventAvailable = true
+
+    self:_UpdateResourceCostValues()
+
+    self.CanSpend = true
+    self.show_button_status = true
+    self.is_overhead_display_active = false
+    self.overhead_display_cooldown = 0
+    self.time_in_spending_range = 0
+    self.coins_airborne = 0
+    self.spend_resource_cooldown = 1
+
+    self.masonry_workers_active = 0
+
+    self.showing_perk_offer = false
+
+    -- Repair
+    self.repair_needed = self.attributes:Get(STAT.Health)
+    self.repair_progress = 0
+
+    if save_state and save_state.health then
+        self.repair_progress = self.repair_needed * save_state.health
+        local message = string.format("[%s] Health Percentage", self.data.Name)
+        Help.Log(message, self.repair_progress / self.repair_needed)
+    end
+
+    self.wave_active = false
+
+    self:_InitializeCollectedResources()
+
+    -- Label
+    -- if not camp_data.HideLabel then
+    --     ---@type CampLabelData
+    --     local data = {
+    --         uid = self.uid,
+    --         unit_reference = GMUI.CreateUnitReference(self.instance),
+    --         label_text = camp_data.Name,
+    --         scale = camp_data.Scale or 1.0,
+    --     }
+
+    --     Core.Event.SendPresentationEvent("Camp.CreateLabel", data)
+    -- end
+
+    return self
+end
+
+function CampObject:Reload()
+    --
+    self.overhead_display_cooldown = 1
+    self.time_in_spending_range = 0
+    self.spend_resource_cooldown = 1
+
+    if self.data.need_repair then
+        self.repair_progress = DCEI.GetHealth(self.instance)
+        self.repair_needed = self.attributes:Get(STAT.Health)
+        SetCampObjectPhaseBasedOnHealth(self.repair_progress / self.repair_needed, self.instance)
+    else
+        self:ReconfigureInstanceStats()
+    end
+
+    -- Update Save State
+    self:_SetSaveHealth()
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+function CampObject:_InitializeCollectedResources()
+    local data = self.data.resource_collector
+    if not data then
+        return
+    end
+
+    local save_data = SaveDataManager.GetReference(data.save_key) or {}
+    local key_index = data.resource_key[#data.resource_key]
+
+    self.resource_collected = {
+        [data.resource_key] = save_data[key_index] or 0,
+    }
+end
+
+---comment
+---@param status boolean
+function CampObject:_SetStandStatus(status)
+    if not self.stand_status then
+        self.stand_status = {
+            current = false,
+            target = false,
+        }
+        Help.SendActorEvent(self.instance, "HideStand")
+    end
+
+    self.stand_status.target = status
+
+    if self.data.force_show_stand then
+        self.stand_status.target = true
+    end
+end
+
+function CampObject:_CheckStandDisplay()
+    if not self.stand_status then
+        return
+    end
+
+    if self.stand_status.current == self.stand_status.target then
+        return
+    end
+
+    if self.stand_status.target then
+        Help.SendActorEvent(self.instance, "ShowStand")
+        -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "ShowStand" })
+    else
+        Help.SendActorEvent(self.instance, "HideStand")
+        -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HideStand" })
+    end
+
+    self.stand_status.current = self.stand_status.target
+end
+
+---Updates the Health State State of this structure.
+function CampObject:_SetSaveHealth()
+    if not self.data.StatusSaveKey then -- No Save Key
+        return
+    end
+
+    -- Not Destructible
+    if not self.data.need_repair then
+        return
+    end
+
+    local save_data = SaveDataManager.GetReference(self.data.StatusSaveKey) or {}
+
+    local current_health_percentage = Core.Math.Round(self.repair_progress / self.repair_needed, 2)
+    current_health_percentage = math.max(current_health_percentage, 0.01)
+
+    if save_data.health == current_health_percentage then
+        return
+    end
+
+    save_data.health = current_health_percentage
+    SaveDataManager.Set(self.data.StatusSaveKey, save_data)
+
+    self.manager:PrimeCommit()
+end
+
+function CampObject:_SetSaveGoldReserved(amount)
+    if not self.data.StatusSaveKey then
+        return
+    end
+
+    local save_data = SaveDataManager.GetReference(self.data.StatusSaveKey) or {}
+
+    if save_data.gold_reserved == amount then
+        return
+    end
+
+    save_data.gold_reserved = amount
+    SaveDataManager.Set(self.data.StatusSaveKey, save_data)
+
+    self.manager:PrimeCommit()
+end
+
+function CampObject:_UpdateResourceCostValues()
+    if not self.data.required_resource then
+        self.resource_cost = nil
+        return
+    end
+
+    self.resource_cost = {}
+    self.resource_cost.type = self.data.required_resource and self.data.required_resource.key or nil -- The Required Resource Type needed to spend
+
+    -- Update Cost
+    if self.data.required_resource.increase_key then
+        local key_level = SaveDataManager.Get(self.data.required_resource.increase_key)
+        local base_amount = self.data.required_resource.amount
+        local increased_amount = self.data.required_resource.increasing_amount
+        self.resource_cost.max_cost = base_amount + key_level * increased_amount
+    else
+        self.resource_cost.max_cost = self.data.required_resource.amount
+    end
+
+    -- Stored Amount
+    self.resource_cost.stored = 0
+
+    -- Get Gold Reserved
+    if self.data.StatusSaveKey then
+        local save_data = SaveDataManager.GetReference(self.data.StatusSaveKey) or {}
+        if save_data.gold_reserved then
+            self.resource_cost.stored = save_data.gold_reserved
+        end
+    end
+end
+
+---comment
+---@param save_key any
+---@return number current_cost
+---@return number max_cost
+function CampObject:_GetNextCost(save_key)
+    local current_level = SaveDataManager.Get(save_key)
+    local max_cost = self.data.required_resource.amount + current_level * self.data.required_resource.increasing_amount
+
+    local current_cost = max_cost
+
+    if self.data.StatusSaveKey then
+        local save_data = SaveDataManager.GetReference(self.data.StatusSaveKey)
+        if save_data.gold_reserved then
+            current_cost = current_cost - save_data.gold_reserved
+        end
+    end
+
+    return current_cost, max_cost
+end
+
+function CampObject:_IsReadyToBark(hero)
+    local distance = Vector2.DistanceBetweenUnits(self.instance, hero.unit)
+
+    -- Check if already active
+    if self.BarkTracking.Active then
+        return false
+    end
+
+    -- Check if in range
+    if distance > self.data.BarkSettings.ShowDistance then
+        return false
+    end
+
+    -- Check if on cooldown
+    if self.BarkTracking.Cooldown > 0 then
+        return false
+    end
+
+    return true
+end
+
+function CampObject:_Bark()
+    ---@type CampData.BarkSettings
+    local bark_settings = self.data.BarkSettings
+
+    local chance = bark_settings.Chance or 1
+    if Help.Chance(chance) then
+        local bark = bark_settings.BarkOptions[math.random(1, #bark_settings.BarkOptions)]
+        local unit_data = {
+            type = DCEI.GetUnitType(self.instance),
+            position = Vector2.UnitPosition(self.instance),
+        }
+        Core.Event.SendPresentationEvent("Camp.CreateBark", unit_data, bark)
+    end
+
+    self.BarkTracking.Active = true
+    self.BarkTracking.TimeRemaining = math.random(self.data.BarkSettings.BarkTime.x, self.data.BarkSettings.BarkTime.y)
+end
+
+function CampObject:_ClearBark()
+    -- Help.Log("Clear Bark", self.data.Name)
+    self.BarkTracking.Active = false
+    self.BarkTracking.TimeRemaining = 0
+    self.BarkTracking.Cooldown =
+        math.random(self.data.BarkSettings.BarkCooldown.x, self.data.BarkSettings.BarkCooldown.y)
+
+    Core.Event.SendPresentationEvent("Camp.RemoveBark")
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function CampObject:_CheckBark(delta, hero)
+    if not self.data.BarkSettings then
+        return
+    end
+
+    -- Update Values
+    if self.BarkTracking.Active then
+        self.BarkTracking.TimeRemaining = self.BarkTracking.TimeRemaining - delta
+    else
+        self.BarkTracking.Cooldown = self.BarkTracking.Cooldown - delta
+    end
+
+    local distance = Vector2.DistanceBetweenUnits(self.instance, hero.unit)
+    local is_ready_to_bark = self:_IsReadyToBark(hero)
+
+    if is_ready_to_bark then
+        self:_Bark()
+        return
+    end
+
+    if not self.BarkTracking.Active then
+        return
+    end
+
+    if distance >= self.data.BarkSettings.BreakDistance then
+        self:_ClearBark()
+    elseif self.BarkTracking.TimeRemaining <= 0 then
+        self:_ClearBark()
+    end
+end
+
+---@class CampObject.ButtonDisplayData
+---@field key string
+---@field uid string
+---@field unit_ref UnitReference
+---@field resource_remaining number
+---@field is_enabled boolean
+
+---comment
+---@param delta Time
+---@param hero Hero
+---@return CampObject.ButtonDisplayData | nil
+function CampObject:_CheckButtonDisplay(delta, hero)
+    --
+    if not self.data.Button then
+        return nil
+    end
+
+    local is_enabled = true
+    if self.data.Button.required_resource then
+        local key = self.data.Button.required_resource.key
+        local amount = self.data.Button.required_resource.amount
+        local saved_amount = SaveDataManager.Get(key)
+        if saved_amount < amount then
+            is_enabled = false
+        end
+    end
+
+    return {
+        key = self.data.Key,
+        uid = self.uid,
+        unit_ref = GMUI.CreateUnitReference(self.instance),
+        resource_remaining = self.resource_cost.stored,
+        is_enabled = is_enabled,
+    }
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+---@return string | nil
+function CampObject:_CheckUIMessageEvent(delta, hero)
+    -- Check if we have a UIMessageEvent
+    if not self.data.UIMessageEventOptions then
+        return nil
+    end
+
+    -- Check Show Distance
+    local distance = Vector2.DistanceBetweenUnits(self.instance, hero.unit)
+    if distance > self.data.UIMessageEventOptions.ShowDistance then
+        self.UIMessageEventAvailable = true
+        return nil
+    end
+
+    if not self.UIMessageEventAvailable then
+        return nil
+    end
+
+    -- Return the Message Id
+    return self.data.UIMessageEventOptions.EventId
+end
+
+function CampObject:_CheckOverheadDisplay(delta, hero)
+    -- Check show_button_status
+    if not self.show_button_status then
+        -- If I have an overhead display, destroy it
+        if self.is_overhead_display_active then
+            self:RemoveOverheadDisplay()
+        end
+
+        return
+    end
+
+    if self:_IsRepairNeeded() then
+        return
+    end
+
+    local overhead_display = self.data.overhead_display
+
+    if not overhead_display then -- No overhead display information available
+        self:_SetStandStatus(false)
+        -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HideStand" })
+        return
+    end
+
+    if overhead_display.require_repair_ready then
+        local is_ready, message = self.manager:IsWaveReady()
+
+        if not is_ready then
+            -- Do something with this message
+            return
+        end
+    end
+
+    -- Check Cooldown
+    if self.overhead_display_cooldown > 0 then
+        self.overhead_display_cooldown = self.overhead_display_cooldown - delta
+        return
+    end
+
+    -- Show Distance
+    local distance = Vector2.DistanceBetweenUnits(self.instance, hero.unit)
+
+    if distance > overhead_display.show_distance then -- Out of range
+        self:RemoveOverheadDisplay()
+        self:_SetStandStatus(false)
+        -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HideStand" })
+        return
+    end
+
+    if self.data.perk_offers then -- Prevent Overhead Display when no perk offer available
+        local has_offer = self:GetPerkOffer()
+        if not has_offer then
+            self.resource_cost = nil -- Prevent Spending
+            return
+        end
+    end
+
+    if distance <= overhead_display.show_distance then
+        -- Create a new overhead display
+        local is_enabled = true
+
+        local required_resource_overhead = overhead_display.required_resource_overhead
+        if required_resource_overhead then
+            if required_resource_overhead.key then
+                local key = required_resource_overhead.key
+                local amount = required_resource_overhead.amount
+                local saved_amount = SaveDataManager.Get(key)
+
+                if saved_amount < amount then
+                    is_enabled = false
+                end
+            end
+        end
+
+        if self.resource_cost then
+            local data_pass = {
+                --
+                key = self.data.Key,
+                uid = self.uid,
+                is_enabled = is_enabled,
+                remaining_cost = self.resource_cost.max_cost - self.resource_cost.stored,
+                max_cost = self.resource_cost.max_cost,
+                unit_reference = GMUI.CreateUnitReference(self.instance),
+            }
+
+            Core.Event.SendPresentationEvent("Camp.CreateOverheadDisplay", data_pass)
+        else
+            local data_pass = {
+                --
+                key = self.data.Key,
+                uid = self.uid,
+                is_enabled = is_enabled,
+                -- remaining_cost = self.resource_cost.max_cost - self.resource_cost.stored,
+                -- max_cost = self.resource_cost.max_cost,
+                unit_reference = GMUI.CreateUnitReference(self.instance),
+            }
+
+            Core.Event.SendPresentationEvent("Camp.CreateOverheadDisplay", data_pass)
+        end
+
+        if is_enabled then
+            self:_SetStandStatus(true)
+            -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "ShowStand" })
+        else
+            self:_SetStandStatus(false)
+            -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HideStand" })
+        end
+    end
+
+    self.is_overhead_display_active = true
+    self.overhead_display_cooldown = 1
+end
+
+function CampObject:GetPerkOffer()
+    if not self.show_button_status then
+        return
+    end
+
+    if not self.data.perk_offers then
+        return
+    end
+
+    local offer_data = self.data.perk_offers
+    local perk_level = SaveDataManager.Get(offer_data.key)
+    local offer = offer_data.order[perk_level + 1]
+
+    if not offer then
+        return
+    end
+
+    return offer
+end
+
+function CampObject:ShowPerkTesting(status)
+    if not self.hero then
+        return
+    end
+
+    if status then
+        -- Help.Log("Adding Cast Range", self.data.Name)
+        -- self.hero:ApplyModifier(ADD_CAST_RANGE, true, true)
+        self.hero:SetIsInCombat(true)
+    else
+        -- Help.Log("Removing Cast Range", self.data.Name)
+        -- self.hero:ApplyModifier(REMOVE_CAST_RANGE, true, true)
+        self.hero:SetIsInCombat(false)
+    end
+
+    self.hero:HybridCampUpdate()
+end
+
+function CampObject:_CheckLearnedPerks(delta, hero)
+    if not self.data.perk_offers then
+        return
+    end
+
+    if not self.is_perks_learned then
+        self.hero = Hero.New(self.data.Player)
+        self.hero.SkillSelector:Reset()
+        self.hero.UnitType = self.data.UnitType
+        self.hero.unit = self.instance
+        self.hero.top = self.instance
+
+        local perk_offer_level = SaveDataManager.Get(self.data.perk_offers.key) or 1
+
+        -- Load all Cached perks
+        if self.data.perk_offers.cached then
+            for _, perk in ipairs(self.data.perk_offers.cached) do
+                -- Help.Log("Learning Perk", perk)
+                self.hero:LearnSkill(perk)
+            end
+        end
+
+        -- Get up to current perk level
+        for i = 1, perk_offer_level + 1 do
+            local perk = self.data.perk_offers.order[i]
+            if perk then
+                -- Help.Log("Learning Perk", perk)
+                self.hero:LearnSkill(perk)
+            end
+        end
+
+        -- Remove Cast Range
+        self:ShowPerkTesting(false)
+
+        self.is_perks_learned = true
+    end
+
+    self.hero:HybridCampUpdate()
+end
+
+function CampObject:_CheckPerkOffer(delta, hero)
+    if not self.show_button_status then
+        return
+    end
+
+    if not self.data.perk_offers then
+        return
+    end
+
+    local offer_data = self.data.perk_offers
+
+    -- Check Show Distance
+    local distance = Vector2.DistanceBetweenUnits(self.instance, hero.unit)
+
+    if distance > offer_data.show_distance then
+        self.showing_perk_offer = false
+        return
+    end
+
+    local perk_level = SaveDataManager.Get(offer_data.key)
+    local offer = offer_data.order[perk_level + 1]
+
+    if not offer then
+        return
+    end
+
+    if self.showing_perk_offer then
+        return
+    end
+
+    local data_pass = {
+        offer = offer,
+    }
+    Core.Event.SendPresentationEvent("Camp.UpdatePerkOffer", data_pass)
+    self.showing_perk_offer = true
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function CampObject:_CheckSpendResource(delta, hero)
+    -- Check show_button_status
+    if not self.show_button_status then
+        -- If I have an overhead display, destroy it
+        if self.is_overhead_display_active then
+            self:RemoveOverheadDisplay()
+        end
+
+        return
+    end
+
+    -- Spend Resource Cooldown
+    if self.spend_resource_cooldown > 0 then
+        self.spend_resource_cooldown = self.spend_resource_cooldown - delta
+        return
+    end
+
+    -- -- Check Show Distance
+    -- local distance = Vector2.DistanceBetweenUnits(self.instance, hero.unit)
+    -- self.time_in_spending_range = self.time_in_spending_range or 0
+
+    -- -- Check if outside of Spend Range
+    if hero:GetTravelDistance() > 0.01 and self.CanSpend == false then
+        self.time_in_spending_range = 0
+        self.CanSpend = true
+    end
+
+    local unit_position = Vector2.UnitPosition(self.instance)
+    local target_position = Vector2.UnitPosition(hero.unit)
+
+    local delta_x = unit_position.x - target_position.x
+    local delta_y = unit_position.y - target_position.y
+
+    local not_in_stand = (math.abs(delta_x) > 0.6) or (delta_y > 2.1 or delta_y < 0.9)
+
+    if not_in_stand then
+        self.time_in_spending_range = 0
+        self.CanSpend = true
+
+        if self.data.overhead_display and self.data.overhead_display.callback_id then
+            local data_pass = {
+                uid = self.uid,
+                time_in_spending_range = self.time_in_spending_range,
+            }
+
+            Core.Event.SendPresentationEvent("Camp.UpdateChanneling", data_pass)
+        end
+        return
+    end
+
+    self.time_in_spending_range = self.time_in_spending_range + delta
+
+    if not self.CanSpend then
+        return
+    end
+
+    if self.data.overhead_display and self.data.overhead_display.callback_id then
+        local data_pass = {
+            uid = self.uid,
+            time_in_spending_range = self.time_in_spending_range,
+        }
+        Core.Event.SendPresentationEvent("Camp.UpdateChanneling", data_pass)
+    end
+
+    if self.time_in_spending_range >= 1 then
+        self.CanSpend = false
+    end
+
+    -- Check current resource cost
+    if not self.resource_cost then
+        return
+    end
+
+    local required_resource = self.data.required_resource
+
+    -- Check if require resource exists
+    if not required_resource then
+        return
+    end
+
+    -- Hide Mason when no available structure to build
+    if self.data.required_resource.structure_order then
+        local current_level = SaveDataManager.Get(SAVE_KEY.Masonry)
+        local target_build_data = self.data.required_resource.structure_order[current_level + 1]
+
+        if not target_build_data then
+            self.show_button_status = false
+            return
+        end
+    end
+
+    -- Spend
+    local save_key = required_resource.key
+    local gold_available = SaveDataManager.Get(save_key)
+    local cost_remaining = self.resource_cost.max_cost - self.resource_cost.stored
+    local minimum_casting_time = 0.25 -- TODO: define this in data for versatile
+    local spend_amount = math.floor(self.time_in_spending_range + (1 - minimum_casting_time))
+
+    spend_amount = math.min(spend_amount, cost_remaining, gold_available)
+
+    if spend_amount <= 0 then
+        return
+    end
+
+    local success = SaveDataManager.Spend(save_key, spend_amount)
+
+    if not success then
+        return
+    end
+
+    self.resource_cost.stored = self.resource_cost.stored + spend_amount
+    self:_SetSaveGoldReserved(self.resource_cost.stored)
+    local snapshot_resource = self.resource_cost.max_cost - self.resource_cost.stored
+
+    self.CanSpend = false
+    DCEI.TriggerAddTimerEventElapsed(function()
+        self.CanSpend = true
+    end, 0.0625)
+
+    -- Throw Coin
+    self.coins_airborne = self.coins_airborne + 1
+    DCEI.CreateEffectAtUnit(REF.CoinSpend, self.instance, hero.unit)
+
+    -- Wait for coin to hit object
+    DCEI.TriggerAddTimerEventElapsed(function()
+        local data_pass = {
+            uid = self.uid,
+            remaining_resource = snapshot_resource,
+            max_cost = self.max_cost,
+        }
+        Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+
+        if Help.ValidateUnit(self.instance) then
+            DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HitByCoin" })
+        end
+
+        DCEI.PlaySound(DCEI.Sound("smh_coin_spend"))
+        self.coins_airborne = self.coins_airborne - 1
+    end, 0.5)
+end
+
+function CampObject:_CheckUpgradeReplacement(delta, hero)
+    if not self.data.required_resource then
+        return
+    end
+
+    if not self.resource_cost then
+        return
+    end
+
+    local cost_remaining = self.resource_cost.max_cost - self.resource_cost.stored
+    if cost_remaining <= 0 and self.coins_airborne <= 0 then
+        self:_SetSaveGoldReserved(0)
+
+        if self.data.required_resource.replacement then
+            self.manager:ReplaceCampObjectWithMetaChanges(self, self.data.required_resource.replacement)
+            if self.data.required_resource.unlock then
+                self.manager:AddCampObject(self.data.required_resource.unlock)
+            end
+        elseif self.data.required_resource.generate_miner then
+            self:AddMiner()
+            QuestManager.CheckRecruitQuest()
+            SaveDataManager.Modify(SAVE_KEY.Miner, 1)
+            SaveDataManager.CommitSaveData()
+
+            self:_UpdateResourceCostValues()
+            local data_pass = {
+                uid = self.uid,
+                remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+                max_cost = self.resource_cost.max_cost,
+            }
+            Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+        elseif self.data.required_resource.generate_archer then
+            self:AddArcher()
+            -- QuestManager.CheckRecruitQuest()
+            SaveDataManager.Modify(SAVE_KEY.ArcherCount, 1)
+            SaveDataManager.CommitSaveData()
+
+            self:_UpdateResourceCostValues()
+            local data_pass = {
+                uid = self.uid,
+                remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+                max_cost = self.resource_cost.max_cost,
+            }
+            Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+        elseif self.data.required_resource.structure_order then
+            -- Check Structure Order
+            local current_level = SaveDataManager.Get(SAVE_KEY.Masonry)
+            local target_build_data = self.data.required_resource.structure_order[current_level + 1]
+
+            if not target_build_data then
+                self.show_button_status = false
+                return
+            end
+
+            local add_key = target_build_data.Add
+            local remove_key = target_build_data.Remove
+            self:_CreateMasonryWorker(add_key, remove_key)
+
+            -- Update Save Data
+            local mason_level = SaveDataManager.Modify(SAVE_KEY.Masonry, 1)
+            self.manager:RemoveMetaRequirements(remove_key)
+            self.manager:ApplyMetaRequirements(add_key)
+            -- SaveDataManager.CommitSaveData()
+
+            -- Update Cost or Hide Display (if no more structures available)
+            local next_build_data = self.data.required_resource.structure_order[mason_level + 1]
+            if not next_build_data then
+                self.show_button_status = false
+                return
+            end
+
+            self:_UpdateResourceCostValues()
+            local data_pass = {
+                uid = self.uid,
+                remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+                max_cost = self.resource_cost.max_cost,
+            }
+            Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+        elseif self.data.required_resource.gain_skill_point then
+            SaveDataManager.Modify(SAVE_KEY.TalentExchange, 1)
+            SaveDataManager.Modify(SAVE_KEY.SkillPoints, 1)
+            SaveDataManager.CommitSaveData()
+
+            self:_UpdateResourceCostValues()
+            local data_pass = {
+                uid = self.uid,
+                remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+                max_cost = self.resource_cost.max_cost,
+            }
+            Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+        end
+        self.CanSpend = false
+        DCEI.TriggerAddTimerEventElapsed(function()
+            self.CanSpend = true
+        end, 0.5)
+    end
+end
+
+---comment
+---@param hero Hero
+function CampObject:_CheckPerkObtained(hero)
+    if not self.data.perk_offers then
+        return
+    end
+
+    if not self.resource_cost then
+        return
+    end
+
+    local cost_remaining = self.resource_cost.max_cost - self.resource_cost.stored
+
+    if cost_remaining > 0 or self.coins_airborne > 0 then
+        return
+    end
+
+    -- Get Perk Offer
+
+    local offer_data = self.data.perk_offers
+    local perk_level = SaveDataManager.Get(offer_data.key)
+    local offer = offer_data.order[perk_level + 1]
+
+    if not offer then
+        return
+    end
+
+    hero:LearnSkill(offer)
+
+    -- Update Save Data
+    SaveDataManager.AddKey(SAVE_KEY.Skills, offer)
+    SaveDataManager.Modify(offer_data.key, 1)
+    SaveDataManager.CommitSaveData()
+
+    -- Reset UI
+    self.manager:ResetPerkOffer() -- Reset Perk Display
+    local next_perk_offer_data = self:GetPerkOffer()
+    if not next_perk_offer_data then
+        self.show_button_status = false
+        return
+    end
+
+    -- Update Price
+    self:_UpdateResourceCostValues()
+    local data_pass = {
+        uid = self.uid,
+        remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+        max_cost = self.resource_cost.max_cost,
+    }
+    Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+end
+
+function CampObject:_CreateMasonryWorker(add_key, remove_key)
+    self.masonry_workers_active = self.masonry_workers_active + 1
+
+    if Help.Chance(0.50) then
+        DCEI.PlaySound(DCEI.Sound("dwarfluchador_select_05"))
+    elseif Help.Chance(0.50) then
+        DCEI.PlaySound(DCEI.Sound("dwarfluchador_select_04"))
+    elseif Help.Chance(0.50) then
+        DCEI.PlaySound(DCEI.Sound("dwarfluchador_command_01"))
+    elseif Help.Chance(0.50) then
+        DCEI.PlaySound(DCEI.Sound("dwarfluchador_command_03"))
+    end
+
+    local interact_distance = 0.75
+
+    local add_data = self.manager:GetCampDataByKey(add_key)
+
+    local base_position = self.data.Position
+    local target_position = add_data.Position
+
+    local worker_position = Vector2.MoveTowards(base_position, target_position, interact_distance)
+    local worker =
+        DCEI.CreateUnit(TEAM.Friendly, PLAYER.Player1, REF.MasonryWorker, worker_position.x, worker_position.y)
+
+    local destination = Vector2.MoveTowards(target_position, base_position, interact_distance)
+
+    local hit_count = 3
+    local animation_time = 0.85
+    local hit_time = animation_time * 16 / 28
+
+    -- Move Worker to Destination
+    local condition = function()
+        local distance = Vector2.Distance(worker_position, destination)
+        return distance > 0.1
+    end
+
+    local recurring_action = function()
+        DCEI.Move(worker, destination.x, destination.y)
+        worker_position = Vector2.UnitPosition(worker)
+    end
+
+    local cancel_action = function()
+        -- Animate the Construction
+        Help.PeriodicGameTimer(hit_count + 1, animation_time, nil, function(count)
+            if count <= hit_count then
+                Help.PlayAnimationWithDuration(worker, "attack", animation_time)
+                Help.PeriodicGameTimer(1, hit_time, nil, function()
+                    DCEI.PlaySound(DCEI.Sound("dwarf_smith_attack"), 1)
+                end)
+            else
+                -- Add/Replace the Building
+                if remove_key then
+                    local remove_object = self.manager:GetCampObjectByKey(remove_key)
+                    self.manager:ReplaceCampObject(remove_object, add_key)
+                else
+                    self.manager:LoadNewCampObjectByName(add_key, true, false)
+                end
+
+                if add_key and CampData[add_key] then
+                    local unit = CampData[add_key].UnitType
+                    QuestManager.CheckBuildingQuest(unit)
+                end
+
+                -- Run back to base position and disappear
+                destination = Vector2.MoveTowards(base_position, target_position, interact_distance)
+                local condition = function()
+                    local distance = Vector2.Distance(worker_position, destination)
+                    return distance > 0.1
+                end
+
+                local recurring_action = function()
+                    DCEI.Move(worker, destination.x, destination.y)
+                    worker_position = Vector2.UnitPosition(worker)
+                end
+
+                local cancel_action = function()
+                    DCEI.PlaySound(DCEI.Sound("dwarfluchador_death_03"))
+                    DCEI.RemoveUnit(worker)
+                    self.masonry_workers_active = self.masonry_workers_active - 1
+                end
+
+                Help.GameTimer(999, condition, recurring_action, nil, cancel_action)
+            end
+        end, true)
+    end
+
+    Help.GameTimer(999, condition, recurring_action, nil, cancel_action)
+end
+
+function CampObject:_CheckNPCWork(delta, hero)
+    self.miners = self.miners or {}
+
+    if #self.miners > 0 then
+        if self.miners[1].tick_time % 480 == 0 then
+            DCEI.GetServerTime(function(time_stamp)
+                if time_stamp and time_stamp ~= 0 then
+                    SaveDataManager.Set(SAVE_KEY.Time, time_stamp)
+                    SaveDataManager.CommitSaveData()
+                else
+                    DCEI.LogError("no time")
+                end
+            end)
+        end
+        for i, miner_data in ipairs(self.miners) do
+            miner_data.tick_time = miner_data.tick_time + 1
+            if miner_data.state == MINER_STATE.MOVING_TO_BASE then
+                local distance =
+                    Vector2.DistanceBetweenUnits(miner_data.unit_reference, self.manager.gold_base.instance)
+                if distance < 1.5 then
+                    DCEI.SendSendCustomEventActorAction(miner_data.unit_reference, { identifier = "Deliver" })
+                    miner_data.state = MINER_STATE.DELIVER
+                    local miner_pos = DCEI.GetUnitPosition2D(miner_data.unit_reference)
+                    DCEI.Move(miner_data.unit_reference, miner_pos.x, miner_pos.y)
+
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        -- TODO: actually give gold and pops +1 gold ui
+                        local amount = 1
+                        local data = {
+                            amount = amount,
+                            unit_reference = GMUI.CreateUnitReference(miner_data.unit_reference),
+                        }
+                        Core.Event.SendPresentationEvent("Popup", data)
+
+                        SaveDataManager.Modify(SAVE_KEY.Gold, amount)
+                    end, 0.5)
+
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        -- TODO: actually give gold and pops +1 gold ui
+
+                        miner_data.state = MINER_STATE.MOVING_TO_MINE
+                        local move_position = miner_data.mine_pos + Vector2.RandomInside(0.5)
+                        DCEI.Move(miner_data.unit_reference, move_position.x, move_position.y)
+                    end, 1)
+                end
+            elseif miner_data.state == MINER_STATE.MOVING_TO_MINE then
+                local distance = Vector2.DistanceBetweenUnits(miner_data.unit_reference, self.instance)
+                if distance < 0.5 then
+                    DCEI.SendSendCustomEventActorAction(miner_data.unit_reference, { identifier = "StartWork" })
+                    miner_data.state = MINER_STATE.WORKING
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        miner_data.state = MINER_STATE.MOVING_TO_BASE
+                        local move_position = miner_data.base_pos + Vector2.RandomInside(0.5)
+                        DCEI.Move(miner_data.unit_reference, move_position.x, move_position.y)
+                    end, 1)
+                end
+            elseif miner_data.state == MINER_STATE.IDLE then
+                if i == 1 then
+                    DCEI.SendSendCustomEventActorAction(miner_data.unit_reference, { identifier = "StartWork" })
+                    miner_data.state = MINER_STATE.WORKING
+                    miner_data.start_work_time = miner_data.tick_time
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        miner_data.state = MINER_STATE.MOVING_TO_BASE
+                        DCEI.Move(miner_data.unit_reference, miner_data.base_pos.x, miner_data.base_pos.y)
+                    end, 1)
+                else
+                    if (miner_data.tick_time - self.miners[i - 1].start_work_time) % 8 == 0 then
+                        DCEI.SendSendCustomEventActorAction(miner_data.unit_reference, { identifier = "StartWork" })
+                        miner_data.state = MINER_STATE.WORKING
+                        miner_data.start_work_time = miner_data.tick_time
+                        DCEI.TriggerAddTimerEventElapsed(function()
+                            miner_data.state = MINER_STATE.MOVING_TO_BASE
+                            DCEI.Move(miner_data.unit_reference, miner_data.base_pos.x, miner_data.base_pos.y)
+                        end, 1)
+                    end
+                end
+            end
+        end
+    end
+end
+
+function CampObject:AddMiner()
+    self.miners = self.miners or {}
+    local miner_index = #self.miners
+    local mine_pos = DCEI.GetUnitPosition2D(self.instance)
+
+    local base_pos = DCEI.GetUnitPosition2D(self.manager.gold_base.instance)
+    local new_miner = DCEI.CreateUnit(1, 1, DCEI.Unit("Hybrid - Miner"), mine_pos.x + 1, mine_pos.y - 1, -1, 0)
+
+    self.miners[miner_index + 1] = {
+        unit_reference = new_miner,
+        state = MINER_STATE.IDLE,
+        mine_pos = mine_pos,
+        base_pos = base_pos,
+        tick_time = miner_index == 0 and 0 or self.miners[miner_index].tick_time,
+    }
+end
+
+function CampObject:AddArcher()
+    self.archers = self.archers or {}
+    local archer_index = #self.archers
+
+    if archer_index >= 26 then
+        self.archers[27] = self.archers[27] or { index = 26 }
+        self.archers[27].index = self.archers[27].index + 1
+        local modify_archer_index = (self.archers[27].index - 1) % 26 + 1
+        local upgrade_rank = math.floor((self.archers[27].index - 1) / 26)
+
+        DCEI.SendSendCustomEventActorAction(
+            self.archers[modify_archer_index].unit_reference,
+            { identifier = "Upgrade" .. tostring(upgrade_rank) }
+        )
+    else
+        local pos_x = (archer_index % 13 + 1) * 0.5 - 3.5
+        local pos_y = -math.floor(archer_index / 13) - 3
+        local self_pos = self:GetPosition()
+
+        local archer_unit = DCEI.Unit("Hybrid - Archer - Rank 01")
+        local new_archer = DCEI.CreateUnit(1, 1, archer_unit, self_pos.x, self_pos.y, 0, 1)
+        DCEI.CreateEffectAtPosition(DCEI.Effect("Hybrid - Archer Spawn"), new_archer, pos_x, pos_y)
+        DCEI.Move(new_archer, pos_x, pos_y)
+        self.archers[archer_index + 1] = {
+            unit_reference = new_archer,
+        }
+        QuestManager.CheckBuildingQuest(archer_unit)
+    end
+end
+
+function CampObject:_IsRepairNeeded()
+    if not self.data.need_repair then
+        return false
+    end
+
+    if Help.ValidateUnit(self.instance) then
+        local health = DCEI.GetHealth(self.instance)
+        local max_health = self.attributes:Get(STAT.Health)
+
+        if health < max_health then
+            return true
+        end
+    end
+
+    return false
+end
+
+function CampObject:_IsInRepairDistance(delta, hero)
+    local target_position = hero:GetPosition()
+    local unit_position = self.data.Position
+
+    local delta_x = math.abs(unit_position.x - target_position.x)
+    local delta_y = unit_position.y - target_position.y
+
+    return delta_x <= 0.6 and (delta_y <= 2.1 and delta_y >= 0.9)
+end
+
+function CampObject:_RepairDamaged(delta, hero)
+    local in_range = self:_IsInRepairDistance(delta, hero)
+
+    local health = self.repair_progress
+    local max_health = self.attributes:Get(STAT.Health)
+
+    if in_range then
+        health = health + delta * REPAIR_RATE
+        health = math.min(health, max_health)
+        SimpleUnit.ModifyHealth(self.instance, health, max_health)
+        if self.is_repairing ~= true then
+            self.is_repairing = true
+            DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "StartRepair" })
+        end
+    else
+        if self.is_repairing then
+            self.is_repairing = false
+            DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "EndRepair" })
+        end
+    end
+
+    self.repair_progress = health
+    self.repair_needed = max_health
+
+    if self.repair_progress < self.repair_needed then -- Repair in Progress
+        local fill_amount = self.repair_progress / self.repair_needed
+        local data_pass = {
+            uid = self.uid,
+            unit_reference = GMUI.CreateUnitReference(self.instance),
+            fill_amount = 1 - fill_amount,
+        }
+        Core.Event.SendPresentationEvent("Camp.Repair.Update", data_pass)
+        self:_SetStandStatus(true)
+        SetCampObjectPhaseBasedOnHealth(fill_amount, self.instance)
+    else -- Repair Completed
+        local data_pass = {
+            uid = self.uid,
+        }
+        Core.Event.SendPresentationEvent("Camp.Repair.Remove", data_pass)
+        self:_SetStandStatus(false)
+        -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HideStand" })
+        if self.is_repairing then
+            self.is_repairing = false
+            DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "EndRepair" })
+        end
+
+        self.spend_resource_cooldown = 1
+
+        return true
+    end
+end
+
+function CampObject:_CheckHealthState(delta, hero)
+    if self.data and self.data.TriggerDefeatOnDestoyed then
+        if self.instance then
+            local health = DCEI.GetHealth(self.instance)
+            local max_health = self.attributes:Get(STAT.Health)
+            local health_fraction = health / max_health
+            SetCampObjectPhaseBasedOnHealth(health_fraction, self.instance)
+        end
+    end
+end
+
+---@param delta Time
+---@param hero Hero
+function CampObject:_CheckRepairStructure(delta, hero)
+    if self.wave_active then -- Cannot Repair during Wave
+        return
+    end
+
+    if not self.data.need_repair then -- Check to see if it is destructible
+        return
+    end
+
+    -- Spend Resource Cooldown
+    if self.spend_resource_cooldown > 0 then
+        self.spend_resource_cooldown = self.spend_resource_cooldown - delta
+        return
+    end
+
+    -- Check if Repair is needed
+    if not self:_IsRepairNeeded() then
+        return
+    end
+
+    local is_repaired = false
+    if Help.ValidateUnit(self.instance) then -- We have a damaged structure
+        is_repaired = self:_RepairDamaged(delta, hero)
+    else
+        Help.Warn("Something went wrong checking for repairs")
+    end
+
+    self:_SetSaveHealth() -- Update Save State
+    if is_repaired then
+        SaveDataManager.CommitSaveData()
+    end
+end
+
+---TODO: Update UI
+---TODO: Optional: Add a Maximum Storage Amount
+---TODO: Optional: Provide positional limitations
+---TODO: Optional: Conditions and Limitations for Deposit
+---Collect resources from the hero
+---@param delta Time
+---@param hero Hero
+function CampObject:_CheckResourceCollector(delta, hero)
+    local data = self.data.resource_collector
+    if not data then
+        return
+    end
+
+    -- Check Deposit Range
+    local position = self.data.Position
+    local hero_position = hero:GetPosition()
+    local distance = Vector2.Distance(position, hero_position)
+    if distance > data.deposit_range then
+        return
+    end
+
+    -- Check what type of resource we can collect
+    local resource_key = data.resource_key
+    if not resource_key then
+        return
+    end
+
+    if not self.resource_collector_options then
+        self.resource_collector_options = {
+            increase_count = 0,
+            cooldown = 0,
+        }
+    end
+
+    if data.require_stationary then
+        if hero:GetTravelDistance() > 0.01 then
+            self.resource_collector_options.increase_count = 0
+            return
+        end
+    end
+
+    if data.frequency then
+        self.resource_collector_options.cooldown = self.resource_collector_options.cooldown + delta
+
+        local cooldown = data.frequency
+        if data.increase_frequency then
+            cooldown = math.max(0.0625, data.frequency - self.resource_collector_options.increase_count * TICK_RATE)
+        end
+
+        if self.resource_collector_options.cooldown < cooldown then
+            return
+        end
+
+        self.resource_collector_options.cooldown = self.resource_collector_options.cooldown - cooldown
+
+        if data.increase_frequency then
+            self.resource_collector_options.increase_count = self.resource_collector_options.increase_count + 1
+        end
+    end
+
+    local spend_amount = 1
+    local success = SaveDataManager.Spend(resource_key, 1)
+    if not success then
+        return
+    end
+
+    -- Save Resource Collected
+    local save_key = data.save_key
+    local save_data = SaveDataManager.GetReference(save_key) or {}
+    local key_index = resource_key[#resource_key]
+    save_data[key_index] = (save_data[key_index] or 0) + spend_amount
+    SaveDataManager.Set(save_key, save_data)
+
+    -- Quest Check
+    QuestManager.CheckSpendResource({
+        id = resource_key,
+        amount = spend_amount,
+    })
+
+    -- Cached Resource Values (display purposes)
+    if not self.resource_collected then
+        self.resource_collected = {}
+
+        -- Check if there is a saved value
+        if save_data[key_index] then
+            self.resource_collected[resource_key] = save_data[key_index]
+        end
+    end
+
+    self.resource_collected[resource_key] = (self.resource_collected[resource_key] or 0)
+
+    -- Check for Launch
+    if data.on_trigger then
+        DCEI.CreateEffectAtUnit(data.on_trigger.effect, self.instance, hero.unit)
+
+        Help.GameTimer(data.on_trigger.delay, nil, nil, function()
+            -- Update Display
+            self.resource_collected[resource_key] = self.resource_collected[resource_key] + spend_amount
+        end)
+    end
+end
+
+---Progress Bar
+---@param delta Time
+---@param hero Hero
+function CampObject:_CheckProgress(delta, hero)
+    --
+    local data = self.data.progress
+    if not data then
+        return
+    end
+
+    local resource_key = data.resource_key
+    if not resource_key then
+        return
+    end
+
+    ---TODO: Change to resource collected
+    if not self.resource_collected then
+        self.resource_collected = {}
+    end
+
+    -- Check to make sure we have the intake_amount
+    local intake_amount = data.intake_amount or 1
+    local amount_held = self.resource_collected[resource_key] or 0
+
+    if amount_held < intake_amount then -- Do not have enough resource to progress
+        if self.play_working_animation then
+            self.play_working_animation = false
+            DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "EndWork" })
+        end
+        return
+    end
+
+    if not self.play_working_animation then
+        self.play_working_animation = true
+        DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "StartWork" })
+    end
+
+    if not self.progress then
+        self.progress = {
+            current = 0,
+            required_time = data.required_time or 1,
+            fill_amount = 0,
+        }
+    end
+
+    self.progress.current = self.progress.current + delta
+
+    -- Check if Hero is on Stand
+    if data.hero_work_speed then
+        local instance_position = self.data.Position
+        local hero_position = hero:GetPosition()
+        local is_standing_still = hero:GetTravelDistance() <= 0
+
+        local delta_x = instance_position.x - hero_position.x
+        local delta_y = instance_position.y - hero_position.y
+
+        local is_in_stand = math.abs(delta_x) <= 0.6 and (delta_y <= 2.1 and delta_y >= 0.9)
+
+        if is_standing_still and is_in_stand then
+            self.progress.current = self.progress.current + delta * data.hero_work_speed
+        end
+    end
+
+    -- Check if we've completed a cycle
+    if self.progress.current >= self.progress.required_time then
+        -- Reset Timer
+        self.progress.current = self.progress.current - self.progress.required_time
+
+        -- Spend Resource
+        amount_held = amount_held - intake_amount
+
+        -- Update Save
+        local save_key = data.save_key
+        local save_data = SaveDataManager.GetReference(save_key) or {}
+        local key_index = resource_key[#resource_key]
+        save_data[key_index] = amount_held
+        SaveDataManager.Set(save_key, save_data)
+        self.manager:PrimeCommit()
+
+        -- Update Display/Reserve
+        if self.resource_collected then
+            if self.resource_collected[resource_key] then
+                self.resource_collected[resource_key] = self.resource_collected[resource_key] - intake_amount
+            end
+        end
+
+        -- Output Effect
+        if data.output then
+            if data.output.effect then
+                DCEI.CreateEffectAtSelf(data.output.effect, self.instance)
+            end
+        end
+    end
+
+    self.progress.fill_amount = self.progress.current / self.progress.required_time
+end
+
+---comment
+---@return integer
+function CampObject:_GetBannerAmount()
+    local data = self.data.progress
+    if not data then
+        return 0
+    end
+
+    local resource_key = data.resource_key
+    if not resource_key then
+        return 0
+    end
+
+    -- Check for Resource Collected Display
+    if self.resource_collected then
+        if self.resource_collected[resource_key] then
+            return self.resource_collected[resource_key]
+        else
+            return 0
+        end
+    end
+
+    local save_key = data.save_key
+    local save_data = SaveDataManager.GetReference(save_key) or {}
+    local key_index = resource_key[#resource_key]
+
+    return save_data[key_index] or 0
+end
+
+function CampObject:_GetProgressFillAmount()
+    if not self.progress then
+        return 0
+    end
+
+    return self.progress.fill_amount
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function CampObject:_UpdateProgressBar(delta, hero)
+    if not self.data.ui_info then
+        return
+    end
+
+    if not self.data.progress then
+        return
+    end
+
+    local banner_amount = self:_GetBannerAmount()
+    local fill_amount = self:_GetProgressFillAmount()
+
+    local data_pass = {
+        uid = self.uid,
+        camp_data_key = self.data.Key,
+        unit_reference = GMUI.CreateUnitReference(self.instance),
+        banner_amount = banner_amount,
+        fill_amount = fill_amount,
+    }
+    Core.Event.SendPresentationEvent("Camp.Progress.Update", data_pass)
+end
+
+function CampObject:_UpdateStand(delta, hero)
+    -- Check current status of the stand
+    -- Check target status of the stand
+    -- Update the stand
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+---Returns the Instance Position if it exists, otherwise returns the Data Position
+---@return Vector2
+function CampObject:GetPosition()
+    if Help.ValidateUnit(self.instance) then
+        return Vector2.UnitPosition(self.instance)
+    end
+
+    return self.data.Position
+end
+
+---comment
+---@return boolean
+function CampObject:IsAlive()
+    return self.data.is_destructible and Help.ValidateUnit(self.instance)
+end
+
+---@return boolean
+---@return string | nil
+function CampObject:IsWaveReady()
+    if self.masonry_workers_active > 0 then
+        return false, "Workers are busy."
+    end
+
+    if self:_IsRepairNeeded() then
+        return false, "Repairs needed!"
+    end
+
+    return true
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+function CampObject:RemoveOverheadDisplay()
+    if self.is_overhead_display_active then
+        Core.Event.SendPresentationEvent("Camp.RemoveOverheadDisplay", self.uid)
+        self:_SetStandStatus(false)
+        -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HideStand" })
+
+        self.is_overhead_display_active = false
+    end
+end
+
+function CampObject:SetWaveActive(status)
+    self.wave_active = status
+end
+
+function CampObject:SetButtonDisplayActive(status)
+    self.show_button_status = status
+
+    if not status then
+        self:RemoveOverheadDisplay()
+        self:_SetStandStatus(false)
+        -- DCEI.SendSendCustomEventActorAction(self.instance, { identifier = "HideStand" })
+    end
+end
+
+---comment
+---@param value boolean
+function CampObject:SetUIMessageEventAvailable(value)
+    self.UIMessageEventAvailable = value
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+-- ---comment
+-- ---@param delta Time
+-- ---@param hero Hero
+-- ---@return CampObject.ButtonDisplayData | nil
+-- function CampObject:GetButtonDisplayData(delta, hero)
+--     return self:_CheckButtonDisplay(delta, hero)
+-- end
+
+-- ---comment
+-- ---@param delta Time
+-- ---@param hero Hero
+-- ---@return string|nil
+-- function CampObject:IsTriggerEventMessage(delta, hero)
+--     return self:_CheckUIMessageEvent(delta, hero)
+-- end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function CampObject:Update(delta, hero)
+    self:_CheckHealthState(delta, hero)
+
+    self:_CheckRepairStructure(delta, hero)
+
+    if not Help.ValidateUnit(self.instance) or not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    self:_CheckResourceCollector(delta, hero)
+    self:_CheckProgress(delta, hero)
+
+    self:_CheckOverheadDisplay(delta, hero)
+    self:_CheckLearnedPerks(delta, hero)
+    -- self:_CheckPerkOffer(delta, hero)
+
+    -- self:_CheckBark(delta, hero)
+    -- self:_CheckUIMessageEvent(delta, hero)
+    self:_CheckSpendResource(delta, hero)
+    self:_CheckUpgradeReplacement(delta, hero)
+    self:_CheckNPCWork(delta, hero)
+    self:_CheckPerkObtained(hero)
+
+    self:_UpdateProgressBar(delta, hero)
+    self:_CheckStandDisplay()
+end
+
+function CampObject:FullHeal()
+    local health = self.attributes:Get(STAT.Health)
+    if health >= 0 then
+        SimpleUnit.ModifyHealth(self.instance, health, health)
+    end
+end
+
+---comment
+---@param modifier Modifier
+function CampObject:AddModifier(modifier)
+    table.insert(self.passed_modifiers, modifier)
+    self.attributes:Add(modifier)
+    self:ReconfigureInstanceStats()
+end
+
+---
+---@param modifiers table<Modifier>
+function CampObject:AddModifiers(modifiers)
+    self.attributes:AddModifiers(modifiers)
+    self:ReconfigureInstanceStats()
+end
+
+function CampObject:ResetModifiers()
+    self.passed_modifiers = {}
+    self.attributes:Reset()
+    self.attributes:AddModifiers(self.core_modifiers)
+    self:ReconfigureInstanceStats()
+end
+
+-- Update Stats based on modifiers
+function CampObject:ReconfigureInstanceStats(health_percentage)
+    health_percentage = health_percentage or 1
+
+    if not self.instance or not Help.ValidateUnit(self.instance) then
+        return
+    end
+
+    local attributes = self.attributes
+
+    local max_health = attributes:Get(STAT.Health)
+    if max_health >= 0 then
+        if self.data.Name == "Star" then
+            Help.Log("Star Health", max_health)
+        end
+
+        local health = health_percentage and max_health * health_percentage or max_health
+        health = math.max(health, 1)
+        SimpleUnit.ModifyHealth(self.instance, health, max_health)
+
+        self.repair_progress = health
+        self.repair_needed = max_health
+    end
+
+    local collision_size = attributes:Get(STAT.CollisionSize)
+    if collision_size >= 0 then
+        if self.data.Player == PLAYER.Hostile then
+            SimpleUnit.ModifyCollision(self.instance, CollisionLayers.Hostile, CollisionLayers.None, collision_size)
+        else
+            SimpleUnit.ModifyCollision(self.instance, CollisionLayers.Friendly, CollisionLayers.Hostile, collision_size)
+        end
+    end
+
+    if self.data.Overrides then
+        for stat, effect_paths in pairs(self.data.Overrides) do
+            for _, effect_path in ipairs(effect_paths) do
+                local value = attributes:Get(stat) * effect_path.scalar
+                local path = effect_path.path
+                local effect = effect_path.effect
+
+                if stat == STAT.Knockback then
+                    local knockback_data = SimpleUnit.GenerateKnockbackData(value)
+
+                    SetEffectValue(effect_path.effect, EJS.Force.Horizontal.Force, knockback_data.force)
+                    SetEffectValue(effect_path.effect, EJS.Force.Horizontal.Friction, knockback_data.friction)
+                    SetEffectValue(effect_path.effect, EJS.Force.Duration, knockback_data.duration)
+                else
+                    SetEffectValue(effect, path, value)
+                end
+            end
+        end
+    end
+end
+
+function CampObject:SpawnInstance(health_percentage)
+    health_percentage = health_percentage or 1
+
+    if Help.ValidateUnit(self.instance) then
+        -- Help.Warn("Instance already exists", self.data.Name, self.data)
+
+        ---TODO: Change to Repair
+        -- Heal
+        -- self:Heal()
+        return
+    end
+
+    self.instance = SpawnCampObject(self.data)
+
+    self:ReconfigureInstanceStats(health_percentage)
+
+    if self.data.ArmorType then
+        SimpleUnit.ModifyArmor(self.instance, self.data.ArmorType)
+    end
+
+    if self.data.OnEnter then
+        local collision_effects = {
+            SimpleUnit.GenerateCollisionEffect(self.data.OnEnter, CollisionTiming.Start, 0),
+        }
+        SimpleUnit.ModifyCollisionEffects(self.instance, collision_effects)
+    end
+
+    local is_base = self.data.TriggerDefeatOnDestoyed
+    if is_base then
+        self.manager.base = self
+    end
+
+    local is_treasury = self.data.is_treasury
+
+    if is_treasury then
+        self.manager.gold_base = self
+    end
+
+    local max_health = self.attributes:Get(STAT.Health)
+    if self.destroyed_instance then
+        DCEI.RemoveUnit(self.destroyed_instance)
+        self.destroyed_instance = nil
+
+        SimpleUnit.ModifyHealth(self.instance, 1, max_health)
+        SetCampObjectPhaseBasedOnHealth(0.01, self.instance)
+    end
+
+    DCEI.TriggerAddUnitDiedEvent(self.instance, function()
+        if is_base then
+            self.manager.OnKeyStructureDestroyed(self)
+        end
+
+        if self.data.DestroyedVersion then
+            self.destroyed_instance = SpawnCampObjectDestroyed(self.data)
+            self.repair_progress = 0
+            self.repair_needed = self.attributes:Get(STAT.Health)
+            Help.Log("Repair Needed", self.repair_needed)
+        end
+
+        local unit_ref = GMUI.CreateUnitReference(self.instance)
+        QuestIndicators.CheckIndicatorDestroy(unit_ref)
+
+        self.instance = nil
+    end)
+
+    -- rebuild miner
+    if self.data.required_resource and self.data.required_resource.generate_miner then
+        local miner_count = SaveDataManager.Get(SAVE_KEY.Miner)
+        if miner_count > 0 then
+            DCEI.TriggerAddTimerEventElapsed(function()
+                for i = 1, miner_count do
+                    self:AddMiner()
+                end
+
+                self:_UpdateResourceCostValues()
+                local data_pass = {
+                    uid = self.uid,
+                    remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+                    max_cost = self.resource_cost.max_cost,
+                }
+                Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+
+                DCEI.GetServerTime(function(time_stamp)
+                    if time_stamp and time_stamp ~= 0 then
+                        local old_time = SaveDataManager.Get(SAVE_KEY.Time)
+                        local gold_earned = math.floor((time_stamp - old_time) / 6)
+                        SaveDataManager.Set(SAVE_KEY.Time, time_stamp)
+                        SaveDataManager.Modify(SAVE_KEY.Gold, gold_earned)
+                        SaveDataManager.CommitSaveData()
+                        Core.Event.SendPresentationEvent("ShowOfflineReward", gold_earned)
+                    else
+                        DCEI.LogError("no time")
+                    end
+                end)
+            end, 2)
+        end
+    end
+
+    -- rebuild archers
+    if self.data.required_resource and self.data.required_resource.generate_archer then
+        local archer_count = SaveDataManager.Get(SAVE_KEY.ArcherCount)
+        if archer_count > 0 then
+            DCEI.TriggerAddTimerEventElapsed(function()
+                for i = 1, archer_count do
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        self:AddArcher()
+                    end, (i - 1) * 0.0625)
+                end
+
+                self:_UpdateResourceCostValues()
+                local data_pass = {
+                    uid = self.uid,
+                    remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+                    max_cost = self.resource_cost.max_cost,
+                }
+                Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+            end, 2)
+        end
+    end
+
+    -- rebuild barricade
+    if self.data.required_resource and self.data.required_resource.structure_order then
+        DCEI.TriggerAddTimerEventElapsed(function()
+            self:_UpdateResourceCostValues()
+            local data_pass = {
+                uid = self.uid,
+                remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+                max_cost = self.resource_cost.max_cost,
+            }
+            Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+        end, 2)
+    end
+
+    if self.data.required_resource and self.data.perk_offer then
+        local perk_offer = self:GetPerkOffer()
+
+        if not perk_offer then
+            return
+        end
+
+        self:_UpdateResourceCostValues()
+        local data_pass = {
+            uid = self.uid,
+            remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
+        }
+        Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+    end
+end
+
+function CampObject:ShowStatusBar()
+    if not self.data.ShowStatusBar or not Help.ValidateUnit(self.instance) then
+        return
+    end
+
+    local unit_ref = GMUI.CreateUnitReference(self.instance)
+    Core.Event.SendPresentationEvent("StatusBarManager.NewEventStatus", unit_ref)
+end
+
+function CampObject:HideStatusBar()
+    if not self.data.ShowStatusBar or not Help.ValidateUnit(self.instance) then
+        return
+    end
+
+    local unit_ref = GMUI.CreateUnitReference(self.instance)
+    Core.Event.SendPresentationEvent("StatusBarManager.ClearEventStatus", unit_ref)
+end
+
+---Destroys the Camp Instance (not the data)
+function CampObject:RemoveInstance()
+    if not Help.ValidateUnit(self.instance) then
+        Help.Warn("CampObject:RemoveInstance", "Instance is not valid")
+        return
+    end
+
+    -- Remove Colliders
+    for _, collider in ipairs(self.colliders) do
+        DCEI.RemoveUnit(collider)
+    end
+
+    self:RemoveOverheadDisplay()
+    DCEI.RemoveUnit(self.instance)
+    self.instance = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Library
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Library
+-- ================================================================================================
+
+return CampObject

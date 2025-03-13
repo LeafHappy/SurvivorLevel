@@ -1,0 +1,78 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local InAppOfferData = require("UiMeta/InAppOffer/InAppOfferData")
+local DataManager = require("UiMeta/DataManager")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Data
+---============================================================================
+
+-- Helpers
+local ui = GMUI.ui
+
+-- Module
+local InAppOfferManager = {}
+
+---============================================================================
+---!SECTION: Data
+---SECTION: Methods
+---============================================================================
+
+function InAppOfferManager.CreateOffer(offer_id)
+    -- Save time offer started with timestamp
+    if not DataManager.GetInAppOfferTimeStarted(offer_id) then
+        DataManager.SetInAppOfferTimeStarted(offer_id, os.time())
+    end
+
+    local bundle_data = InAppOfferData.GetBundleOfferDataById(offer_id)
+    ui.in_app_offer_popup.Open(bundle_data)
+    ui.camp.overlay:StartOfferTimer(bundle_data)
+end
+
+function InAppOfferManager.RemoveOffer(offer_id)
+    ui.camp.overlay:RemoveOffer()
+    ui.in_app_offer_popup.Hide()
+
+    DataManager.SetIsOfferExpired(offer_id, true)
+end
+
+function InAppOfferManager.OpenInitialOffer()
+    local offer_id = "test_data" -- TODO: Update initial offer id when that is designed
+
+    -- Don't show any expired offers
+    if DataManager.GetIsOfferExpired(offer_id) then
+        return
+    else
+        InAppOfferManager.CreateOffer(offer_id)
+    end
+end
+
+function InAppOfferManager.TryPurchaseBundle(bundle_id)
+    DCEI.LogMessage("Trying to buy bundle [" .. tostring(bundle_id) .. "]")
+    local bundle_data = InAppOfferData.GetBundleOfferDataById(bundle_id)
+    -- TODO: Make purchasing bundle spend cost and add resources
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("InAppOfferManager.OpenInitialOffer", InAppOfferManager.OpenInitialOffer)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return InAppOfferManager

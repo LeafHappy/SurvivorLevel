@@ -1,0 +1,89 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Help = require("UiHelp")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- DATA
+local Heroes = require("SharedData/Heroes")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Data
+---============================================================================
+
+-- LAYOUT
+local Layout = GMUI.Layout.New({
+    name = "Test/Configuration/HeroSelect",
+    parent = ui.z1.Lower,
+})
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+---Generates a Hero Button
+---@param parent Layout
+---@param hero_data HeroData
+---@return LazyLayout
+local function CreateHeroButton(parent, hero_data)
+    local layout = GMUI.LazyLayout.New({
+        name = "Test/Configuration/HeroPortrait",
+        parent = parent,
+    })
+
+    DCEI.SetFrameImage(layout.Button, hero_data.Portrait)
+
+    DCEI.SetOnClickCallback(layout.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Layout:Hide()
+
+        -- Send Message to Configuration to Update Selected Hero
+        ui.test.configuration:UpdateSelectedHero(hero_data)
+    end)
+
+    return layout
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Custom Functions
+---============================================================================
+
+function Layout:Initialize()
+    self:OnShow()
+
+    -- Create a series of Buttons for each Hero
+    for _, hero_data in pairs(Heroes) do
+        CreateHeroButton(self.Collection, hero_data)
+    end
+
+    self:Hide()
+end
+
+---============================================================================
+---!SECTION: Custom Functions
+---SECTION: Core Functions
+---============================================================================
+
+-- function layout:OnShow()
+--     --
+-- end
+
+-- function layout:OnHide()
+--     --
+-- end
+
+---============================================================================
+---!SECTION: Core Functions
+---============================================================================
+
+Layout:Initialize()
+return Layout

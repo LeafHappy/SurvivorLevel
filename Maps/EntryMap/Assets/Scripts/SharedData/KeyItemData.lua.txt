@@ -1,0 +1,43 @@
+---============================================================================
+---SECTION: Scripts
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---@class DangerZoneData.KeyItemData
+---@field Key string
+---@field Status ZONE_STATUS
+---@field Type Unit
+---@field Position Vector2
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Data
+---============================================================================
+
+---@type table<string, DangerZoneData.KeyItemData>
+local KeyItemData = {
+    ChopTree = {
+        Key = "ChopTree",
+        Status = ZONE_STATUS.Cleansed,
+        Type = DCEI.Unit("KeyItem - Axe"),
+        Position = Vector2.New(5, 2),
+    },
+    Strafe = {
+        Key = "Strafe",
+        Status = ZONE_STATUS.Occupied,
+        Type = DCEI.Unit("KeyItem - Bow"),
+        Position = Vector2.New(2.5, 5),
+    },
+}
+
+---============================================================================
+---!SECTION: Data
+---============================================================================
+
+return KeyItemData

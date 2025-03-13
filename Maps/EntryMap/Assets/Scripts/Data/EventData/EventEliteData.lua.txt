@@ -1,0 +1,292 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local HostilePatternData = require("Data/Events/HostilePatternData")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local Elites = require("Game/AI/Elites")
+
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+local CollisionEffect = require("SharedData/Class/CollisionEffect")
+
+-- local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local REF = {
+    Behavior = {
+        EventRadius = DCEI.Behavior("Event - Radius"), -- Generates a Radius VFX around the Event
+        MoveNearby = DCEI.Behavior("Event - Move Nearby"), -- Issue order to move to a position near the player.
+        MoveSpeed = DCEI.Behavior("Stats - Move Speed"),
+    },
+
+    Effect = {
+        Decay = DCEI.Effect("Event - OnEnter - Decay"), -- Causes self-damage when triggered.
+
+        LevelPoint = DCEI.Effect("Gain Stats - Level Point"), -- Gain a Level Point
+        HeroicPoint = DCEI.Effect("Gain Stats - Heroic Point"), -- Gain a Heroic Point
+    },
+}
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Data
+---============================================================================
+
+---@class EventEliteData : EventData
+---@field EliteType Elite
+---@field Modifiers table<Modifier>
+---@field EventTriggerListeners table<string>
+
+---@type table<EventEliteData>
+local Data = {}
+
+---============================================================================
+---ANCHOR: Elite - Mad Scientist
+---============================================================================
+
+Data.MadScientist_1 = {
+    ---ANCHOR: Elite Settings
+    EliteType = Elites.Types.MadScientist,
+    Modifiers = {
+        Modifier.New(STAT.CollisionSize, 1.00, SCALING.Multiplier),
+    },
+
+    ---ANCHOR: Shared Settings
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Distance = Vector2.New(15, 20),
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.EliteStandard,
+    },
+
+    DisplaySettings = {
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_spell_darksummons_wildsurvivor"),
+    },
+
+    WarningSettings = {
+        Message = "Incoming Elite",
+        Duration = 3,
+    },
+}
+
+Data.MadScientist_S1 = {
+    ---ANCHOR: Elite Settings
+    EliteType = Elites.Types.MadScientist,
+    Modifiers = {
+        Modifier.New(STAT.CollisionSize, 1.00, SCALING.Multiplier),
+    },
+
+    ---ANCHOR: Shared Settings
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UseLastEventPositionFromSequence,
+        -- Offset = Vector2.New(0, 5),
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.EliteStandard,
+    },
+
+    DisplaySettings = {
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_spell_darksummons_wildsurvivor"),
+    },
+
+    WarningSettings = {
+        Message = "Incoming Elite",
+        Duration = 3,
+    },
+}
+
+Data.MadScientist_S2 = {
+    ---ANCHOR: Elite Settings
+    EliteType = Elites.Types.MadScientist,
+    Modifiers = {
+        Modifier.New(STAT.MoveSpeed, 1.10, SCALING.Multiplier),
+        Modifier.New(STAT.CollisionSize, 1.10, SCALING.Multiplier),
+
+        Modifier.New(STAT.AttackSpeed, 0.25, SCALING.Scaled),
+        Modifier.New(STAT.SkillSize, 1.00, SCALING.Scaled),
+
+        Modifier.New(STAT.MinionCount, 3, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 1.50, SCALING.Multiplier),
+    },
+
+    ---ANCHOR: Shared Settings
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UseLastEventPositionFromSequence,
+        -- Offset = Vector2.New(0, 5),
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.EliteStandard,
+    },
+
+    DisplaySettings = {
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_spell_darksummons_wildsurvivor"),
+    },
+
+    WarningSettings = {
+        Message = "Incoming Elite",
+        Duration = 3,
+    },
+}
+
+Data.MadScientist_S3 = {
+    ---ANCHOR: Elite Settings
+    EliteType = Elites.Types.MadScientist,
+    Modifiers = {
+        Modifier.New(STAT.MoveSpeed, 1.20, SCALING.Multiplier),
+        Modifier.New(STAT.CollisionSize, 1.20, SCALING.Multiplier),
+
+        Modifier.New(STAT.AttackSpeed, 0.50, SCALING.Scaled),
+        Modifier.New(STAT.SkillSize, 2.00, SCALING.Scaled),
+
+        Modifier.New(STAT.MinionCount, 6, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 2.00, SCALING.Multiplier),
+    },
+
+    ---ANCHOR: Shared Settings
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UseLastEventPositionFromSequence,
+        -- Offset = Vector2.New(0, 5),
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.EliteSpecial,
+    },
+
+    DisplaySettings = {
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_spell_darksummons_wildsurvivor"),
+    },
+
+    WarningSettings = {
+        Message = "Incoming Elite",
+        Duration = 3,
+    },
+}
+
+---============================================================================
+---ANCHOR: Elite - Bloodstone
+---============================================================================
+
+Data.Bloodstone = {
+    ---ANCHOR: Elite Settings
+    EliteType = Elites.Types.Bloodstone,
+    Modifiers = {},
+
+    ---ANCHOR: Shared Settings
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Distance = Vector2.New(45, 55),
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.EliteStandard,
+    },
+
+    DisplaySettings = {
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("cartoon_icon_event_bloodstone_survivor"),
+    },
+}
+
+---============================================================================
+---ANCHOR: Elite - Bramble
+---============================================================================
+
+Data.Bramble = {
+    ---ANCHOR: Elite Settings
+    EliteType = Elites.Types.Bramble,
+    Modifiers = {},
+
+    ---ANCHOR: Shared Settings
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Distance = Vector2.New(20, 30),
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.EliteStandard,
+    },
+
+    DisplaySettings = {
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_spell_ghastplague"),
+    },
+}
+
+---============================================================================
+---ANCHOR: Elite - Nightshade
+---============================================================================
+
+Data.Nightshade = {
+    ---ANCHOR: Elite Settings
+    EliteType = Elites.Types.Nightshade,
+    Modifiers = {},
+
+    ---ANCHOR: Shared Settings
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Distance = Vector2.New(15, 15),
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.EliteStandard,
+    },
+
+    DisplaySettings = {
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_hero_reaper"),
+    },
+}
+
+return Data

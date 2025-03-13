@@ -1,0 +1,27 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.Layout.New({
+    name = "Test/Configuration/ActiveSkillSelect",
+    parent = ui.z1.Lower,
+})
+
+function layout:Initialize()
+    self:OnShow()
+end
+
+function layout:OnShow()
+    --
+end
+
+function layout:OnHide()
+    --
+end
+
+layout:Initialize()
+return layout

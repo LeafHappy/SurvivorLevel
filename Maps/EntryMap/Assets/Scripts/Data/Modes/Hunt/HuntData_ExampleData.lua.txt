@@ -1,0 +1,646 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+    Time-Key Tables
+        Many tables use a Time-Key to indicate when a certain event should occur.
+        Each Key is Unique, as in, you cannot have multiple of the same Key (like [1] and [1]) in the table.
+
+        Example:
+            [1] = {} -- Occurs after 1 second of Game Time.
+            [30] = {} -- Occurs after 30 seconds of Game Time.
+            [100] = {} -- Occurs after 100 seconds of Game Time.
+        
+        Places where Time-Key is used:
+            - Periodic Data
+                - Spawn Rates
+                - Timed Modifiers
+            - Fixed Data
+            - Elite Data
+            - Boss Data
+            - Loot Data
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local Conditions = require("Data/Events/ConditionData")
+
+local EventSpawnData = require("Data/EventData/EventSpawnData")
+local EventEliteData = require("Data/EventData/EventEliteData")
+local EventStructureData = require("Data/EventData/EventStructureData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Initialize
+---============================================================================
+
+---@type HuntData
+local Data = {}
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Periodic Data
+---============================================================================
+
+Data.Periodic = {
+    [1] = {
+        Type = HostileData.Walker,
+        Count = 1, -- The number generated each second.
+        FormationType = FORMATION_TYPE.Stream,
+        Properties = {
+            [StreamProperties.width] = 3,
+            [StreamProperties.distance] = 15,
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+        },
+        Modifiers = {
+            Modifier.New(STAT.Health, 2.00, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Multiplier),
+        },
+        SimpleDropTable = {
+            SimpleDropTableData.GuaranteedSmallExperience,
+        },
+    },
+    [295] = { -- Prevent Spawning
+        Type = nil,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Periodic Data
+-- SECTION -- Fixed Data
+---============================================================================
+
+---@see HostileData
+-- Hostile Types
+-- Runner
+-- Banshee
+-- Walker
+-- Marauder
+-- Boomer
+-- Brute
+
+---NOTE: Fixed Spawns should not overlap the same Hostile Type.
+---Hostiles typically spawn at a rate of 1/TICK_RATE or 1/0.03125 = 32 Hostiles per second.
+---Do NOT use the same Hostile Type for different Fixed Spawns in quick succession.
+
+---ANCHOR: BAD EXAMPLE of Fixed Spawns:
+-- Data.Fixed = {
+--     [10] = {
+--         Type = HostileData.Runner,
+--         Count = 1000, -- Takes 0.03125 seconds to spawn 1 Runner. Total Time: 31.25 seconds.
+--     },
+--     [20] = { -- Overlapped Runners with [10] Fixed Spawn
+--         Type = HostileData.Runner,
+--         Count = 1000,
+--     },
+-- }
+
+Data.Fixed = {
+    ---============================================================================
+    -- SECTION -- Fixed Spawn Examples
+    ---============================================================================
+    -- Spawns 300 Runners after 1 Second of Game Time.
+    -- Runners Spawn at a rate of 3 per second.
+    -- Total Time of Spawning: 3.125 seconds.
+    -- Fast Stream of Runners that run in a set direction (opposite of spawn angle from player).
+    -- [1] = {
+    --     Type = HostileData.Runner,
+    --     Count = 300,
+    --     FormationType = FORMATION_TYPE.Stream, -- Spawns from a specific direction over time.
+    --     Properties = {
+    --         [StreamProperties.width] = 20, -- The size in which the units will spawn.
+    --         [StreamProperties.anchor_target] = "TargetPass", -- Spawns based on the Player's Position.
+    --         [StreamProperties.spawn_angle] = "RandomAnglePass", -- Set a Random Starting Angle.
+    --         [StreamProperties.spawn_rate] = 3, -- Spawns 3 Runners per Tick (0.03125s).
+    --     },
+    --     Modifiers = {
+    --         ---NOTE: These units do not use "Difficulty" Setting.
+    --         ---Use Modifiers Instead. Typical Scaling is:
+    --         ---Health : Difficulty x 0.100
+    --         ---Damage : Difficulty x 0.010
+    --         ---MSpeed : Difficulty x 0.001
+
+    --         -- Standard Difficulty Settings
+    --         Modifier.New(STAT.Health, 1.00, SCALING.Scaled), -- Health Difficulty Modifier
+    --         Modifier.New(STAT.Thorns, 0.10, SCALING.Scaled), -- Damage Difficulty Modifier
+
+    --         -- Unique Modifiers
+    --         Modifier.New(STAT.Health, 0.85, SCALING.Multiplier), -- Reduce Health.
+    --         Modifier.New(STAT.Thorns, 0.75, SCALING.Multiplier), -- Reduce Damage.
+    --         Modifier.New(STAT.MoveSpeed, 1.35, SCALING.Multiplier), -- Increase Speed.
+    --     },
+    -- },
+    ---============================================================================
+    -- Spawn 50 Banshees after 1 Second of Game Time.
+    -- Banshees Spawn at a rate of 1 per second.
+    -- Total Time of Spawning: 1.5625 seconds.
+    -- Dense wall of Hostiles that move in a rough direction (each individual unit has a different direction).
+    -- [1] = {
+    --     Type = HostileData.Banshee,
+    --     Count = 50,
+    --     FormationType = FORMATION_TYPE.Stream, -- Spawns from a specific direction over time.
+    --     Properties = {
+    --         [StreamProperties.width] = 10, -- The size in which the units will spawn.
+    --         [StreamProperties.anchor_target] = "TargetPass", -- Spawns based on the Player's Position.
+    --         [StreamProperties.spawn_angle] = "RandomAnglePass", -- Set a Random Starting Angle.
+    --         [StreamProperties.move_angle_range] = 30, -- Alters the direction of movement (each individual unit).
+    --         [StreamProperties.spawn_rate] = 1, -- Spawns 3 Runners per Tick (0.03125s).
+    --     },
+    --     Modifiers = {
+    --         -- Standard Difficulty Settings
+    --         Modifier.New(STAT.Health, 1.00, SCALING.Scaled), -- Health Difficulty Modifier
+    --         Modifier.New(STAT.Thorns, 0.10, SCALING.Scaled), -- Damage Difficulty Modifier
+
+    --         -- Unique Modifiers
+    --         Modifier.New(STAT.Health, 1.55, SCALING.Multiplier), -- Increase Health.
+    --         Modifier.New(STAT.MoveSpeed, 0.65, SCALING.Multiplier), -- Reduce Speed.
+    --     },
+    -- },
+    ---============================================================================
+    -- Spawns 30 Marauders after 1 Second of Game Time.
+    -- Marauders Spawn at a rate of 1 per second.
+    -- Total Time of Spawning: 0.9375 seconds.
+    -- Group of Hostiles that spawn in a half-circle (top half) and follow the player.
+    -- [1] = {
+    --     Type = HostileData.Marauder,
+    --     Count = 30,
+    --     FormationType = FORMATION_TYPE.Stream, -- Spawns from a specific direction over time.
+    --     Properties = {
+    --         [StreamProperties.width] = 15, -- The size in which the units will spawn.
+    --         [StreamProperties.anchor_target] = "TargetPass", -- Spawns based on the Player's Position.
+    --         [StreamProperties.follow_target] = "TargetPass", -- Follows the Player.
+    --         [StreamProperties.spawn_angle] = 90, -- Set a Fixed Starting Angle (90 = Up).
+    --         [StreamProperties.spawn_angle_range] = 90, -- Adjusts Spawn Position, from (0 to 180).
+    --         [StreamProperties.spawn_rate] = 1, -- Spawns 3 Runners per Tick (0.03125s).
+    --     },
+    --     Modifiers = {
+    --         -- Standard Difficulty Settings
+    --         Modifier.New(STAT.Health, 1.00, SCALING.Scaled), -- Health Difficulty Modifier
+    --         Modifier.New(STAT.Thorns, 0.10, SCALING.Scaled), -- Damage Difficulty Modifier
+
+    --         -- Unique Modifiers
+    --         Modifier.New(STAT.Health, 2.15, SCALING.Multiplier), -- Increase Health.
+    --         Modifier.New(STAT.MoveSpeed, 0.90, SCALING.Multiplier), -- Reduce Speed.
+    --     },
+    -- },
+    ---============================================================================
+    -- Spawns 50 Runners after 1 Second of Game Time.
+    -- Runners Spawn Immediately (Enclosure is always immediate).
+    -- Fast Spiral motion around the Player, leaves a 90 degree gap for the player to escape.
+    -- [1] = {
+    --     Type = HostileData.Runner,
+    --     Count = 50,
+    --     FormationType = FORMATION_TYPE.Enclosure, -- Spawns from a specific direction over time.
+    --     Properties = {
+    --         [EnclosureProperties.offset] = "PositionPass", -- Spawns based on the Player's Position.
+    --         [EnclosureProperties.gap_size] = 90, -- Prevents Spawning in 90 degrees.
+    --         [EnclosureProperties.move_angle_modifier] = 5, -- Adjusts the movement angle (spiral).
+    --     },
+    --     Modifiers = {
+    --         -- Standard Difficulty Settings
+    --         Modifier.New(STAT.Health, 1.00, SCALING.Scaled), -- Health Difficulty Modifier
+    --         Modifier.New(STAT.Thorns, 0.10, SCALING.Scaled), -- Damage Difficulty Modifier
+
+    --         -- Unique Modifiers
+    --         Modifier.New(STAT.Health, 1.15, SCALING.Multiplier), -- Increase Health.
+    --         Modifier.New(STAT.Thorns, 0.85, SCALING.Multiplier), -- Reduce Damage.
+    --         Modifier.New(STAT.MoveSpeed, 1.35, SCALING.Multiplier), -- Reduce Speed.
+    --     },
+    -- },
+    ---============================================================================
+    -- Spawns 20 Brutes after 1 Second of Game Time.
+    -- Brutes Spawn Immediately (Enclosure is always immediate).
+    -- Spawns in a Circle Around the Player and slowly follows them.
+    -- [1] = {
+    --     Type = HostileData.Brute,
+    --     Count = 20,
+    --     FormationType = FORMATION_TYPE.Enclosure, -- Spawns from a specific direction over time.
+    --     Properties = {
+    --         [EnclosureProperties.target] = "TargetPass", -- Force Units to Follow the Player.
+    --     },
+    --     Modifiers = {
+    --         -- Standard Difficulty Settings
+    --         Modifier.New(STAT.Health, 1.00, SCALING.Scaled), -- Health Difficulty Modifier
+    --         Modifier.New(STAT.Thorns, 0.10, SCALING.Scaled), -- Damage Difficulty Modifier
+
+    --         -- Unique Modifiers
+    --         Modifier.New(STAT.Health, 6.35, SCALING.Multiplier), -- Increase Health.
+    --         Modifier.New(STAT.MoveSpeed, 0.15, SCALING.Multiplier), -- Reduce Speed.
+    --     },
+    -- },
+    ---============================================================================
+    -- !SECTION -- Fixed Spawn Examples
+    ---============================================================================
+    -- Starting Wave
+    [1] = {
+        Type = HostileData.Walker,
+        Count = 5,
+        FormationType = FORMATION_TYPE.Stream,
+        Properties = {
+            [StreamProperties.width] = 5,
+            [StreamProperties.distance] = 15,
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+            [StreamProperties.spawn_angle_range] = 360,
+            [StreamProperties.spawn_rate] = 10,
+        },
+        Modifiers = {
+            Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Multiplier),
+        },
+        SimpleDropTable = {
+            SimpleDropTableData.GuaranteedSmallExperience,
+        },
+    },
+
+    -- Streams --
+    -- [2] = {
+    --     Type = HostileData.Runner,
+    --     Count = 600,
+    --     FormationType = FORMATION_TYPE.Stream,
+    --     Properties = {
+    --         [StreamProperties.width] = 3,
+    --         [StreamProperties.distance] = 15,
+    --         [StreamProperties.anchor_target] = "TargetPass",
+    --         [StreamProperties.spawn_angle] = 90, -- Above, moving Down
+    --         [StreamProperties.spawn_angle_range] = 90,
+    --         [StreamProperties.move_angle_range] = 30,
+    --         [StreamProperties.spawn_rate] = 1,
+    --     },
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 4.0, SCALING.Multiplier),
+    --         Modifier.New(STAT.Thorns, 1.00, SCALING.Multiplier),
+    --         Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Multiplier),
+    --     },
+    --     SimpleDropTable = {
+    --         SimpleDropTableData.GuaranteedSmallExperience,
+    --     },
+    -- },
+}
+
+---============================================================================
+-- !SECTION -- Fixed Data
+-- SECTION -- Elite Data
+---============================================================================
+
+---NOTE: Elites have a 5 second warning before they spawn.
+---This means that elites cannot spawn in the first 5 seconds of the game.
+---Elites should also not spawn within 5 seconds of each other.
+Data.Elite = {
+    -- [30] = {
+    --     ---@see Elite and (ctrl + click) the referenced Elite Type to view its Stats.
+    --     ---Maps\EntryMap\Assets\Scripts\Game\AI\Elites\Golem.lua.txt
+    --     ---Maps\EntryMap\Assets\Scripts\Game\AI\Elites\Skull.lua.txt
+    --     Type = Elites.Types.Golem, -- The Type of Elite to Spawn.
+    --     DropTable = DropTables.SmallElite, -- Referenced Drop Table
+    --     Modifiers = {
+    --         -- Modifier.New(STAT.Health, 2.85, SCALING.Multiplier), -- How much Health the Elite has.
+    --         -- Modifier.New(STAT.Thorns, 2.00, SCALING.Multiplier), -- How much damage the Elite does when it comes into contact with the player.
+    --         -- Modifier.New(STAT.MoveSpeed, 0.65, SCALING.Multiplier), -- How fast the Elite is.
+    --         -- Modifier.New(STAT.CollisionSize, 1.75, SCALING.Multiplier), -- How big the Elite is.
+    --         -- Modifier.New(STAT.StaggerResistance, 1.15, SCALING.Multiplier), -- How resistant the Elite is to Stagger.
+    --         -- Modifier.New(STAT.AddedStaggerResistance, 1.15, SCALING.Multiplier), -- The amount of increased resistance to Stagger added after being Staggered.
+    --     },
+    -- },
+    -- [6] = {
+    --     Type = Elites.Types.Necromancer, -- The Type of Elite to Spawn.
+    --     DropTable = DropTables.SmallElite, -- Referenced Drop Table
+    --     Modifiers = {
+    --         -- Modifier.New(STAT.Health, 2.85, SCALING.Multiplier), -- How much Health the Elite has.
+    --         -- Modifier.New(STAT.Thorns, 2.00, SCALING.Multiplier), -- How much damage the Elite does when it comes into contact with the player.
+    --         -- Modifier.New(STAT.MoveSpeed, 0.65, SCALING.Multiplier), -- How fast the Elite is.
+    --         -- Modifier.New(STAT.CollisionSize, 1.75, SCALING.Multiplier), -- How big the Elite is.
+    --         -- Modifier.New(STAT.StaggerResistance, 1.15, SCALING.Multiplier), -- How resistant the Elite is to Stagger.
+    --         -- Modifier.New(STAT.AddedStaggerResistance, 1.15, SCALING.Multiplier), -- The amount of increased resistance to Stagger added after being Staggered.
+    --     },
+    -- },
+}
+
+---============================================================================
+-- !SECTION -- Elite Data
+-- SECTION -- Boss Data
+---============================================================================
+
+Data.Boss = {
+    [300] = {
+        Type = Bosses.Types.Shieldbearer,
+        -- Difficulty = 100,
+        DropTable = DropTables.Boss101,
+        Modifiers = {
+            Modifier.New(STAT.Health, 20.00, SCALING.Multiplier), -- How much Health the Boss has.
+            Modifier.New(STAT.Thorns, 1.50, SCALING.Multiplier), -- How much damage the Boss does when it comes into contact with the player.
+            Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Multiplier), -- How fast the Boss is.
+            Modifier.New(STAT.CollisionSize, 1.50, SCALING.Multiplier), -- How big the Boss is.
+            Modifier.New(STAT.StaggerResistance, 1.15, SCALING.Multiplier), -- How resistant the Boss is to Stagger.
+            Modifier.New(STAT.AddedStaggerResistance, 0.35, SCALING.Multiplier), -- The amount of increased resistance to Stagger added after being Staggered.
+
+            Modifier.New(STAT.MinionHealth, 2.00, SCALING.Multiplier), -- How much Health the Boss's Minions have.
+            Modifier.New(STAT.MinionDamage, 1.00, SCALING.Multiplier), -- How much damage the Boss's Minions do.
+            Modifier.New(STAT.MinionSpeed, 1.20, SCALING.Multiplier), -- How fast the Boss's Minions are.
+        },
+    },
+}
+
+---============================================================================
+-- !SECTION -- Boss Data
+-- SECTION -- Loot Data
+---============================================================================
+
+-- Always 1 at the start of a run.
+Data.Crate = DropTables.Crate101
+
+---============================================================================
+-- !SECTION -- Boss Data
+-- SECTION -- Event Data
+---============================================================================
+
+Data.FixedStageEvents = {
+    -- [1] = {
+    --     Options = {
+    --         EventStructureData.Relic,
+    --     },
+    --     -- Override for Spawn Options
+    --     SpawnSettings = {
+    --         BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+    --         Offset = Vector2.New(0, 18), -- Spawns up and to the right of the player so indicator is clearly visible.
+    --         Distance = Vector2.New(0, 0), -- Gives the Event a little bit of randomness in spawn position.
+    --     },
+    -- },
+    -- [50] = {
+    --     Options = {
+    --         EventStructureData.DroneCache,
+    --     },
+    -- },
+    -- [80] = {
+    --     Options = {
+    --         EventStructureData.AbandonedPotionShop,
+    --     },
+    -- },
+    -- [100] = {
+    --     Options = {
+    --         EventStructureData.Relic,
+    --     },
+    --     -- Override for Spawn Options
+    --     SpawnSettings = {
+    --         BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+    --         Distance = Vector2.New(40, 40), -- Spawns 40 Units away
+    --     },
+    -- },
+}
+
+---============================================================================
+-- !SECTION -- Event Data
+---TESTING: Do not modify or expect changes to Game Event Data to do anything.
+---This is a placeholder for future development.
+-- SECTION -- Game Event Data
+---============================================================================
+
+-- Requests
+-- Conditions:
+-- -- Triggered over time
+-- -- Defeat x number of Hostiles
+-- -- Player's Stat Comparison
+-- -- Spawn x seconds after Event Trigger (another event is completed)
+-- Upgrade Event after Duration
+-- Limitations:
+-- -- Maximum per run
+-- -- Max Duration (remove after duration)
+-- -- Maximum within Distance
+-- Completion:
+-- -- Destruction
+-- -- Stay within the area for x seconds.
+-- COMPLETION: Will always be when Destroyed. That's the only thing we can track from in-game.
+-- -- How it dies, or is destroyed, is up to how the Event is setup.
+-- Event Chains:
+-- -- Sequential (A --> B --> C) (Optional to Repeat, Add Duration between Spawns)
+-- -- Parallel (AND) Completing A, B, and C will trigger D. (A, B, and C are all active at one time)
+-- -- Parallel (OR) Completing A, B, or C will trigger D. (A, B, or C are all active at one time)
+
+local Conditions = {
+    ---ANCHOR: Hero Stat Comparisons
+
+    -- Player Move Speed is at least 5.
+    PlayerMovesFast = {
+        HeroStat = STAT.MoveSpeed,
+        Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+        Value = 5,
+    },
+
+    ---ANCHOR: Tracked Stat Comparisons
+
+    -- At least 100 Hostiles have been Killed.
+    KilledHostiles_1 = {
+        TrackedStat = TRACKED_STATS.BasicKills,
+        Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+        Value = 1,
+    },
+
+    ---ANCHOR: Game Stat Comparisons
+
+    -- Player has low health
+    PlayerHasLowHealth = {
+        GameTrackedStat = GAME_TRACKED_STAT.PlayerHealthPercentage,
+        Comparison = COMPARISON_TYPE.LessThanOrEqualTo,
+        Value = 0.25,
+    },
+
+    { -- Game Time equals 100
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+        Comparison = COMPARISON_TYPE.EqualTo,
+        Value = 100,
+    },
+
+    { -- Minute Mark
+        GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+        Comparison = COMPARISON_TYPE.Modulo,
+        Value = 60,
+    },
+
+    ---ANCHOR: Event Comparisons
+
+    -- Event has less than 3 currently active instances.
+    EventCountLimit3 = {
+        EventTrackedStat = EVENT_TRACKED_STAT.ActiveCount,
+        Comparison = COMPARISON_TYPE.LessThan,
+        Value = 3,
+    },
+
+    -- Player has traveled at least 15 units away.
+    TravelDistance_15 = {
+        EventTrackedStat = EVENT_TRACKED_STAT.DistanceTraveled,
+        Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+        Value = 15,
+    },
+
+    -- Event cannot occur more then once every 30 seconds.
+    EventCooldown_30 = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+        Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+        Value = 30,
+    },
+
+    -- Event cannot occur more then once every 10 seconds.
+    EventCooldown_10 = {
+        EventTrackedStat = EVENT_TRACKED_STAT.TimeSinceLastSpawned,
+        Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+        Value = 10,
+    },
+
+    -- Player has is 10 units away from the Event.
+    InstanceDistance_25 = {
+        InstanceStat = EVENT_INSTANCE_STAT.Distance,
+        Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+        Value = 25,
+    },
+
+    -- Event has less than 1 currently active instances.
+    EventCountLimit_1 = {
+        EventTrackedStat = EVENT_TRACKED_STAT.ActiveCount,
+        Comparison = COMPARISON_TYPE.LessThan,
+        Value = 1,
+    },
+}
+
+---ANCHOR: Low Health Emergency Potions
+local EmergencyPotions = {
+    EventTypeOptions = {
+        EventStructureData.AbandonedPotionShop,
+    },
+    Conditions = {
+        Conditions.PlayerHasLowHealth,
+        Conditions.EventCooldown_30,
+    },
+}
+
+---ANCHOR: Relic Hunt Sequence
+-- A --> B --> C (Repeat)
+local RelicHuntPart1 = {
+    EventTypeOptions = EventStructureData.DarkRitual_1,
+    Conditions = {
+        -- Conditions.KilledHostiles_1,
+        Conditions.EventCountLimit_1,
+    },
+    -- SpawnSettings = {
+    --     UsePlayerPosition = true,
+    --     Distance = Vector2.New(0, 5),
+    -- },
+}
+
+local RelicHuntPart2 = {
+    EventTypeOptions = EventStructureData.DarkRitual_2,
+    Conditions = {
+        -- Conditions.KilledHostiles_1,
+        Conditions.EventCountLimit_1,
+    },
+    -- SpawnSettings = {
+    --     UsePlayerPosition = true,
+    --     Distance = Vector2.New(0, 5),
+    -- },
+}
+
+local RelicHuntPart3 = {
+    EventTypeOptions = EventStructureData.DarkRitual_3,
+    Conditions = {
+        -- Conditions.KilledHostiles_1,
+        Conditions.EventCountLimit_1,
+    },
+    -- SpawnSettings = {
+    --     UsePlayerPosition = true,
+    --     Distance = Vector2.New(0, 5),
+    -- },
+}
+
+local EliteNecromancer_1 = {
+    EventTypeOptions = EventEliteData.EliteNecromancer_1,
+    Conditions = {
+        Conditions.EventCountLimit_1,
+    },
+}
+
+local EliteNecromancer_2 = {
+    EventTypeOptions = EventEliteData.EliteNecromancer_2,
+    Conditions = {
+        Conditions.EventCountLimit_1,
+    },
+}
+
+local EliteNecromancer_3 = {
+    EventTypeOptions = EventEliteData.EliteNecromancer_3,
+    Conditions = {
+        Conditions.EventCountLimit_1,
+    },
+}
+
+-- Should generate a Sequence Event
+local RelicHuntSequence = {
+    Sequence = {
+        RelicHuntPart1,
+        EliteNecromancer_1,
+        RelicHuntPart2,
+        EliteNecromancer_2,
+        RelicHuntPart3,
+        EliteNecromancer_3,
+    },
+    Options = {
+        Repeating = true,
+    },
+}
+
+---ANCHOR: Destructible Count (3)
+local NearbyDestructibles = {
+    EventTypeOptions = {
+        EventStructureData.Crate,
+    },
+    Conditions = {
+        Conditions.EventCountLimit3,
+        Conditions.TravelDistance_15,
+        Conditions.EventCooldown_10,
+    },
+    InstanceRemovalConditions = {
+        Conditions.InstanceDistance_25,
+    },
+}
+
+Data.GameEventData = {
+    -- Nearby Destructibles
+    -- Ensures there's roughly 3 nearby Destructibles at all times.
+    NearbyDestructibles,
+
+    -- Emergency Potions
+    -- Spawns an Abandoned Potion Shop when the Player has low health.
+    EmergencyPotions,
+
+    -- Relic Hunt Sequence
+    -- Spawns Relic Event x2 and then Evil Altar Event.
+    -- Available after killing 100 Hostiles.
+    RelicHuntSequence,
+}
+
+-- Event A -> B -> C
+-- Loopable
+
+---============================================================================
+-- !SECTION -- Game Event Data
+---============================================================================
+
+return Data

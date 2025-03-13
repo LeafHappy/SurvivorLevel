@@ -1,0 +1,847 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+
+    Enemies always spawn from the Shadows.
+    Enemies Periodically Spawn.
+    Specific Waves Spawn every 1 Minute.
+    Player must expand the Shadow to have more playspace.
+
+    -- Total Time: 900 Seconds or 15 Minutes
+    -- The Player can earn up to 15 Trophies
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New("Shadowfall")
+
+-- Classes
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local TileMap = require("Class/TileMap")
+local FogOfWar = require("Class/FogOfWar")
+local Joystick = require("Class/Joystick")
+
+-- Data
+local SimpleUnits = require("SharedData/SimpleUnits")
+local ShadowfallData = require("Data/Modes/Shadowfall")
+
+-- Shared Data
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Bosses = require("Game/AI/Bosses")
+
+local CreditDirector = require("Game/Directors/Credits")
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+-- TICK RATE
+local TICK_RATE = TICK_RATE or 0.0625
+
+-- SIMPLE UNIT DESPAWN PADDING
+local SIMPLE_UNIT_DESPAWN_PADDING = 30
+
+-- STARTING STATE VALUES
+local FOG_STARTING_SIZE = 15
+local FOG_SIZE_MINIMUM = 10
+local FOG_SMOOTHING_AMOUNT = 0.5
+local FOG_SMOOTHING_TYPE = "LERP"
+local FOG_SIZE_REDUCTION_PER_SECOND = 0.35
+
+-- TILE INFO
+local TILE_SIZE = 10.20 -- Originally 20.40
+local TILE_LOAD_DISTANCE = 2 -- Originally 1
+local TILE_OPTIONS = {
+    DCEI.Unit("Forest - Tile - Standard"),
+}
+
+-- TROPHY BRACKET
+local TROPHIES_EARNED = 15
+
+local WAVE_TOTAL = 30 -- The total number of Waves
+local WAVE_INTERVAL = 30 -- The frequency of Waves
+
+local STARTING_CREDITS_PER_MINUTE = 120
+local CREDITS_INCREASE_PER_PHASE = 10
+
+-- INHIBITOR
+local INHIBITOR_COUNT_MAX = 1
+local INHIBITOR_SPAWN_PADDING = 3
+local INHIBITOR_FOG_SIZE_INCREASE = 10
+local CREDITS_INCREASED_ON_INHIBITOR_DESTROYED = 10
+
+-- EVENTS
+local EVENT_STARTING_DISTANCE = 10
+local EVENT_INCREASE_DISTANCE = 5
+
+---DEBUG: Developer Startup
+local _SHOW_DEV_INFO = nil
+local _PRINT_STAGE_INFO = nil
+local _PRINT_SPAWN_EVENTS = nil
+if _Dev then
+    _SHOW_DEV_INFO = _Dev.UI.show_dev_info
+    _PRINT_STAGE_INFO = _Dev.Log.stage_information
+    _PRINT_SPAWN_EVENTS = _Dev.Log.spawn_events
+end
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Variables
+---============================================================================
+
+---@type TileMap
+local _Map = nil
+
+---@type FogOfWar
+local _Fog = nil
+
+---@type CreditDirector
+local _CreditDirector = nil
+
+-- Inhibitors
+local _Inhibitors = {}
+
+-- Events (Shrine & Relic)
+
+local _EventCount = 0
+local _EventInstance = nil
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions - Core
+---============================================================================
+
+---Update the Objective Text
+---@param wave integer
+local function SetObjectiveText(wave)
+    -- Prevent wave from exceeding the Total.
+    if wave > WAVE_TOTAL then
+        wave = WAVE_TOTAL
+    end
+
+    -- Set the UI Text
+    UiHelper.SetMainObjectiveText(string.format("Waves Completed\n%d/%d", wave, WAVE_TOTAL))
+end
+
+local function ResetStateVariables()
+    -- Reset Map
+    if _Map then
+        _Map:Reset()
+    end
+    _Map = nil
+
+    -- Reset Fog of War
+    ---WARNING: Make sure the Fog of War Regions are Removed.
+    if _Fog then
+        _Fog:_ClearFogOfWar()
+    end
+    _Fog = nil
+
+    -- Reset Directors
+    _CreditDirector = nil
+    SpawnDirector.Instance = nil
+
+    _EventCount = 0
+    _EventInstance = nil
+end
+
+---Initialize Game Mode
+---@param ctx GameModeContext
+local function Initialize(ctx)
+    -- Reset Player Stats
+    StageHelper.InitializeTrackedStats()
+
+    -- Reset Common Data Access
+    CommonDataAccess.Clear()
+
+    -- Core
+    local game_mode = CommonDataAccess.Set("game_mode", State.name)
+    local hero_name = CommonDataAccess.Set("hero", ctx.hero)
+    local hero_meta_level = CommonDataAccess.Set("hero_meta_level", ctx.hero_meta_level)
+    local trophy_count = CommonDataAccess.Set("current_total_trophies", ctx.trophy_count or 0)
+    local stage_level = CommonDataAccess.Set("stage_level", 1 + math.floor(trophy_count / TROPHIES_EARNED))
+
+    -- UI Display
+    CommonDataAccess.Set("game_time", 0)
+    CommonDataAccess.Set("kills", 0)
+    CommonDataAccess.Set("wave", 0)
+
+    -- Game Mode
+    CommonDataAccess.Set("bosses_defeated", 0)
+
+    -- Map
+    _Map = TileMap.New(TILE_SIZE, TILE_LOAD_DISTANCE, TILE_OPTIONS)
+    _Map:Update(Vector2.Zero())
+
+    -- Fog of War
+    _Fog = FogOfWar.New(Vector2.Zero(), FOG_STARTING_SIZE, FOG_SIZE_MINIMUM)
+    _Fog:SetSmoothingAmount(FOG_SMOOTHING_AMOUNT)
+    _Fog:SetSmoothingType(FOG_SMOOTHING_TYPE)
+
+    -- Hero
+    StageHelper.SetupPlayerCount(1)
+    local hero = StageHelper.SetupPlayerHero(PLAYER.Player1, hero_name, hero_meta_level, Vector2.Zero(), ctx.upgrades)
+
+    -- UI
+    StageHelper.ResetUI()
+    UiHelper.SetGameTimerActive(true, 0)
+    SetObjectiveText(0)
+    UiHelper.SetGameUIActive(true)
+
+    -- Experience
+    StageHelper.SetupGlobalExperience()
+
+    -- Set Seed
+    local seed = Help.ConvertToSeed(hero_name, game_mode, stage_level)
+    Core.Random.SetSeed(seed)
+
+    -- Directors
+    _CreditDirector = CreditDirector.New()
+    _CreditDirector:SetCreditsGeneratedPerMinute(STARTING_CREDITS_PER_MINUTE)
+
+    SpawnDirector.Instance:AddNewUnit(SimpleUnits.Data.Runner)
+
+    ---LOG: Game Start
+    Log.Game.Start({
+        game_mode = State.name,
+        stage_level = stage_level,
+        hero = hero_name,
+        hero_meta_level = hero_meta_level,
+    })
+end
+
+---Trigger Game Over
+---@param victory boolean
+local function GameOver(victory)
+    if not FSM:IsCurrentState(State) then
+        return
+    end
+
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+    FSM:Transition(FSM.states.game_over, { Victory = victory })
+end
+
+---DEBUG: Controls
+
+---Triggers when the player presses 'v'
+local function AutoVictory()
+    CommonDataAccess.Set("wave", 30)
+    CommonDataAccess.Set("bosses_defeated", 3)
+    GameOver(true)
+end
+
+---Triggers when the player presses 'b'
+local function AutoDefeat()
+    DCEI.KillUnit(Hero.Fetch(PLAYER.Player1).unit)
+end
+
+---============================================================================
+---!SECTION: Local Variables - Core
+---SECTION: Local Functions - Spawning
+---============================================================================
+
+local function CheckRequiredDifficultyMaxIndex(table, difficulty)
+    local index = 1
+    for i = 1, #table do
+        if table[i].RequiredDifficulty > difficulty then
+            break
+        end
+
+        index = i
+    end
+
+    return index
+end
+
+local periodic_spawn_angle = 0
+local function CheckPeriodicSpawn()
+    local game_time = CommonDataAccess.Get("game_time")
+    local wave_id = CommonDataAccess.Get("wave")
+
+    periodic_spawn_angle = periodic_spawn_angle + Core.Random.GetInteger(-wave_id / 4, wave_id / 4)
+
+    local count = math.floor(Core.Random.GetNumber(1, _CreditDirector:GetCredits()))
+
+    local success = _CreditDirector:SpendCredits(count)
+    if success then
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local hero_position = hero:GetPosition()
+
+        SpawnDirector.Instance:SpawnStream(SimpleUnits.Data.Runner, count, {
+            [StreamProperties.center_point] = hero_position,
+            [StreamProperties.spawn_angle] = periodic_spawn_angle,
+            [StreamProperties.move_angle_range] = 10,
+        })
+    end
+end
+
+local function CheckWaveSpawn()
+    local game_time = CommonDataAccess.Get("game_time")
+    local stage_level = CommonDataAccess.Get("stage_level")
+    local wave_id = CommonDataAccess.Get("wave")
+    local difficulty = ShadowfallData.GetDifficulty(stage_level, wave_id)
+
+    -- Formation Selection
+    local formation_selection_limit = CheckRequiredDifficultyMaxIndex(ShadowfallData.Formations, difficulty)
+    local formation_selection = ShadowfallData.Formations[Core.Random.GetInteger(1, formation_selection_limit)]
+
+    -- Enemy Selection
+    local enemy_selection_limit = CheckRequiredDifficultyMaxIndex(ShadowfallData.Enemies, difficulty)
+    local enemy_selection = ShadowfallData.Enemies[Core.Random.GetInteger(1, enemy_selection_limit)]
+
+    -- Mutation Selection
+    local mutation_selection_limit = CheckRequiredDifficultyMaxIndex(ShadowfallData.Mutations, difficulty)
+    local mutation_selection = ShadowfallData.Mutations[Core.Random.GetInteger(1, mutation_selection_limit)]
+
+    -- Verify that we can afford this combination.
+    local credits_available = ShadowfallData.GetWavePoints(wave_id)
+    local spawn_cost = enemy_selection.Cost * formation_selection.CostMultiplier * mutation_selection.CostMultiplier
+    local count = math.floor(credits_available / spawn_cost)
+
+    if _PRINT_SPAWN_EVENTS then
+        Help.Warn("Credit Spawn Event:", formation_selection.Name, {
+            Count = count,
+            EnemyType = enemy_selection.Type.Name,
+            Mutation = mutation_selection.Name,
+        })
+    end
+
+    -- Register the Unit
+    ---REVIEW: Do we need to also remove or wipe this unit?
+    local hostile_data = enemy_selection.Type
+    local enemy_modifiers = enemy_selection.Modifiers
+    local formation_modifiers = formation_selection.Modifiers
+    local mutation_modifiers = mutation_selection.Modifiers
+
+    SpawnDirector.Instance:RemoveUnit(hostile_data) -- Safety Precaution
+    SpawnDirector.Instance:AddNewUnit(hostile_data)
+    SpawnDirector.Instance:AddModifiers(hostile_data, enemy_modifiers)
+    SpawnDirector.Instance:AddModifiers(hostile_data, formation_modifiers)
+    SpawnDirector.Instance:AddModifiers(hostile_data, mutation_modifiers)
+    SpawnDirector.Instance:AddModifier(hostile_data, Modifier.New(STAT.Health, difficulty * 0.05, SCALING.Additive))
+    SpawnDirector.Instance:AddModifier(hostile_data, Modifier.New(STAT.Thorns, difficulty * 0.01, SCALING.Additive))
+
+    -- Setup Properties
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local target = hero.unit
+    local target_position = hero:GetPosition()
+    local fog_size = _Fog:GetSize()
+
+    local properties = Core.Table.DeepCopy(formation_selection.Properties)
+    for key, value in pairs(properties) do
+        if value == "TargetPass" then
+            properties[key] = target
+        elseif value == "PositionPass" then
+            properties[key] = target_position
+        elseif value == "DistancePass" then
+            properties[key] = fog_size / 2
+        elseif value == "WidthPass" then
+            properties[key] = fog_size
+        elseif value == "RandomAnglePass" then
+            properties[key] = Core.Random.GetNumber(0, 360)
+        elseif value == "RandomCardinalPass" then
+            properties[key] = Vector2.Angle(CardinalToVector(Help.GetRandomCardinalDirection()))
+        end
+    end
+
+    if formation_selection.Type == "Enclosure" then
+        SpawnDirector.Instance:SpawnEnclosure(hostile_data, count, properties)
+    elseif formation_selection.Type == "Stream" then
+        SpawnDirector.Instance:SpawnStream(hostile_data, count, properties)
+    end
+end
+
+---Occurs on Wave Interval: every 30 seconds.
+---Updates Spawn Director Settings
+local function SpawnWave()
+    local game_time = CommonDataAccess.Get("game_time")
+    local stage_level = CommonDataAccess.Get("stage_level")
+    local wave_id = CommonDataAccess.Get("wave")
+    local difficulty = ShadowfallData.GetDifficulty(stage_level, wave_id)
+
+    -- Set Objective Text
+    SetObjectiveText(wave_id)
+
+    -- Update Credits Earned
+    _CreditDirector:ModifyCreditsGenerated(CREDITS_INCREASE_PER_PHASE)
+
+    -- Update Runner Modifiers
+    SpawnDirector.Instance:AddModifier(
+        SimpleUnits.Data.Runner,
+        Modifier.New(STAT.Health, difficulty * 0.05, SCALING.Additive, nil, "Difficulty Health")
+    )
+
+    SpawnDirector.Instance:AddModifier(
+        SimpleUnits.Data.Runner,
+        Modifier.New(STAT.Thorns, difficulty * 0.01, SCALING.Additive, nil, "Difficulty Thorns")
+    )
+
+    SpawnDirector.Instance:AddModifier(
+        SimpleUnits.Data.Runner,
+        Modifier.New(STAT.MoveSpeed, (wave_id - 1) * 0.01, SCALING.Additive, nil, "Phase Move Speed")
+    )
+
+    -- Spawn a Boss
+    if wave_id <= 30 and wave_id % 10 == 0 then
+        local boss_index = 1 + (stage_level + wave_id / 10 - 2) % #ShadowfallData.Bosses
+        local boss_selected = ShadowfallData.Bosses[boss_index]
+        Help.Log(string.format("Selected Boss Index [%d]: %s", boss_index, boss_selected.Data.Name))
+
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local hero_position = hero:GetPosition()
+
+        local spawn_position = hero_position + Vector2.Quadrant(1) * 2
+        local boss = Bosses.Spawn(boss_selected, spawn_position, difficulty)
+
+        if wave_id == 30 then
+            Bosses.ApplyOnScreenHealthBar(boss, boss_selected.Data.Name)
+        else
+            Bosses.ApplyOverheadHealthbar(boss)
+        end
+
+        -- Increment Common Data Access Bosses Killed
+        DCEI.TriggerAddUnitDiedEvent(boss, function()
+            CommonDataAccess.Modify("bosses_defeated", 1)
+        end, true)
+
+        -- Final Boss
+        if wave_id == 30 then
+            DCEI.TriggerAddUnitDiedEvent(boss, function()
+                GameOver(true)
+            end, true)
+        end
+    else -- Fixed Spawn
+        CheckWaveSpawn()
+    end
+
+    ---LOG: Wave Start
+    -- Log.ShadowfallWaveStart(stage_level, wave_id, difficulty)
+end
+
+local function CheckSpawnCrate()
+    -- Events.SpawnCrate(_Fog:GetRandomInsidePosition(INHIBITOR_SPAWN_PADDING))
+end
+
+local function SpawnInhibitor(position)
+    position = position or _Fog:GetRandomEdgePosition(-INHIBITOR_SPAWN_PADDING)
+
+    if not position then -- 50% Chance to Spawn near Edge or Inside
+        position = Help.Flip() and _Fog:GetRandomEdgePosition(-INHIBITOR_SPAWN_PADDING)
+            or _Fog:GetRandomInsidePosition(INHIBITOR_SPAWN_PADDING)
+    end
+
+    local instance = Events.SpawnInhibitor(position)
+    table.insert(_Inhibitors, instance)
+
+    -- Event Complete Reward
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        -- Increase Credit Director Budget
+        _CreditDirector:ModifyCredits(CREDITS_INCREASED_ON_INHIBITOR_DESTROYED)
+
+        -- Increase Fog Size
+        _Fog:ModifyTargetSize(INHIBITOR_FOG_SIZE_INCREASE)
+
+        -- Grant a Random Item
+        -- local hero = Hero.Fetch(1)
+        -- local upgrade = Core.Table.GetRandomValue(Upgrades.Items)
+        -- hero:LearnUpgrade(upgrade.Name, true)
+
+        ---LOG: Inhibitor Destroyed
+        -- Log.ShadowfallInhibitorDestroyed()
+    end, true)
+end
+
+local function UpdateInhibitors()
+    -- Table Fix
+    Help.RemoveInvalidUnitsFromTable(_Inhibitors)
+
+    -- Remove Inhibitors that are in the Fog of War.
+    for _, inhibitor in pairs(_Inhibitors) do
+        local inhibitor_position = Vector2.UnitPosition(inhibitor)
+        if _Fog:IsPositionInFog(inhibitor_position) then
+            DCEI.RemoveUnit(inhibitor)
+
+            -- When removing the Inhibitor, increase the size so the Fog doesn't snowball.
+            _Fog:ModifyTargetSize(INHIBITOR_FOG_SIZE_INCREASE / 3)
+        end
+    end
+
+    -- Attempt to add a new Inhibitor
+    if #_Inhibitors < INHIBITOR_COUNT_MAX then
+        SpawnInhibitor()
+    end
+end
+
+local function CheckSpawnEvent()
+    -- Only Spawn 1 Event Instance at a Time.
+    if _EventInstance ~= nil then
+        return
+    end
+
+    -- Increment the number of Events we have spawned.
+    _EventCount = _EventCount + 1
+
+    local map_center = _Fog:GetPosition()
+    local distance = EVENT_STARTING_DISTANCE + EVENT_INCREASE_DISTANCE * _EventCount
+    local spawn_position = map_center + Vector2.Random() * distance
+
+    if _EventCount % 5 == 0 then -- Spawn Relic Chest
+        _EventInstance = Events.SpawnRelic(spawn_position)
+    else -- Spawn Standard Event
+        _EventInstance = Events.SpawnShrine(spawn_position)
+    end
+
+    -- Nil when the Event Dies.
+    DCEI.TriggerAddUnitDiedEvent(_EventInstance, function()
+        _EventInstance = nil
+    end)
+end
+
+-- Skip to the next main event.
+local function TimeSkip()
+    local game_time = CommonDataAccess.Get("game_time")
+
+    local next_section = math.ceil(game_time / 30)
+    CommonDataAccess.Set("game_time", next_section * 30)
+
+    -- Kill any Elites/Bosses
+    local units = DCEI.FindUnitsByTeamId(TEAM.Hostile)
+    for _, unit in pairs(units) do
+        DCEI.KillUnit(unit)
+    end
+
+    -- Increase Wave and Spawn
+    CommonDataAccess.Modify("wave", 1)
+    SpawnWave()
+end
+
+---============================================================================
+---!SECTION: Local Functions - Spawning
+---SECTION: Registered Functions
+---============================================================================
+
+---Check for Defeat Condition
+---@param delta number
+local function CheckDefeatStatus(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        GameOver(false)
+    end
+end
+
+---To make sure this is responsive, trigger every Frame.
+---Updates Player Movement
+---@param delta number
+local function UpdatePlayerMovement(delta)
+    StageHelper.PlayerUpdate()
+
+    -- Fog of War
+    _Fog:ModifyTargetSize(-FOG_SIZE_REDUCTION_PER_SECOND * TICK_RATE)
+    _Fog:Update(TICK_RATE)
+end
+
+---Every 0.25 Seconds - Helps the UI be less jittery.
+---Updates Player Stats
+---NOTE: Make sure to record one final time prior to leaving the State.
+---@param delta number
+local function UpdatePlayerStats(delta)
+    StageHelper.UpdatePlayerStats()
+end
+
+---Every 0.50 seconds.
+---Updates the Tiles and Hostile Remove Boundary
+---@param delta number
+local function UpdateTilesAndBoundary(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+
+    -- Map Update
+    local tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+    _Map:Update(tile_index)
+end
+
+---Triggers every 1 Second.
+---Updates the Main Game Events.
+---@param delta number
+local function UpdateGameTime(delta)
+    -- Update Time every 1 Second.
+    local game_time = CommonDataAccess.Modify("game_time", delta)
+
+    if type(game_time) == "number" then
+        UiHelper.SetGameTime(game_time)
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local hero_position = hero:GetPosition()
+
+    -- Fog of War Damage
+    if _Fog:IsPositionInFog(hero_position) then
+        DCEI.ApplyBehaviorToSelf(hero.unit, DCEI.Behavior("Out of Bounds"))
+    end
+
+    -- Inhibitors
+    UpdateInhibitors()
+
+    -- Spawn Events
+    CheckSpawnEvent()
+
+    -- Simple Unit Bounds
+    local fog_position = _Fog:GetPosition()
+    local fog_size = _Fog:GetSize()
+    StageHelper.SetSimpleUnitBounds(fog_position, fog_size + SIMPLE_UNIT_DESPAWN_PADDING)
+
+    _CreditDirector:Update(delta)
+
+    CheckPeriodicSpawn()
+end
+
+---Periodic 30 Second Check
+---@param delta number
+local function WaveInterval(delta)
+    local wave = CommonDataAccess.Modify("wave", 1)
+
+    SpawnWave()
+end
+
+---Should occur every minute.
+---Log the current Game Performance
+---@param delta number
+local function LogGamePerformance(delta)
+    Log.Performance.Event({
+        game_mode = CommonDataAccess.Get("game_mode"),
+        game_time = CommonDataAccess.Get("game_time"),
+        hero_level = CommonDataAccess.Get("hero_level"),
+    })
+end
+
+local _TickRateUpdates = {
+    {
+        Interval = 1,
+        Function = CheckDefeatStatus,
+    },
+    {
+        Interval = 1,
+        Function = UpdatePlayerMovement,
+    },
+    {
+        Interval = 0.25 / TICK_RATE,
+        Function = UpdatePlayerStats,
+    },
+    {
+        Interval = 0.50 / TICK_RATE,
+        Function = UpdateTilesAndBoundary,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = UpdateGameTime,
+    },
+    {
+        Interval = 30 / TICK_RATE,
+        Function = CheckSpawnCrate,
+    },
+    {
+        Interval = 30 / TICK_RATE,
+        Function = WaveInterval,
+    },
+    {
+        Interval = 60 / TICK_RATE,
+        Function = LogGamePerformance,
+    },
+}
+
+---Un/Register Tick Rate Dependent Functions
+---@param unsubscribe boolean | nil
+local function SubscribeTickRates(unsubscribe)
+    if not unsubscribe then
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Subscribe(entry.Interval, entry.Function)
+        end
+    else
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Unsubscribe(entry.Interval, entry.Function)
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Registered Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    ---@type GameModeContext
+    self.data = self.data
+
+    -- Clear any Leftover Units
+    StageHelper.RemoveAllUnits()
+
+    -- Reset
+    ResetStateVariables()
+
+    -- Setup
+    Initialize(self.data)
+
+    -- FadeIn
+    UiHelper.FadeIn()
+end
+
+function State:OnEnter()
+    -- Initial Set of Points for Spawning
+    -- SpawnDirector.Instance:ModifyPeriodicSpawnPoints(10)
+
+    -- Spawn initial Inhibitor
+    SpawnInhibitor(Vector2.Quadrant(1))
+
+    -- Make sure the player sees the Fog of War decreasing.
+    _Fog:SetTargetSize(10)
+
+    if _Dev then
+        _Dev.Events.Register("Victory", AutoVictory)
+        _Dev.Events.Register("Defeat", AutoDefeat)
+        _Dev.Events.Register("Time Skip", TimeSkip)
+    end
+
+    local stage_level = CommonDataAccess.Get("stage_level")
+    ShadowfallData.GetStageDifficulty(stage_level)
+
+    SubscribeTickRates()
+end
+
+function State:OnGameUpdate()
+    -- Check for Wave
+    -- CheckWaveIncreased()
+
+    -- _CreditDirector:Update(TICK_RATE)
+
+    -- CheckPeriodicSpawn()
+
+    ---DEBUG: Update Developer UI
+    if _SHOW_DEV_INFO then
+        State:Developer()
+    end
+end
+
+function State:OnTransitionExit()
+    SubscribeTickRates(true)
+
+    -- StageHelper.RecordHeroDamage()
+
+    StageHelper.GameOverSlowTimeAndZoom(3, 60, 40, function()
+        UiHelper.FadeOut(1)
+    end)
+end
+
+function State:OnExit()
+    -- Reset Game Speed back to Normal
+    Help.SetGameSpeed(1)
+
+    -- Clear
+    _Map:Reset()
+    StageHelper.RemoveAllUnits()
+
+    -- Reset State Variables
+    ResetStateVariables()
+
+    ---DEBUG: Remove Developer Console
+    if _SHOW_DEV_INFO then
+        UiHelper.ResetDeveloperText()
+    end
+
+    if _Dev then
+        _Dev.Events.Unregister("Victory", AutoVictory)
+        _Dev.Events.Unregister("Defeat", AutoDefeat)
+        _Dev.Events.Unregister("Time Skip", TimeSkip)
+    end
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: Developer
+---============================================================================
+
+---DEBUG: Developer Console
+if _SHOW_DEV_INFO then
+    function State:Developer()
+        local unit = Hero.Fetch(PLAYER.Player1).unit
+
+        -- Verify Unit Exists
+        if not unit or not DCEI.UnitExists(unit) then
+            return
+        end
+
+        -- Show Hero Position
+        local position = Vector2.UnitPosition(unit)
+        local key = "unit_position"
+        local label = string.format("Position: (%0.1f, %0.1f)", position.x, position.y)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Credit Director
+        local key = "credits"
+        local label = string.format("Credits: %d", math.floor(_CreditDirector.credits))
+        UiHelper.SetDeveloperText(key, label)
+
+        -- -- Periodic Spawn Points
+        -- local key = "periodic_spawn_points"
+        -- local label = string.format("Periodic Spawn Points: %d", math.floor(SpawnDirector.Instance.periodic_spawn_points))
+        -- UiHelper.SetDeveloperText(key, label)
+
+        -- -- Periodic Spawn Points
+        -- local key = "periodic_spawn_count"
+        -- local label = string.format("Periodic Spawn Count: %d", SpawnDirector.Instance.periodic_spawn_count)
+        -- UiHelper.SetDeveloperText(key, label)
+
+        -- Difficulty
+        local game_time = CommonDataAccess.Get("game_time")
+        local stage_level = CommonDataAccess.Get("stage_level")
+        local wave = CommonDataAccess.Get("wave")
+        local difficulty = ShadowfallData.GetDifficulty(stage_level, wave)
+        local key = "difficulty"
+        local label = string.format("Difficulty: %d", difficulty)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Fog Size
+        local fog_size = _Fog:GetSize()
+        local key = "fog_size"
+        local label = string.format("Fog Size: %0.1f", fog_size)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Spawn Angle
+        local key = "spawn_angle"
+        local label = string.format("Spawn Angle: %0.f", periodic_spawn_angle)
+        UiHelper.SetDeveloperText(key, label)
+    end
+end
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

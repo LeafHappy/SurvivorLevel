@@ -1,0 +1,44 @@
+---@class Modifier
+---@field stat STAT
+---@field value number
+---@field scaling SCALING
+---@field tags table<SKILL_TAG>
+---@field id string
+local Modifier = {}
+Modifier.__index = Modifier
+
+local custom_id_counter = 0
+
+---Generates the next Custom Id.
+---@return string
+local function GetNextCustomId()
+    custom_id_counter = custom_id_counter + 1
+    return "MODIFIER_" .. custom_id_counter
+end
+
+---Generates a new modifier.
+---@param stat STAT
+---@param value number
+---@param scaling SCALING
+---@param tags table<SKILL_TAG> | nil
+---@param id string | nil
+---@return Modifier
+function Modifier.New(stat, value, scaling, tags, id)
+    local self = setmetatable({}, Modifier)
+    self.stat = stat
+    self.value = value
+    self.scaling = scaling
+    self.tags = tags or {}
+    self.id = id or GetNextCustomId()
+
+    return self
+end
+
+---Generates a new modifier with the same values as the given modifier.
+---@param modifier Modifier
+---@return Modifier
+function Modifier.Copy(modifier)
+    return Modifier.New(modifier.stat, modifier.value, modifier.scaling, modifier.tags)
+end
+
+return Modifier

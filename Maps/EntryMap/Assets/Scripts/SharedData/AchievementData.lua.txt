@@ -1,0 +1,884 @@
+local AchievementData = {}
+
+AchievementData.Breakpoints = {
+    [ACHIEVEMENT_TYPES.TimeSurvived] = {
+        {
+            required = 60, -- 1 minute
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 180, -- 3 minutes
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 300, -- 5 minutes
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 600, -- 10 minutes
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 900, -- 15 minutes
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 1200, -- 20 minutes
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 1800, -- 30 minutes
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 3600, -- 1 hour
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 15,
+            },
+        },
+        {
+            required = 5400, -- 1 hour 30 minutes
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 15,
+            },
+        },
+        {
+            required = 7200, -- 2 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 10800, -- 3 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 14400, -- 4 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 18000, -- 5 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 36000, -- 10 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 54000, -- 15 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 72000, -- 20 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 108000, -- 30 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 180000, -- 50 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 30,
+            },
+        },
+        {
+            required = 360000, -- 100 hours
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 50,
+            },
+        },
+    },
+    [ACHIEVEMENT_TYPES.NormalEnemies] = {
+        {
+            required = 10,
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 100, -- 1 Hundred
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 1000, -- 1 Thousand
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 10000, -- 10 Thousand
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 100000, -- 100 Thousand
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 15,
+            },
+        },
+        {
+            required = 1000000,
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+    },
+    [ACHIEVEMENT_TYPES.EliteEnemies] = {
+        {
+            required = 1, -- 1 enemy
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 10, -- 10 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 100, -- 100 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 1000, -- 1 thousand enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 30,
+            },
+        },
+        {
+            required = 5000, -- 5 thousand enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 40,
+            },
+        },
+        {
+            required = 10000, -- 10 thousand enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 50,
+            },
+        },
+    },
+    [ACHIEVEMENT_TYPES.BossEnemies] = {
+        {
+            required = 1, -- 1 enemy
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 10, -- 10 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 15,
+            },
+        },
+        {
+            required = 50, -- 50 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 100, -- 100 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 300, -- 300 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 30,
+            },
+        },
+        {
+            required = 500, -- 500 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 50,
+            },
+        },
+        {
+            required = 1000, -- 1000 enemies
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 100,
+            },
+        },
+    },
+    [ACHIEVEMENT_TYPES.Damage] = {
+        {
+            required = 1000, -- 1 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 10000, -- 10 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 100000, -- 100 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 1000000, -- 1 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 10000000, -- 10 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 100000000, -- 100 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 30,
+            },
+        },
+        {
+            required = 1000000000, -- 1 Billion damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 50,
+            },
+        },
+    },
+    [ACHIEVEMENT_TYPES.UniversalDamage] = {
+        {
+            required = 1000, -- 1 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 10000, -- 10 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 100000, -- 100 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 1000000, -- 1 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 10000000, -- 10 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 100000000, -- 100 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 30,
+            },
+        },
+        {
+            required = 1000000000, -- 1 Billion damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 50,
+            },
+        },
+    },
+    [ACHIEVEMENT_TYPES.ArtifactDamage] = {
+        {
+            required = 1000, -- 1 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 10000, -- 10 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 5,
+            },
+        },
+        {
+            required = 100000, -- 100 Thousand damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 1000000, -- 1 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 10,
+            },
+        },
+        {
+            required = 10000000, -- 10 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 20,
+            },
+        },
+        {
+            required = 100000000, -- 100 Million damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 30,
+            },
+        },
+        {
+            required = 1000000000, -- 1 Billion damage
+            reward = {
+                type = TRACKED_STATS.Gems,
+                amount = 50,
+            },
+        },
+    },
+}
+
+AchievementData.List = {
+    -- #region TIME SURVIVED
+    {
+        Name = "Survival Time",
+        Icon = DCEI.Texture("general_icon_time_yellow_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.TimeSurvived,
+        -- Evaluate stat of current round rather than total of all rounds
+        IsAccumulative = false,
+        MainObjectiveText = "Time Survived",
+        SubObjectiveText = "Survive for %s seconds in a round",
+    },
+    -- #endregion TIME SURVIVED
+    -- #region NORMAL ENEMIES
+    {
+        Name = "Boomer",
+        Icon = DCEI.Texture("cartoon_icon_enemy_boomer_survivor"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Boomer",
+        SubObjectiveText = "Kill Boomer %s times",
+    },
+    {
+        Name = "Marauder",
+        Icon = DCEI.Texture("cartoon_icon_enemy_marauder_survivor"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Marauder",
+        SubObjectiveText = "Kill Marauder %s times",
+    },
+    {
+        Name = "Walker",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_zombie"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Walker",
+        SubObjectiveText = "Kill Walker %s times",
+    },
+    {
+        Name = "Runner",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_goblin_green"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Runner",
+        SubObjectiveText = "Kill Runner %s times",
+    },
+    {
+        Name = "Hound",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_warhog"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Hound",
+        SubObjectiveText = "Kill Hound %s times",
+    },
+    {
+        Name = "Hazmat Masked",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_boss_drow_lord_brown"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Hazmat Masked",
+        SubObjectiveText = "Kill Hazmat Masked %s times",
+    },
+    {
+        Name = "Hazmat Skull",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_boss_drow_lord_purple"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Hazmat Skull",
+        SubObjectiveText = "Kill Hazmat Skull %s times",
+    },
+    {
+        Name = "Butcher",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_ogre"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Butcher",
+        SubObjectiveText = "Kill Butcher %s times",
+    },
+    {
+        Name = "Witch",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_necromancer_skelemancer_black"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Witch",
+        SubObjectiveText = "Kill Witch %s times",
+    },
+    {
+        Name = "Gargoyle",
+        Icon = DCEI.Texture("unlock_unit_gargoyle_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Gargoyle",
+        SubObjectiveText = "Kill Gargoyle %s times",
+    },
+    -- #endregion NORMAL ENEMIES
+    -- #region ELITE ENEMIES
+    {
+        Name = "Golem",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_alchemist_pet_golem"),
+        Type = ACHIEVEMENT_TYPES.EliteEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Golem",
+        SubObjectiveText = "Kill Golem %s times",
+    },
+    {
+        Name = "Skull",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_skull_bouncing"),
+        Type = ACHIEVEMENT_TYPES.EliteEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Skull",
+        SubObjectiveText = "Kill Skull %s times",
+    },
+    -- #endregion ELITE ENEMIES
+    -- #region BOSS ENEMIES
+    {
+        Name = "Reaper",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_necromancer_zombiemaster"),
+        Type = ACHIEVEMENT_TYPES.BossEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Reaper",
+        SubObjectiveText = "Kill Reaper %s times",
+    },
+    {
+        Name = "Knight",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_deathknight_mounted"),
+        Type = ACHIEVEMENT_TYPES.BossEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Knight",
+        SubObjectiveText = "Kill Knight %s times",
+    },
+    {
+        Name = "Giant",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_golem_stone"),
+        Type = ACHIEVEMENT_TYPES.BossEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Giant",
+        SubObjectiveText = "Kill Giant %s times",
+    },
+    {
+        Name = "Skeleton King",
+        Icon = DCEI.Texture("btn_boss_pocketquest_skeletonking_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.BossEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Skeleton King",
+        SubObjectiveText = "Kill Skeleton King %s times",
+    },
+    {
+        Name = "Fulminyx",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_boss_dragon_green"),
+        Type = ACHIEVEMENT_TYPES.BossEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Fulminyx",
+        SubObjectiveText = "Kill Fulminyx %s times",
+    },
+    {
+        Name = "Alchemist",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_drow_mage_blue"),
+        Type = ACHIEVEMENT_TYPES.BossEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Mage",
+        SubObjectiveText = "Kill Mage %s times",
+    },
+    {
+        Name = "Shieldbearer",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_drow_captain"),
+        Type = ACHIEVEMENT_TYPES.BossEnemies,
+        IsAccumulative = true,
+        MainObjectiveText = "Kill Shieldbearer",
+        SubObjectiveText = "Kill Shieldbearer %s times",
+    },
+    -- #endregion BOSS ENEMIES
+    -- #region WEAPONS
+    {
+        Name = "Scarlet Arrow",
+        Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+        Type = ACHIEVEMENT_TYPES.Damage,
+        IsAccumulative = true,
+        MainObjectiveText = "Scarlet Arrow",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Mighty Axe",
+        Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+        Type = ACHIEVEMENT_TYPES.Damage,
+        IsAccumulative = true,
+        MainObjectiveText = "Mighty Axe",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Homerun Bat",
+        Icon = DCEI.Texture("cartoon_icon_skill_bunny_baseball_missile"),
+        Type = ACHIEVEMENT_TYPES.Damage,
+        IsAccumulative = true,
+        MainObjectiveText = "Homerun Bat",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Revenant",
+        Icon = DCEI.Texture("icon_spell_summon_harbinger_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.Damage,
+        IsAccumulative = true,
+        MainObjectiveText = "Revenant",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Salvo",
+        Icon = DCEI.Texture("icon_enhance_flamecannon_heatseekers_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.Damage,
+        IsAccumulative = true,
+        MainObjectiveText = "Salvo",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    -- #endregion WEAPONS
+    -- #region SPELLS
+    {
+        Name = "Solar Crest",
+        Icon = DCEI.Texture("cartoon_icon_skill_solar_crest_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Solar Crest",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Spectral Arrow",
+        Icon = DCEI.Texture("cartoon_icon_skill_mystic_archer_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Spectral Arrow",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Lightning Strike",
+        Icon = DCEI.Texture("cartoon_icon_skill_lightning_storm_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Lightning Strike",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Chakram",
+        Icon = DCEI.Texture("cartoon_icon_skill_arcane_orb_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Chakram",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Chilling Presence",
+        Icon = DCEI.Texture("cartoon_icon_skill_chilling_presence_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Chilling Presence",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Clawstorm",
+        Icon = DCEI.Texture("cartoon_icon_skill_clawstorm_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Clawstorm",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Frostnova",
+        Icon = DCEI.Texture("cartoon_icon_skill_frostnova_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Frostnova",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Guardian Shield",
+        Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Guardian Shield",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Pyroclasm",
+        Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Pyroclasm",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Viper Strike",
+        Icon = DCEI.Texture("icon_enhance_candycottage_toxicdroplets_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Viper Strike",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Starblast",
+        Icon = DCEI.Texture("icon_enhance_wardedgate_passingjudgement_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.UniversalDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Starblast",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    -- #endregion SPELLS
+    -- #region ARTIFACTS
+    {
+        Name = "Ice Rupture",
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+        Type = ACHIEVEMENT_TYPES.ArtifactDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Ice Rupture",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Whirlwind",
+        Icon = DCEI.Texture("cartoon_icon_skill_whirlwind_survivor"),
+        Type = ACHIEVEMENT_TYPES.ArtifactDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Whirlwind",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Hydra",
+        Icon = DCEI.Texture("cartoon_icon_skill_hydra_missile_survivor"),
+        Type = ACHIEVEMENT_TYPES.ArtifactDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Hydra",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Death Blossom",
+        Icon = DCEI.Texture("cartoon_icon_skill_death_blossom_survivor"),
+        Type = ACHIEVEMENT_TYPES.ArtifactDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Death Blossom",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    {
+        Name = "Flamebreak",
+        Icon = DCEI.Texture("icon_enhance_flamecannon_furnace_wildsurvivor"),
+        Type = ACHIEVEMENT_TYPES.ArtifactDamage,
+        IsAccumulative = true,
+        MainObjectiveText = "Flamebreak",
+        SubObjectiveText = "Deal %s Damage",
+    },
+    -- #endregion ARTIFACTS
+    -- #region MINION ENEMIES
+    --[[
+    {
+        Name = "Knight Troop Rank 1",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Knight Troop Rank 1",
+        SubObjectiveText = "Kill Knight Troop Rank 1 %s times"
+    },
+    {
+        Name = "Knight Troop Rank 2",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Knight Troop Rank 2",
+        SubObjectiveText = "Kill Knight Troop Rank 2 %s times"
+    },
+    {
+        Name = "Knight Troop Rank 3",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Knight Troop Rank 3",
+        SubObjectiveText = "Kill Knight Troop Rank 3 %s times"
+    },
+    {
+        Name = "Skeleton",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Skeleton",
+        SubObjectiveText = "Kill Skeleton %s times"
+    },
+    {
+        Name = "Shock Trooper",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Shock Trooper",
+        SubObjectiveText = "Kill Shock Trooper %s times"
+    },
+    {
+        Name = "Ice Elemental",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Ice Elemental",
+        SubObjectiveText = "Kill Ice Elemental %s times"
+    },
+    {
+        Name = "Ice Missile",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Ice Missile",
+        SubObjectiveText = "Kill Ice Missile %s times"
+    },
+    {
+        Name = "Mummy",
+        Icon = "",
+        Type = ACHIEVEMENT_TYPES.NormalEnemies,
+        MainObjectiveText = "Kill Mummy",
+        SubObjectiveText = "Kill Mummy %s times"
+    },
+    ]]
+    -- #endregion MINION ENEMIES
+}
+
+AchievementData.DataByType = {
+    [ACHIEVEMENT_TYPES.TimeSurvived] = {},
+    [ACHIEVEMENT_TYPES.NormalEnemies] = {},
+    [ACHIEVEMENT_TYPES.EliteEnemies] = {},
+    [ACHIEVEMENT_TYPES.BossEnemies] = {},
+    [ACHIEVEMENT_TYPES.Damage] = {},
+    [ACHIEVEMENT_TYPES.UniversalDamage] = {},
+    [ACHIEVEMENT_TYPES.ArtifactDamage] = {},
+}
+
+for _, item in ipairs(AchievementData.List) do
+    table.insert(AchievementData.DataByType[item.Type], item)
+end
+
+AchievementData.Colors = {
+    [ACHIEVEMENT_TYPES.TimeSurvived] = {
+        item = "#222222ff",
+        separator = "#222222dd",
+    },
+    [ACHIEVEMENT_TYPES.NormalEnemies] = {
+        item = "#004146ff",
+        separator = "#004146dd",
+    },
+    [ACHIEVEMENT_TYPES.EliteEnemies] = {
+        item = "#327ba8ff",
+        separator = "#327ba8dd",
+    },
+    [ACHIEVEMENT_TYPES.BossEnemies] = {
+        item = "#3e0046ff",
+        separator = "#3e0046dd",
+    },
+    [ACHIEVEMENT_TYPES.Damage] = {
+        item = "#b37b40ff",
+        separator = "#b37b40dd",
+    },
+    [ACHIEVEMENT_TYPES.UniversalDamage] = {
+        item = "#056f76ff",
+        separator = "#056f76dd",
+    },
+    [ACHIEVEMENT_TYPES.ArtifactDamage] = {
+        item = "#760505ff",
+        separator = "#760505dd",
+    },
+}
+
+return AchievementData

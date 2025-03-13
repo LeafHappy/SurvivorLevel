@@ -1,0 +1,2262 @@
+local SkillData = require("SharedData/Skills/SkillData")
+
+---@class HeroData
+---@field Name string
+---@field Shard string
+---@field Description string
+---@field Portrait string
+---@field Weapon string
+---@field Unit string
+---@field Equipment table<string>
+---@field StartingUpgrades table<SkillData>
+---@field StartingStats table<STAT, number>
+---@field MetaStats table<STAT, number>
+---@field LevelUpCost table<table>
+---@field RankData table<table>
+
+---@class Heroes<HeroData>
+---@readonly
+local Heroes = {
+    {
+        Name = "Annie",
+        Shard = "s_annie",
+        Description = "A patient survivor with deadly precision.",
+        Portrait = DCEI.Texture("modern_icon_hero_bighead_annie_wildsurvivor"),
+        Unit = DCEI.Unit("Hero - Annie"),
+        Equipment = {
+            WeaponKey = "scarlet_bow",
+            ArmorKey = "test_shield",
+        },
+        DisplayedSkill = SkillData.ScarletArrow, -- Skill to display in hero info
+        StartingUpgrades = {
+            -- SkillData.ScarletArrow,
+        },
+        StartingStats = {
+            [STAT.CameraDistance] = 10,
+            [STAT.CollisionSize] = 0.4,
+            [STAT.PickupRange] = 1.2,
+            [STAT.Knockback] = 20,
+            [STAT.PotionHeal] = 100,
+            [STAT.MoveSpeed] = 450,
+            [STAT.StaggerDamageMultiplier] = 0.50,
+            [STAT.StaggerDuration] = 5,
+
+            [STAT.Damage] = 1,
+            [STAT.Health] = 100,
+
+            [STAT.PierceDamage] = -0.10,
+            [STAT.Luck] = 1,
+        },
+        MetaStats = { -- Increase Per Meta Level
+            [STAT.Damage] = 0.20,
+            [STAT.Health] = 75,
+            [STAT.Armor] = 1,
+            [STAT.PotionHeal] = 1,
+        },
+        ChallengeData = {
+            [1] = {
+                type = HERO_CHALLENGE_TYPE.Kills,
+                challenge = {
+                    display_name = "Runner Hunt",
+                    ability_name = "Scarlet Arrow",
+                    unit_key = "Runner",
+                    amount = 10,
+                },
+                rewards = {
+                    add_perk = "SOME PERK",
+                },
+            },
+            [2] = {
+                type = HERO_CHALLENGE_TYPE.AbilityDamage,
+                challenge = {
+                    display_name = "Scarlet Damage",
+                    ability_name = "Scarlet Arrow",
+                    amount = 100,
+                },
+                rewards = {
+                    add_perk = "SOME PERK",
+                },
+            },
+            [3] = {
+                type = HERO_CHALLENGE_TYPE.AbilityUses,
+                challenge = {
+                    display_name = "Scarlet Launcher",
+                    ability_name = "Scarlet Arrow",
+                    amount = 10,
+                },
+                rewards = {
+                    add_perk = "SOME PERK",
+                },
+            },
+        },
+        LevelUpCost = {
+            [1] = {
+                { id = "gold", amount = 0 },
+            },
+            [2] = {
+                { id = "gold", amount = 15 },
+                { id = "meta_alpha_1", amount = 2 },
+            },
+            [3] = {
+                { id = "gold", amount = 20 },
+            },
+            [4] = {
+                { id = "gold", amount = 25 },
+            },
+            [5] = {
+                { id = "gold", amount = 30 },
+                { id = "meta_alpha_1", amount = 8 },
+            },
+            [6] = {
+                { id = "gold", amount = 35 },
+            },
+            [7] = {
+                { id = "gold", amount = 40 },
+            },
+            [8] = {
+                { id = "gold", amount = 45 },
+            },
+            [9] = {
+                { id = "gold", amount = 50 },
+            },
+            [10] = {
+                { id = "gold", amount = 60 },
+                { id = "meta_alpha_1", amount = 15 },
+                { id = "meta_beta_1", amount = 5 },
+            },
+            [11] = {
+                { id = "gold", amount = 70 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [12] = {
+                { id = "gold", amount = 80 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [13] = {
+                { id = "gold", amount = 90 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [14] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [15] = {
+                { id = "gold", amount = 120 },
+                { id = "meta_alpha_1", amount = 4 },
+                { id = "meta_beta_1", amount = 10 },
+            },
+            [16] = {
+                { id = "gold", amount = 140 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [17] = {
+                { id = "gold", amount = 160 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [18] = {
+                { id = "gold", amount = 180 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [19] = {
+                { id = "gold", amount = 200 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [20] = {
+                { id = "gold", amount = 220 },
+                { id = "meta_alpha_1", amount = 15 },
+                { id = "meta_beta_1", amount = 30 },
+            },
+            [21] = {
+                { id = "gold", amount = 240 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [22] = {
+                { id = "gold", amount = 260 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [23] = {
+                { id = "gold", amount = 280 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [24] = {
+                { id = "gold", amount = 300 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [25] = {
+                { id = "gold", amount = 320 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [26] = {
+                { id = "gold", amount = 340 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [27] = {
+                { id = "gold", amount = 360 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [28] = {
+                { id = "gold", amount = 380 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [29] = {
+                { id = "gold", amount = 400 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [30] = {
+                { id = "gold", amount = 420 },
+                { id = "meta_alpha_1", amount = 15 },
+                { id = "meta_alpha_2", amount = 36 },
+            },
+            [31] = {
+                { id = "gold", amount = 440 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [32] = {
+                { id = "gold", amount = 460 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [33] = {
+                { id = "gold", amount = 480 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [34] = {
+                { id = "gold", amount = 500 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [35] = {
+                { id = "gold", amount = 520 },
+                { id = "meta_alpha_1", amount = 5 },
+                { id = "meta_beta_1", amount = 40 },
+            },
+            [36] = {
+                { id = "gold", amount = 540 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [37] = {
+                { id = "gold", amount = 560 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [38] = {
+                { id = "gold", amount = 580 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [39] = {
+                { id = "gold", amount = 600 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [40] = {
+                { id = "gold", amount = 620 },
+                { id = "meta_alpha_1", amount = 20 },
+                { id = "meta_alpha_2", amount = 50 },
+            },
+            [41] = {
+                { id = "gold", amount = 640 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [42] = {
+                { id = "gold", amount = 660 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [43] = {
+                { id = "gold", amount = 680 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [44] = {
+                { id = "gold", amount = 700 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [45] = {
+                { id = "gold", amount = 720 },
+                { id = "meta_alpha_1", amount = 10 },
+                { id = "meta_beta_1", amount = 60 },
+            },
+            [46] = {
+                { id = "gold", amount = 740 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [47] = {
+                { id = "gold", amount = 760 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [48] = {
+                { id = "gold", amount = 780 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [49] = {
+                { id = "gold", amount = 800 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [50] = {
+                { id = "gold", amount = 820 },
+                { id = "meta_alpha_1", amount = 45 },
+                { id = "meta_alpha_2", amount = 100 },
+            },
+            [51] = {
+                { id = "gold", amount = 840 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [52] = {
+                { id = "gold", amount = 860 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [53] = {
+                { id = "gold", amount = 880 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [54] = {
+                { id = "gold", amount = 900 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [55] = {
+                { id = "gold", amount = 920 },
+                { id = "meta_alpha_1", amount = 12 },
+                { id = "meta_beta_1", amount = 130 },
+            },
+            [56] = {
+                { id = "gold", amount = 940 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [57] = {
+                { id = "gold", amount = 960 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [58] = {
+                { id = "gold", amount = 980 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [59] = {
+                { id = "gold", amount = 1000 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [60] = {
+                { id = "gold", amount = 1000 },
+                { id = "meta_alpha_1", amount = 75 },
+                { id = "meta_alpha_2", amount = 180 },
+            },
+            [61] = {
+                { id = "gold", amount = 1200 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [62] = {
+                { id = "gold", amount = 1400 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [63] = {
+                { id = "gold", amount = 1600 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [64] = {
+                { id = "gold", amount = 1800 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [65] = {
+                { id = "gold", amount = 2000 },
+                { id = "meta_alpha_1", amount = 35 },
+                { id = "meta_beta_1", amount = 220 },
+            },
+            [66] = {
+                { id = "gold", amount = 2200 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [67] = {
+                { id = "gold", amount = 2400 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [68] = {
+                { id = "gold", amount = 2600 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [69] = {
+                { id = "gold", amount = 2800 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [70] = {
+                { id = "gold", amount = 3000 },
+                { id = "meta_alpha_1", amount = 200 },
+                { id = "meta_alpha_2", amount = 360 },
+            },
+            [71] = {
+                { id = "gold", amount = 3200 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [72] = {
+                { id = "gold", amount = 3400 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [73] = {
+                { id = "gold", amount = 3600 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [74] = {
+                { id = "gold", amount = 3800 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [75] = {
+                { id = "gold", amount = 4000 },
+                { id = "meta_alpha_1", amount = 50 },
+                { id = "meta_beta_1", amount = 450 },
+            },
+            [76] = {
+                { id = "gold", amount = 4200 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [77] = {
+                { id = "gold", amount = 4400 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [78] = {
+                { id = "gold", amount = 4600 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [79] = {
+                { id = "gold", amount = 4800 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [80] = {
+                { id = "gold", amount = 5000 },
+                { id = "meta_alpha_1", amount = 500 },
+                { id = "meta_alpha_2", amount = 720 },
+                { id = "meta_beta_1", amount = 850 },
+            },
+        },
+        RankData = { -- What will be gained from each rank
+            -- Yellow Stars
+            [1] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 10 },
+                    --{ id = "meta_alpha_1", amount = 5 },
+                    { id = "s_annie", amount = 1 },
+                },
+                requirements = {
+                    hero_level = 2,
+                },
+            },
+            [2] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 50 },
+                    --{ id = "meta_alpha_1", amount = 10 },
+                    { id = "s_annie", amount = 2 },
+                },
+                requirements = {
+                    hero_level = 5,
+                },
+            },
+            [3] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 150 },
+                    --{ id = "meta_alpha_1", amount = 20 },
+                    --{ id = "meta_beta_1", amount = 15 },
+                    { id = "s_annie", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 10,
+                },
+            },
+            [4] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 300 },
+                    --{ id = "meta_alpha_1", amount = 40 },
+                    --{ id = "meta_beta_1", amount = 30 },
+                    { id = "s_annie", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [5] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 600 },
+                    --{ id = "meta_alpha_1", amount = 50 },
+                    --{ id = "meta_alpha_2", amount = 36 },
+                    --{ id = "meta_beta_1", amount = 40 },
+                    { id = "s_annie", amount = 15 },
+                },
+                requirements = {
+                    hero_level = 30,
+                },
+            },
+            -- Red Stars
+            [6] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 1000 },
+                    --{ id = "meta_alpha_1", amount = 80 },
+                    --{ id = "meta_alpha_2", amount = 50 },
+                    --{ id = "meta_beta_1", amount = 60 },
+                    { id = "s_annie", amount = 20 },
+                },
+                requirements = {
+                    hero_level = 40,
+                },
+            },
+            [7] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 2000 },
+                    --{ id = "meta_alpha_1", amount = 160 },
+                    --{ id = "meta_alpha_2", amount = 100 },
+                    --{ id = "meta_beta_1", amount = 130 },
+                    { id = "s_annie", amount = 40 },
+                },
+                requirements = {
+                    hero_level = 50,
+                },
+            },
+            [8] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 3000 },
+                    --{ id = "meta_alpha_1", amount = 260 },
+                    --{ id = "meta_alpha_2", amount = 180 },
+                    --{ id = "meta_beta_1", amount = 220 },
+                    { id = "s_annie", amount = 80 },
+                },
+                requirements = {
+                    hero_level = 60,
+                },
+            },
+            [9] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 4000 },
+                    --{ id = "meta_alpha_1", amount = 550 },
+                    --{ id = "meta_alpha_2", amount = 360 },
+                    --{ id = "meta_beta_1", amount = 450 },
+                    { id = "s_annie", amount = 160 },
+                },
+                requirements = {
+                    hero_level = 70,
+                },
+            },
+            [10] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 5000 },
+                    --{ id = "meta_alpha_1", amount = 1000 },
+                    --{ id = "meta_alpha_2", amount = 720 },
+                    --{ id = "meta_beta_1", amount = 850 },
+                    { id = "s_annie", amount = 320 },
+                },
+                requirements = {
+                    hero_level = 80,
+                },
+            },
+        },
+    },
+    {
+        Name = "Jorian",
+        Shard = "s_jorian",
+        Description = "A burly survivor wielding two sharp axes.",
+        Portrait = DCEI.Texture("modern_icon_hero_bighead_bjornnson_wildsurvivor"),
+        Unit = DCEI.Unit("Hero - Jorian"),
+        Equipment = {
+            WeaponKey = "axe_of_frost",
+            ArmorKey = "test_helm",
+        },
+        DisplayedSkill = SkillData.MightyAxe, -- Skill to display in hero info
+        StartingUpgrades = {
+            -- SkillData.MightyAxe,
+        },
+        StartingStats = {
+            [STAT.CameraDistance] = 10,
+            [STAT.CollisionSize] = 0.4,
+            [STAT.PickupRange] = 1.2,
+            [STAT.Knockback] = 20,
+            [STAT.PotionHeal] = 100,
+            [STAT.MoveSpeed] = 450,
+            [STAT.StaggerDamageMultiplier] = 0.25,
+            [STAT.StaggerDuration] = 5,
+
+            [STAT.Damage] = 1,
+            [STAT.Health] = 300,
+
+            [STAT.Luck] = 1,
+        },
+        MetaStats = { -- Increase Per Meta Level
+            [STAT.Damage] = 0.20,
+            [STAT.Health] = 75,
+            [STAT.Armor] = 1,
+            [STAT.PotionHeal] = 1,
+        },
+        LevelUpCost = {
+            [1] = {
+                { id = "gold", amount = 0 },
+            },
+            [2] = {
+                { id = "gold", amount = 15 },
+                { id = "meta_alpha_1", amount = 2 },
+            },
+            [3] = {
+                { id = "gold", amount = 20 },
+            },
+            [4] = {
+                { id = "gold", amount = 25 },
+            },
+            [5] = {
+                { id = "gold", amount = 30 },
+                { id = "meta_alpha_1", amount = 8 },
+            },
+            [6] = {
+                { id = "gold", amount = 35 },
+            },
+            [7] = {
+                { id = "gold", amount = 40 },
+            },
+            [8] = {
+                { id = "gold", amount = 45 },
+            },
+            [9] = {
+                { id = "gold", amount = 50 },
+            },
+            [10] = {
+                { id = "gold", amount = 60 },
+                { id = "meta_alpha_1", amount = 15 },
+                { id = "meta_beta_1", amount = 5 },
+            },
+            [11] = {
+                { id = "gold", amount = 70 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [12] = {
+                { id = "gold", amount = 80 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [13] = {
+                { id = "gold", amount = 90 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [14] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [15] = {
+                { id = "gold", amount = 120 },
+                { id = "meta_alpha_1", amount = 4 },
+                { id = "meta_beta_1", amount = 10 },
+            },
+            [16] = {
+                { id = "gold", amount = 140 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [17] = {
+                { id = "gold", amount = 160 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [18] = {
+                { id = "gold", amount = 180 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [19] = {
+                { id = "gold", amount = 200 },
+                { id = "meta_alpha_1", amount = 4 },
+            },
+            [20] = {
+                { id = "gold", amount = 220 },
+                { id = "meta_alpha_1", amount = 15 },
+                { id = "meta_beta_1", amount = 30 },
+            },
+            [21] = {
+                { id = "gold", amount = 240 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [22] = {
+                { id = "gold", amount = 260 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [23] = {
+                { id = "gold", amount = 280 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [24] = {
+                { id = "gold", amount = 300 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [25] = {
+                { id = "gold", amount = 320 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [26] = {
+                { id = "gold", amount = 340 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [27] = {
+                { id = "gold", amount = 360 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [28] = {
+                { id = "gold", amount = 380 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [29] = {
+                { id = "gold", amount = 400 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [30] = {
+                { id = "gold", amount = 420 },
+                { id = "meta_alpha_1", amount = 15 },
+                { id = "meta_alpha_2", amount = 36 },
+            },
+            [31] = {
+                { id = "gold", amount = 440 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [32] = {
+                { id = "gold", amount = 460 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [33] = {
+                { id = "gold", amount = 480 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [34] = {
+                { id = "gold", amount = 500 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [35] = {
+                { id = "gold", amount = 520 },
+                { id = "meta_alpha_1", amount = 5 },
+                { id = "meta_beta_1", amount = 40 },
+            },
+            [36] = {
+                { id = "gold", amount = 540 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [37] = {
+                { id = "gold", amount = 560 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [38] = {
+                { id = "gold", amount = 580 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [39] = {
+                { id = "gold", amount = 600 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [40] = {
+                { id = "gold", amount = 620 },
+                { id = "meta_alpha_1", amount = 20 },
+                { id = "meta_alpha_2", amount = 50 },
+            },
+            [41] = {
+                { id = "gold", amount = 640 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [42] = {
+                { id = "gold", amount = 660 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [43] = {
+                { id = "gold", amount = 680 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [44] = {
+                { id = "gold", amount = 700 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [45] = {
+                { id = "gold", amount = 720 },
+                { id = "meta_alpha_1", amount = 10 },
+                { id = "meta_beta_1", amount = 60 },
+            },
+            [46] = {
+                { id = "gold", amount = 740 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [47] = {
+                { id = "gold", amount = 760 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [48] = {
+                { id = "gold", amount = 780 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [49] = {
+                { id = "gold", amount = 800 },
+                { id = "meta_alpha_1", amount = 10 },
+            },
+            [50] = {
+                { id = "gold", amount = 820 },
+                { id = "meta_alpha_1", amount = 45 },
+                { id = "meta_alpha_2", amount = 100 },
+            },
+            [51] = {
+                { id = "gold", amount = 840 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [52] = {
+                { id = "gold", amount = 860 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [53] = {
+                { id = "gold", amount = 880 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [54] = {
+                { id = "gold", amount = 900 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [55] = {
+                { id = "gold", amount = 920 },
+                { id = "meta_alpha_1", amount = 12 },
+                { id = "meta_beta_1", amount = 130 },
+            },
+            [56] = {
+                { id = "gold", amount = 940 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [57] = {
+                { id = "gold", amount = 960 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [58] = {
+                { id = "gold", amount = 980 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [59] = {
+                { id = "gold", amount = 1000 },
+                { id = "meta_alpha_1", amount = 12 },
+            },
+            [60] = {
+                { id = "gold", amount = 1000 },
+                { id = "meta_alpha_1", amount = 75 },
+                { id = "meta_alpha_2", amount = 180 },
+            },
+            [61] = {
+                { id = "gold", amount = 1200 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [62] = {
+                { id = "gold", amount = 1400 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [63] = {
+                { id = "gold", amount = 1600 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [64] = {
+                { id = "gold", amount = 1800 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [65] = {
+                { id = "gold", amount = 2000 },
+                { id = "meta_alpha_1", amount = 35 },
+                { id = "meta_beta_1", amount = 220 },
+            },
+            [66] = {
+                { id = "gold", amount = 2200 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [67] = {
+                { id = "gold", amount = 2400 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [68] = {
+                { id = "gold", amount = 2600 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [69] = {
+                { id = "gold", amount = 2800 },
+                { id = "meta_alpha_1", amount = 35 },
+            },
+            [70] = {
+                { id = "gold", amount = 3000 },
+                { id = "meta_alpha_1", amount = 200 },
+                { id = "meta_alpha_2", amount = 360 },
+            },
+            [71] = {
+                { id = "gold", amount = 3200 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [72] = {
+                { id = "gold", amount = 3400 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [73] = {
+                { id = "gold", amount = 3600 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [74] = {
+                { id = "gold", amount = 3800 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [75] = {
+                { id = "gold", amount = 4000 },
+                { id = "meta_alpha_1", amount = 50 },
+                { id = "meta_beta_1", amount = 450 },
+            },
+            [76] = {
+                { id = "gold", amount = 4200 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [77] = {
+                { id = "gold", amount = 4400 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [78] = {
+                { id = "gold", amount = 4600 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [79] = {
+                { id = "gold", amount = 4800 },
+                { id = "meta_alpha_1", amount = 50 },
+            },
+            [80] = {
+                { id = "gold", amount = 5000 },
+                { id = "meta_alpha_1", amount = 500 },
+                { id = "meta_alpha_2", amount = 720 },
+                { id = "meta_beta_1", amount = 850 },
+            },
+        },
+        RankData = { -- What will be gained from each rank
+            -- Yellow Stars
+            [1] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 10 },
+                    --{ id = "meta_alpha_1", amount = 5 },
+                    { id = "s_jorian", amount = 1 },
+                },
+                requirements = {
+                    hero_level = 2,
+                },
+            },
+            [2] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 50 },
+                    --{ id = "meta_alpha_1", amount = 10 },
+                    { id = "s_jorian", amount = 2 },
+                },
+                requirements = {
+                    hero_level = 5,
+                },
+            },
+            [3] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 150 },
+                    --{ id = "meta_alpha_1", amount = 20 },
+                    --{ id = "meta_beta_1", amount = 15 },
+                    { id = "s_jorian", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 10,
+                },
+            },
+            [4] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 300 },
+                    --{ id = "meta_alpha_1", amount = 40 },
+                    --{ id = "meta_beta_1", amount = 30 },
+                    { id = "s_jorian", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [5] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 600 },
+                    --{ id = "meta_alpha_1", amount = 50 },
+                    --{ id = "meta_alpha_2", amount = 36 },
+                    --{ id = "meta_beta_1", amount = 40 },
+                    { id = "s_jorian", amount = 15 },
+                },
+                requirements = {
+                    hero_level = 30,
+                },
+            },
+            -- Red Stars
+            [6] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 1000 },
+                    --{ id = "meta_alpha_1", amount = 80 },
+                    --{ id = "meta_alpha_2", amount = 50 },
+                    --{ id = "meta_beta_1", amount = 60 },
+                    { id = "s_jorian", amount = 20 },
+                },
+                requirements = {
+                    hero_level = 40,
+                },
+            },
+            [7] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 2000 },
+                    --{ id = "meta_alpha_1", amount = 160 },
+                    --{ id = "meta_alpha_2", amount = 100 },
+                    --{ id = "meta_beta_1", amount = 130 },
+                    { id = "s_jorian", amount = 40 },
+                },
+                requirements = {
+                    hero_level = 50,
+                },
+            },
+            [8] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 3000 },
+                    --{ id = "meta_alpha_1", amount = 260 },
+                    --{ id = "meta_alpha_2", amount = 180 },
+                    --{ id = "meta_beta_1", amount = 220 },
+                    { id = "s_jorian", amount = 80 },
+                },
+                requirements = {
+                    hero_level = 60,
+                },
+            },
+            [9] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 4000 },
+                    --{ id = "meta_alpha_1", amount = 550 },
+                    --{ id = "meta_alpha_2", amount = 360 },
+                    --{ id = "meta_beta_1", amount = 450 },
+                    { id = "s_jorian", amount = 160 },
+                },
+                requirements = {
+                    hero_level = 70,
+                },
+            },
+            [10] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 5000 },
+                    --{ id = "meta_alpha_1", amount = 1000 },
+                    --{ id = "meta_alpha_2", amount = 720 },
+                    --{ id = "meta_beta_1", amount = 850 },
+                    { id = "s_jorian", amount = 320 },
+                },
+                requirements = {
+                    hero_level = 80,
+                },
+            },
+        },
+    },
+    {
+        Name = "Erik",
+        Shard = "s_erik",
+        Description = "A nimble survivor with a strong swing of a bat.",
+        Portrait = DCEI.Texture("modern_icon_hero_bighead_purplebunny_wildsurvivor"),
+        Unit = DCEI.Unit("Hero - Erik"),
+        Equipment = {
+            WeaponKey = "homerun_bat",
+            ArmorKey = "test_buckler",
+        },
+        StartingUpgrades = {
+            "Weapon - Homerun Bat",
+        },
+        StartingStats = {
+            [STAT.CameraDistance] = 10,
+            [STAT.CollisionSize] = 0.4,
+            [STAT.PickupRange] = 1.2,
+            [STAT.Knockback] = 20,
+            [STAT.PotionHeal] = 100,
+            [STAT.MoveSpeed] = 300,
+            [STAT.StaggerDamageMultiplier] = 1,
+            [STAT.StaggerDuration] = 3,
+
+            [STAT.Damage] = 1,
+            [STAT.Health] = 100,
+        },
+        MetaStats = { -- Increase Per Meta Level
+            [STAT.Damage] = 0.05,
+            [STAT.Health] = 10,
+        },
+        LevelUpCost = {
+            [1] = {
+                { id = "gold", amount = 0 },
+            },
+            [2] = {
+                { id = "gold", amount = 15 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [3] = {
+                { id = "gold", amount = 20 },
+                { id = "meta_beta_1", amount = 5 },
+            },
+            [4] = {
+                { id = "gold", amount = 25 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [5] = {
+                { id = "gold", amount = 30 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [6] = {
+                { id = "gold", amount = 35 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [7] = {
+                { id = "gold", amount = 40 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [8] = {
+                { id = "gold", amount = 45 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [9] = {
+                { id = "gold", amount = 50 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [10] = {
+                { id = "gold", amount = 60 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [11] = {
+                { id = "gold", amount = 70 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [12] = {
+                { id = "gold", amount = 80 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [13] = {
+                { id = "gold", amount = 90 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [14] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [15] = {
+                { id = "gold", amount = 120 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [16] = {
+                { id = "gold", amount = 140 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [17] = {
+                { id = "gold", amount = 160 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [18] = {
+                { id = "gold", amount = 180 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [19] = {
+                { id = "gold", amount = 200 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [20] = {
+                { id = "gold", amount = 220 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [21] = {
+                { id = "gold", amount = 240 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [22] = {
+                { id = "gold", amount = 260 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [23] = {
+                { id = "gold", amount = 280 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [24] = {
+                { id = "gold", amount = 300 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [25] = {
+                { id = "gold", amount = 320 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [26] = {
+                { id = "gold", amount = 340 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [27] = {
+                { id = "gold", amount = 360 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [28] = {
+                { id = "gold", amount = 380 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [29] = {
+                { id = "gold", amount = 400 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [30] = {
+                { id = "gold", amount = 420 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [31] = {
+                { id = "gold", amount = 440 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [32] = {
+                { id = "gold", amount = 460 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [33] = {
+                { id = "gold", amount = 480 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [34] = {
+                { id = "gold", amount = 500 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [35] = {
+                { id = "gold", amount = 520 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [36] = {
+                { id = "gold", amount = 540 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [37] = {
+                { id = "gold", amount = 560 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [38] = {
+                { id = "gold", amount = 580 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [39] = {
+                { id = "gold", amount = 600 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [40] = {
+                { id = "gold", amount = 620 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [41] = {
+                { id = "gold", amount = 640 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [42] = {
+                { id = "gold", amount = 660 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [43] = {
+                { id = "gold", amount = 680 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [44] = {
+                { id = "gold", amount = 700 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [45] = {
+                { id = "gold", amount = 720 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [46] = {
+                { id = "gold", amount = 740 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [47] = {
+                { id = "gold", amount = 760 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [48] = {
+                { id = "gold", amount = 780 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [49] = {
+                { id = "gold", amount = 800 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [50] = {
+                { id = "gold", amount = 820 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [51] = {
+                { id = "gold", amount = 840 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [52] = {
+                { id = "gold", amount = 860 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [53] = {
+                { id = "gold", amount = 880 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [54] = {
+                { id = "gold", amount = 900 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [55] = {
+                { id = "gold", amount = 920 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [56] = {
+                { id = "gold", amount = 940 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [57] = {
+                { id = "gold", amount = 960 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [58] = {
+                { id = "gold", amount = 980 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [59] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [60] = {
+                { id = "gold", amount = 999999999999 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+        },
+        RankData = { -- What will be gained from each rank
+            -- Yellow Stars
+            [1] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 10 },
+                    { id = "meta_alpha_1", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 3,
+                },
+            },
+            [2] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 50 },
+                    { id = "meta_alpha_1", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 5,
+                },
+            },
+            [3] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 150 },
+                    { id = "meta_alpha_1", amount = 20 },
+                    { id = "meta_beta_1", amount = 15 },
+                    { id = "s_erik", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 8,
+                },
+            },
+            [4] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 300 },
+                    { id = "meta_alpha_1", amount = 40 },
+                    { id = "meta_beta_1", amount = 30 },
+                    { id = "s_erik", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 8,
+                },
+            },
+            [5] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 600 },
+                    { id = "meta_alpha_1", amount = 50 },
+                    { id = "meta_alpha_2", amount = 36 },
+                    { id = "meta_beta_1", amount = 40 },
+                    { id = "s_erik", amount = 15 },
+                },
+                requirements = {
+                    hero_level = 12,
+                },
+            },
+            -- Red Stars
+            [6] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 1000 },
+                    { id = "meta_alpha_1", amount = 80 },
+                    { id = "meta_alpha_2", amount = 50 },
+                    { id = "meta_beta_1", amount = 60 },
+                    { id = "s_erik", amount = 20 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [7] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 2000 },
+                    { id = "meta_alpha_1", amount = 160 },
+                    { id = "meta_alpha_2", amount = 100 },
+                    { id = "meta_beta_1", amount = 130 },
+                    { id = "s_erik", amount = 40 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [8] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 3000 },
+                    { id = "meta_alpha_1", amount = 260 },
+                    { id = "meta_alpha_2", amount = 180 },
+                    { id = "meta_beta_1", amount = 220 },
+                    { id = "s_erik", amount = 80 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [9] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 4000 },
+                    { id = "meta_alpha_1", amount = 550 },
+                    { id = "meta_alpha_2", amount = 360 },
+                    { id = "meta_beta_1", amount = 450 },
+                    { id = "s_erik", amount = 160 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [10] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 5000 },
+                    { id = "meta_alpha_1", amount = 1000 },
+                    { id = "meta_alpha_2", amount = 720 },
+                    { id = "meta_beta_1", amount = 850 },
+                    { id = "s_erik", amount = 320 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+        },
+    },
+    {
+        Name = "Ghost",
+        Shard = "s_ghost",
+        Description = "A mysterious survivor capable of summoning revenants.",
+        Portrait = DCEI.Texture("modern_icon_hero_bighead_ghost_wildsurvivor"),
+        Unit = DCEI.Unit("Hero - Ghost"),
+        Equipment = {
+            WeaponKey = "revenant_staff",
+            ArmorKey = "test_spyglass",
+        },
+        StartingUpgrades = {
+            "Weapon - Revenant",
+            -- "Revenant",
+        },
+        StartingStats = {
+            [STAT.CameraDistance] = 10,
+            [STAT.CollisionSize] = 0.4,
+            [STAT.PickupRange] = 1.2,
+            [STAT.Knockback] = 20,
+            [STAT.PotionHeal] = 100,
+            [STAT.MoveSpeed] = 300,
+            [STAT.StaggerDamageMultiplier] = 1,
+            [STAT.StaggerDuration] = 3,
+
+            [STAT.Damage] = 1,
+            [STAT.Health] = 150,
+        },
+        MetaStats = { -- Increase Per Meta Level
+            [STAT.Damage] = 0.05,
+            [STAT.Health] = 10,
+        },
+        LevelUpCost = {
+            [1] = {
+                { id = "gold", amount = 0 },
+            },
+            [2] = {
+                { id = "gold", amount = 15 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [3] = {
+                { id = "gold", amount = 20 },
+                { id = "meta_beta_1", amount = 5 },
+            },
+            [4] = {
+                { id = "gold", amount = 25 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [5] = {
+                { id = "gold", amount = 30 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [6] = {
+                { id = "gold", amount = 35 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [7] = {
+                { id = "gold", amount = 40 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [8] = {
+                { id = "gold", amount = 45 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [9] = {
+                { id = "gold", amount = 50 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [10] = {
+                { id = "gold", amount = 60 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [11] = {
+                { id = "gold", amount = 70 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [12] = {
+                { id = "gold", amount = 80 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [13] = {
+                { id = "gold", amount = 90 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [14] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [15] = {
+                { id = "gold", amount = 120 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [16] = {
+                { id = "gold", amount = 140 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [17] = {
+                { id = "gold", amount = 160 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [18] = {
+                { id = "gold", amount = 180 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [19] = {
+                { id = "gold", amount = 200 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [20] = {
+                { id = "gold", amount = 220 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [21] = {
+                { id = "gold", amount = 240 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [22] = {
+                { id = "gold", amount = 260 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [23] = {
+                { id = "gold", amount = 280 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [24] = {
+                { id = "gold", amount = 300 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [25] = {
+                { id = "gold", amount = 320 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [26] = {
+                { id = "gold", amount = 340 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [27] = {
+                { id = "gold", amount = 360 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [28] = {
+                { id = "gold", amount = 380 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [29] = {
+                { id = "gold", amount = 400 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [30] = {
+                { id = "gold", amount = 420 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [31] = {
+                { id = "gold", amount = 440 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [32] = {
+                { id = "gold", amount = 460 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [33] = {
+                { id = "gold", amount = 480 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [34] = {
+                { id = "gold", amount = 500 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [35] = {
+                { id = "gold", amount = 520 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [36] = {
+                { id = "gold", amount = 540 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [37] = {
+                { id = "gold", amount = 560 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [38] = {
+                { id = "gold", amount = 580 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [39] = {
+                { id = "gold", amount = 600 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [40] = {
+                { id = "gold", amount = 620 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [41] = {
+                { id = "gold", amount = 640 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [42] = {
+                { id = "gold", amount = 660 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [43] = {
+                { id = "gold", amount = 680 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [44] = {
+                { id = "gold", amount = 700 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [45] = {
+                { id = "gold", amount = 720 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [46] = {
+                { id = "gold", amount = 740 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [47] = {
+                { id = "gold", amount = 760 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [48] = {
+                { id = "gold", amount = 780 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [49] = {
+                { id = "gold", amount = 800 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [50] = {
+                { id = "gold", amount = 820 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [51] = {
+                { id = "gold", amount = 840 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [52] = {
+                { id = "gold", amount = 860 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [53] = {
+                { id = "gold", amount = 880 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [54] = {
+                { id = "gold", amount = 900 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [55] = {
+                { id = "gold", amount = 920 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [56] = {
+                { id = "gold", amount = 940 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [57] = {
+                { id = "gold", amount = 960 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [58] = {
+                { id = "gold", amount = 980 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [59] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [60] = {
+                { id = "gold", amount = 999999999999 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+        },
+        RankData = { -- What will be gained from each rank
+            -- Yellow Stars
+            [1] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 10 },
+                    { id = "meta_alpha_1", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 3,
+                },
+            },
+            [2] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 50 },
+                    { id = "meta_alpha_1", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 5,
+                },
+            },
+            [3] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 150 },
+                    { id = "meta_alpha_1", amount = 20 },
+                    { id = "meta_beta_1", amount = 15 },
+                    { id = "s_ghost", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 8,
+                },
+            },
+            [4] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 300 },
+                    { id = "meta_alpha_1", amount = 40 },
+                    { id = "meta_beta_1", amount = 30 },
+                    { id = "s_ghost", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 8,
+                },
+            },
+            [5] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 600 },
+                    { id = "meta_alpha_1", amount = 50 },
+                    { id = "meta_alpha_2", amount = 36 },
+                    { id = "meta_beta_1", amount = 40 },
+                    { id = "s_ghost", amount = 15 },
+                },
+                requirements = {
+                    hero_level = 12,
+                },
+            },
+            -- Red Stars
+            [6] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 1000 },
+                    { id = "meta_alpha_1", amount = 80 },
+                    { id = "meta_alpha_2", amount = 50 },
+                    { id = "meta_beta_1", amount = 60 },
+                    { id = "s_ghost", amount = 20 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [7] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 2000 },
+                    { id = "meta_alpha_1", amount = 160 },
+                    { id = "meta_alpha_2", amount = 100 },
+                    { id = "meta_beta_1", amount = 130 },
+                    { id = "s_ghost", amount = 40 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [8] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 3000 },
+                    { id = "meta_alpha_1", amount = 260 },
+                    { id = "meta_alpha_2", amount = 180 },
+                    { id = "meta_beta_1", amount = 220 },
+                    { id = "s_ghost", amount = 80 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [9] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 4000 },
+                    { id = "meta_alpha_1", amount = 550 },
+                    { id = "meta_alpha_2", amount = 360 },
+                    { id = "meta_beta_1", amount = 450 },
+                    { id = "s_ghost", amount = 160 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [10] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 5000 },
+                    { id = "meta_alpha_1", amount = 1000 },
+                    { id = "meta_alpha_2", amount = 720 },
+                    { id = "meta_beta_1", amount = 850 },
+                    { id = "s_ghost", amount = 320 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+        },
+    },
+    {
+        Name = "Amber",
+        Shard = "s_amber",
+        Description = "An explosive survivor with a fiery personality.",
+        Portrait = DCEI.Texture("modern_icon_hero_bighead_amber_wildsurvivor"),
+        Unit = DCEI.Unit("Hero - Amber"),
+        Equipment = {
+            WeaponKey = "flame_cannon",
+            ArmorKey = "test_bomb",
+        },
+        StartingUpgrades = {
+            "Weapon - Salvo",
+        },
+        StartingStats = {
+            [STAT.CameraDistance] = 10,
+            [STAT.CollisionSize] = 0.4,
+            [STAT.PickupRange] = 1.2,
+            [STAT.Knockback] = 20,
+            [STAT.PotionHeal] = 100,
+            [STAT.MoveSpeed] = 300,
+            [STAT.StaggerDamageMultiplier] = 1,
+            [STAT.StaggerDuration] = 3,
+
+            [STAT.Damage] = 1,
+            [STAT.Health] = 120,
+        },
+        MetaStats = { -- Increase Per Meta Level
+            [STAT.Damage] = 0.05,
+            [STAT.Health] = 10,
+        },
+        LevelUpCost = {
+            [1] = {
+                { id = "gold", amount = 0 },
+            },
+            [2] = {
+                { id = "gold", amount = 15 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [3] = {
+                { id = "gold", amount = 20 },
+                { id = "meta_beta_1", amount = 5 },
+            },
+            [4] = {
+                { id = "gold", amount = 25 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [5] = {
+                { id = "gold", amount = 30 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [6] = {
+                { id = "gold", amount = 35 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [7] = {
+                { id = "gold", amount = 40 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [8] = {
+                { id = "gold", amount = 45 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [9] = {
+                { id = "gold", amount = 50 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [10] = {
+                { id = "gold", amount = 60 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [11] = {
+                { id = "gold", amount = 70 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [12] = {
+                { id = "gold", amount = 80 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [13] = {
+                { id = "gold", amount = 90 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [14] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [15] = {
+                { id = "gold", amount = 120 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [16] = {
+                { id = "gold", amount = 140 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [17] = {
+                { id = "gold", amount = 160 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [18] = {
+                { id = "gold", amount = 180 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [19] = {
+                { id = "gold", amount = 200 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [20] = {
+                { id = "gold", amount = 220 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [21] = {
+                { id = "gold", amount = 240 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [22] = {
+                { id = "gold", amount = 260 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [23] = {
+                { id = "gold", amount = 280 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [24] = {
+                { id = "gold", amount = 300 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [25] = {
+                { id = "gold", amount = 320 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [26] = {
+                { id = "gold", amount = 340 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [27] = {
+                { id = "gold", amount = 360 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [28] = {
+                { id = "gold", amount = 380 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [29] = {
+                { id = "gold", amount = 400 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [30] = {
+                { id = "gold", amount = 420 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [31] = {
+                { id = "gold", amount = 440 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [32] = {
+                { id = "gold", amount = 460 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [33] = {
+                { id = "gold", amount = 480 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [34] = {
+                { id = "gold", amount = 500 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [35] = {
+                { id = "gold", amount = 520 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [36] = {
+                { id = "gold", amount = 540 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [37] = {
+                { id = "gold", amount = 560 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [38] = {
+                { id = "gold", amount = 580 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [39] = {
+                { id = "gold", amount = 600 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [40] = {
+                { id = "gold", amount = 620 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [41] = {
+                { id = "gold", amount = 640 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [42] = {
+                { id = "gold", amount = 660 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [43] = {
+                { id = "gold", amount = 680 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [44] = {
+                { id = "gold", amount = 700 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [45] = {
+                { id = "gold", amount = 720 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [46] = {
+                { id = "gold", amount = 740 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [47] = {
+                { id = "gold", amount = 760 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [48] = {
+                { id = "gold", amount = 780 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [49] = {
+                { id = "gold", amount = 800 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [50] = {
+                { id = "gold", amount = 820 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [51] = {
+                { id = "gold", amount = 840 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [52] = {
+                { id = "gold", amount = 860 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [53] = {
+                { id = "gold", amount = 880 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [54] = {
+                { id = "gold", amount = 900 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [55] = {
+                { id = "gold", amount = 920 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [56] = {
+                { id = "gold", amount = 940 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [57] = {
+                { id = "gold", amount = 960 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [58] = {
+                { id = "gold", amount = 980 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [59] = {
+                { id = "gold", amount = 100 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+            [60] = {
+                { id = "gold", amount = 999999999999 },
+                { id = "meta_alpha_1", amount = 5 },
+            },
+        },
+        RankData = { -- What will be gained from each rank
+            -- Yellow Stars
+            [1] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 10 },
+                    { id = "meta_alpha_1", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 3,
+                },
+            },
+            [2] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 50 },
+                    { id = "meta_alpha_1", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 5,
+                },
+            },
+            [3] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 150 },
+                    { id = "meta_alpha_1", amount = 20 },
+                    { id = "meta_beta_1", amount = 15 },
+                    { id = "s_amber", amount = 5 },
+                },
+                requirements = {
+                    hero_level = 8,
+                },
+            },
+            [4] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 300 },
+                    { id = "meta_alpha_1", amount = 40 },
+                    { id = "meta_beta_1", amount = 30 },
+                    { id = "s_amber", amount = 10 },
+                },
+                requirements = {
+                    hero_level = 8,
+                },
+            },
+            [5] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 600 },
+                    { id = "meta_alpha_1", amount = 50 },
+                    { id = "meta_alpha_2", amount = 36 },
+                    { id = "meta_beta_1", amount = 40 },
+                    { id = "s_amber", amount = 15 },
+                },
+                requirements = {
+                    hero_level = 12,
+                },
+            },
+            -- Red Stars
+            [6] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 1000 },
+                    { id = "meta_alpha_1", amount = 80 },
+                    { id = "meta_alpha_2", amount = 50 },
+                    { id = "meta_beta_1", amount = 60 },
+                    { id = "s_amber", amount = 20 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [7] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 2000 },
+                    { id = "meta_alpha_1", amount = 160 },
+                    { id = "meta_alpha_2", amount = 100 },
+                    { id = "meta_beta_1", amount = 130 },
+                    { id = "s_amber", amount = 40 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [8] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 3000 },
+                    { id = "meta_alpha_1", amount = 260 },
+                    { id = "meta_alpha_2", amount = 180 },
+                    { id = "meta_beta_1", amount = 220 },
+                    { id = "s_amber", amount = 80 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [9] = {
+                increase_level_cap = 1,
+                cost = {
+                    { id = "gold", amount = 4000 },
+                    { id = "meta_alpha_1", amount = 550 },
+                    { id = "meta_alpha_2", amount = 360 },
+                    { id = "meta_beta_1", amount = 450 },
+                    { id = "s_amber", amount = 160 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+            [10] = {
+                increase_level_cap = 1,
+                add_upgrade = "",
+                cost = {
+                    { id = "gold", amount = 5000 },
+                    { id = "meta_alpha_1", amount = 1000 },
+                    { id = "meta_alpha_2", amount = 720 },
+                    { id = "meta_beta_1", amount = 850 },
+                    { id = "s_amber", amount = 320 },
+                },
+                requirements = {
+                    hero_level = 20,
+                },
+            },
+        },
+    },
+}
+
+return Heroes

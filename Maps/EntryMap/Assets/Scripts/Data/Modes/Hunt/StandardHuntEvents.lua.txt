@@ -1,0 +1,895 @@
+---============================================================================
+-- SECTION -- Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local Conditions = require("Data/Events/ConditionData")
+
+local EventSpawnData = require("Data/EventData/EventSpawnData")
+local EventEliteData = require("Data/EventData/EventEliteData")
+local EventStructureData = require("Data/EventData/EventStructureData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Standard Spawning
+---============================================================================
+
+local Data = {}
+
+-- =======================================================================================
+-- TESTING: Testing Use Cases
+-- =======================================================================================
+
+Data.test_walker = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+    },
+    Conditions = {
+        Conditions.GameTime_1,
+    },
+}
+
+Data.test_runner = {
+    EventTypeOptions = {
+        EventSpawnData.RunnerStream,
+    },
+    Conditions = {
+        Conditions.GameTime_1,
+    },
+}
+
+-- =======================================================================================
+-- ANCHOR: Time and Rarity Based Spawns
+-- =======================================================================================
+
+-- Walkers (S1+)
+-- Intervals: Rotates in/out every 2 minutes.
+-- 1 - Minute 0-2: Common
+-- 2 - Minute 2-4: Uncommon
+-- 3 - Minute 4-6: Rare
+-- 4 - Minute 6-8: Uncommon
+-- 5 - Minute 8-10: Common
+-- 6 - Minute 10-12: Uncommon
+-- 7 - Minute 12-14: Rare
+-- 8 - Minute 14-16: Uncommon
+-- 9 - Minute 16-18: Common
+-- 10 - Minute 18-20: Uncommon
+
+Data.Standard_Walkers_01 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Common,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_3,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 5,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 120,
+        },
+    },
+}
+
+Data.Standard_Walkers_02 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Uncommon,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_10,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 120,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 240,
+        },
+    },
+}
+
+Data.Standard_Walkers_03 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_15,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 240,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 360,
+        },
+    },
+}
+
+Data.Standard_Walkers_04 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_10,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 360,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 480,
+        },
+    },
+}
+
+Data.Standard_Walkers_05 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_3,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 480,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 600,
+        },
+    },
+}
+
+Data.Standard_Walkers_06 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_10,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 600,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 720,
+        },
+    },
+}
+
+Data.Standard_Walkers_07 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Uncommon,
+        EventSpawnData.StandardWalkers_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_15,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 720,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 840,
+        },
+    },
+}
+
+-- Runners (S1+)
+-- Intervals: Rotates in/out every 1, 2, 3, 5, 8 minutes.
+-- 1 - Minute 0-1: Common
+-- 2 - Minute 1-2: Uncommon
+-- 3 - Minute 2-3: Rare
+-- Minute 3-5: N/A
+-- 4 - Minute 5-6: Rare
+-- 5 - Minute 8-9: Uncommon
+-- 6 - Minute 13-14: Common
+
+Data.Standard_Runners_01 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Common,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_10,
+        -- Conditions.TravelDistance_25,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 5,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 60,
+        },
+    },
+}
+
+Data.Standard_Runners_02 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Common,
+        EventSpawnData.StandardRunners_Uncommon,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_20,
+        -- Conditions.TravelDistance_50,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 60,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 120,
+        },
+    },
+}
+
+Data.Standard_Runners_03 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Common,
+        EventSpawnData.StandardRunners_Uncommon,
+        EventSpawnData.StandardRunners_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_40,
+        -- Conditions.TravelDistance_75,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 120,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 180,
+        },
+    },
+}
+
+Data.Standard_Runners_04 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Common,
+        EventSpawnData.StandardRunners_Uncommon,
+        EventSpawnData.StandardRunners_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_40,
+        -- Conditions.TravelDistance_75,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 300,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 360,
+        },
+    },
+}
+
+Data.Standard_Runners_05 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Common,
+        EventSpawnData.StandardRunners_Uncommon,
+        EventSpawnData.StandardRunners_Uncommon,
+        EventSpawnData.StandardRunners_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_20,
+        -- Conditions.TravelDistance_50,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 480,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 540,
+        },
+    },
+}
+
+Data.Standard_Runners_06 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Common,
+        EventSpawnData.StandardRunners_Common,
+        EventSpawnData.StandardRunners_Uncommon,
+        EventSpawnData.StandardRunners_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_10,
+        -- Conditions.TravelDistance_25,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 780,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 840,
+        },
+    },
+}
+
+-- Marauders (S1+)
+-- Spawns every 3 minutes for 1 minute.
+-- 1 - Minute: 3-4: Common
+-- 2 - Minute: 6-7: Uncommon
+-- 3 - Minute: 9-10: Rare
+-- 4 - Minute: 12-13: Uncommon
+-- 5 - Minute: 15-16: Common
+
+Data.Standard_Marauders_01 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders_Common,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_3,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 180,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 240,
+        },
+    },
+}
+
+Data.Standard_Marauders_02 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders_Common,
+        EventSpawnData.StandardMarauders_Uncommon,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_5,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 360,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 420,
+        },
+    },
+}
+
+Data.Standard_Marauders_03 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders_Common,
+        EventSpawnData.StandardMarauders_Uncommon,
+        EventSpawnData.StandardMarauders_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_10,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 540,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 600,
+        },
+    },
+}
+
+Data.Standard_Marauders_04 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders_Common,
+        EventSpawnData.StandardMarauders_Uncommon,
+        EventSpawnData.StandardMarauders_Uncommon,
+        EventSpawnData.StandardMarauders_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_5,
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+            Comparison = COMPARISON_TYPE.GreaterThan,
+            B = 720,
+        },
+        {
+            A = {
+                GameTrackedStat = GAME_TRACKED_STAT.GameTime,
+            },
+
+            Comparison = COMPARISON_TYPE.LessThan,
+            B = 780,
+        },
+    },
+}
+
+-- Banshees (Event every 2 minutes)
+-- Spawns every 1 minute staring at stage 2.
+
+-- Boomers (S3+)
+-- Intervals: Rotates in/out every 10, 20, 30, 40, 50 minutes.
+
+-- Brutes (S5+)
+-- Spawns every 5 minutes starting at stage 3.
+
+Data.StandardWalkers_Common = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_3,
+    },
+}
+
+Data.StandardWalkers_Uncommon = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Uncommon,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_30,
+        Conditions.GameTimeAbove_60,
+    },
+}
+
+Data.StandardWalkers_Rare = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_30,
+        Conditions.GameTimeAbove_120,
+    },
+}
+
+Data.WalkerHighDensity = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers_Common,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_1,
+        Conditions.GameTimeAbove_300,
+    },
+}
+
+Data.TravelBasedRunners_Common = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Common,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_2,
+        -- Conditions.EventCooldown_10,
+        -- Conditions.TravelDistance_100,
+    },
+}
+
+Data.TravelBasedRunners_Uncommon = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Uncommon,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_30,
+        Conditions.TravelDistance_250,
+        Conditions.GameTimeAbove_120,
+    },
+}
+
+Data.TravelBasedRunners_Rare = {
+    EventTypeOptions = {
+        EventSpawnData.StandardRunners_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_60,
+        Conditions.TravelDistance_500,
+        Conditions.GameTimeAbove_240,
+    },
+}
+
+Data.StandardMarauders_Common = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders_Common,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_5,
+        Conditions.GameTimeAbove_200,
+    },
+}
+
+Data.StandardMarauders_Uncommon = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders_Uncommon,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_20,
+        Conditions.GameTimeAbove_400,
+    },
+}
+
+Data.StandardMarauders_Rare = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders_Rare,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_40,
+        Conditions.GameTimeAbove_600,
+    },
+}
+
+-- =======================================================================================
+-- ANCHOR: Standard Old Spawns
+-- =======================================================================================
+
+Data.StandardWalkers = {
+    EventTypeOptions = {
+        EventSpawnData.StandardWalkers,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.StageDensity,
+        Conditions.EventCooldown_3,
+    },
+}
+
+Data.TravelBasedWalkers = {
+    EventTypeOptions = {
+        EventSpawnData.TravelBasedWalkers,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_5,
+        Conditions.TravelDistance_25,
+    },
+}
+
+Data.TravelBasedRunners = {
+    EventTypeOptions = {
+        EventSpawnData.TravelBasedRunners,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_10,
+        Conditions.TravelDistance_30,
+    },
+}
+
+Data.TravelBasedBanshees = {
+    EventTypeOptions = {
+        EventSpawnData.TravelBasedBanshees,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_15,
+        Conditions.TravelDistance_30,
+    },
+}
+
+Data.StandardBansheeRush_Every120 = {
+    EventTypeOptions = {
+        EventSpawnData.StandardBansheeRush,
+    },
+    Conditions = {
+        -- Conditions.GameTime_1, ---TESTING
+        Conditions.BossNotActive,
+        Conditions.Every120Seconds,
+    },
+}
+
+Data.StandardMarauders = {
+    EventTypeOptions = {
+        EventSpawnData.StandardMarauders,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCooldown_5,
+        Conditions.BasicHostileCountUnder_100,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Standard Spawning
+-- SECTION -- Structures
+---============================================================================
+
+Data.NearbyDestructibles = {
+    EventTypeOptions = {
+        EventStructureData.Crate,
+    },
+    Conditions = {
+        Conditions.EventCountLimit_3,
+        Conditions.TravelDistance_15,
+        Conditions.EventCooldown_30,
+    },
+    InstanceRemovalConditions = {
+        Conditions.InstanceDistance_25,
+    },
+}
+
+Data.EmergencyPotions = {
+    EventTypeOptions = {
+        EventStructureData.AbandonedPotionShop,
+    },
+    Conditions = {
+        Conditions.PlayerHasLowHealth,
+        Conditions.EventCooldown_15, -- This needs to be 15 seconds since last completed?
+        Conditions.EventCountLimit_1,
+    },
+}
+
+Data.DarkRitual_1 = {
+    EventTypeOptions = EventStructureData.DarkRitual_1,
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCountLimit_1,
+        Conditions.EventCooldown_10,
+    },
+    InstanceRemovalConditions = {
+        Conditions.InstanceDistance_100,
+    },
+}
+
+Data.DarkRitual_2 = {
+    EventTypeOptions = EventStructureData.DarkRitual_2,
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCountLimit_1,
+        Conditions.EventCooldown_10,
+    },
+    InstanceRemovalConditions = {
+        Conditions.InstanceDistance_100,
+    },
+}
+
+Data.DarkRitual_3 = {
+    EventTypeOptions = EventStructureData.DarkRitual_3,
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.EventCountLimit_1,
+        Conditions.EventCooldown_10,
+    },
+    InstanceRemovalConditions = {
+        Conditions.InstanceDistance_100,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Structures
+-- SECTION -- Elites
+---============================================================================
+
+Data.MadScientist_S1 = {
+    EventTypeOptions = EventEliteData.MadScientist_S1,
+    Conditions = {
+        Conditions.EventCountLimit_1,
+        Conditions.EventCooldown_1,
+    },
+}
+
+Data.MadScientist_S2 = {
+    EventTypeOptions = EventEliteData.MadScientist_S2,
+    Conditions = {
+        Conditions.EventCountLimit_1,
+        Conditions.EventCooldown_1,
+    },
+}
+
+Data.MadScientist_S3 = {
+    EventTypeOptions = EventEliteData.MadScientist_S3,
+    Conditions = {
+        Conditions.EventCountLimit_1,
+        Conditions.EventCooldown_1,
+    },
+}
+
+Data.RandomEliteEvery_60 = {
+    EventTypeOptions = {
+        EventEliteData.MadScientist_1,
+        EventEliteData.Bramble,
+        EventEliteData.Nightshade,
+    },
+    Conditions = {
+        Conditions.BossNotActive,
+        Conditions.GameTimeAbove_60,
+        Conditions.EventCooldown_60,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Elites
+-- SECTION -- Sequences
+---============================================================================
+
+Data.RelicHuntSequence = {
+    Sequence = {
+        Data.DarkRitual_1,
+        Data.MadScientist_S1,
+        Data.DarkRitual_2,
+        Data.MadScientist_S2,
+        Data.DarkRitual_3,
+        Data.MadScientist_S3,
+    },
+    Options = {
+        Repeating = false,
+    },
+}
+
+Data.RelicHuntSequenceRepeating = {
+    Sequence = {
+        Data.DarkRitual_1,
+        Data.MadScientist_S1,
+        Data.DarkRitual_2,
+        Data.MadScientist_S2,
+        Data.DarkRitual_3,
+        Data.MadScientist_S3,
+    },
+    Options = {
+        Repeating = true,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Sequences
+---============================================================================
+
+return Data

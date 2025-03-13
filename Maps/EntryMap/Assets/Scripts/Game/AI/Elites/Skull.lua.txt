@@ -1,0 +1,269 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Sapper
+
+    Moves towards the Player.
+    
+    ---TODO: Increase Speed over time.
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Elite
+local Elite = {}
+
+---@type EliteData
+Elite.Data = {
+    Name = "Skull",
+    Type = DCEI.Unit("Elite - Skull"),
+    Stats = {
+        Modifier.New(STAT.Health, 120, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 6, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.65, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 1.42, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 100, SCALING.Scaled),
+        -- Modifier.New(STAT.AddedStaggerResistance, 50, SCALING.Scaled),
+    },
+    StaggerAnimation = "idle",
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local AGGRO_RANGE = 10
+local LEASH_RANGE = 15
+
+local MODEL_SCALE = 6.00
+
+local STATES = {
+    -- Elite Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Custom
+    AcquireTarget = "AcquireTarget",
+    Idle = "Idle",
+    Pursue = "Pursue",
+    Return = "Return",
+}
+
+local behaviors = {
+    Stagger = DCEI.Behavior("Stagger"),
+}
+
+local effects = {
+    OnStay = DCEI.Effect("Elite - Skull - OnStay"),
+}
+
+local overrides = {
+    EffectPath.New(DCEI.Effect("Elite - Skull - Contact Damage"), EJS.Damage.Value, STAT.Thorns, 1),
+    -- {
+    --     Effect = DCEI.Effect("Elite - Skull - Contact Damage"),
+    --     Path = EJS.Damage.Value,
+    --     Stat = STAT.Thorns,
+    --     Scale = 1,
+    -- },
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Patterns
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Local Casters
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+-- Removes the current target and allows the simulation to scan for a target.
+---@param ai AIHandler
+local function CastAcquireTarget(ai)
+    ai.Data.Target = nil
+    ai:RunState(STATES.BaseDecision)
+    ai.Data.Status = STATES.Idle
+end
+
+---@param ai AIHandler
+local function CastIdle(ai)
+    -- No Valid Target, Acquire One
+    if not ai:ValidateTarget() then
+        ai:RunState(STATES.AcquireTarget)
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(position, target_position)
+
+    if distance <= AGGRO_RANGE then
+        ai.Data.Status = STATES.Pursue
+        ai:SetState(STATES.Pursue)
+    elseif Help.Chance(0.01) then -- Sometimes gets stuck in Idle (likely due to getting invalid/no target)
+        ai.Data.Target = nil
+    end
+
+    ai:RecoverStatus()
+
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function CastReturn(ai)
+    -- Validate Self
+    if not ai:ValidateSelf() then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = ai.Data.SpawnPosition
+    local distance = Vector2.Distance(position, target_position)
+
+    DCEI.Move(ai.unit, target_position.x, target_position.y)
+
+    if distance <= 0.1 then
+        ai.Data.Status = STATES.Idle
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai:RecoverStatus()
+
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function CastPursue(ai)
+    -- Validate Self
+    if not ai:ValidateSelf() then
+        return
+    end
+
+    -- Validate Target
+    if not ai:ValidateTarget() then
+        ai.Data.Status = STATES.Return
+        ai:RunState(STATES.Return)
+        return
+    end
+
+    -- Check if Staggered
+    if ai:IsStaggerThresholdReached() then
+        ai:RunState(STATES.BaseDecision)
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance_from_spawn = Vector2.Distance(position, ai.Data.SpawnPosition)
+
+    DCEI.Move(ai.unit, target_position.x, target_position.y)
+
+    if distance_from_spawn > LEASH_RANGE then
+        ai.Data.Status = STATES.Return
+        ai:SetState(STATES.Return)
+    end
+
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Check Distance from Spawn Point
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local distance_from_spawn = Vector2.Distance(unit_position, ai.Data.SpawnPosition)
+
+    if distance_from_spawn > LEASH_RANGE then
+        ai.Data.Status = STATES.Return
+        return
+    end
+
+    ai:SetState(ai.Data.Status)
+
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Elite.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, overrides, nil, true, Elite.Data.StaggerAnimation)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, effects.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    -- Core States
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+    ai:AddState(STATES.AcquireTarget, CastAcquireTarget)
+    ai:AddState(STATES.Idle, CastIdle)
+    ai:AddState(STATES.Return, CastReturn)
+    ai:AddState(STATES.Pursue, CastPursue)
+
+    -- Stagger
+    AIHelper.RegisterOverheadStaggerUpdate(ai)
+
+    -- Initialize Data
+    ai.Data.Status = STATES.Idle
+    ai.Data.SpawnPosition = Vector2.UnitPosition(unit)
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Elite

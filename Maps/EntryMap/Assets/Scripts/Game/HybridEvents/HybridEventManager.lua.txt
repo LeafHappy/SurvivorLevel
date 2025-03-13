@@ -1,0 +1,97 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class HybridEventManager
+---@field Spawner SpawnDirector
+local HybridEventManager = {}
+HybridEventManager.__index = HybridEventManager
+
+---comment
+---@return HybridEventManager
+local function New()
+    local self = setmetatable({}, HybridEventManager)
+    self:Reset()
+    return self
+end
+
+function HybridEventManager:Reset()
+    self.Spawner = nil
+    self.LoadedEvents = {}
+end
+
+local Instance = New()
+HybridEventManager.Instance = Instance
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+function HybridEventManager:SetSpawner(spawner)
+    self.Spawner = spawner
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+function HybridEventManager:LoadNewEvent(hybrid_event_ref)
+    local hybrid_event = hybrid_event_ref.New() -- Create an instance of it
+    hybrid_event:Initialize(self.Spawner)
+
+    table.insert(self.LoadedEvents, hybrid_event)
+end
+
+function HybridEventManager:Update()
+    for _, hybrid_event in ipairs(self.LoadedEvents) do
+        hybrid_event:Update()
+    end
+end
+
+function HybridEventManager:End()
+    for _, hybrid_event in ipairs(self.LoadedEvents) do
+        hybrid_event:End()
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- ================================================================================================
+
+return HybridEventManager

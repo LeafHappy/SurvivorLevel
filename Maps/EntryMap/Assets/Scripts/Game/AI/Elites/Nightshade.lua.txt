@@ -1,0 +1,498 @@
+-- ============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Boss | Elite
+local Data = {}
+
+---@type BossData | EliteData
+Data.Data = {
+    Name = "Nightshade",
+    Type = DCEI.Unit("Elite - Nightshade"),
+    Stats = {
+        -- Core Stats
+        Modifier.New(STAT.Health, 950, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 6, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.80, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 3.00, SCALING.Scaled),
+
+        -- Base Stagger Values
+        -- Boss
+        -- Modifier.New(STAT.StaggerResistance, 500, SCALING.Scaled),
+        -- Modifier.New(STAT.AddedStaggerResistance, 250, SCALING.Scaled),
+        -- Elite
+        Modifier.New(STAT.StaggerResistance, 100, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 50, SCALING.Scaled),
+
+        -- Skill Stats
+        Modifier.New(STAT.ProjectileCount, 3, SCALING.Scaled),
+        Modifier.New(STAT.SkillSize, 1.25, SCALING.Scaled),
+        -- Modifier.New(STAT.SkillDuration, 1, SCALING.Scaled),
+
+        -- Minion Stats
+        -- Modifier.New(STAT.MinionCount, 1, SCALING.Scaled),
+        -- Modifier.New(STAT.MinionHealth, 20, SCALING.Scaled),
+        -- Modifier.New(STAT.MinionDamage, 5, SCALING.Scaled),
+        -- Modifier.New(STAT.MinionSpeed, 2.00, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+-- Phase Modifiers are applied every Action Loop
+local PHASE_MODIFIERS = {
+    Modifier.New(STAT.AttackSpeed, 0.02, SCALING.Scaled),
+    Modifier.New(STAT.MoveSpeed, 0.01, SCALING.Additive),
+}
+
+local REF = {
+    -- Engine References (DCEI: Ability, Effect, Behavior, etc.)
+    -- Examples omit the DCEI part to prevent an engine-reference error.
+    OnEnter = DCEI.Effect("Elite - Nightshade - OnEnter"),
+    ContactDamage = DCEI.Effect("Elite - Nightshade - Contact Damage"),
+
+    Marker = DCEI.Unit("Elite - Nightshade - Marker"),
+}
+
+local STATES = {
+    -- Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Custom
+    Move = "Move", -- Moves around the player - keeps distance.
+    ShadowStep = "ShadowStep", -- Teleport behind the player. jump_start, jump_end
+    ShadowStrike = "ShadowStrike", -- Strike forward (towards the player). action1, action3
+    Evade = "Evade", -- Jumps away from the player.
+}
+
+-- For Bosses, make additional ACTION_ORDERS for each phase (all bosses have 3 phases).
+local ACTION_ORDER = {
+    STATES.Move,
+    STATES.ShadowStep,
+    STATES.ShadowStrike,
+    STATES.Evade,
+}
+
+local SIMPLE_UNITS = {
+    -- [SimpleUnits.Data.SkeletonMinion] = SimpleUnit.New(SimpleUnits.Data.SkeletonMinion.Type),
+}
+
+local OVERRIDES = {
+    EffectPath.New(REF.ContactDamage, EJS.Damage.Value, STAT.Thorns, 1),
+}
+
+local MODEL_SCALE = 1.5
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+-- Quick way to register simple units.
+-- Some units require manual setup if they have unique behaviors.
+local function RegisterSimpleUnits(difficulty)
+    for unit_data, _ in pairs(SIMPLE_UNITS) do
+        SIMPLE_UNITS[unit_data] = SimpleUnits.Helpers.QuickRegister(unit_data, difficulty)
+    end
+end
+
+---comment
+---@param ai AIHandler
+local function OnPhaseIncreased(ai)
+    -- Reset the State Index
+    ai.Data.StateIndex = 0
+
+    for _, modifier in pairs(PHASE_MODIFIERS) do
+        local new_modifier = modifier:Copy() -- Copy the modifier so they stack (generates a new ID).
+        ai.attributes:Add(new_modifier)
+    end
+
+    -- Any other required updates
+    RegisterSimpleUnits(ai.attributes)
+end
+
+-- Rotates around the player, maintaining a certain distance if possible.
+---@param ai AIHandler
+---@return Vector2
+local function CalculateNextMovePosition(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return Vector2.Zero()
+    end
+
+    local desired_range = Vector2.New(4, 7)
+    local rotation_range = 90
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(position, target_position)
+    local rotation = Vector2.Angle(position - target_position)
+
+    local target_range
+
+    if distance < desired_range.x then -- Inside of minimum distance, set to max distance.
+        target_range = desired_range.y
+    elseif distance > desired_range.y then -- Outside of maximum distance, set to min distance.
+        target_range = desired_range.x
+    else -- Within range, do not change.
+        target_range = distance
+    end
+
+    local clockwise = Help.Flip()
+
+    if clockwise then
+        rotation = rotation + rotation_range
+    else
+        rotation = rotation - rotation_range
+    end
+
+    local new_position = Vector2.New(
+        target_position.x + target_range * math.cos(math.rad(rotation)),
+        target_position.y + target_range * math.sin(math.rad(rotation))
+    )
+
+    return new_position
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---@param ai AIHandler
+local function CastMove(ai)
+    -- Validation
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    -- Move Logic
+
+    -- If the unit has reached its destination, calculate a new one.
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local distance = Vector2.Distance(unit_position, ai.Data.MovePosition)
+
+    if distance < 0.5 then
+        ai.Data.MovePosition = CalculateNextMovePosition(ai)
+    end
+
+    DCEI.Move(ai.unit, ai.Data.MovePosition.x, ai.Data.MovePosition.y)
+
+    -- Exit Timer
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        DCEI.Move(ai.unit, unit_position.x, unit_position.y) -- Cancel Movement
+
+        local target_position = Vector2.UnitPosition(ai.Data.Target)
+        local target_direction = target_position - unit_position
+        DCEI.TurnUnitTowards(ai.unit, target_direction.x, target_direction.y, 0.25) -- Look at the player
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Required to continue actions.
+    ai:RunState()
+end
+
+---comment
+---@param start_position Vector2
+---@param target_position Vector2
+local function CalculateOppositeSideOfTarget(start_position, target_position)
+    local current_angle = Vector2.Angle(start_position - target_position)
+    local offset = Vector2.NewFromAngle(current_angle + 180)
+    local new_position = target_position + offset * 2.0
+
+    return new_position
+end
+
+---TODO: Need to add a Marker behind the player.
+---@param ai AIHandler
+local function CastShadowStep(ai)
+    -- Validation
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local cast_time = 1.0
+    local windup_percentage = 0.6
+
+    local action_speed = ai.attributes:Get(STAT.AttackSpeed)
+    local action_speed_modifier = 1 / (1 + action_speed)
+
+    -- Windup
+    local windup_time = cast_time * windup_percentage * action_speed_modifier
+
+    -- Calculations
+    -- Teleport to the opposite side of the player.
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local teleport_position = CalculateOppositeSideOfTarget(position, target_position)
+
+    -- Teleport Marker
+    local marker_instance =
+        DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.Marker, teleport_position.x, teleport_position.y)
+    Help.SetModelScale(marker_instance, 5, windup_time)
+
+    local marker_timer = Core.Timer.Game.New()
+    marker_timer:SetDuration(windup_time)
+
+    function marker_timer:Tick()
+        if not ai:ValidateSelfAndTarget() then
+            DCEI.RemoveUnit(marker_instance)
+            return
+        end
+
+        local start_position = Vector2.UnitPosition(ai.unit)
+        local target_position = Vector2.UnitPosition(ai.Data.Target)
+        local new_position = CalculateOppositeSideOfTarget(start_position, target_position)
+        DCEI.SetUnitPosition2D(marker_instance, new_position.x, new_position.y)
+    end
+
+    function marker_timer:Action()
+        DCEI.RemoveUnit(marker_instance)
+    end
+
+    -- Windup Animation
+    Help.PlayAnimationWithDuration(ai.unit, "jump_start", windup_time)
+    if not Help.WaitAndValidateUnit(windup_time, ai.unit) then
+        return
+    end
+
+    -- Teleport to the opposite side of the player.
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local new_position = CalculateOppositeSideOfTarget(position, target_position)
+    DCEI.SetUnitPosition2D(ai.unit, new_position.x, new_position.y)
+
+    -- Face the player.
+    local facing_direction = target_position - new_position
+    DCEI.TurnUnitTowards(ai.unit, facing_direction.x, facing_direction.y, 0)
+
+    -- Settle Animation
+    local settle_time = cast_time * (1 - windup_percentage) * action_speed_modifier
+    Help.PlayAnimationWithDuration(ai.unit, "jump_end", settle_time)
+    if not Help.WaitAndValidateUnit(settle_time, ai.unit) then
+        return
+    end
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function CastShadowStrike(ai)
+    -- Validation
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local BASE_CAST_TIME = 1.5
+    local windup_percentage = 0.5
+
+    local action_speed = ai.attributes:Get(STAT.AttackSpeed)
+    local action_speed_modifier = 1 / (1 + action_speed)
+
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    -- Stats
+    local count = ai.attributes:Get(STAT.ProjectileCount)
+    local skill_size = ai.attributes:Get(STAT.SkillSize)
+
+    -- Position Calculations
+    local position = Vector2.UnitPosition(ai.unit)
+    local forward = Vector2.UnitForward(ai.unit)
+
+    local start_position = position + forward * skill_size
+    local end_position = start_position + forward * count * skill_size
+
+    -- Damage pattern
+    local pattern = Pattern.Line(start_position, end_position, count)
+    AIHelper.SpawnExplosionsFromPatternWithDelay(pattern, 0, skill_size, skill_size / 10, cast_time * windup_percentage)
+
+    -- Windup Animation
+    local windup_time = cast_time * windup_percentage
+    Help.PlayAnimationWithDuration(ai.unit, "action1", windup_time)
+    if not Help.WaitAndValidateUnit(windup_time, ai.unit) then
+        return
+    end
+
+    -- Settle Animation
+    local settle_time = cast_time * (1 - windup_percentage)
+    Help.PlayAnimationWithDuration(ai.unit, "action3", settle_time)
+    if not Help.WaitAndValidateUnit(settle_time, ai.unit) then
+        return
+    end
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function CastEvade(ai)
+    -- Validation
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local BASE_CAST_TIME = 0.8
+    local action_speed = ai.attributes:Get(STAT.AttackSpeed)
+    local action_speed_modifier = 1 / (1 + action_speed)
+
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local start_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local angle = Vector2.Angle(start_position - target_position)
+    local evade_direction = Vector2.NewFromAngle(angle)
+    local evade_distance = 3
+    local new_position = start_position + evade_direction * evade_distance
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(cast_time)
+
+    function timer:Tick()
+        if not ai:ValidateSelfAndTarget() then
+            return
+        end
+
+        local progress = timer:GetTimeElapsed() / cast_time
+        local next_position = Vector2.Lerp(start_position, new_position, progress)
+        DCEI.SetUnitPosition2D(ai.unit, next_position.x, next_position.y)
+        DCEI.TurnUnitTowards(ai.unit, -evade_direction.x, -evade_direction.y, TICK_RATE)
+    end
+
+    Help.PlayAnimationWithDuration(ai.unit, "channeling_end", cast_time)
+    function timer:Action()
+        if not ai:ValidateUnit() then
+            return
+        end
+
+        DCEI.SetUnitPosition2D(ai.unit, new_position.x, new_position.y)
+    end
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return
+    end
+
+    -- Increase Stats every Cycle
+    OnPhaseIncreased(ai)
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    -- local unit_position = Vector2.UnitPosition(ai.unit)
+    -- local target_position = Vector2.UnitPosition(ai.Data.Target)
+    -- local distance = Vector2.Distance(unit_position, target_position)
+
+    -- Update State Index
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #ACTION_ORDER then
+        ai.Data.StateIndex = 1
+    end
+
+    local state = ACTION_ORDER[ai.Data.StateIndex]
+    local action_speed = ai.attributes:Get(STAT.AttackSpeed)
+    local action_speed_modifier = 1 / (1 + action_speed)
+
+    -- Assign State
+    if state == STATES.Move then
+        ai.Data.StateTime = Help.RandomNumber(2, 3) * action_speed_modifier
+        ai.Data.StateTimer = ai.Data.StateTime
+
+        ai.Data.MovePosition = CalculateNextMovePosition(ai)
+        ai:SetState(STATES.Move)
+    elseif state == STATES.ShadowStep then
+        ai:SetState(STATES.ShadowStep)
+    elseif state == STATES.ShadowStrike then
+        ai:SetState(STATES.ShadowStrike)
+    elseif state == STATES.Evade then
+        ai:SetState(STATES.Evade)
+    end
+
+    -- Wait and Validate
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Data.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, OVERRIDES)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, REF.OnEnter)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    -- Core State
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+
+    -- Additional States
+    ai:AddState(STATES.Move, CastMove)
+    ai:AddState(STATES.ShadowStep, CastShadowStep)
+    ai:AddState(STATES.ShadowStrike, CastShadowStrike)
+    ai:AddState(STATES.Evade, CastEvade)
+
+    -- Register to the Elite Stagger Bar
+    AIHelper.RegisterOverheadStaggerUpdate(ai)
+
+    -- Phase Increase Callbacks
+    -- ai:AddPhaseIncreaseCallback(PhaseIncreaseCallback)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Data

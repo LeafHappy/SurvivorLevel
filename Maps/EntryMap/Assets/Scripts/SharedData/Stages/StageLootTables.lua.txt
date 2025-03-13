@@ -1,0 +1,287 @@
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+local StageLootTables = {
+    Default = {
+        ["Normal Chest"] = "Normal_chest101",
+        ["Elite Chest"] = "Elite_chest101",
+        ["Boss Chest"] = "Boss_chest101",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_1"],
+            ResourceData["gems"],
+            ResourceData["gold"],
+        },
+    },
+    Stage_01_01 = {
+        ["Normal Chest"] = "Normal_chest101",
+        ["Elite Chest"] = "Elite_chest101",
+        ["Boss Chest"] = "Boss_chest101",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_1"],
+            ResourceData["gems"],
+            ResourceData["gold"],
+        },
+    },
+    Stage_01_02 = {
+        ["Normal Chest"] = "Normal_chest101",
+        ["Elite Chest"] = "Elite_chest101",
+        ["Boss Chest"] = "Boss_chest101",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_2"],
+            ResourceData["gems"],
+            ResourceData["gold"],
+        },
+    },
+    Stage_01_03 = {
+        ["Normal Chest"] = "Normal_chest101",
+        ["Elite Chest"] = "Elite_chest101",
+        ["Boss Chest"] = "Boss_chest101",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+            ResourceData["gold"],
+        },
+    },
+    Stage_02_01 = {
+        ["Normal Chest"] = "Normal_chest201",
+        ["Elite Chest"] = "Elite_chest201",
+        ["Boss Chest"] = "Boss_chest201",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_02_02 = {
+        ["Normal Chest"] = "Normal_chest202",
+        ["Elite Chest"] = "Elite_chest202",
+        ["Boss Chest"] = "Boss_chest202",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_02_03 = {
+        ["Normal Chest"] = "Normal_chest202",
+        ["Elite Chest"] = "Elite_chest202",
+        ["Boss Chest"] = "Boss_chest202",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_03_01 = {
+        ["Normal Chest"] = "Normal_chest301",
+        ["Elite Chest"] = "Elite_chest301",
+        ["Boss Chest"] = "Boss_chest301",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_03_02 = {
+        ["Normal Chest"] = "Normal_chest301",
+        ["Elite Chest"] = "Elite_chest301",
+        ["Boss Chest"] = "Boss_chest301",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_03_03 = {
+        ["Normal Chest"] = "Normal_chest301",
+        ["Elite Chest"] = "Elite_chest301",
+        ["Boss Chest"] = "Boss_chest301",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_04_01 = {
+        ["Normal Chest"] = "Normal_chest401",
+        ["Elite Chest"] = "Elite_chest401",
+        ["Boss Chest"] = "Boss_chest401",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_04_02 = {
+        ["Normal Chest"] = "Normal_chest401",
+        ["Elite Chest"] = "Elite_chest401",
+        ["Boss Chest"] = "Boss_chest401",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_04_03 = {
+        ["Normal Chest"] = "Normal_chest401",
+        ["Elite Chest"] = "Elite_chest401",
+        ["Boss Chest"] = "Boss_chest401",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_05_01 = {
+        ["Normal Chest"] = "Normal_chest501",
+        ["Elite Chest"] = "Elite_chest501",
+        ["Boss Chest"] = "Boss_chest501",
+        ["featured_loot"] = {
+            ResourceData["gems"],
+        },
+    },
+    Stage_05_02 = {
+        ["Normal Chest"] = "Normal_chest501",
+        ["Elite Chest"] = "Elite_chest501",
+        ["Boss Chest"] = "Boss_chest501",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_05_03 = {
+        ["Normal Chest"] = "Normal_chest501",
+        ["Elite Chest"] = "Elite_chest501",
+        ["Boss Chest"] = "Boss_chest501",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_06_01 = {
+        ["Normal Chest"] = "Normal_chest601",
+        ["Elite Chest"] = "Elite_chest601",
+        ["Boss Chest"] = "Boss_chest601",
+        ["featured_loot"] = {
+            ResourceData["gems"],
+        },
+    },
+    Stage_06_02 = {
+        ["Normal Chest"] = "Normal_chest601",
+        ["Elite Chest"] = "Elite_chest601",
+        ["Boss Chest"] = "Boss_chest601",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_06_03 = {
+        ["Normal Chest"] = "Normal_chest601",
+        ["Elite Chest"] = "Elite_chest601",
+        ["Boss Chest"] = "Boss_chest601",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_07_01 = {
+        ["Normal Chest"] = "Normal_chest701",
+        ["Elite Chest"] = "Elite_chest701",
+        ["Boss Chest"] = "Boss_chest701",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_2"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_07_02 = {
+        ["Normal Chest"] = "Normal_chest701",
+        ["Elite Chest"] = "Elite_chest701",
+        ["Boss Chest"] = "Boss_chest701",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_07_03 = {
+        ["Normal Chest"] = "Normal_chest701",
+        ["Elite Chest"] = "Elite_chest701",
+        ["Boss Chest"] = "Boss_chest701",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_08_01 = {
+        ["Normal Chest"] = "Normal_chest801",
+        ["Elite Chest"] = "Elite_chest801",
+        ["Boss Chest"] = "Boss_chest801",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_2"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_08_02 = {
+        ["Normal Chest"] = "Normal_chest801",
+        ["Elite Chest"] = "Elite_chest801",
+        ["Boss Chest"] = "Boss_chest801",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_08_03 = {
+        ["Normal Chest"] = "Normal_chest801",
+        ["Elite Chest"] = "Elite_chest801",
+        ["Boss Chest"] = "Boss_chest801",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_09_01 = {
+        ["Normal Chest"] = "Normal_chest901",
+        ["Elite Chest"] = "Elite_chest901",
+        ["Boss Chest"] = "Boss_chest901",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_2"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_09_02 = {
+        ["Normal Chest"] = "Normal_chest901",
+        ["Elite Chest"] = "Elite_chest901",
+        ["Boss Chest"] = "Boss_chest901",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_09_03 = {
+        ["Normal Chest"] = "Normal_chest901",
+        ["Elite Chest"] = "Elite_chest901",
+        ["Boss Chest"] = "Boss_chest901",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_10_01 = {
+        ["Normal Chest"] = "Normal_chest1001",
+        ["Elite Chest"] = "Elite_chest1001",
+        ["Boss Chest"] = "Boss_chest1001",
+        ["featured_loot"] = {
+            ResourceData["meta_alpha_2"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_10_02 = {
+        ["Normal Chest"] = "Normal_chest1001",
+        ["Elite Chest"] = "Elite_chest1001",
+        ["Boss Chest"] = "Boss_chest1001",
+        ["featured_loot"] = {
+            ResourceData["meta_beta_1"],
+            ResourceData["gems"],
+        },
+    },
+    Stage_10_03 = {
+        ["Normal Chest"] = "Normal_chest1001",
+        ["Elite Chest"] = "Elite_chest1001",
+        ["Boss Chest"] = "Boss_chest1001",
+        ["featured_loot"] = {
+            ResourceData["meta_charlie_1"],
+            ResourceData["gems"],
+        },
+    },
+}
+
+return StageLootTables

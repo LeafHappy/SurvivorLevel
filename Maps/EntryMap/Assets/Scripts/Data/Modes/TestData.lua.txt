@@ -1,0 +1,14 @@
+-- Contains necessary data for Simple Unit Generation
+local Modifier = require("SharedData/Class/Modifier")
+
+local TestData = {
+    Scaling = {
+        Modifier.New(STAT.Health, 0.10, SCALING.Additive),
+        Modifier.New(STAT.Thorns, 0.01, SCALING.Additive),
+
+        -- Modifier.New(STAT.Health, 0.10, SCALING.Additive),
+        -- Modifier.New(STAT.Thorns, 0.01, SCALING.Additive),
+    },
+}
+
+return TestData

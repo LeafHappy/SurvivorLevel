@@ -1,0 +1,263 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.GuardianShield = {
+    Key = "GuardianShield",
+
+    -- UI Information
+    DisplayName = "Guardian Shield",
+    ShortDescription = "Spawns shields that rotate around you.",
+    Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.GuardianShield,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Guardian Shield"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 12.00, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.ProjectileCount, 2, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.SkillRange, 1.25, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+
+                -- Projectile
+                Modifier.New(STAT.ProjectileSpeed, 14, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.SkillDuration, 8.00, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.SkillSize, 0.85, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 15, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+
+                -- Resets
+                Modifier.New(STAT.SlowEffectiveness, 0, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.SlowDuration, 0, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.Stagger, 0, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.GuardianShield] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.GuardianShield,
+
+            -- Exposed Tags
+            SKILL_TAG.Physical,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.BluntForce = {
+    Key = "BluntForce",
+
+    -- UI Information
+    DisplayName = "Blunt Force",
+    ShortDescription = "Increase Size.",
+    Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_dwarfsmith_skill_hammercrash"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Global,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.GuardianShield,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 0.10, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.TakeCover = {
+    Key = "TakeCover",
+
+    -- UI Information
+    DisplayName = "Take Cover",
+    ShortDescription = "Increase Armor.",
+    Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_dwarfsmith_skill_towersmith"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {
+            Tag = SKILL_TAG.GuardianShield,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Armor, 1, SCALING.Scaled),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+---TODO: New Unique: Collectors - Guardian Shield Projectiles pickup loot.
+
+Data.Bodyguard = {
+    Key = "Bodyguard",
+
+    -- UI Information
+    DisplayName = "Bodyguard",
+    ShortDescription = "Guardian Shield gains an additional projectile.",
+    Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.GuardianShield,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.GuardianShield,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.ProjectileSpeed, 0.25, SCALING.Additive, { SKILL_TAG.GuardianShield }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Concussion = {
+    Key = "Concussion",
+
+    -- UI Information
+    DisplayName = "Concussion",
+    ShortDescription = "Guardian Shield slows enemies on impact.",
+    Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.GuardianShield,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.GuardianShield,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Modifier.New(STAT.Damage, 0.30, SCALING.Additive, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.SlowEffectiveness, 0.80, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                Modifier.New(STAT.SlowDuration, 0.50, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+                -- Modifier.New(STAT.Stagger, 1, SCALING.Scaled, { SKILL_TAG.GuardianShield }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

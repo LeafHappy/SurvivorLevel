@@ -1,0 +1,220 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- CONSTANTS
+local NON_DELAYED_CHARACTERS = {
+    " ",
+    ".",
+}
+local STEP_DELAY = 0.025 -- How long to wait before showing next character
+
+-- MODULE
+local TalkingHead = {}
+
+-- VARIABLES
+local current_message = {} -- The current message object that's displaying
+local current_dialogue_queue = {} -- The queued messages
+
+-- FUNCTIONS
+-- Message management
+local function ShowMessageInstant()
+    -- Mark message as terminated and show full text
+    current_message.is_terminated = true
+    DCEI.SetTextFrameText(TalkingHead.layout.Message, current_message.full_text)
+end
+
+local function StepMessageDisplayAnimation(i, message)
+    -- Calculate delay
+    local delay = STEP_DELAY * message.delay_counter
+
+    -- Get next character to display
+    local next_character = string.sub(message.full_text, i, i)
+
+    -- Make sure to skip delaying characters that are non-delayed (like spaces)
+    local is_non_delayed_character = false
+    for _, character in ipairs(NON_DELAYED_CHARACTERS) do
+        if next_character == character then
+            is_non_delayed_character = true
+        end
+    end
+
+    if not is_non_delayed_character then
+        message.delay_counter = message.delay_counter + 1
+    end
+
+    -- Add next character to running display text
+    message.text = message.text .. next_character
+
+    -- Capture display text at this moment to display after timer
+    local display_text = message.text
+
+    -- Schedule the animation step to show next character
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        -- Don't run animation if this message was terminated
+        if message.is_terminated then
+            return
+        end
+
+        -- Show display text
+        DCEI.SetTextFrameText(TalkingHead.layout.Message, display_text)
+
+        -- Make sure to mark message as terminated once it reaches end of message
+        if display_text == message.full_text then
+            ShowMessageInstant()
+        end
+    end, delay)
+end
+
+local function ShowMessage(text)
+    -- Generate the new message's object
+    local new_message = {
+        full_text = text,
+        is_terminated = false,
+        text = "",
+        delay_counter = 1,
+    }
+
+    -- Create timers for each character in the text to display with animation
+    for i = 1, #text do
+        StepMessageDisplayAnimation(i, new_message)
+    end
+
+    -- Store locally the new message as the currently animating message
+    current_message = new_message
+end
+
+-- Dialogue management
+local function EndDialogue()
+    TalkingHead.layout:Hide()
+end
+
+local function StepDialogue()
+    -- Instantly show current message on second click
+    if next(current_message) and not current_message.is_terminated then
+        ShowMessageInstant()
+        return
+    end
+
+    -- End dialogue if there are no messages left to display
+    if #current_dialogue_queue == 0 then
+        EndDialogue()
+        return
+    end
+
+    -- Display next message and remove from queue
+    local next_text = current_dialogue_queue[1]
+    ShowMessage(next_text)
+    table.remove(current_dialogue_queue, 1)
+end
+
+local function StartDialogue(messages)
+    current_dialogue_queue = messages
+    StepDialogue()
+end
+
+-- Layout management
+local function ResetTalkingHead()
+    local layout = TalkingHead.layout
+    layout:Hide()
+
+    current_message = {}
+    current_dialogue_queue = {}
+
+    DCEI.SetTextFrameText(layout.Message, "")
+    DCEI.SetFrameActive(layout.NameBox, true)
+
+    DCEI.SetFrameImageColor(layout.MessageBox, "#ffffffff")
+    DCEI.SetFrameImageColor(layout.NameBox, "#ffffffff")
+end
+
+-- METHODS
+function TalkingHead.Initialize()
+    local layout = GMUI.Layout.New({
+        name = "Meta/TalkingHead",
+        parent = GMUI.ui.z3.Lower,
+    })
+
+    TalkingHead.layout = layout
+
+    DCEI.SetButtonDefaultClickAnimationEnabled(layout.Frame, false)
+    DCEI.SetOnClickCallback(layout.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        StepDialogue()
+    end)
+
+    ResetTalkingHead()
+end
+
+---@param title string Displayed above dialogue box
+---@param image string Characters image
+---@param messages table Table of messages to display
+---@param options table Extra options: image_offset, image_size_ratio, on_dismiss, message_box_color, title_box_color, delay
+function TalkingHead.ShowDialogue(title, image, messages, options)
+    -- Get useful variables
+    local layout = TalkingHead.layout
+    options = options or {}
+
+    -- Default option defaults
+    options.image_offset = options.image_offset or { x = 0, y = 0 }
+    options.image_size_ratio = options.image_size_ratio or 0.5
+
+    -- Reset layout to default state
+    ResetTalkingHead()
+
+    -- Set ui display values
+    DCEI.SetFrameImage(layout.Character, image)
+    DCEI.SetFrameVerticalOffsetInParent(layout.Character, options.image_offset.y)
+    DCEI.SetFrameHorizontalOffsetInParent(layout.Character, options.image_offset.x)
+    DCEI.SetFrameUseImageSizeRatio(layout.Character, options.image_size_ratio)
+
+    if not title then
+        DCEI.SetFrameActive(layout.NameBox, false)
+    else
+        DCEI.SetTextFrameText(layout.Name, title)
+    end
+
+    function layout:OnHide()
+        if options.on_dismiss then
+            options.on_dismiss()
+        end
+    end
+
+    -- Options
+    if options.message_box_color then
+        DCEI.SetFrameImageColor(layout.MessageBox, options.message_box_color)
+    end
+
+    if options.title_box_color then
+        DCEI.SetFrameImageColor(layout.NameBox, options.title_box_color)
+    end
+
+    -- Show popup
+    if options.delay then
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            layout:Show()
+        end, options.delay, true)
+    else
+        layout:Show()
+    end
+
+    -- Start the dialogue
+    StartDialogue(messages)
+end
+
+TalkingHead.Initialize()
+
+local function SendDialogueData(data, callback)
+    TalkingHead.ShowDialogue(data.title, data.image, data.messages, {})
+
+    function TalkingHead.layout.OnHide()
+        if callback then
+            GMUI.RunSimulationCallback(callback)
+        end
+    end
+end
+
+Core.Event.RegisterPresentationEvent("TalkingHead.StartDialogue", SendDialogueData)
+
+-- EXPORT
+return TalkingHead

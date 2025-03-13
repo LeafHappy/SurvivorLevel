@@ -1,0 +1,191 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local ui = GMUI.ui
+local UiHelper = GMUI.UiHelper
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local FlyingLocationData = require("UiMeta/FlyingLocationData")
+
+-- CONSTANTS
+local ICON_REPLACEMENTS = {
+    gold = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
+    health = DCEI.Texture("flat_icon_heart_follower_white_wildsurvivor"),
+    weapon = DCEI.Texture("fantasy_icon_mergewar_flat_sword_wildsurvivor"),
+}
+
+-- MODULE
+local FlyingRewards = GMUI.LazyLayout.New({
+    name = "Meta/FlyingRewards",
+})
+
+-- FUNCTIONS
+---@param type TRACKED_STATS
+local function CreateItem(type)
+    local item_layout = GMUI.LazyLayout.New({
+        name = "Meta/FlyingRewards/Item",
+        parent = FlyingRewards.Items,
+    })
+
+    local state = item_layout.state
+
+    if ICON_REPLACEMENTS[type] then
+        state.icon = ICON_REPLACEMENTS[type]
+    else
+        state.icon = DisplayedGameStats[type].Icon
+    end
+
+    return item_layout
+end
+
+-- NOTE: for start_location : top right (frame_width, frame_height), bottom left (0, 0)
+---@param type TRACKED_STATS
+---@param amount number
+---@param radius number
+---@param start_location Vector3 | nil
+function FlyingRewards.SpawnRewards(type, amount, radius, start_location)
+    if not FlyingLocationData[type] then
+        return
+    end
+
+    if amount > 10 then
+        -- every x items more than 10 adds 1 more particle,
+        -- with max of 50 particles (40*x items)
+        local x = 10
+        local additional = math.floor((amount - 10) / x)
+        amount = math.min(10 + additional, 50)
+    end
+
+    if start_location then
+        start_location.x = start_location.x - (DCEI.GetFrameWidth(FlyingRewards.Frame) / 2)
+        start_location.y = start_location.y - (DCEI.GetFrameHeight(FlyingRewards.Frame) / 2)
+    else
+        start_location = { x = 0, y = 0, z = 0 }
+    end
+
+    local target_frame = FlyingLocationData[type].frame
+    local end_offset_x = FlyingLocationData[type].end_offset_x
+    local end_offset_y = FlyingLocationData[type].end_offset_y
+    if not target_frame or not DCEI.IsFrameActive(target_frame) then
+        DCEI.LogWarning("No target for the rewards")
+        return
+    end
+
+    local target = DCEI.GetFrameCanvasPosition3D(target_frame)
+    for _ = 1, amount, 1 do
+        local item_layout = CreateItem(type)
+        local duration = math.random() / 2.5
+        local ease = "InSine"
+        local args = {
+            end_offset_x = end_offset_x,
+            end_offset_y = end_offset_y,
+            start_offset_x = (math.random() * radius * 2) - radius + start_location.x,
+            start_offset_y = (math.random() * radius * 2) - radius + start_location.y,
+        }
+
+        UiHelper.AnimateFrameToCanvasPosition(item_layout.Frame, target, duration, ease, args)
+
+        -- Since animate frame to canvas has a wait for update we need one here too
+        DCEI.WaitForUiUpdateToComplete(function()
+            -- Impact and destroy after animation
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                Animation.Impact(target_frame)
+                item_layout:Destroy()
+            end, duration)
+        end)
+    end
+end
+
+---@class SpendArgs
+---@field amount integer | nil
+---@field radius number | nil
+---@field duration number | nil
+---@field start_location Vector3 | nil
+---@field target_frame Frame | nil
+---@field impact_sound Sound | nil
+
+---@param type string
+---@param args SpendArgs
+function FlyingRewards.SpendResource(type, args)
+    if not FlyingLocationData[type] then
+        return
+    end
+
+    args = args or {}
+    local amount = args.amount or 1
+    local radius = args.radius or 10
+    local duration = args.duration or math.random() / 2.5
+    local start_location = args.start_location
+    local target_frame = args.target_frame
+    local impact_sound = args.impact_sound
+
+    if amount > 10 then
+        -- every x items more than 10 adds 1 more particle,
+        -- with max of 50 particles (40*x items)
+        local x = 10
+        local additional = math.floor((amount - 10) / x)
+        amount = math.min(10 + additional, 50)
+    end
+
+    if start_location then
+        start_location.x = start_location.x - (DCEI.GetFrameWidth(FlyingRewards.Frame) / 2)
+        start_location.y = start_location.y - (DCEI.GetFrameHeight(FlyingRewards.Frame) / 2)
+    else
+        start_location = { x = 0, y = 0, z = 0 }
+    end
+
+    local end_offset_x
+    local end_offset_y
+    if not target_frame then
+        end_offset_x = FlyingLocationData[type].end_offset_x
+        end_offset_y = FlyingLocationData[type].end_offset_y
+
+        target_frame = FlyingLocationData[type].frame
+
+        if not target_frame or not DCEI.IsFrameActive(target_frame) then
+            DCEI.LogWarning("No target for the rewards")
+            return
+        end
+    end
+
+    local target = DCEI.GetFrameCanvasPosition3D(target_frame)
+    for _ = 1, amount, 1 do
+        local item_layout = CreateItem(type)
+        local ease = "InSine"
+        local fly_args = {
+            end_offset_x = end_offset_x,
+            end_offset_y = end_offset_y,
+            start_offset_x = (math.random() * radius * 2) - radius + start_location.x,
+            start_offset_y = (math.random() * radius * 2) - radius + start_location.y,
+        }
+
+        UiHelper.AnimateFrameToCanvasPosition(item_layout.Frame, target, duration, ease, fly_args)
+
+        local pop_dur = duration / 4
+        local pop_in_dur = pop_dur * 2
+        local pop_out_dur = pop_dur
+        local size = 1.25
+        local size_start = 0.5
+        Animation.PopIn(item_layout.Frame, { ease = "InSine", start_size = size_start, final_size = size, duration = pop_in_dur })
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            Animation.PopOut(item_layout.Frame, { ease = "OutSine", start_size = size, final_size = size_start, duration = pop_out_dur })
+        end, pop_in_dur + pop_dur)
+
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            if target_frame then
+                Animation.Impact(target_frame)
+            end
+
+            if impact_sound then
+                DCEI.PlaySound(impact_sound)
+            end
+
+            item_layout:Destroy()
+        end, duration)
+    end
+end
+
+-- EXPORT
+return FlyingRewards

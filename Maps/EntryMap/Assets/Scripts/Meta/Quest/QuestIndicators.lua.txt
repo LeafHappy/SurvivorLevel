@@ -1,0 +1,90 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Help = require("Help")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+---@class QuestIndicators
+local QuestIndicators = {}
+
+local current_indicators = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@param unit_ref string
+local function RemoveUnitIndicators(unit_ref)
+    Core.Event.SendPresentationEvent("DestroyOffscreenIndictor", unit_ref)
+    Core.Event.SendPresentationEvent("QuestHUD.RemoveIndicator", unit_ref)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@param unit_ref string
+function QuestIndicators.ShakeIndicator(unit_ref)
+    Core.Event.SendPresentationEvent("QuestHUD.ShakeIndicator", unit_ref)
+end
+
+---@param unit_ref string
+function QuestIndicators.GenerateIndicator(unit_ref)
+    if not unit_ref then
+        return
+    end
+
+    Help.Log("Adding indication")
+
+    local data_pass = {
+        background_image = DCEI.Texture("general_icon_wildsurvivor_eventpanel_dot_orange1"),
+        unit_ref = unit_ref,
+    }
+    Core.Event.SendPresentationEvent("NewOffscreenIndicator", data_pass)
+    Core.Event.SendPresentationEvent("QuestHUD.CreateIndicator", data_pass.unit_ref)
+    table.insert(current_indicators, data_pass.unit_ref)
+end
+
+function QuestIndicators.ClearIndicators()
+    for _, unit_ref in ipairs(current_indicators) do
+        RemoveUnitIndicators(unit_ref)
+    end
+    current_indicators = {}
+end
+
+---@param unit_ref string
+function QuestIndicators.CheckIndicatorDestroy(unit_ref)
+    local removal_index = nil
+    for i, u in ipairs(current_indicators) do
+        if u == unit_ref then
+            RemoveUnitIndicators(unit_ref)
+            removal_index = i
+            break
+        end
+    end
+
+    if removal_index then
+        table.remove(current_indicators, removal_index)
+    end
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return QuestIndicators

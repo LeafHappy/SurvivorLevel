@@ -1,0 +1,56 @@
+local Core = require("Core")
+
+local Help = require("Help")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+-- local Units = require("Data/Units")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local Hero = require("Game/Hero")
+
+local TICK_RATE = TICK_RATE or 0.0625
+
+-- ================================================================================================
+-- ANCHOR: Manual Loot
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR: AI - Turn
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(DCEI.Effect("AI - Turn - Trigger"), function(ctx)
+    local unit = ctx.caster
+    local position = Vector2.UnitPosition(ctx.target)
+    Core.Unit.SetFacingPoint(unit, position.x, position.y, 0)
+
+    -- local caster_position = Vector2.UnitPosition(ctx.caster)
+    -- local target_position = Vector2.UnitPosition(ctx.target)
+
+    -- local angle = Vector2.AngleBetween(caster_position, target_position)
+    -- Core.Unit.SetFacingAngle(ctx.caster, angle, 0)
+end, true)
+
+-- ================================================================================================
+-- ANCHOR: Turn Towards Target
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(DCEI.Effect("Trigger - Turn Caster Towards Target"), function(ctx)
+    if not ctx.target then
+        return
+    end
+
+    local unit = ctx.caster
+    local position = Vector2.UnitPosition(ctx.target)
+    Core.Unit.SetFacingPoint(unit, position.x, position.y, TICK_RATE)
+end, true)
+
+-- ================================================================================================
+-- ANCHOR: Amp
+-- ================================================================================================
+
+-- DCEI.TriggerAddEffectEvent(DCEI.Effect("Apply Status - Amp"), function(ctx)
+--     local text = "+200% Attack Speed"
+--     DCEI.ShowFloatingTextAtUnit(ctx.target, text, 2, 1, 1, { center_at_unit_top = true })
+-- end, true)

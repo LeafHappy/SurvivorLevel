@@ -1,0 +1,1596 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Attributes = require("Class/Attributes")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local EJS = require("Data/EJS")
+
+local Joystick = require("Class/Joystick")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local SpawnDirector = require("Game/Directors/Spawn")
+
+local PropInstanceTracker = require("Data/Modes/Hybrid/PropInstanceTracker")
+local DangerInstanceTracker = require("Data/Modes/Hybrid/DangerInstanceTracker")
+local EliteInstanceTracker = require("Data/Modes/Hybrid/EliteInstanceTracker")
+
+local SaveDataManager = require("Class/SaveDataManager")
+
+local DangerZoneData = require("Data/Modes/Hybrid/DangerZoneData")
+local QuestManager = require("Meta/Quest/QuestManager")
+
+local ZoneTileData = require("Editor/ZoneTileData")
+local ZonePropData = require("Editor/ZonePropData")
+local ZoneKeyItemData = require("Editor/ZoneKeyItemData")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local CampManager = require("Class/CampManager")
+
+local SpendResource = require("Meta/SpendResource")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Annotations
+---============================================================================
+
+---@class DangerZoneData
+---@field Key string Unique Identifier for Save Data
+---@field Position Vector2 Row & Column
+---@field SaveKey string Required to spawn this Zone
+---@field Tiles table<DangerZoneData.TileData> | nil
+---@field StartingStatus ZONE_STATUS | nil
+---@field GhostDisplay DangerZoneData.GhostDisplay | nil
+---@field Register table<DangerZoneData.Register> | nil
+---@field Props table<DangerZoneData.PropData> | nil
+---@field UnlockRequirements DangerZoneData.UnlockRequirements | nil
+---@field Occupied DangerZoneData.Occupied | nil
+---@field KeyItems table<DangerZoneData.KeyItemData> | nil
+
+---@class DangerZoneData.TileData
+---@field Position Vector2
+---@field Key string
+-- -@field StatusTypes table<ZONE_STATUS, Unit> | nil
+
+---@class DangerZoneData.PropData
+---@field Key string
+---@field Position Vector2
+
+---@class DangerZoneData.UnlockRequirements
+---@field PurchasePosition Vector2
+---@field Zones table<string> | nil
+---@field ResourceCost DangerZoneData.ResourceCost
+
+---@class DangerZoneData.ResourceCost
+---@field SaveKey SAVE_KEY
+---@field Amount integer
+
+---@class DangerZoneData.GhostDisplay
+---@field UnitType Unit
+---@field Offset Vector2
+
+---@class DangerZoneData.SpawnOnUnlockData
+---@field HostileData HostileData
+---@field DropTable SimpleDropTableData
+---@field Count integer
+
+---@class DangerZoneData.Register
+---@field HostileData HostileData
+---@field DropTable SimpleDropTableData
+---@field Modifiers table<Modifier> | nil
+
+---@class DangerZoneData.PeriodicHostiles
+---@field HostileData HostileData
+---@field DropTable SimpleDropTableData
+---@field Capacity number
+---@field RespawnTime number
+
+---@class DangerZoneData.TileData
+---@field Tile string
+---@field Offset Vector2
+---@field IgnoreTransformAnimation boolean | nil
+
+---@class DangerZoneData.Occupied
+---@field Area DangerZoneData.AreaData
+---@field Simple table<DangerZoneData.SimpleSpawnData> | nil
+---@field Elite table<DangerZoneData.EliteSpawnData> | nil
+---@field Boss table<DangerZoneData.EliteSpawnData> | nil
+---@field ClearCondition boolean | nil Currently just a bool check, change to enum or table
+---@field ClearRewards DangerZoneData.ClearRewards | nil
+
+---@class DangerZoneData.AreaData
+---@field PositionOffset Vector2
+---@field OccupiedArea Vector2
+
+---@class DangerZoneData.ClearRewards
+---@field MetaApplier table<META_DATA>
+
+---@class DangerZoneData.SimpleSpawnData
+---@field SpawnType string
+---@field DropTable SimpleDropTableData
+---@field Count integer Default: 1
+---@field RespawnTime number | nil
+
+---@class DangerZoneData.EliteSpawnData
+---@field SpawnType UnitType | string
+---@field DropTable string DropTable Key
+---@field Count integer | nil Default: 1
+---@field RespawnTime number | nil
+---@field Modifiers table<Modifier> | nil
+
+---@class DangerZoneData.ZoneKeyItemData
+---@field Key string
+---@field Status ZONE_STATUS
+---@field Position Vector2
+
+---============================================================================
+-- !SECTION -- Annotations
+-- SECTION -- Local Data
+---============================================================================
+
+local REF = {
+    TileSpawnVFX = DCEI.Effect("Tile - Spawn VFX"),
+
+    BaseTile = DCEI.SimpleUnit("Tile - Base"),
+
+    AvailableDefault = DCEI.SimpleUnit("Zone - Available - Default"),
+    OccupiedDefault = DCEI.SimpleUnit("Zone - Occupied - Default"),
+    CleansedDefault = DCEI.SimpleUnit("Zone - Cleansed - Default"),
+}
+
+local TILE_SIZE = 5
+local HALF_TILE = Vector2.New(TILE_SIZE / 2, TILE_SIZE / 2) -- Cache
+local TILE_SCALE_OFFSET = Vector3.New(-0.01, 0.65, 0) -- Adjustments based on 1024x1024
+
+local ZONE_DETECTION_RANGE = 5
+
+local BUFFER_TIME = 1.0
+
+local MAX_CHANNEL_STEP = 0.25
+local CHANNEL_TIME = 2.25
+
+---@type table<string, SimpleUnit>
+local REGISTERED_TILES = {}
+
+local resources_in_air = 0
+
+---============================================================================
+-- !SECTION -- Local Data
+-- SECTION -- Initialize
+---============================================================================
+
+local unique_id = 0
+
+local function GetUniqueId()
+    unique_id = unique_id + 1
+    return unique_id
+end
+
+---TODO: Buffer State Handling (ZONE_STATUS)
+
+---@class DangerZone
+---@field UniqueId integer
+---@field Manager DangerZoneManager
+---@field Data DangerZoneData
+---@field State ZONE_STATE The Current Processing State of the Zone
+---@field BufferState ZONE_STATE The Intended Status of the Zone
+---@field BufferTime number The Time to wait before changing the Status (upon request)
+---@field ChanneledTime number
+---@field Status ZONE_STATUS The Current Status of the Zone in relation to usage
+---@field IsActive boolean
+---@field Tiles table<SimpleUnitInstance>
+---@field SpendArea Unit | nil
+---@field PropInstances table<integer, PropInstanceTracker>
+---@field SimpleInstances table<integer, DangerInstanceTracker>
+---@field IsShowingUI boolean
+local DangerZone = {}
+DangerZone.__index = DangerZone
+
+---comment
+---@param danger_zone_data DangerZoneData
+---@param manager DangerZoneManager
+---@return DangerZone
+function DangerZone.New(danger_zone_data, manager)
+    ---@type DangerZone
+    local self = setmetatable({}, DangerZone)
+    self.UniqueId = GetUniqueId()
+    self.Manager = manager
+
+    self:Reset()
+    self.Data = danger_zone_data
+
+    local last_known_status = self:_CheckLastKnownSaveStatus()
+    self:SetStatus(last_known_status)
+
+    return self
+end
+
+function DangerZone:Reset()
+    self.Data = {}
+    self.Status = ZONE_STATUS.Locked
+
+    self.State = ZONE_STATE.Disabled
+    self.BufferState = ZONE_STATE.Disabled
+    self.BufferTime = 0
+    self.ChanneledTime = 0
+
+    ---TODO: Differentiate between Simulated and Presented
+    ---TODO: Purchasable Check (conditions)
+
+    self.IsActive = false
+    self.Tiles = {} -- List of Tiles
+    self.SpendArea = nil
+
+    ---TODO: Cleanup Prop Instances
+    self.PropInstances = {}
+
+    -- Track Hostiles in Zone
+    self.SimpleInstances = {}
+    self.EliteInstances = {}
+    self.BossInstances = {}
+
+    -- List of Key Items
+    self.KeyInstances = {}
+
+    -- Standby
+    self.ResourceCostTracker = nil ---TODO: Create Resource Cost Tracker to handle spending
+
+    -- UI Event Handling
+    self.IsShowingUI = false
+end
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Local Functions
+---============================================================================
+
+---comment
+---@param tile_id string
+---@return SimpleUnit | nil
+local function GetTile(tile_id)
+    if not tile_id then
+        return nil
+    end
+
+    if not REGISTERED_TILES[tile_id] then
+        local simple_unit = SimpleUnits.Helpers.RegisterTerrain(tile_id)
+        REGISTERED_TILES[tile_id] = simple_unit
+    end
+
+    return REGISTERED_TILES[tile_id]
+end
+
+---Checks if the Key Spawn Data is needed
+---@param data DangerZoneData.KeySpawnData
+local function IsKeyNeeded(data)
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+
+    if save_data[data.Key] then -- This key has been completed
+        return false
+    end
+
+    return true
+end
+
+local function SetKeyCompleted(key)
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+
+    save_data[key] = 1
+
+    SaveDataManager.Set(SAVE_KEY.Meta, save_data)
+    SaveDataManager.CommitSaveData()
+end
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Internal Functions
+---============================================================================
+
+---@param resource_save_key SAVE_KEY
+---@param amount number | nil
+function DangerZone:_SetSaveResourceReserve(resource_save_key, amount)
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.ZoneStatus) or {}
+    local save_key = self.Data.Key
+    if not save_data[save_key] then
+        save_data[save_key] = {}
+    end
+
+    -- Validate save data
+    local resource_name = resource_save_key[#resource_save_key]
+    save_data[save_key].resource_reserved = save_data[save_key].resource_reserved or {}
+    save_data[save_key].resource_reserved[resource_name] = save_data[save_key].resource_reserved[resource_name] or 0
+
+    local reserved_amount = save_data[save_key].resource_reserved[resource_name]
+    if reserved_amount == amount then
+        return
+    end
+
+    save_data[save_key].resource_reserved[resource_name] = amount
+
+    SaveDataManager.Set(SAVE_KEY.ZoneStatus, save_data)
+end
+
+---@param resource_save_key SAVE_KEY
+---@return number
+function DangerZone:_GetSaveResourceReserve(resource_save_key)
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.ZoneStatus) or {}
+    local save_key = self.Data.Key
+    if not save_data[save_key] then
+        return 0
+    end
+
+    local resource_name = resource_save_key[#resource_save_key]
+    local resource_reserve = save_data[save_key].resource_reserved or {}
+    local reserved_resource = resource_reserve[resource_name] or 0
+    return reserved_resource
+end
+
+function DangerZone:_UpdateCostUiPosition()
+    if not self.IsShowingUI then
+        return
+    end
+
+    local position = self:_GetDepositUIPosition()
+
+    ---@type ZoneCostPositionData
+    local zone_cost_data = {
+        uid = self.UniqueId,
+        position = position,
+    }
+    Core.Event.SendPresentationEvent("Zone.UpdatePosition", zone_cost_data)
+end
+
+function DangerZone:_UpdateCostUiValues()
+    if not self.IsShowingUI then
+        return
+    end
+
+    local resource_cost = self.Data.UnlockRequirements.ResourceCost
+    local cost_save_key = resource_cost.SaveKey
+    local resource_key = resource_cost.Resource
+    local cost_amount = resource_cost.Amount
+
+    local total_spent = self:_GetSaveResourceReserve(cost_save_key)
+
+    ---@type ZoneCostData
+    local zone_cost_data = {
+        uid = self.UniqueId,
+        resource = resource_key,
+        cost = cost_amount,
+        spent = total_spent,
+    }
+    Core.Event.SendPresentationEvent("Zone.Update", zone_cost_data)
+end
+
+function DangerZone:_GetDepositUIPosition()
+    local position = self:GetPosition()
+    local offset = Vector2.New(0, 0)
+
+    if self.Data.UnlockRequirements and self.Data.UnlockRequirements.UIOffset then
+        offset = Vector2.NewFromTable(self.Data.UnlockRequirements.UIOffset)
+    end
+
+    return position + offset
+end
+
+function DangerZone:_GetDepositStandPosition()
+    local position = self:GetPosition()
+    local offset = Vector2.Zero()
+
+    if self.Data.UnlockRequirements and self.Data.UnlockRequirements.StandOffset then
+        offset = Vector2.NewFromTable(self.Data.UnlockRequirements.StandOffset)
+    end
+
+    return position + offset
+end
+
+---@param hero Hero
+function DangerZone:_ThrowOnSpend(hero)
+    local resource_cost = self.Data.UnlockRequirements.ResourceCost
+    local resource_key = resource_cost.Resource
+
+    ---@type ThrowData
+    local throw_data = {
+        resource = resource_key,
+        amount = 1,
+        hero = hero,
+        end_position = self:_GetDepositUIPosition(),
+    }
+    SpendResource.Throw(throw_data)
+end
+
+---@param cost_save_key SAVE_KEY
+function DangerZone:_UnlockZone(cost_save_key)
+    local big_impact_time = 0.25
+    DCEI.TriggerAddTimerEventElapsed(function()
+        self:_FinishUnlockZone()
+        self:_SetSaveResourceReserve(cost_save_key, nil)
+        SaveDataManager.CommitSaveData()
+    end, big_impact_time)
+end
+
+function DangerZone:_FinishUnlockZone()
+    -- Add StatusKey to Danger Zones
+    local zone_save_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+    zone_save_data[self.Data.Key] = 1
+    SaveDataManager.Set(SAVE_KEY.Meta, zone_save_data)
+
+    -- Force CampManager Update
+    CampManager.Instance:Reload()
+
+    -- Change Status
+    if self.Data.Occupied then
+        self.Manager:UpdateStatusKey(self.Data.Key, ZONE_STATUS.Occupied)
+    else
+        self.Manager:UpdateStatusKey(self.Data.Key, ZONE_STATUS.Cleansed)
+    end
+
+    QuestManager.CheckUnlockZoneObjective(self.Data.Key)
+end
+
+---@param cost_save_key SAVE_KEY
+---@param spend_amount number
+---@param cost_amount number
+function DangerZone:_OnUnlockResourceImpact(cost_save_key, spend_amount, cost_amount)
+    resources_in_air = resources_in_air - spend_amount
+
+    -- SaveDataManager.Modify(cost_save_key, -spend_amount)
+
+    local old_reserve = self:_GetSaveResourceReserve(cost_save_key)
+    self:_SetSaveResourceReserve(cost_save_key, old_reserve + spend_amount)
+
+    if old_reserve + spend_amount >= cost_amount then
+        self:_UnlockZone(cost_save_key)
+    end
+
+    self:_UpdateCostUiValues()
+
+    SaveDataManager.CommitSaveData()
+end
+
+---@param hero Hero
+---@param delta number
+function DangerZone:_ChannelUnlockProgress(hero, delta)
+    if not self.Data.UnlockRequirements or not self.Data.UnlockRequirements.ResourceCost then
+        return false
+    end
+
+    local resource_cost = self.Data.UnlockRequirements.ResourceCost
+    local cost_save_key = resource_cost.SaveKey
+    local cost_amount = resource_cost.Amount
+
+    local channel_step = CHANNEL_TIME / cost_amount
+    channel_step = math.min(MAX_CHANNEL_STEP, channel_step)
+
+    self.ChanneledTime = self.ChanneledTime + delta
+    if self.ChanneledTime < channel_step then
+        return
+    end
+
+    local resource_reserved = self:_GetSaveResourceReserve(cost_save_key) + resources_in_air
+    local remaining_cost = cost_amount - resource_reserved
+
+    local step_count = 1
+    if channel_step < delta then
+        step_count = step_count * math.ceil(delta / channel_step)
+    end
+
+    local currently_held = SaveDataManager.Get(cost_save_key) or 0
+    local spend_amount = math.min(step_count, remaining_cost, currently_held)
+
+    self.ChanneledTime = 0
+
+    if resources_in_air == 0 and remaining_cost <= 0 then
+        self:_UnlockZone(cost_save_key)
+        return
+    end
+
+    if spend_amount <= 0 then
+        return
+    end
+
+    self:_ThrowOnSpend(hero)
+    if self.SpendArea then
+        Help.SendActorEvent(self.SpendArea, "PlaySpend")
+    end
+
+    -- Small delay to update ui on hit instead of on throw
+    local fly_time = 0.45
+    resources_in_air = resources_in_air + spend_amount
+    SaveDataManager.Modify(cost_save_key, -spend_amount)
+    DCEI.TriggerAddTimerEventElapsed(function()
+        self:_OnUnlockResourceImpact(cost_save_key, spend_amount, cost_amount)
+    end, fly_time)
+end
+
+-- Check the Save Data to see if this Tile has any records
+---comment
+---@return ZONE_STATUS
+function DangerZone:_CheckLastKnownSaveStatus()
+    -- -- If there is no StatusKey, then the Zone is always unlocked
+    -- local save_key = self.Data.StatusKey
+    -- if not save_key then
+    --     return ZONE_STATUS.Cleansed
+    -- end
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.ZoneStatus) or {}
+    local save_key = self.Data.Key
+
+    if not save_data[save_key] then -- Zone not registered in Save Data
+        if self.Data.StartingStatus then
+            return self.Data.StartingStatus
+        end
+
+        return ZONE_STATUS.Locked
+    end
+
+    return save_data[save_key].status
+end
+
+function DangerZone:_RemoveTiles()
+    for _, tile in pairs(self.Tiles) do
+        if Help.ValidateSimpleUnit(tile) then
+            DCEI.RemoveSimpleUnit(tile)
+        end
+    end
+
+    self.Tiles = {}
+end
+
+---comment
+---@param tile DangerZoneData.TileData
+---@param zone_status ZONE_STATUS
+function DangerZone:_SpawnTile(tile, zone_status)
+    local requested_status = zone_status or self.Status
+
+    if self.Status == requested_status then
+        return
+    end
+
+    local tile_data = ZoneTileData[tile.Key] -- Convert Key to Zone Tile Data
+    local tile_type = tile_data.Settings.Tiles[requested_status] -- Get the Unit Type
+
+    if not tile_type then
+        if zone_status ~= ZONE_STATUS.Available then
+            Help.Log("No Tile Type for Status", requested_status)
+        end
+
+        return
+    end
+
+    local simple_unit_data = GetTile(tile_type)
+
+    if not simple_unit_data then
+        Help.Warn("Invalid Tile Data", tile_type)
+        return
+    end
+
+    local position = Vector2.NewFromTable(tile.Position) * TILE_SIZE
+
+    local instance = simple_unit_data:SpawnSyncStationary(PLAYER.Terrain, TEAM.Terrain, position, Vector2.Down())
+
+    local y_offset = 0 ---TODO: Update this as needed to help with rendering order
+    local scale = Vector3.New(TILE_SIZE, TILE_SIZE, 1) + TILE_SCALE_OFFSET
+
+    table.insert(self.Tiles, instance)
+
+    -- if not selected_tile_data.IgnoreTransformAnimation then
+    DCEI.ApplyTransformAnimationToSimpleUnit(instance, {
+        end_scale = scale,
+        end_position = Vector3.New(0, y_offset, 0), -- Handles Render Order
+    })
+    -- end
+
+    -- Spawn VFX
+    if not self.Manager or not self.Manager.Editor or self.Manager.Editor.IsEnabled then
+        return
+    end
+
+    Help.CreateEffect(PLAYER.Player1, REF.TileSpawnVFX, position)
+end
+
+---comment
+---@param zone_status ZONE_STATUS
+function DangerZone:_SpawnTiles(zone_status)
+    if self.Data.Tiles then
+        for _, tile in pairs(self.Data.Tiles) do
+            self:_SpawnTile(tile, zone_status)
+        end
+    end
+end
+
+---comment
+---@param status boolean
+---@param zone_status ZONE_STATUS | nil
+function DangerZone:_SetTileActive(status, zone_status)
+    zone_status = zone_status or self.Status
+
+    if not status then
+        self:_RemoveTiles()
+        return
+    end
+
+    ---TODO: Change to Spawn Tiles
+    self:_SpawnTiles(zone_status)
+end
+
+---Determines if the hero is in the danger zone.
+---@param hero Hero
+---@return boolean
+function DangerZone:_IsInDangerZone(hero)
+    if not hero:IsUnitAlive() then
+        return false
+    end
+
+    -- Check the Position of the Hero
+    local hero_position = hero:GetPosition()
+    local position = self.Data.Position * TILE_SIZE
+    local size = HALF_TILE
+
+    local min = position - size
+    local max = position + size
+    local is_in_bounds = Vector2.IsInsideBounds(hero_position, min, max)
+
+    return is_in_bounds
+end
+
+function DangerZone:_IsInSpendArea(hero)
+    if not hero:IsUnitAlive() then
+        return false
+    end
+
+    if not self.SpendArea then
+        return false
+    end
+
+    -- Check the Position of the Hero
+    local hero_position = hero:GetPosition()
+    local position = self:_GetDepositStandPosition()
+    -- local position = DCEI.GetUnitPosition2D(self.SpendArea)
+    local range = self.Data.UnlockRequirements.Range
+    local spend_range = Vector2.New(range, range)
+
+    local min = position - spend_range
+    local max = position + spend_range
+    local is_in_bounds = Vector2.IsInsideBounds(hero_position, min, max)
+
+    return is_in_bounds
+end
+
+function DangerZone:_IsWithinZoneDetectionRange(hero)
+    if not hero:IsUnitAlive() then
+        return false
+    end
+
+    local hero_position = hero:GetPosition()
+    local zone_position = self:GetPurchasePosition()
+
+    local distance = Vector2.Distance(hero_position, zone_position)
+    if distance <= ZONE_DETECTION_RANGE then
+        return true
+    end
+
+    return false
+end
+
+---Determines if the hero is on the outside border of the danger zone.
+---@param hero Hero
+---@return boolean
+function DangerZone:_IsInDangerZoneDetectionRange(hero)
+    if not hero:IsUnitAlive() then
+        return false
+    end
+
+    ---TODO: Squish the extrusions.
+    -- Create 2 Boxes that overlap all available detection zones
+    --      ______
+    --    _|      |_
+    --   |          |
+    --   |          |
+    --   |_        _|
+    --     |______|
+    local hero_position = hero:GetPosition()
+    local zone_position = self:GetPosition() + self:GetPurchasePosition()
+
+    local horizontal_box_min = zone_position - HALF_TILE + Vector2.Left() * ZONE_DETECTION_RANGE
+    local horizontal_box_max = zone_position + HALF_TILE + Vector2.Right() * ZONE_DETECTION_RANGE
+
+    local vertical_box_min = zone_position - HALF_TILE + Vector2.Down() * ZONE_DETECTION_RANGE
+    local vertical_box_max = zone_position + HALF_TILE + Vector2.Up() * ZONE_DETECTION_RANGE
+
+    local is_inside_horizontal_box = Vector2.IsInsideBounds(hero_position, horizontal_box_min, horizontal_box_max)
+    local is_inside_vertical_box = Vector2.IsInsideBounds(hero_position, vertical_box_min, vertical_box_max)
+
+    if is_inside_horizontal_box or is_inside_vertical_box then
+        return true
+    end
+
+    return false
+end
+
+---Returns a random position insize the Danger Zone
+---@return Vector2
+function DangerZone:_GetRandomPositionInDangerZone()
+    local position = self.Data.Position
+    local size = HALF_TILE
+
+    local min = position - size
+    local max = position + size
+
+    return Vector2.New(Help.RandomNumber(min.x, max.x), Help.RandomNumber(min.y, max.y))
+end
+
+---@param hero Hero
+function DangerZone:_UpdateInstances(delta, hero)
+    for _, instance in pairs(self.PeriodicHostileInstances) do
+        instance:Update(delta, hero)
+    end
+end
+
+---comment
+---@param data DangerZoneData.KeySpawnData
+function DangerZone:_SpawnKeySpawn(data, index)
+    if Help.ValidateUnit(self.KeyInstances[index]) then
+        return
+    end
+
+    if not IsKeyNeeded(data) then
+        return
+    end
+
+    local position = self.Data.Position + data.Position
+    local instance
+
+    if data.EliteType then
+        instance = Elites.Spawn(data.EliteType, position, self.Data.Modifiers)
+    elseif data.BossType then
+        instance = Bosses.Spawn(data.BossType, position, self.Data.Modifiers)
+    end
+
+    -- Double Check
+    if not Help.ValidateUnit(instance) then
+        return
+    end
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        -- Set Save Data so we don't spawn again
+        SetKeyCompleted(data.Key)
+    end, true)
+
+    self.KeyInstances[index] = instance
+end
+
+---comment
+function DangerZone:_SpawnKeySpawns()
+    for index, key_spawn_data in ipairs(self.Data.KeySpawns) do
+        self:_SpawnKeySpawn(key_spawn_data, index)
+    end
+end
+
+function DangerZone:_CheckGeneratePropInstances()
+    if not self.Data.Props then
+        return
+    end
+
+    if #self.PropInstances > 0 then
+        return
+    end
+
+    local position = Vector2.NewFromTable(self.Data.Position) * TILE_SIZE
+
+    for _, data in ipairs(self.Data.Props) do
+        local instance = PropInstanceTracker.New(data, position)
+        table.insert(self.PropInstances, instance)
+    end
+end
+
+---comment
+---@param status boolean
+function DangerZone:_SetPropsActive(status)
+    -- Generate Instances of Props
+
+    -- For now, just worry about being enabled
+    if status then
+        -- Check if we've generated our Prop Instance Trackers
+        self:_CheckGeneratePropInstances()
+    end
+end
+
+function DangerZone:_UpdatePropInstances(hero)
+    if not self.Data.Props then
+        return
+    end
+
+    if #self.PropInstances == 0 then
+        return
+    end
+
+    for _, instance in pairs(self.PropInstances) do
+        instance:Update(hero)
+    end
+end
+
+---comment
+---@param hero Hero
+---@return boolean
+function DangerZone:_CheckUIShouldBeDisplayed(hero)
+    -- Check UnlockRequirements Zones
+    local unlock_requirements = self.Data.UnlockRequirements
+
+    if unlock_requirements and unlock_requirements.Zones then
+        local save_data = SaveDataManager.GetReference(SAVE_KEY.ZoneStatus) or {}
+
+        -- Check ZoneStatus is not (Locked / Unlocked)
+        for _, zone_key in ipairs(unlock_requirements.Zones) do
+            if not save_data[zone_key] then
+                return false
+            end
+
+            if save_data[zone_key].status == ZONE_STATUS.Locked then
+                return false
+            end
+
+            if save_data[zone_key].status == ZONE_STATUS.Available then
+                return false
+            end
+        end
+    end
+
+    if not self.Data.UnlockRequirements or not self.Data.UnlockRequirements.ResourceCost then
+        return false
+    end
+
+    if not (self.State == ZONE_STATE.Presentation) then -- Make sure we are in Simulation
+        return false
+    end
+
+    if not (self.Status == ZONE_STATUS.Available) then -- Make sure the Zone is Available
+        return false
+    end
+
+    if not hero:IsUnitAlive() then
+        return false
+    end
+
+    if self.Data.UnlockRequirements.AlwaysShowCost then
+        return true
+    end
+
+    local is_nearby = self:_IsInDangerZoneDetectionRange(hero)
+
+    ---TODO: Check if already purchased
+
+    return is_nearby
+end
+
+---comment
+---@return Vector2
+function DangerZone:GetPosition()
+    return Vector2.NewFromTable(self.Data.Position) * TILE_SIZE
+end
+
+---comment
+---@return Vector2
+function DangerZone:GetPurchasePosition()
+    if self.Data.UnlockRequirements and self.Data.UnlockRequirements.PurchasePosition then
+        return self.Data.UnlockRequirements.PurchasePosition
+    end
+
+    return Vector2.Zero()
+end
+
+function DangerZone:_CheckUIMessageEvent(hero)
+    if self:_CheckUIShouldBeDisplayed(hero) then
+        self.IsShowingUI = true
+        self:_UpdateCostUiPosition()
+
+        -- Only update when no resources flying to not override impact update
+        if resources_in_air == 0 then
+            self:_UpdateCostUiValues()
+        end
+    elseif self.IsShowingUI then
+        Core.Event.SendPresentationEvent("Zone.Destroy", self.UniqueId)
+        self.IsShowingUI = false
+    end
+end
+
+---============================================================================
+-- !SECTION -- Internal Functions
+-- SECTION -- Class Functions
+---============================================================================
+
+---TODO: Enable/Disable (should handle visual elements, handle timers with instance trackers)
+
+---TODO: Capacity and Allowed Spawns
+---TODO: KeySpawns
+
+---TODO: Simulated (away) vs Presented (nearby)
+
+function DangerZone:_CheckUpdateBufferStatus()
+    if self.State == self.BufferState then
+        return
+    end
+
+    self.BufferTime = self.BufferTime + TICK_RATE
+
+    if self.BufferState < BUFFER_TIME then
+        return
+    end
+
+    self:_ChangeState(self.State, self.BufferState)
+
+    -- Make changes
+end
+
+---TODO: Move Presentation Events to the end of Update as 1 call only if needed
+-- Only call from Standby Status
+---@param delta number
+---@param hero Hero
+function DangerZone:_CheckSpendResource(delta, hero)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    if not self:_IsInSpendArea(hero) then
+        return
+    end
+
+    local is_hero_stationary = hero:GetTravelDistance() == 0
+    if not is_hero_stationary then
+        return
+    end
+
+    self:_ChannelUnlockProgress(hero, delta)
+end
+
+---@param delta number
+---@param hero Hero
+function DangerZone:_CheckAvailableForPurchase(delta, hero)
+    -- Check if the Status is set to Available
+    if not (self.Status == ZONE_STATUS.Available) then
+        return
+    end
+
+    -- Check for Unlock Requirements
+    local unlock_requirements = self.Data.UnlockRequirements
+    if not unlock_requirements then
+        return
+    end
+
+    local resource_cost = unlock_requirements.ResourceCost
+    if resource_cost then
+        self:_CheckSpendResource(delta, hero)
+    end
+end
+
+function DangerZone:_ClearPropInstances()
+    for _, instance in pairs(self.PropInstances) do
+        instance:Clear()
+    end
+
+    self.PropInstances = {}
+end
+
+function DangerZone:_ClearKeyInstances()
+    for _, instance in pairs(self.KeyInstances) do
+        if Help.ValidateUnit(instance) then
+            DCEI.RemoveUnit(instance)
+        end
+    end
+
+    self.KeyInstances = {}
+end
+
+function DangerZone:_ClearSimpleInstances()
+    for _, instance in pairs(self.SimpleInstances) do
+        instance:Clear()
+    end
+
+    self.SimpleInstances = {}
+end
+
+function DangerZone:_ClearEliteInstances()
+    for _, instance in pairs(self.EliteInstances) do
+        instance:Clear()
+    end
+
+    self.EliteInstances = {}
+end
+
+function DangerZone:_ClearBossInstances()
+    for _, instance in pairs(self.BossInstances) do
+        instance:Clear()
+    end
+
+    self.BossInstances = {}
+end
+
+---TODO: Change this so that we have to have the required key to declare as Cleared
+function DangerZone:_CheckOnOccupiedCleared()
+    local occupied_data = self.Data.Occupied
+    if not occupied_data then
+        return
+    end
+
+    local clear_rewards = occupied_data.ClearRewards
+    if not clear_rewards then
+        return
+    end
+
+    Help.Log("Occupied Zone Cleared", self.Data.Key)
+
+    if clear_rewards.MetaApplier then
+        local save_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+
+        for _, applier in ipairs(clear_rewards.MetaApplier) do
+            save_data[applier] = 1
+        end
+
+        SaveDataManager.Set(SAVE_KEY.Meta, save_data)
+
+        -- Check Camp Manager
+        CampManager.Instance:Reload()
+    end
+end
+
+function DangerZone:_GetSimpleCount()
+    local count = 0
+    for _, instance in pairs(self.SimpleInstances) do
+        if instance:IsAlive() then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+function DangerZone:_GetEliteCount()
+    local count = 0
+    for _, instance in pairs(self.EliteInstances) do
+        if instance:IsAlive() then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+function DangerZone:_GetBossCount()
+    local count = 0
+    for _, instance in pairs(self.BossInstances) do
+        if instance:IsAlive() then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+function DangerZone:_UpdateSimpleInstances(hero)
+    if #self.SimpleInstances <= 0 then
+        return
+    end
+
+    for _, instance in pairs(self.SimpleInstances) do
+        instance:Update(hero)
+    end
+end
+
+function DangerZone:_UpdateEliteInstances(hero)
+    if #self.EliteInstances <= 0 then
+        return
+    end
+
+    for _, instance in pairs(self.EliteInstances) do
+        instance:Update(hero)
+    end
+end
+
+function DangerZone:_UpdateBossInstances(hero)
+    if #self.BossInstances <= 0 then
+        return
+    end
+
+    for _, instance in pairs(self.BossInstances) do
+        instance:Update(hero)
+    end
+end
+
+function DangerZone:_UpdateAllInstances(hero)
+    self:_UpdatePropInstances(hero)
+    self:_UpdateSimpleInstances(hero)
+    self:_UpdateEliteInstances(hero)
+    self:_UpdateBossInstances(hero)
+end
+
+function DangerZone:_PresentationUpdate(delta, hero)
+    if self.Status == ZONE_STATUS.Locked then
+        return
+    end
+
+    if self.Status == ZONE_STATUS.Available then
+        -- Show/Hide Purchase Display
+        -- Allow Purchase
+        -- Update UI
+        self:_CheckAvailableForPurchase(delta, hero)
+    end
+
+    if self.Status == ZONE_STATUS.Occupied then
+        -- Only Check here if we have Occupied Data, otherwise, we rely on another tile to do this for us.
+        if self.Data.Occupied then
+            -- Count the number of Hostiles
+            local simple_count = self:_GetSimpleCount()
+            local elite_count = self:_GetEliteCount()
+            local boss_count = self:_GetBossCount()
+
+            local total = simple_count + elite_count + boss_count
+
+            if total <= 0 then
+                self:_ClearSimpleInstances()
+                self:_ClearEliteInstances()
+                self:_ClearBossInstances()
+                self:_CheckOnOccupiedCleared()
+
+                ---TODO: Change to ClearRewards activation only, not setting status
+                self.Manager:UpdateStatusKey(self.Data.Key, ZONE_STATUS.Cleansed)
+
+                -- self:SetStatus(ZONE_STATUS.Cleansed)
+            end
+        end
+    end
+
+    -- if self.Status == ZONE_STATUS.Cleansed then
+    --     self:_UpdateAllInstances(hero)
+    -- end
+
+    self:_UpdateAllInstances(hero)
+
+    self:_CheckUIMessageEvent(hero)
+end
+
+---@param hero Hero
+function DangerZone:Update(delta, hero)
+    ---TODO: Check if the Zone can be unlocked (UnlockRequirements)
+    ---TODO: If it's not unlocked, we need to update the UI
+    ---TODO: If it is unlocked, (and was not unlocked), remove the UI
+    ---TODO: If it is unlocked, we can do the normal update
+
+    -- Check Buffer Status
+    self:_CheckUpdateBufferStatus()
+
+    -- Check if the Zone is Disabled
+    if self.State == ZONE_STATE.Disabled then
+        return
+    end
+
+    -- Check to see if the hero is near the zone (for purchase)
+    if self.State == ZONE_STATE.Presentation then
+        -- Presentation Update
+        self:_PresentationUpdate(delta, hero)
+    end
+
+    ---TODO: Configure SetState Update Buffer
+    ---TODO: Setup Simulation Update
+end
+
+function DangerZone:Clear(prevent_key_item_clear)
+    -- Clear UI
+    Core.Event.SendPresentationEvent("Zone.Destroy", self.UniqueId)
+
+    self:_RemoveSpendArea()
+    self:_RemoveTiles()
+    self:_ClearPropInstances()
+    self:_ClearSimpleInstances()
+    self:_ClearEliteInstances()
+    self:_ClearBossInstances()
+
+    if not prevent_key_item_clear then
+        self:_ClearKeyInstances()
+    end
+end
+
+function DangerZone:IsUnlocked()
+    -- Check Save Data
+    if not self.Data.Key then
+        return true
+    end
+
+    ---NOTE: Changed to Meta instead of DangerZone to link with CampManager
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+    if save_data[self.Data.Key] then
+        return true
+    end
+
+    return false
+end
+
+---comment
+---@param data DangerZoneData.SimpleSpawnData
+---@param area_data DangerZoneData.AreaData
+function DangerZone:_LoadSimpleInstances(data, area_data)
+    if not data then
+        return
+    end
+
+    local offset = area_data.PositionOffset or Vector2.Zero()
+    local area_modifier = area_data.OccupiedArea or Vector2.New(TILE_SIZE, TILE_SIZE)
+
+    local zone_position = self:GetPosition() + offset
+
+    for _, spawn_data in ipairs(data) do
+        local count = spawn_data.Count or 1
+        local respawn_time = spawn_data.RespawnTime
+
+        for i = 1, count do
+            -- local position = self:GetPosition()
+            local random_offset = Vector2.RandomInside(HALF_TILE.x / 2)
+            local hostile_data = HostileData[spawn_data.SpawnType]
+            local instance = DangerInstanceTracker.New(hostile_data, zone_position + random_offset, respawn_time, true)
+
+            table.insert(self.SimpleInstances, instance)
+        end
+    end
+end
+
+---comment
+---@param data DangerZoneData.EliteSpawnData
+---@param area_data DangerZoneData.AreaData
+function DangerZone:_LoadEliteInstances(data, area_data)
+    if not data then
+        return
+    end
+
+    local offset = area_data.PositionOffset or Vector2.Zero()
+    local area_modifier = area_data.OccupiedArea or Vector2.New(TILE_SIZE, TILE_SIZE)
+
+    local zone_position = self:GetPosition() + offset
+
+    for _, spawn_data in ipairs(data) do
+        local count = spawn_data.Count or 1
+
+        for i = 1, count do
+            local instance = EliteInstanceTracker.New(spawn_data, zone_position, true)
+
+            table.insert(self.EliteInstances, instance)
+        end
+    end
+end
+
+---comment
+---@param data DangerZoneData.EliteSpawnData
+---@param area_data DangerZoneData.AreaData
+function DangerZone:_LoadBossInstances(data, area_data)
+    if not data then
+        return
+    end
+
+    local offset = area_data.PositionOffset or Vector2.Zero()
+    local area_modifier = area_data.OccupiedArea or Vector2.New(TILE_SIZE, TILE_SIZE)
+
+    local zone_position = self:GetPosition() + offset
+
+    for _, spawn_data in ipairs(data) do
+        local count = spawn_data.Count or 1
+
+        for i = 1, count do
+            local instance = EliteInstanceTracker.New(spawn_data, zone_position, true, true)
+
+            table.insert(self.BossInstances, instance)
+        end
+    end
+end
+
+function DangerZone:_CheckGenerateOccupiedSpawns()
+    local data = self.Data.Occupied
+    if not data then
+        return
+    end
+
+    -- Generate Simple Instances
+    if data.Simple then
+        self:_LoadSimpleInstances(data.Simple, data.Area)
+    end
+
+    -- Generate Elite Instances
+    if data.Elite then
+        self:_LoadEliteInstances(data.Elite, data.Area)
+    end
+
+    -- Generate Boss Instances
+    if data.Boss then
+        self:_LoadBossInstances(data.Boss, data.Area)
+    end
+end
+
+---comment
+---@param zone_status ZONE_STATUS
+function DangerZone:_RegisterHostileData(zone_status)
+    local data = self.Data[zone_status]
+    if not data then
+        return
+    end
+
+    local simple_units = data.Simple
+    if not simple_units then
+        return
+    end
+
+    for _, simple_data in ipairs(simple_units) do
+        local hostile_data = HostileData[simple_data.SpawnType]
+        local loot_table = {}
+        for _, key in pairs(simple_data.DropTable) do
+            if SimpleDropTableData[key] then
+                table.insert(loot_table, SimpleDropTableData[key])
+            end
+        end
+
+        SpawnDirector.Instance:AddNewUnit(hostile_data, loot_table, simple_data.Modifiers)
+    end
+end
+
+function DangerZone:_RemoveSpendArea()
+    if not self.SpendArea then
+        return
+    end
+
+    Help.SendActorEvent(self.SpendArea, "HideSpend")
+    self.SpendArea = nil
+end
+
+function DangerZone:_SpawnSpendArea()
+    if not self.Data.UnlockRequirements then
+        return
+    end
+
+    if self.SpendArea then
+        Help.SendActorEvent(self.SpendArea, "ShowSpend")
+        return
+    end
+
+    local spend_area_unit = DCEI.Unit("Hybrid - Zone - Spend Area")
+    local position = self:_GetDepositStandPosition()
+    self.SpendArea = DCEI.CreateUnit(PLAYER.Terrain, TEAM.Terrain, spend_area_unit, position.x, position.y)
+end
+
+---comment
+---@param zone_item_data DangerZoneData.ZoneKeyItemData
+---@param zone_status ZONE_STATUS
+function DangerZone:_SpawnKeyItem(zone_item_data, zone_status)
+    if not zone_item_data then
+        return
+    end
+
+    if zone_item_data.Status and zone_item_data.Status ~= zone_status then
+        return
+    end
+
+    -- Check Save
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.KeyItems) or {}
+    local save_key = zone_item_data.Key
+
+    if Core.Table.Contains(save_data, save_key) then
+        return
+    end
+
+    local zone_position = self:GetPosition()
+    local offset = Vector2.NewFromTable(zone_item_data.Position) or Vector2.Zero()
+    local position = zone_position + offset
+
+    -- KeyItemData
+    local key_item_data = ZoneKeyItemData[zone_item_data.Key]
+
+    if not key_item_data then
+        return
+    end
+
+    local unit_type = key_item_data.Settings.Type
+
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, unit_type, position.x, position.y)
+    table.insert(self.KeyInstances, instance)
+end
+
+---comment
+---@param zone_status ZONE_STATUS
+function DangerZone:_SpawnKeyItems(zone_status)
+    local key_items = self.Data.KeyItems
+    if not key_items then
+        return
+    end
+
+    -- Check the Phase First
+    for _, key_item in pairs(key_items) do
+        --     local is_correct_phase = key_item.Phase == zone_status
+
+        --     local save_data = SaveDataManager.GetReference(SAVE_KEY.KeyItems) or {}
+        --     Help.Log("Key Item Save Data", nil, save_data)
+        --     local is_not_obtained = save_data[key_item.Key] == nil
+
+        -- if is_correct_phase and is_not_obtained then
+        self:_SpawnKeyItem(key_item, zone_status)
+        -- end
+    end
+end
+
+-- add self to `nav mesh`
+function DangerZone:AddToJoystickBond()
+    if not self.Data.Tiles then
+        return
+    end
+
+    for _, tile_data in pairs(self.Data.Tiles) do
+        local position = Vector2.NewFromTable(tile_data.Position) * TILE_SIZE
+
+        Joystick:AddUnitBounds(
+            position.x - TILE_SIZE / 2,
+            position.x + TILE_SIZE / 2,
+            position.y - TILE_SIZE / 2,
+            position.y + TILE_SIZE / 2
+        )
+    end
+end
+
+---comment
+---@param from ZONE_STATUS
+---@param to ZONE_STATUS
+function DangerZone:_ChangeStatus(from, to)
+    if from == to then
+        return
+    end
+
+    -- local message = string.format("[%s] Status: [%s] -> [%s]", self.Data.StatusKey or "", from, to)
+    -- Help.Log(message)
+
+    local prevent_key_item_clear = to ~= ZONE_STATUS.Available
+
+    self:Clear(prevent_key_item_clear)
+    self:_SetTileActive(true, to)
+
+    ---TODO: Initialize necessary instances
+
+    -- Clear UI and spend zone
+    if from == ZONE_STATUS.Available then
+        if self.IsShowingUI then
+            Core.Event.SendPresentationEvent("Zone.Destroy", self.UniqueId)
+            self.IsShowingUI = false
+        end
+
+        self:_RemoveSpendArea()
+    end
+
+    if to == ZONE_STATUS.Available then
+        self:_SpawnSpendArea()
+    end
+
+    -- Set to Occupy, Load Temp Units
+    if to == ZONE_STATUS.Occupied then
+        self:_ClearSimpleInstances()
+        self:_ClearEliteInstances()
+        self:_ClearBossInstances()
+        self:_RegisterHostileData(to) -- Register Hostile Data
+        self:_CheckGenerateOccupiedSpawns() -- Generate Occupied Instances
+    end
+
+    -- Turn on Props
+    if to == ZONE_STATUS.Occupied or to == ZONE_STATUS.Cleansed then
+        self:AddToJoystickBond()
+        self:_SetPropsActive(true)
+    end
+
+    -- Check Key Items
+    if self.Data.KeyItems then
+        self:_SpawnKeyItems(to)
+    end
+
+    self.Status = to
+
+    -- Save Data
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.ZoneStatus) or {}
+    local save_key = self.Data.Key
+
+    if not save_data[save_key] then
+        save_data[save_key] = {}
+    end
+
+    if not save_data[save_key].status or save_data[save_key].status ~= to then
+        save_data[save_key].status = to
+
+        SaveDataManager.Set(SAVE_KEY.ZoneStatus, save_data)
+        SaveDataManager.CommitSaveData()
+    end
+end
+
+---comment
+---@param from ZONE_STATE
+---@param to ZONE_STATE
+function DangerZone:_ChangeState(from, to)
+    if from == to then
+        return
+    end
+
+    -- local message = string.format("[%s] State: [%s] -> [%s]", self.Data.StatusKey or "", from, to)
+    -- Help.Log(message)
+
+    self.State = to
+    self.BufferState = to
+    self.BufferTime = 0
+end
+
+---comment
+---@param status ZONE_STATUS
+function DangerZone:SetStatus(status)
+    if self.Status == status then
+        return
+    end
+
+    self:_ChangeStatus(self.Status, status)
+end
+
+---comment
+---@param status ZONE_STATE
+---@param immediately boolean | nil
+function DangerZone:SetState(status, immediately)
+    if self.State == status then -- Already in this state
+        self.BufferState = status -- Make sure to clear buffer
+        return
+    end
+
+    if immediately then
+        self:_ChangeState(self.State, status)
+        return
+    end
+
+    self.BufferState = status
+    self.BufferTime = 0
+end
+
+---Toggles this Tile as Purchased
+function DangerZone:Purchased()
+    if self.Data.Occupied then
+        self:SetStatus(ZONE_STATUS.Occupied)
+    else
+        self:SetStatus(ZONE_STATUS.Cleansed)
+    end
+end
+
+-- ---TODO: Cache this so we don't have to keep checking Save Data Manager for it.
+-- -- Check if all KeySpawns have been completed
+-- ---@return boolean
+-- function DangerZone:IsCompleted()
+--     for _, key_spawn_data in ipairs(self.Data.KeySpawns) do
+--         if not IsKeyCompleted(key_spawn_data.Key) then
+--             return false
+--         end
+--     end
+
+--     return true
+-- end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return DangerZone

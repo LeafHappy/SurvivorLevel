@@ -1,0 +1,1549 @@
+---TODO: Setup the difference between Weight and Cost
+-- Weight should be how likely the object will spawn.
+-- Cost should be how much of the Zone is taken up by the object (affected by Density).
+---TODO: Reclassify each instance of Damage to be 1 if possible.
+-- This makes the Prop Health more consistent, ignoring Damage Scaling and prioritizing Damage Frequency.
+-- Otherwise, we have to scale Prop Health based on the Game Time (since the player will be stronger).
+-- Do this when we have Damage Affinity & Armor implemented.
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+---NOTE: RandomizeScale: We should not change the Scale too much as it may affect the Collision Position without changing pivot/offset.
+
+---@class PropData : SimpleUnitData
+---@field Key string
+---@field Weight number
+---@field IsSimple boolean
+---@field IsDestructible boolean
+---@field UnitType string
+---@field Stats table<STAT, number>
+---@field Collision table
+---@field OnCollision table
+---@field OffscreenIndicatorIcon string | nil [StandardUnits]
+---@field TransformAnimation SimpleUnitTransformAnimationOptions | nil [SimpleUnits]
+---@field RandomizeScale number | nil [SimpleUnits] Modifies the Scale
+
+---@class PropShrineData : PropData
+
+---@readonly
+---@type table<string, PropData>
+local PropData = {
+    TreeDegrade01 = {
+        Key = "TreeDegrade01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 01"),
+        Health = {
+            Starting = 3,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Forest - Prop - Tree - OnDeath"),
+
+        -- Prop Data
+        Weight = 18,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.25, 1.25, 1.25),
+            end_position = Vector3.New(0, 0, -0.15),
+            -- end_position = Vector3.New(0, -0.70, 0),
+            -- pivot = Vector3.New(0, 0.5, 0),
+            -- rotation_axis = Vector3.New(-1, 0, 0),
+            -- end_degree = 45,
+        },
+
+        RandomizeScale = 0.10,
+    },
+    TreeDegrade02 = {
+        Key = "TreeDegrade02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 02"),
+        Health = {
+            Starting = 3,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Forest - Prop - Tree - OnDeath"),
+
+        -- Prop Data
+        Weight = 16,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.20, 1.20, 1.20),
+            end_position = Vector3.New(0, 0, -0.15),
+            -- end_position = Vector3.New(0, -0.70, 0),
+            -- pivot = Vector3.New(0, 0.5, 0),
+            -- rotation_axis = Vector3.New(-1, 0, 0),
+            -- end_degree = 45,
+        },
+
+        RandomizeScale = 0.08,
+    },
+    TreeDegrade03 = {
+        Key = "TreeDegrade03",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 03"),
+        Health = {
+            Starting = 4,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Forest - Prop - Tree - OnDeath"),
+
+        -- Prop Data
+        Weight = 14,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.15, 1.15, 1.15),
+            end_position = Vector3.New(0, 0, -0.15),
+            -- end_position = Vector3.New(0, -0.70, 0),
+            -- pivot = Vector3.New(0, 0.5, 0),
+            -- rotation_axis = Vector3.New(-1, 0, 0),
+            -- end_degree = 45,
+        },
+
+        RandomizeScale = 0.06,
+    },
+    TreeDegrade04 = {
+        Key = "TreeDegrade04",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 04"),
+        Health = {
+            Starting = 4,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Forest - Prop - Tree - OnDeath"),
+
+        -- Prop Data
+        Weight = 12,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.10, 1.10, 1.10),
+            end_position = Vector3.New(0, 0, -0.15),
+            -- end_position = Vector3.New(0, -0.70, 0),
+            -- pivot = Vector3.New(0, 0.5, 0),
+            -- rotation_axis = Vector3.New(-1, 0, 0),
+            -- end_degree = 45,
+        },
+
+        RandomizeScale = 0.04,
+    },
+    TreeDegrade05 = {
+        Key = "TreeDegrade05",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 05"),
+
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Prop,
+        Mass = 1000000,
+
+        -- Prop Data
+        Weight = 10,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.05, 1.05, 1.05),
+            end_position = Vector3.New(0, 0, -0.15),
+            -- end_position = Vector3.New(0, -0.70, 0),
+            -- pivot = Vector3.New(0, 0.5, 0),
+            -- rotation_axis = Vector3.New(-1, 0, 0),
+            -- end_degree = 45,
+        },
+
+        RandomizeScale = 0.02,
+    },
+    Flower01 = {
+        Key = "Flower01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Flower 01"),
+
+        -- Prop Data
+        Weight = 6,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1, 1.5, 1),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.15,
+    },
+    Flower02 = {
+        Key = "Flower02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Flower 02"),
+
+        -- Prop Data
+        Weight = 7,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1, 1.5, 1),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.15,
+    },
+    DirtPatch01 = {
+        Key = "DirtPatch01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Forest - Prop - Dirt Patch"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1, 1.5, 1),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    DirtPatch02 = {
+        Key = "DirtPatch02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Thicket - Prop - Dirt Patch"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1, 1.5, 1),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    Stone01 = {
+        Key = "Stone01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 01"),
+        Health = {
+            Starting = 3,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(0.50, 0.50, 0.50),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    Stone02 = {
+        Key = "Stone02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 02"),
+        Health = {
+            Starting = 3,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(0.50, 0.50, 0.50),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    Stone03 = {
+        Key = "Stone03",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 03"),
+        Health = {
+            Starting = 3,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(0.50, 0.50, 0.50),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    Stone04 = {
+        Key = "Stone04",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 04"),
+        Health = {
+            Starting = 3,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(0.50, 0.50, 0.50),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    DigSpot01 = {
+        Key = "DigSpot01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Dig Spot - 01"),
+        Health = {
+            Starting = 1,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.DigSpot,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Forest - Prop - Tree - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(0.50, 0.50, 0.50),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    Pumpkin01 = {
+        Key = "Pumpkin01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Pumpkin - 01"),
+        Health = {
+            Starting = 1,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.None,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.None,
+            collides_with_layer_mask = CollisionLayers.Friendly,
+            radius = 0.5,
+        },
+        CollisionEffectData = {
+            {
+                effect_name = DCEI.Effect("Prop - Pumpkin - OnEnter"),
+                timing = CollisionTiming.Start,
+                cooldown_seconds = 0.125,
+                tag_mask_filter = SIMPLE_TAG.Hero,
+            },
+        },
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.00, 1.00),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    Barrel01 = {
+        Key = "Barrel01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Barrel - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    GasPump01 = {
+        Key = "GasPump01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Gas Pump - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    GasPump02 = {
+        Key = "GasPump02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Gas Pump - 02"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    DirtGroundHole03 = {
+        Key = "DirtGroundHole03",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Dirt Ground Hole - 03"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    OvergrownRV01 = {
+        Key = "OvergrownRV01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Overgrown RV - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    PumpkinField01 = {
+        Key = "PumpkinField01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Pumpkin Field - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    RV01 = {
+        Key = "RV01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - RV - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    Sandbags01 = {
+        Key = "Sandbags01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Sandbags - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    Sandbags02 = {
+        Key = "Sandbags02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Sandbags - 02"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    Tire01 = {
+        Key = "Tire01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Tire - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    Tire02 = {
+        Key = "Tire02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Tire - 02"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    TrafficBlockade01 = {
+        Key = "TrafficBlockade01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Traffic Blockade - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    TrafficCone01 = {
+        Key = "TrafficCone01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Traffic Cone - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    TrafficCone02 = {
+        Key = "TrafficCone02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Traffic Cone - 02"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    WoodenRailing01 = {
+        Key = "WoodenRailing01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Wooden Railing - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    WoodenRailing02 = {
+        Key = "WoodenRailing02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Wooden Railing - 02"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+}
+
+-- ---ANCHOR: Simple Units
+-- PropData.Simple = {}
+
+-- ---============================================================================
+-- ---SECTION: Camp
+-- ---============================================================================
+
+-- PropData.Camp = {}
+
+-- ---ANCHOR: Ground Textures
+
+-- PropData.Camp.StonePath01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Stone Path - 01"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 1.50,
+
+--         -- Pitch away from Camera (Animation2D - Floor Texture)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = -45,
+--     },
+-- }
+
+-- ---ANCHOR: Vertical Order
+
+-- PropData.Camp.HayBale = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Hay Bale"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 1.00,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.FenceTop01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Fence - Top - 01"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 1.50,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.FenceBottom01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Fence - Bottom - 01"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 1.50,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.ChoppingBlock = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Chopping Block"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 1.00,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.WoodPile = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Wood Pile"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 1.75,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.Tree01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree - 01"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 0.60,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.Tree02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree - 02"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 0.70,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.Tree03 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree - 03"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 0.80,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.Tree04 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree - 04"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 0.75,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.Tree05 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree - 05"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 0.95,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.Tree06 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree - 06"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 0.90,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- PropData.Camp.Tree07 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree - 07"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 0.85,
+
+--         -- Pitch toward the Camera (Animation2D - Unit Ordering)
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- ---TODO: Figure out sorting
+
+-- PropData.Camp.TreeStump = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Tree Stump"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1, 1) * 1.00,
+--     },
+-- }
+
+-- PropData.Camp.GroundStake = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Ground Stake - 01"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1, 1) * 1.25,
+--     },
+-- }
+
+-- PropData.Camp.Log01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Log - 01"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1, 1) * 1.25,
+--     },
+-- }
+
+-- PropData.Camp.FenceLeft01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Camp - Prop - Fence - Left - 01"),
+
+--     -- Prop Data
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1) * 1.75,
+--     },
+-- }
+
+-- ---============================================================================
+-- ---!SECTION: Camp
+-- ---SECTION: Forest
+-- ---============================================================================
+
+-- PropData.Forest.DestroyedCrate01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Forest - Prop - Destroyed Crate 01"),
+
+--     -- Prop Data
+--     Weight = 6,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.002, 0),
+--     },
+
+--     RandomizeScale = 0.05,
+-- }
+
+-- PropData.Forest.DestroyedCrate02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Forest - Prop - Destroyed Crate 02"),
+
+--     -- Prop Data
+--     Weight = 8,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.002, 0),
+--     },
+
+--     RandomizeScale = 0.15,
+-- }
+
+-- PropData.Forest.Rock01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Forest - Prop - Rock 01"),
+
+--     -- Prop Data
+--     Weight = 13,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.001, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0), -- Slightly Raise the Rock
+--         -- end_degree = 3,
+--     },
+
+--     RandomizeScale = 0.05,
+-- }
+
+-- PropData.Forest.Rock02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Forest - Prop - Rock 02"),
+
+--     -- Prop Data
+--     Weight = 17,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.001, 0),
+--     },
+
+--     RandomizeScale = 0.15,
+-- }
+
+-- PropData.Forest.Crate01 = {
+--     UnitType = DCEI.SimpleUnit("Forest - Prop - Crate 01"),
+--     Health = {
+--         Starting = 1,
+--         Max = 1,
+--     },
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Prop,
+--     Mass = 1000,
+--     CollisionData = {
+--         belongs_to_layer_mask = CollisionLayers.Hostile,
+--         collides_with_layer_mask = CollisionLayers.None,
+--         radius = 0.5,
+--     },
+--     DeathEffect = DCEI.Effect("Forest - Prop - Crate - OnDeath"),
+
+--     -- Prop Data
+--     Weight = 18,
+--     IsSimple = true,
+--     IsDestructible = true,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.5, 1.5, 1.5),
+--         end_position = Vector3.New(0, 0, 0),
+--         pivot = Vector3.New(0, 0, 0),
+--         rotation_axis = Vector3.New(0, 1, 0),
+--         end_degree = 45,
+--     },
+-- }
+
+-- ---============================================================================
+-- ---!SECTION: Forest
+-- ---SECTION: Thicket
+-- ---============================================================================
+
+-- PropData.Thicket = {}
+
+-- PropData.Thicket.Log = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Log"),
+
+--     -- Prop Data
+--     Weight = 10,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, 0, 0),
+--     },
+
+--     RandomizeScale = 0.15,
+-- }
+
+-- PropData.Thicket.Grass = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Grass"),
+
+--     -- Prop Data
+--     Weight = 1,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(2, 3, 2),
+--         end_position = Vector3.New(0, 0.05, 0),
+
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         pivot = Vector3.New(0, 0.25, 0), -- This value needs to be adjusted proportionally to scale y
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 90,
+--     },
+
+--     RandomizeScale = 0.25,
+-- }
+
+-- PropData.Thicket.DestroyedCrate01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Destroyed Crate 01"),
+
+--     -- Prop Data
+--     Weight = 6,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.002, 0),
+--     },
+
+--     RandomizeScale = 0.05,
+-- }
+
+-- PropData.Thicket.DestroyedCrate02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Destroyed Crate 02"),
+
+--     -- Prop Data
+--     Weight = 8,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.002, 0),
+--     },
+
+--     RandomizeScale = 0.15,
+-- }
+
+-- PropData.Thicket.TreeDegrade01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 01"),
+--     Health = {
+--         Starting = 3,
+--     },
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Tree,
+--     Mass = 1000000,
+--     CollisionData = {
+--         belongs_to_layer_mask = CollisionLayers.Hostile,
+--         collides_with_layer_mask = CollisionLayers.Hostile,
+--         radius = 0.5,
+--     },
+--     CollisionEffectData = {
+--         {
+--             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
+--             timing = CollisionTiming.Start | CollisionTiming.Continue,
+--             cooldown_seconds = 0.125,
+--         },
+--     },
+--     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 01 - OnDeath"),
+
+--     -- Prop Data
+--     Weight = 18,
+--     IsSimple = true,
+--     IsDestructible = true,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.25, 1.25, 1.25),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.10,
+-- }
+
+-- PropData.Thicket.TreeDegrade02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 02"),
+--     Health = {
+--         Starting = 4,
+--     },
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Tree,
+--     Mass = 1000000,
+--     CollisionData = {
+--         belongs_to_layer_mask = CollisionLayers.Hostile,
+--         collides_with_layer_mask = CollisionLayers.Hostile,
+--         radius = 0.5,
+--     },
+--     CollisionEffectData = {
+--         {
+--             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
+--             timing = CollisionTiming.Start | CollisionTiming.Continue,
+--             cooldown_seconds = 0.125,
+--         },
+--     },
+--     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 02 - OnDeath"),
+
+--     -- Prop Data
+--     Weight = 16,
+--     IsSimple = true,
+--     IsDestructible = true,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.20, 1.20, 1.20),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.08,
+-- }
+
+-- PropData.Thicket.TreeDegrade03 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 03"),
+--     Health = {
+--         Starting = 5,
+--     },
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Tree,
+--     Mass = 1000000,
+--     CollisionData = {
+--         belongs_to_layer_mask = CollisionLayers.Hostile,
+--         collides_with_layer_mask = CollisionLayers.Hostile,
+--         radius = 0.5,
+--     },
+--     CollisionEffectData = {
+--         {
+--             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
+--             timing = CollisionTiming.Start | CollisionTiming.Continue,
+--             cooldown_seconds = 0.125,
+--         },
+--     },
+--     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 03 - OnDeath"),
+
+--     -- Prop Data
+--     Weight = 14,
+--     IsSimple = true,
+--     IsDestructible = true,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.15, 1.15, 1.15),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.06,
+-- }
+
+-- PropData.Thicket.TreeDegrade04 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 04"),
+--     Health = {
+--         Starting = 6,
+--     },
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Tree,
+--     Mass = 1000000,
+--     CollisionData = {
+--         belongs_to_layer_mask = CollisionLayers.Hostile,
+--         collides_with_layer_mask = CollisionLayers.Hostile,
+--         radius = 0.5,
+--     },
+--     CollisionEffectData = {
+--         {
+--             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
+--             timing = CollisionTiming.Start | CollisionTiming.Continue,
+--             cooldown_seconds = 0.125,
+--         },
+--     },
+--     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 04 - OnDeath"),
+
+--     -- Prop Data
+--     Weight = 12,
+--     IsSimple = true,
+--     IsDestructible = true,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.10, 1.10, 1.10),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.04,
+-- }
+
+-- PropData.Thicket.TreeDegrade05 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 05"),
+
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Prop,
+--     Mass = 1000000,
+
+--     -- Prop Data
+--     Weight = 10,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.05, 1.05, 1.05),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.02,
+-- }
+
+-- ---============================================================================
+-- ---!SECTION: Thicket
+-- ---SECTION: Swamp
+-- ---============================================================================
+
+-- PropData.Swamp = {}
+-- PropData.Swamp.TreeDegrade01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Tree - Degrade - 01"),
+--     Health = {
+--         Starting = 10,
+--     },
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Prop,
+--     Mass = 1000000,
+--     CollisionData = {
+--         belongs_to_layer_mask = CollisionLayers.Hostile,
+--         collides_with_layer_mask = CollisionLayers.Hostile,
+--         radius = 0.5,
+--     },
+--     CollisionEffectData = {
+--         {
+--             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
+--             timing = CollisionTiming.Start | CollisionTiming.Continue,
+--             cooldown_seconds = 0.125,
+--         },
+--     },
+--     DeathEffect = DCEI.Effect("Swamp - Prop - Tree - Degrade - 01 - OnDeath"),
+
+--     -- Prop Data
+--     Weight = 14,
+--     IsSimple = true,
+--     IsDestructible = true,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.15, 1.15, 1.15),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.06,
+-- }
+
+-- PropData.Swamp.TreeDegrade02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Tree - Degrade - 02"),
+--     Health = {
+--         Starting = 10,
+--     },
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Prop,
+--     Mass = 1000000,
+--     CollisionData = {
+--         belongs_to_layer_mask = CollisionLayers.Hostile,
+--         collides_with_layer_mask = CollisionLayers.Hostile,
+--         radius = 0.5,
+--     },
+--     CollisionEffectData = {
+--         {
+--             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
+--             timing = CollisionTiming.Start | CollisionTiming.Continue,
+--             cooldown_seconds = 0.125,
+--         },
+--     },
+--     DeathEffect = DCEI.Effect("Swamp - Prop - Tree - Degrade - 02 - OnDeath"),
+
+--     -- Prop Data
+--     Weight = 12,
+--     IsSimple = true,
+--     IsDestructible = true,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.10, 1.10, 1.10),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.04,
+-- }
+
+-- PropData.Swamp.TreeDegrade03 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Tree - Degrade - 03"),
+
+--     ArmorType = ARMOR_TYPES.Structure,
+--     Tag = SIMPLE_TAG.Prop,
+--     Mass = 1000000,
+
+--     -- Prop Data
+--     Weight = 10,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1.05, 1.05, 1.05),
+--         end_position = Vector3.New(0, 0, -0.15),
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         -- pivot = Vector3.New(0, 0.5, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0),
+--         -- end_degree = 45,
+--     },
+
+--     RandomizeScale = 0.02,
+-- }
+
+-- PropData.Swamp.DestroyedCrate = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Destroyed Crate"),
+
+--     -- Prop Data
+--     Weight = 45,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.002, 0),
+--     },
+
+--     RandomizeScale = 0.05,
+-- }
+
+-- PropData.Swamp.DirtPatch01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Dirt Patch - 01"),
+
+--     -- Prop Data
+--     Weight = 10,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.001, 0),
+--     },
+
+--     RandomizeScale = 0.35,
+-- }
+
+-- PropData.Swamp.DirtPatch02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Dirt Patch - 02"),
+
+--     -- Prop Data
+--     Weight = 15,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.001, 0),
+--     },
+
+--     RandomizeScale = 0.35,
+-- }
+
+-- PropData.Swamp.Grass = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Grass"),
+
+--     -- Prop Data
+--     -- Weight = 5,
+--     Weight = 1,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         -- end_scale = Vector3.New(2, 3, 2),
+--         end_scale = Vector3.New(3, 6, 3),
+--         end_position = Vector3.New(0, 0.05, 0),
+
+--         -- end_position = Vector3.New(0, -0.70, 0),
+--         pivot = Vector3.New(0, 0.60, 0), -- This value needs to be adjusted proportionally to scale y
+--         rotation_axis = Vector3.New(-1, 0, 0),
+--         end_degree = 90,
+--     },
+
+--     RandomizeScale = 0.25,
+-- }
+
+-- PropData.Swamp.Rock = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Rock"),
+
+--     -- Prop Data
+--     Weight = 45,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, -0.001, 0),
+--         -- rotation_axis = Vector3.New(-1, 0, 0), -- Slightly Raise the Rock
+--         -- end_degree = 3,
+--     },
+
+--     RandomizeScale = 0.05,
+-- }
+
+-- PropData.Swamp.Water01 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Water - 01"),
+
+--     -- Prop Data
+--     Weight = 22,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(2, 3, 2),
+--         end_position = Vector3.New(0, 0.05, 0), -- Raise slightly so player feet are in the water
+--     },
+
+--     RandomizeScale = 0.25,
+-- }
+
+-- PropData.Swamp.Water02 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Water - 02"),
+
+--     -- Prop Data
+--     Weight = 22,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, 0.01, 0),
+--     },
+
+--     RandomizeScale = 0.15,
+-- }
+
+-- PropData.Swamp.Water03 = {
+--     -- Simple Unit Data
+--     UnitType = DCEI.SimpleUnit("Swamp - Prop - Water - 03"),
+
+--     -- Prop Data
+--     Weight = 22,
+--     IsSimple = true,
+--     IsDestructible = false,
+
+--     TransformAnimation = {
+--         end_scale = Vector3.New(1, 1.5, 1),
+--         end_position = Vector3.New(0, 0.05, 0), -- Raise slightly so player feet are in the water
+--     },
+
+--     RandomizeScale = 0.25,
+-- }
+
+-- ---============================================================================
+-- ---!SECTION: Swamp
+-- ---============================================================================
+
+return PropData

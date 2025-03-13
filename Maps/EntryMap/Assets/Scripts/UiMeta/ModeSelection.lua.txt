@@ -1,0 +1,109 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local ModeData = require("SharedData/ModeData")
+local DataManager = require("UiMeta/DataManager")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Meta/ModeSelection",
+    parent = ui.z3.Lower,
+})
+
+-- LOCAL FUNCTIONS
+local function CreateItem(mode_data)
+    local new_item = GMUI.Layout.New({
+        name = "Meta/ModeSelection/Item",
+        parent = layout.Content,
+    })
+
+    -- Set display info
+    DCEI.SetTextFrameText(new_item.Label, mode_data.display_name)
+    DCEI.SetFrameImage(new_item.Image, mode_data.image)
+
+    DCEI.SetOnClickCallback(new_item.Frame, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        if not new_item.state.is_locked then
+            DataManager.save_data.player.mode = mode_data.id
+            ui.HomeData.SelectedMode = mode_data.id
+            layout:Hide()
+        end
+    end)
+
+    DCEI.SetOnClickCallback(new_item.info.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local title = mode_data.display_name
+        DCEI.SetTextFrameText(layout.info.Title, title)
+
+        local description = mode_data.description
+        DCEI.SetTextFrameText(layout.info.Description, description)
+
+        layout.info:Show()
+    end)
+
+    return new_item
+end
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    -- Initialize popup animations
+    PopupManager.ApplyPopupAnimations(self, { popup_frame = self.Frame })
+
+    local args = {
+        popup_frame = self.info.Popup,
+        skip_hide_mask = true,
+    }
+    PopupManager.ApplyPopupAnimations(self.info, args)
+
+    -- Initialize list for mode layouts
+    self.mode_layouts = {}
+
+    -- Create items for each mode
+    for i, mode in ipairs(ModeData.list) do
+        local new_item = CreateItem(mode)
+        local id = mode.id
+        self.mode_layouts[id] = new_item
+    end
+
+    -- Setup close button
+    DCEI.SetOnClickCallback(self.close.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Hide()
+    end)
+
+    -- Setup clicking outside to close
+    DCEI.SetOnClickOutsideCallback(self.Frame, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Hide()
+    end)
+
+    -- Setup info close button
+    DCEI.SetOnClickCallback(self.info.close.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self.info:Hide()
+    end)
+
+    -- Setup clicking outside to close info
+    DCEI.SetOnClickOutsideCallback(self.info.Popup, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self.info:Hide()
+    end)
+end
+
+
+function layout:Open(data)
+    for mode, v in pairs(self.mode_layouts) do
+        v.state.is_locked = DataManager.GetModeData(mode).trophy > data.trophy
+        v.state.is_selected = data.selected == mode
+    end
+    self:Show()
+end
+
+-- EXPORT
+return layout

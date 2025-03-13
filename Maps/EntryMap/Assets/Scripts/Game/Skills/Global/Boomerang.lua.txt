@@ -1,0 +1,351 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Boomerang"),
+
+    -- Behaviors
+
+    -- Effects
+    Count = DCEI.Effect("Skill - Boomerang - Count"),
+    ScanHostile = DCEI.Effect("Skill - Boomerang - Scan - Hostile"),
+    ScanAll = DCEI.Effect("Skill - Boomerang - Scan - All"),
+    Trigger = DCEI.Effect("Skill - Boomerang - Trigger"),
+
+    -- Collision Effects
+    OnEnter = DCEI.Effect("Skill - Boomerang - OnEnter"),
+    Damage = DCEI.Effect("Skill - Boomerang - Damage"),
+    Slow = DCEI.Effect("Skill - Boomerang - Slow"),
+    Stagger = DCEI.Effect("Skill - Boomerang - Stagger"),
+
+    -- VFX
+    ImpactVFX = DCEI.Effect("Skill - Boomerang - Impact VFX"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Skill - Boomerang - Projectile"),
+
+    -- Upgrades
+    SnapbackDamageAmplifier = DCEI.Effect("Skill - Boomerang - Snapback - Damage Amplifier"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@enum BoomerangProjectileState
+local BoomerangProjectileState = {
+    Travel = "Travel",
+    Return = "Return",
+}
+
+---@class BoomerangProjectileData
+---@field instance_id string
+---@field player_id PLAYER
+---@field instance Unit
+---@field hero Hero
+---@field boomerang_state BoomerangProjectileState
+---@field target_position Vector2
+---@field projectile_speed number
+---@field acceleration_rate number
+
+---@type table<PLAYER, BoomerangProjectileData>
+local _Projectiles = {}
+
+local MODEL_SCALE = 0.5
+local MODEL_SCALE_TIME = 0.15
+local IMPACT_VFX_SCALE = 1.0
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---@param data BoomerangProjectileData
+local function OnProjectileDeath(data)
+    _Projectiles[data.player_id][data.instance_id] = nil
+end
+
+---comment
+---@param hero Hero
+---@param spawn_position Vector2
+---@param target_position Vector2
+---@param boomerang_state BoomerangProjectileState | nil Default: BoomerangProjectileState.Travel
+---@return Unit
+local function SpawnProjectile(hero, spawn_position, target_position, boomerang_state)
+    if not boomerang_state then
+        boomerang_state = BoomerangProjectileState.Travel
+    end
+
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, spawn_position.x, spawn_position.y)
+
+    local tags = hero:GetInheritedTags(SkillData.Boomerang.Key)
+    local snapback_learned = hero:IsSkillLearned(SkillData.Snapback.Key)
+
+    -- Get needed Stats
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+
+    -- Model Size
+    local scale_time = boomerang_state == BoomerangProjectileState.Travel and MODEL_SCALE_TIME or 0
+    Help.SetModelScale(instance, size * MODEL_SCALE, scale_time, Ease.OutCubic)
+
+    -- Collision Size
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    -- Collision Effects
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 0),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    SimpleUnit.ModifyHealth(instance, 1)
+
+    -- Setup Projectile Data
+    local instance_id = Core.Unit.GetId(instance)
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_distance = hero:GetStat(STAT.SkillRange, tags)
+    local acceleration_rate = (projectile_speed * projectile_speed) / (2 * projectile_distance)
+
+    local starting_speed = boomerang_state == BoomerangProjectileState.Travel and projectile_speed or 1
+
+    -- Apply Snapback Effects
+    if boomerang_state == BoomerangProjectileState.Return and snapback_learned then
+        starting_speed = projectile_speed
+        DCEI.CreateEffectAtSelf(REF.SnapbackDamageAmplifier, instance)
+    end
+
+    -- Add Projectile to Table
+    _Projectiles[hero.player_id][instance_id] = {
+        instance_id = instance_id,
+        player_id = hero.player_id,
+        instance = instance,
+        boomerang_state = boomerang_state or BoomerangProjectileState.Travel,
+        target_position = target_position,
+        projectile_speed = starting_speed,
+        acceleration_rate = acceleration_rate,
+    }
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        OnProjectileDeath(_Projectiles[hero.player_id][instance_id])
+    end)
+
+    return instance
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SkillData.Boomerang.Key)
+
+    -- Stats
+    local distance = hero:GetStat(STAT.SkillRange, tags)
+
+    -- Position Calculations
+    local hero_position = hero:GetPosition()
+    local target_location = Vector2.NewFromTable(ctx.target_location)
+    local direction = Vector2.Normalized(target_location - hero_position)
+
+    local target_position = hero_position + direction * distance
+
+    SpawnProjectile(hero, hero_position, target_position)
+end
+
+---Update Projectile Behavior and Movement
+---@param hero Hero
+---@param data BoomerangProjectileData
+---@return boolean
+local function UpdateProjectile(hero, data)
+    -- Validate Hero
+    if not hero:IsUnitAlive() then
+        -- DCEI.KillUnit(data.instance) -- Trigger OnProjectileDeath
+        return true
+    end
+
+    local instance_position = Vector2.UnitPosition(data.instance)
+
+    -- Set target position based on state
+    local target_position = (data.boomerang_state == BoomerangProjectileState.Return) and hero:GetPosition()
+        or data.target_position
+
+    -- Modify Speed based on State
+
+    if data.boomerang_state == BoomerangProjectileState.Travel then
+        -- Decrease Speed
+        data.projectile_speed = data.projectile_speed - data.acceleration_rate * TICK_RATE
+        data.projectile_speed = math.max(data.projectile_speed, 1)
+    elseif data.boomerang_state == BoomerangProjectileState.Return then
+        -- Increase Speed
+        data.projectile_speed = data.projectile_speed + data.acceleration_rate * TICK_RATE
+    end
+
+    -- Move Projectile
+    local move_position = Vector2.MoveTowards(instance_position, target_position, data.projectile_speed * TICK_RATE)
+    DCEI.SetUnitPosition2DWithInterpolation(data.instance, move_position.x, move_position.y)
+
+    -- Check Destination Reached
+    local distance = Vector2.Distance(move_position, target_position)
+    if distance < 0.1 then
+        if data.boomerang_state == BoomerangProjectileState.Travel then
+            data.boomerang_state = BoomerangProjectileState.Return
+
+            ---TODO: Create a new Boomerang and set it to return.
+            SpawnProjectile(hero, move_position, hero:GetPosition(), BoomerangProjectileState.Return)
+            return true
+        elseif data.boomerang_state == BoomerangProjectileState.Return then
+            return true
+        end
+    end
+    return false
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    -- Get all projectiles
+    local projectiles = _Projectiles[hero.player_id]
+
+    -- Update all projectiles
+    local projectiles_to_remove = {}
+    for instance_id, projectile_data in pairs(projectiles) do
+        local is_remove = UpdateProjectile(hero, projectile_data)
+        if is_remove then
+            table.insert(projectiles_to_remove, instance_id)
+        end
+    end
+
+    for _, value in ipairs(projectiles_to_remove) do
+        if Help.ValidateUnit(projectiles[value].instance) then
+            DCEI.KillUnit(projectiles[value].instance)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Cleanup Projectiles
+    local projectiles = _Projectiles[hero.player_id]
+
+    if projectiles then
+        for _, projectile_data in pairs(projectiles) do
+            DCEI.KillUnit(projectile_data.instance)
+        end
+    end
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _Projectiles[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.ScanHostile, EJS.AreaSearch.Radius, nil, 1.00),
+        EffectPath.New(REF.ScanAll, EJS.AreaSearch.Radius, nil, 0.80),
+    },
+    [STAT.ProjectileCount] = {
+        EffectPath.New(REF.Count, EJS.Persistent.Count),
+    },
+    [STAT.Cooldown] = {
+        EffectPath.New(REF.Count, EJS.Persistent.Duration),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, nil, IMPACT_VFX_SCALE),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Unified, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+    [STAT.DamageBoost] = {
+        EffectPath.New(REF.SnapbackDamageAmplifier, EJS.DamageOutput.Additive),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        _Projectiles[hero.player_id] = {}
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

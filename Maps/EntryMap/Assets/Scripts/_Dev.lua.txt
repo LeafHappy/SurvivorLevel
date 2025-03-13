@@ -1,0 +1,132 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Event = require("Class/Event")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Dev Check
+---============================================================================
+
+-- if not DCEI.IsDev() then
+--     return false
+-- end
+
+---============================================================================
+---!SECTION: Dev Check
+---SECTION: Main
+---============================================================================
+
+local _Dev = {
+    Log = {
+        -- state_transitions = true, -- Show FSM State Transitions
+        -- logging = true, -- Amplitude Events
+        -- hero_common = true, -- Standard Hero Information
+        -- hero_effect_paths = true, -- Debugging Effect Path Issues
+        -- stage_information = true, -- Shows Stage Generated Messages
+        -- boss_states = true, -- Shows Boss State Transitions
+        -- spawn_events = true, -- Shows Spawn Event Messages
+    },
+    UI = {
+        -- hide_hero_health = true, -- Hides the Hero's Healthbar
+        -- show_dev_info = true, -- Shows Game Dev Information
+    },
+    Game = {
+        disable_quests = true, -- Disables Quests
+        enable_editor = true, -- Launches the Editor
+        -- auto_level = true, -- Automatically selects skills.
+        -- super_health = true, -- Starts the Hero with 10k Life.
+        -- starting_upgrades = 0, -- Starts the Hero with upgrades.
+        -- starting_experience = 0, -- Starts the Hero with experience.
+        -- prevent_companion_spawn = true, -- Prevents a Companion from Spawning (old).
+    },
+    Extra = {
+        -- instant_transitions = true, -- Skip Transitions
+        hide_dev_text = true,
+        hide_test_mode_ui = true, -- Hide Test Mode UI
+        -- reset_save_data_on_startup = true, -- Reset Save Data on Startup
+    },
+}
+
+local _Events = {}
+
+---NOTE: Provides a way to Register/Unregister to Key Mappings
+_Dev.Events = {}
+
+---Register an Event
+---@param mapped_key_event string
+---@param callback function
+function _Dev.Events.Register(mapped_key_event, callback)
+    -- Verify valid mapped_key_event
+    local event = _Events[mapped_key_event]
+
+    if not event then
+        DCEI.LogWarning("> _Dev Event: Invalid mapped_key_event: " .. mapped_key_event)
+    end
+
+    event:Subscribe(callback)
+end
+
+---Unregister an Event
+---@param mapped_key_event string
+---@param callback function
+function _Dev.Events.Unregister(mapped_key_event, callback)
+    -- Verify valid mapped_key_event
+    local event = _Events[mapped_key_event]
+
+    if not event then
+        DCEI.LogWarning("> _Dev Event: Invalid mapped_key_event: " .. mapped_key_event)
+    end
+
+    event:Unsubscribe(callback)
+end
+
+---Register a New Key Event
+---@param mapped_key_event string The Key Mapping Name in Project Settings
+local function GenerateNewEvent(mapped_key_event)
+    _Events[mapped_key_event] = Event.New()
+    DCEI.TriggerAddMappedKeyDownEvent(mapped_key_event, function()
+        _Events[mapped_key_event]()
+    end)
+end
+
+---SECTION: Joystick
+GenerateNewEvent("Toggle Joystick")
+
+---SECTION: Camera Controls
+GenerateNewEvent("Camera Reset")
+GenerateNewEvent("Camera Zoom In")
+GenerateNewEvent("Camera Zoom Out")
+GenerateNewEvent("Camera Up")
+GenerateNewEvent("Camera Down")
+GenerateNewEvent("Camera Left")
+GenerateNewEvent("Camera Right")
+
+GenerateNewEvent("Camera Preset 1")
+
+---SECTION: Time Controls
+GenerateNewEvent("Time Pause")
+GenerateNewEvent("Time Normal")
+GenerateNewEvent("Time Double")
+GenerateNewEvent("Time Triple")
+
+---SECTION: Game Controls
+GenerateNewEvent("Victory")
+GenerateNewEvent("Defeat")
+GenerateNewEvent("Time Skip")
+GenerateNewEvent("Gain Hero Level")
+GenerateNewEvent("Gain Hero Artifact")
+
+---SECTION: Testing
+GenerateNewEvent("Gain Random Equipment")
+GenerateNewEvent("Test")
+
+-- Editor
+GenerateNewEvent("Editor Toggle") -- Toggle Editor Mode: F9
+
+---============================================================================
+---!SECTION: Main
+---============================================================================
+
+return _Dev

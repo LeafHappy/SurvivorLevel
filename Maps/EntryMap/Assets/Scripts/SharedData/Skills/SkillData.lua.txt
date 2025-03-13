@@ -1,0 +1,2841 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Contains all necessary data for skills in the game.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+-- Camp
+local SD_ArcherTowers = require("SharedData/Skills/CampData/SD_ArcherTowers")
+
+-- Generic
+local SD_ChopTree = require("SharedData/Skills/SkillData/SD_ChopTree")
+local SD_MineStone = require("SharedData/Skills/SkillData/SD_MineStone")
+local SD_Shovel = require("SharedData/Skills/SkillData/SD_Shovel")
+
+-- Annie
+local SD_Annie = require("SharedData/Skills/SurvivorData/SD_Annie")
+local SD_MarkedForDeath = require("SharedData/Skills/SurvivorData/SD_MarkedForDeath")
+local SD_Strafe = require("SharedData/Skills/SkillData/SD_Strafe")
+
+-- Jorian
+local SD_FrostGuard = require("SharedData/Skills/SurvivorData/SD_FrostGuard")
+
+local SD_Bash = require("SharedData/Skills/SkillData/SD_Bash")
+local SD_Boomerang = require("SharedData/Skills/SkillData/SD_Boomerang")
+local SD_Fireball = require("SharedData/Skills/SkillData/SD_Fireball")
+local SD_Heatwave = require("SharedData/Skills/SkillData/SD_Heatwave")
+local SD_IceBarrage = require("SharedData/Skills/SkillData/SD_IceBarrage")
+
+local SD_BladeTrap = require("SharedData/Skills/SkillData/SD_BladeTrap")
+local SD_GuardianShield = require("SharedData/Skills/SkillData/SD_GuardianShield")
+local SD_TeslaField = require("SharedData/Skills/SkillData/SD_TeslaField")
+-- local SD_LightningStorm = require("SharedData/Skills/SkillData/SD_LightningStorm")
+local SD_LightningStrike = require("SharedData/Skills/SkillData/SD_LightningStrike")
+local SD_FrostBlast = require("SharedData/Skills/SkillData/SD_FrostBlast")
+local SD_IceRupture = require("SharedData/Skills/SkillData/SD_IceRupture")
+local SD_MagmaOrb = require("SharedData/Skills/SkillData/SD_MagmaOrb")
+local SD_StaticRemnants = require("SharedData/Skills/SkillData/SD_StaticRemnants")
+local SD_Frostfang = require("SharedData/Skills/SkillData/SD_Frostfang")
+local SD_Chakram = require("SharedData/Skills/SkillData/SD_Chakram")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Data
+-- ================================================================================================
+
+---@class Applications
+---@field Abilities table
+---@field Behaviors table
+---@field Modifiers table<Modifier>
+
+---@class ApplicationGroup
+---@field FirstLevelOnly Applications
+---@field EveryLevel Applications
+---@field EveryLevelAfterFirst Applications
+
+---@alias SkillId string | SKILL_TAG
+
+---@class Requirement
+---@field Hero SURVIVOR | nil TODO: Remove, this should be handled in MetaData
+---@field Tag SKILL_TAG | nil Checks to see if a Skill Tag has been Leveled
+---@field Level integer | nil Checks to see if a Skill Tag has reached a specified Level
+---@field SkillLevel string | nil Checks to see if a Skill has reached a specified Level
+---@field InheritedLevel SkillId | nil Checks to see if the Skill's Total Inherited Tag Level is at a specified Level.
+---@field Group SkillId | SKILL_TAG | string | nil Checks to see if a Skill Group exists (Skill Name)
+---@field GroupTag SKILL_TAG | string | nil Checks to see if a Skill Group has a specific Tag (Skill contains Tag)
+---@field Comparison COMPARISON_TYPE | nil Used when comparing a Skill Tag Level
+
+---@class SkillData
+---@field Key string
+---@field DisplayName string
+---@field ShortDescription string
+---@field Icon string
+---@field SecondaryIcon string | nil
+---@field MaxLevel integer
+---@field Level integer | nil This is applied after the skill is created and added to the Hero
+---@field Type SKILL_TYPE
+---@field AppliedSkillTagLevels SkillTagList
+---@field Requirements table<table | Requirement>
+---@field Applications ApplicationGroup
+---@field ApplyStatInheritance table<string, SkillTagList>
+---@field RemoveStatInheritance table<string, SkillTagList>
+
+---@type table<string, SkillData>
+local Data = {
+    -- ================================================================================================
+    -- SECTION -- Camp Skills
+    -- ================================================================================================
+
+    ArcherTowerRank_01 = SD_ArcherTowers.ArcherTowerRank_01,
+    ArcherTowerRank_02 = SD_ArcherTowers.ArcherTowerRank_02,
+
+    -- ================================================================================================
+    -- !SECTION -- Camp Skills
+    -- ================================================================================================
+
+    -- ================================================================================================
+    -- SECTION -- Survivor Skills
+    -- ================================================================================================
+
+    -- ================================================================================================
+    -- ANCHOR -- Generic
+    -- ================================================================================================
+
+    ChopTree = SD_ChopTree.ChopTree,
+    MineStone = SD_MineStone.MineStone,
+    Shovel = SD_Shovel.Shovel,
+
+    -- ================================================================================================
+    -- ANCHOR -- Annie
+    -- ================================================================================================
+
+    -- Innate Passive
+    MarkedForDeath = SD_MarkedForDeath.MarkedForDeath,
+    KillStreak = SD_MarkedForDeath.KillStreak,
+    UnstableMarker = SD_MarkedForDeath.UnstableMarker,
+
+    -- Optional Passives
+    Scavenger = SD_Annie.Scavenger,
+    EvasiveManeuvers = SD_Annie.EvasiveManeuvers,
+    SpeedForce = SD_Annie.SpeedForce,
+
+    -- Active
+    Strafe = SD_Strafe.Strafe,
+    Trickshot = SD_Strafe.Trickshot,
+    Sideshow = SD_Strafe.Sideshow,
+
+    Quickfire = SD_Strafe.Quickfire,
+    Slipstream = SD_Strafe.Slipstream,
+    SpectralArrow = SD_Strafe.SpectralArrow,
+
+    -- ================================================================================================
+    -- ANCHOR -- Jorian
+    -- ================================================================================================
+
+    FrostGuard = SD_FrostGuard.FrostGuard,
+    ColdSteel = SD_FrostGuard.ColdSteel,
+    Tundra = SD_FrostGuard.Tundra,
+    FrostboundFrenzy = SD_FrostGuard.FrostboundFrenzy,
+    IceSplash = SD_FrostGuard.IceSplash,
+
+    -- ================================================================================================
+    -- !SECTION -- Survivor Skills
+    -- ================================================================================================
+
+    -- ================================================================================================
+    -- SECTION -- Stage Skills
+    -- ================================================================================================
+
+    -- ================================================================================================
+    -- ANCHOR -- Stage 01
+    -- ================================================================================================
+
+    Bash = SD_Bash.Bash,
+    DeadlyReach = SD_Bash.DeadlyReach,
+    Brawler = SD_Bash.Brawler,
+    HollowStrike = SD_Bash.HollowStrike,
+    DoubleStrike = SD_Bash.DoubleStrike,
+
+    Boomerang = SD_Boomerang.Boomerang,
+    PowerThrow = SD_Boomerang.PowerThrow,
+    Precision = SD_Boomerang.Precision,
+    Snapback = SD_Boomerang.Snapback,
+    DoubleThrow = SD_Boomerang.DoubleThrow,
+
+    GuardianShield = SD_GuardianShield.GuardianShield,
+    BluntForce = SD_GuardianShield.BluntForce,
+    TakeCover = SD_GuardianShield.TakeCover,
+    Bodyguard = SD_GuardianShield.Bodyguard,
+    Concussion = SD_GuardianShield.Concussion,
+
+    -- ================================================================================================
+    -- ANCHOR -- Stage 02
+    -- ================================================================================================
+
+    Fireball = SD_Fireball.Fireball,
+    BloodBoil = SD_Fireball.BloodBoil,
+    BurningCrusade = SD_Fireball.BurningCrusade,
+    Flamethrower = SD_Fireball.Flamethrower,
+    FlameExtension = SD_Fireball.FlameExtension,
+
+    Heatwave = SD_Heatwave.Heatwave,
+    FlameSwell = SD_Heatwave.FlameSwell,
+    VitalSurge = SD_Heatwave.VitalSurge,
+    Meltdown = SD_Heatwave.Meltdown,
+    Detonation = SD_Heatwave.Detonation,
+
+    -- ================================================================================================
+    -- ANCHOR -- Stage 03
+    -- ================================================================================================
+
+    TeslaField = SD_TeslaField.TeslaField,
+    Energize = SD_TeslaField.Energize,
+    Magnetism = SD_TeslaField.Magnetism,
+    StaticDischarge = SD_TeslaField.StaticDischarge,
+    ClosedCircuit = SD_TeslaField.ClosedCircuit,
+
+    LightningStrike = SD_LightningStrike.LightningStrike,
+    Surge = SD_LightningStrike.Surge,
+    Amplify = SD_LightningStrike.Amplify,
+    LightningDouble = SD_LightningStrike.LightningDouble,
+    LightningSplash = SD_LightningStrike.LightningSplash,
+
+    -- ================================================================================================
+    -- ANCHOR -- Stage 04
+    -- ================================================================================================
+
+    IceBarrage = SD_IceBarrage.IceBarrage,
+    Permafrost = SD_IceBarrage.Permafrost,
+    ColdShoulder = SD_IceBarrage.ColdShoulder,
+    IceFracture = SD_IceBarrage.IceFracture,
+    SnowPiercer = SD_IceBarrage.SnowPiercer,
+
+    IceRupture = SD_IceRupture.IceRupture,
+    Frostborn = SD_IceRupture.Frostborn,
+    FrostfieldPlate = SD_IceRupture.FrostfieldPlate,
+    GlacialExpansion = SD_IceRupture.GlacialExpansion,
+    IceLocked = SD_IceRupture.IceLocked,
+
+    FrostBlast = SD_FrostBlast.FrostBlast,
+
+    -- ================================================================================================
+    -- ANCHOR -- Stage 05
+    -- ================================================================================================
+
+    -- Fire
+    MagmaOrb = SD_MagmaOrb.MagmaOrb,
+    InfernalEngine = SD_MagmaOrb.InfernalEngine,
+    Everflame = SD_MagmaOrb.Everflame,
+    MoltenCore = SD_MagmaOrb.MoltenCore,
+    Returnal = SD_MagmaOrb.Returnal,
+
+    -- Shock
+    StaticRemnants = SD_StaticRemnants.StaticRemnants,
+    Overcharge = SD_StaticRemnants.Overcharge,
+    Flux = SD_StaticRemnants.Flux,
+    StormSerpent = SD_StaticRemnants.StormSerpent,
+    Accumulator = SD_StaticRemnants.Accumulator,
+
+    -- ================================================================================================
+    -- ANCHOR -- Stage 06
+    -- ================================================================================================
+
+    -- Physical
+    -- Chakram - Left/Right Sine-wave blades
+    Chakram = SD_Chakram.Chakram,
+    Juggernaut = SD_Chakram.Juggernaut,
+    PressurePoint = SD_Chakram.PressurePoint,
+    Rend = SD_Chakram.Rend,
+    HyperGlaives = SD_Chakram.HyperGlaives,
+
+    -- Cold
+    Frostfang = SD_Frostfang.Frostfang,
+    FrostStrider = SD_Frostfang.FrostStrider,
+    ColdStepping = SD_Frostfang.ColdStepping,
+    Hibernation = SD_Frostfang.Hibernation,
+    ScatterHail = SD_Frostfang.ScatterHail,
+
+    -- ================================================================================================
+    -- !SECTION -- Stage Skills
+    -- ================================================================================================
+
+    -- ================================================================================================
+    -- ANCHOR -- Others
+    -- ================================================================================================
+
+    BladeTrap = SD_BladeTrap.BladeTrap,
+    PatientTrapper = SD_BladeTrap.PatientTrapper,
+    Rearm = SD_BladeTrap.Rearm,
+    Maim = SD_BladeTrap.Maim,
+    SeekingBlades = SD_BladeTrap.SeekingBlades,
+
+    -- LightningStorm = SD_LightningStorm.LightningStorm,
+    -- Amplify = SD_LightningStorm.Amplify,
+    -- BatteryPack = SD_LightningStorm.BatteryPack,
+    -- StaticRemnants = SD_LightningStorm.StaticRemnants,
+    -- LighningDoubles = SD_LightningStorm.LighningDoubles,
+}
+
+-- ================================================================================================
+-- SECTION -- Example
+-- ================================================================================================
+
+-- Data.KineticStrike = {
+--     Key = "KineticStrike",
+
+--     -- UI Information
+--     DisplayName = "Kinetic Strike",
+--     ShortDescription = "Hits a nearby enemy and knocks them back.",
+--
+--     Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+--     -- Skill Information
+--     MaxLevel = 1,
+--     Type = SKILL_TYPE.Active,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.KineticStrike,
+--     },
+--     Requirements = {},
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {
+--                 "Kinetic Strike",
+--             },
+--             Behaviors = {},
+--             Modifiers = {
+--                 Modifier.New(STAT.AttackSpeed, 0.85, SCALING.Scaled, { SKILL_TAG.KineticStrike }),
+--                 Modifier.New(STAT.SkillRange, 6.50, SCALING.Scaled, { SKILL_TAG.KineticStrike }),
+--                 Modifier.New(STAT.Damage, 26, SCALING.Scaled, { SKILL_TAG.KineticStrike }),
+--                 Modifier.New(STAT.Knockback, 3, SCALING.Scaled, { SKILL_TAG.KineticStrike }),
+--             },
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {
+--         KineticStrike = {
+--             SKILL_TAG.KineticStrike,
+--             SKILL_TAG.Impact,
+--             SKILL_TAG.DirectDamage,
+--             SKILL_TAG.Knockback,
+--         },
+--     },
+--     RemoveStatInheritance = {},
+-- }
+
+-- Data.ColdStrike = {
+--     Key = "ColdStrike",
+
+--     -- UI Information
+--     DisplayName = "Cold Strike",
+--     ShortDescription = "Converts Kinetic Strike into Cold Damage.",
+--
+--     Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+--     -- Skill Information
+--     MaxLevel = 1,
+--     Type = SKILL_TYPE.Active,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.KineticStrike,
+--     },
+--     Requirements = {},
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {},
+--             Behaviors = {
+--                 Behavior.New("Cold Strike", 1, APPLICATION_TYPE.Set),
+--             },
+--             Modifiers = {
+--                 Modifier.New(STAT.Knockback, 0, SCALING.Multiplier, { SKILL_TAG.KineticStrike }),
+--                 Modifier.New(STAT.SlowEffectiveness, 0.20, SCALING.Scaled, { SKILL_TAG.KineticStrike }),
+--                 Modifier.New(STAT.SlowDuration, 3, SCALING.Scaled, { SKILL_TAG.KineticStrike }),
+--             },
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {
+--         KineticStrike = {
+--             SKILL_TAG.Cold,
+--             SKILL_TAG.Slow,
+--         },
+--     },
+--     RemoveStatInheritance = {
+--         KineticStrike = {
+--             SKILL_TAG.Impact,
+--             SKILL_TAG.Knockback,
+--         },
+--     },
+-- }
+
+-- Data.WinterChill = {
+--     Key = "WinterChill",
+
+--     -- UI Information
+--     DisplayName = "Winter Chill",
+--     ShortDescription = "Cold and Slow Skills deal more damage and have increased slow.",
+--
+--     Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+--     -- Skill Information
+--     MaxLevel = 1,
+--     Type = SKILL_TYPE.Active,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.Cold,
+--         SKILL_TAG.Slow,
+--     },
+--     Requirements = {
+--         {
+--             GroupTag = SKILL_TAG.Cold,
+--         },
+--         {
+--             GroupTag = SKILL_TAG.Slow,
+--         },
+--     },
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {
+--                 Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Cold, SKILL_TAG.Slow }),
+--                 Modifier.New(STAT.SlowEffectiveness, 0.10, SCALING.Additive, { SKILL_TAG.Cold, SKILL_TAG.Slow }),
+--             },
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {},
+--     RemoveStatInheritance = {},
+-- }
+
+-- ================================================================================================
+-- !SECTION -- Example
+-- SECTION -- Placeholder
+-- ================================================================================================
+
+Data.Placeholder = {
+    Key = "Placeholder",
+
+    -- UI Information
+    DisplayName = "?",
+    ShortDescription = "What could this be?",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- !SECTION -- Placeholder
+-- SECTION -- Active Skills
+-- ================================================================================================
+
+-- ================================================================================================
+-- SECTION -- Universal -- Passives
+-- ================================================================================================
+
+Data.PickupRange = {
+    Key = "PickupRange",
+
+    -- UI Information
+    DisplayName = "PickupRange",
+    ShortDescription = "+20% Pickup Range.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {},
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.PickupRange, 0.20, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.MoveSpeed = {
+    Key = "MoveSpeed",
+
+    -- UI Information
+    DisplayName = "MoveSpeed",
+    ShortDescription = "+10% MoveSpeed.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {},
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.MoveSpeed, 0.10, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.PotionHeal = {
+    Key = "PotionHeal",
+
+    -- UI Information
+    DisplayName = "PotionHeal",
+    ShortDescription = "+10% PotionHeal.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {},
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.PotionHeal, 0.10, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- !SECTION -- Universal -- Passives
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Scarlet Arrow
+-- ================================================================================================
+
+Data.ScarletArrow = {
+    Key = "ScarletArrow",
+
+    -- UI Information
+    DisplayName = "Scarlet Arrow",
+    ShortDescription = "Shoot a projectile.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    DisplayTagIcons = { -- Icons displayed in the skill info popup
+        DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+    },
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Weapon - Scarlet Arrow"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 0.95, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.SkillRange, 6.50, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.ProjectileSpeed, 13, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.SkillSize, 0.65, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.Damage, 22, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.Stagger, 1, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        ScarletArrow = {
+            SKILL_TAG.Global,
+            SKILL_TAG.ScarletArrow,
+
+            -- New
+            SKILL_TAG.Attack,
+            SKILL_TAG.Fire,
+            SKILL_TAG.Precision,
+
+            -- Old
+            -- SKILL_TAG.Fire,
+            -- SKILL_TAG.Projectile,
+            -- SKILL_TAG.DirectDamage,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.Deadshot = {
+    Key = "Deadshot",
+
+    -- UI Information
+    DisplayName = "Deadshot",
+    ShortDescription = "Scarlet Arrow gains incrased critical chance and damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+    },
+    Requirements = {
+        {
+            {
+                InheritedLevel = SKILL_TAG.ScarletArrow,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 10,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.CriticalChance, 0.10, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.CriticalMultiplier, 1.00, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ScarletArrowVelocity = {
+    Key = "ScarletArrowVelocity",
+
+    -- UI Information
+    DisplayName = "Scarlet Arrow Velocity",
+    ShortDescription = "Increases the velocity of Scarlet Arrow.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+        SKILL_TAG.Range,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.ScarletArrow,
+            Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+            Level = 1,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.08, SCALING.Additive, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.ProjectileSpeed, 0.08, SCALING.Additive, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.SkillRange, 0.08, SCALING.Additive, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ScarletArrowAlacrity = {
+    Key = "ScarletArrowAlacrity",
+
+    -- UI Information
+    DisplayName = "Scarlet Arrow Attack Speed",
+    ShortDescription = "Increases the Attack Speed of Scarlet Arrow.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.ScarletArrow,
+            Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+            Level = 1,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 0.95, SCALING.Multiplier, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ScarletArrowCritical = {
+    Key = "ScarletArrowCritical",
+
+    -- UI Information
+    DisplayName = "Scarlet Arrow Critical",
+    ShortDescription = "Increases the Critical Effects of Scarlet Arrow.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.ScarletArrow,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 5,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.CriticalChance, 0.10, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+                Modifier.New(STAT.CriticalMultiplier, 0.20, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ScarletArrowMultishot = {
+    Key = "ScarletArrowMultishot",
+
+    -- UI Information
+    DisplayName = "Scarlet Arrow Multishot",
+    ShortDescription = "Scarlet Arrow shoots an extra projectile.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+        SKILL_TAG.Projectile,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.ScarletArrow,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 5,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.70, SCALING.Multiplier, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ScarletArrowExplosiveShot = {
+    Key = "ScarletArrowExplosiveShot",
+
+    -- UI Information
+    DisplayName = "Scarlet Arrow Explosive Shot",
+    ShortDescription = "Scarlet Arrow explodes when expired.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+        SKILL_TAG.ScarletArrowExplosion,
+        SKILL_TAG.Fire,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.ScarletArrow,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 10,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {
+                Behavior.New(DCEI.Behavior("Weapon - Scarlet Arrow - Explosion - Learned"), 1, APPLICATION_TYPE.Set),
+            },
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 3.00, SCALING.Multiplier, { SKILL_TAG.ScarletArrowExplosion }),
+                Modifier.New(STAT.Damage, 0.40, SCALING.Multiplier, { SKILL_TAG.ScarletArrowExplosion }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        ScarletArrow = {
+            SKILL_TAG.Area,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.ScarletArrowPierce = {
+    Key = "ScarletArrowPierce",
+
+    -- UI Information
+    DisplayName = "Scarlet Arrow Pierce",
+    ShortDescription = "Scarlet Arrow can hit an extra target.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ScarletArrow,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Break, -0.25, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        ScarletArrow = {
+            SKILL_TAG.Pierce,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Orbital Shield
+-- ================================================================================================
+
+Data.OrbitalShield = {
+    Key = "OrbitalShield",
+
+    -- UI Information
+    DisplayName = "Orbital Shield",
+    ShortDescription = "Spawns a shield that orbits you.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.OrbitalShield,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Weapon - Orbital Shield"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.Cooldown, 3, SCALING.Scaled, { SKILL_TAG.OrbitalShield }),
+                Modifier.New(STAT.SkillRange, 2.5, SCALING.Scaled, { SKILL_TAG.OrbitalShield }),
+                Modifier.New(STAT.ProjectileCount, 3, SCALING.Scaled, { SKILL_TAG.OrbitalShield }),
+
+                -- Projectile
+                Modifier.New(STAT.ProjectileSpeed, 120, SCALING.Scaled, { SKILL_TAG.OrbitalShield }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 14, SCALING.Scaled, { SKILL_TAG.OrbitalShield }),
+                Modifier.New(STAT.Stagger, 1, SCALING.Scaled, { SKILL_TAG.OrbitalShield }),
+
+                -- Projectile Size
+                Modifier.New(STAT.SkillSize, 0.5, SCALING.Scaled, { SKILL_TAG.OrbitalShield }),
+
+                -- Explosion Scalar
+                Modifier.New(STAT.SkillSize, 2.5, SCALING.Multiplier, { SKILL_TAG.OrbitalShieldExplosion }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        OrbitalShield = {
+            SKILL_TAG.Global,
+            SKILL_TAG.OrbitalShield,
+
+            -- New
+            SKILL_TAG.Recharge,
+            SKILL_TAG.Fire,
+            SKILL_TAG.Burst,
+
+            -- Old
+            -- SKILL_TAG.Fire,
+            -- SKILL_TAG.Shield,
+            -- SKILL_TAG.Area,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.Armaments = {
+    Key = "Armaments",
+
+    -- UI Information
+    DisplayName = "Armaments",
+    ShortDescription = "Orbital Shield gains increased size and projectiles.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.OrbitalShield,
+    },
+    Requirements = {
+        {
+            {
+                InheritedLevel = SKILL_TAG.OrbitalShield,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 10,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 0.30, SCALING.Additive, { SKILL_TAG.OrbitalShield }),
+                Modifier.New(STAT.Cooldown, 0.80, SCALING.Multiplier, { SKILL_TAG.OrbitalShield }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.OrbitalShieldDamage = {
+    Key = "OrbitalShieldDamage",
+
+    -- UI Information
+    DisplayName = "Orbital Shield/nDamage",
+    ShortDescription = "Increases Orbital Shield Damage",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.OrbitalShield,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.OrbitalShield,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 10,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.5, SCALING.Additive, { SKILL_TAG.OrbitalShield }),
+                Modifier.New(STAT.Cooldown, 0.5, SCALING.Multiplier, { SKILL_TAG.OrbitalShield }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Mighty Axe
+-- ================================================================================================
+
+Data.MightyAxe = {
+    Key = "MightyAxe",
+
+    -- UI Information
+    DisplayName = "Mighty Axe",
+    ShortDescription = "Throws axes at nearby enemies.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MightyAxe,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Mighty Axe"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.AttackSpeed, 1.85, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.SkillRange, 4.35, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.ProjectileCount, 2, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+
+                -- Projectile
+                Modifier.New(STAT.SkillSize, 1.00, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.ProjectileSpeed, 6.60, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 15, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.Stagger, 10, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        MightyAxe = {
+            SKILL_TAG.Global,
+            SKILL_TAG.MightyAxe,
+            SKILL_TAG.Impact,
+            SKILL_TAG.Projectile,
+            SKILL_TAG.DirectDamage,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.MightyAxeVelocity = {
+    Key = "MightyAxeVelocity",
+
+    -- UI Information
+    DisplayName = "Mighty Axe\nVelocity",
+    ShortDescription = "Increases the velocity of Mighty Axe.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MightyAxe,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.MightyAxe,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.08, SCALING.Additive, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.ProjectileSpeed, 0.08, SCALING.Additive, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.SkillRange, 0.08, SCALING.Additive, { SKILL_TAG.MightyAxe }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.MightyAxeFuryBoost = {
+    Key = "MightyAxeFuryBoost",
+
+    -- UI Information
+    DisplayName = "Mighty Axe\nFury Boost",
+    ShortDescription = "Increases the Attack Speed and Size of Mighty Axe.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MightyAxe,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.MightyAxe,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 0.95, SCALING.Multiplier, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.SkillSize, 0.05, SCALING.Additive, { SKILL_TAG.MightyAxe }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.MightyAxeCritical = {
+    Key = "MightyAxeCritical",
+
+    -- UI Information
+    DisplayName = "Mighty Axe\nCritical",
+    ShortDescription = "Increases the Critical Effects of Mighty Axe.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MightyAxe,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.MightyAxe,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 5,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.CriticalChance, 0.1, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.CriticalMultiplier, 0.15, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.MightyAxeFrostAxe = {
+    Key = "MightyAxeFrostAxe",
+
+    -- UI Information
+    DisplayName = "Mighty Axe\nFrost Axe",
+    ShortDescription = "Mighty Axe slows enemies.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MightyAxe,
+        SKILL_TAG.Slow,
+        SKILL_TAG.Ice,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.MightyAxe,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 5,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 2, SCALING.Multiplier, { SKILL_TAG.MightyAxeFrostAxe }),
+                Modifier.New(STAT.SlowDuration, 2, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SlowEffectiveness, 0.08, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.MightyAxeProjectile = {
+    Key = "MightyAxeProjectile",
+
+    -- UI Information
+    DisplayName = "Mighty Axe\nProjectile",
+    ShortDescription = "Increases the Projectile Count of Mighty Axe.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 2,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MightyAxe,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.MightyAxe,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 10,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.MightyAxe }),
+                Modifier.New(STAT.Damage, 0.2, SCALING.Additive, { SKILL_TAG.MightyAxe }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Frostnova
+-- ================================================================================================
+
+Data.Frostnova = {
+    Key = "Frostnova",
+
+    -- UI Information
+    DisplayName = "Frostnova",
+    ShortDescription = "Release a wave of frost.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frostnova_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Frostnova,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Weapon - Frostnova"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.RequiredStacks, 8, SCALING.Scaled, { SKILL_TAG.Frostnova }),
+                Modifier.New(STAT.Damage, 16, SCALING.Scaled, { SKILL_TAG.Frostnova }),
+
+                Modifier.New(STAT.SkillSize, 3.75, SCALING.Scaled, { SKILL_TAG.Frostnova }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.Frostnova }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.Frostnova }),
+                Modifier.New(STAT.Chance, 0.10, SCALING.Scaled, { SKILL_TAG.Frostnova }),
+                Modifier.New(STAT.Force, 25, SCALING.Scaled, { SKILL_TAG.Frostnova }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        Frostnova = {
+            SKILL_TAG.Global,
+            SKILL_TAG.Frostnova,
+            SKILL_TAG.Shock,
+            SKILL_TAG.Ice,
+            SKILL_TAG.Area,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Frost Pillar
+-- ================================================================================================
+
+Data.FrostPillar = {
+    Key = "FrostPillar",
+
+    -- UI Information
+    DisplayName = "Frost Pillar",
+    ShortDescription = "After taking damage, release pillars of ice.",
+    Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.FrostPillar,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Weapon - Frost Pillar"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 5, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+                Modifier.New(STAT.SkillRange, 2, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+                Modifier.New(STAT.SkillSize, 1.5, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+                Modifier.New(STAT.SlowEffectiveness, 1, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+                Modifier.New(STAT.SlowDuration, 2, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+
+                Modifier.New(STAT.RequiredStacks, 1, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+                Modifier.New(STAT.CooldownReduction, 1, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+
+                Modifier.New(STAT.Damage, 18, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        FrostPillar = {
+            SKILL_TAG.Global,
+            SKILL_TAG.FrostPillar,
+            SKILL_TAG.DirectDamage,
+            SKILL_TAG.Ice,
+            SKILL_TAG.Projectile,
+            SKILL_TAG.Freezing,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.FrostPillarProjectile = {
+    Key = "FrostPillarProjectile",
+
+    -- UI Information
+    DisplayName = "Frost Pillar Projectile",
+    ShortDescription = "Increases the Projectile Count of Frost Pillar.",
+    Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+
+    -- Skill Information
+    MaxLevel = 2,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.FrostPillar,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.FrostPillar,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+            {
+                Tag = SKILL_TAG.HeroLevel,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 10,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.FrostPillar }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Pyroclasm
+-- ================================================================================================
+
+Data.Pyroclasm = {
+    Key = "Pyroclasm",
+
+    -- UI Information
+    DisplayName = "Pyroclasm",
+    ShortDescription = "Release a burst of flaming projectiles around you.",
+    Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Pyroclasm,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Pyroclasm"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 5, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+                Modifier.New(STAT.ProjectileCount, 6, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+
+                Modifier.New(STAT.SkillSize, 0.40, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+
+                Modifier.New(STAT.SkillRange, 7, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+                Modifier.New(STAT.ProjectileSpeed, 6, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+
+                Modifier.New(STAT.Damage, 20, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+                Modifier.New(STAT.Stagger, 1, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        Pyroclasm = {
+            SKILL_TAG.Global,
+            SKILL_TAG.Pyroclasm,
+
+            -- New
+            SKILL_TAG.Attack,
+            SKILL_TAG.Fire,
+            SKILL_TAG.Burst,
+
+            -- Old
+            -- SKILL_TAG.Fire,
+            -- SKILL_TAG.Projectile,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.Supernova = {
+    Key = "Supernova",
+
+    -- UI Information
+    DisplayName = "Supernova",
+    ShortDescription = "Pyroclasm gains additional damage and projectiles.",
+    Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Pyroclasm,
+    },
+    Requirements = {
+        {
+            {
+                InheritedLevel = SKILL_TAG.Pyroclasm,
+                Level = 10,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.20, SCALING.Additive, { SKILL_TAG.Pyroclasm }),
+                Modifier.New(STAT.ProjectileCount, 6, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        Pyroclasm = {
+            SKILL_TAG.Global,
+            SKILL_TAG.Pyroclasm,
+
+            -- New
+            SKILL_TAG.Attack,
+            SKILL_TAG.Fire,
+            SKILL_TAG.Burst,
+
+            -- Old
+            -- SKILL_TAG.Fire,
+            -- SKILL_TAG.Projectile,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.PyroclasmDamage = {
+    Key = "PyroclasmDamage",
+
+    -- UI Information
+    DisplayName = "Pyroclasm\nDamage",
+    ShortDescription = "Increases Pyroclasm Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Pyroclasm,
+        SKILL_TAG.Fire,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Pyroclasm,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Pyroclasm }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.PyroclasmProjectile = {
+    Key = "PyroclasmProjectile",
+
+    -- UI Information
+    DisplayName = "Pyroclasm\nProjectile",
+    ShortDescription = "Increases Pyroclasm Projectiles.",
+    Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Pyroclasm,
+        SKILL_TAG.Projectile,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Pyroclasm,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.Pyroclasm }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.PyroclasmAttackSpeed = {
+    Key = "PyroclasmAttackSpeed",
+
+    -- UI Information
+    DisplayName = "Pyroclasm\nAttack Speed",
+    ShortDescription = "Increases Pyroclasm Attack Speed.",
+    Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Pyroclasm,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Pyroclasm,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 0.90, SCALING.Multiplier, { SKILL_TAG.Pyroclasm }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.PyroclasmSize = {
+    Key = "PyroclasmSize",
+
+    -- UI Information
+    DisplayName = "Pyroclasm\nSize",
+    ShortDescription = "Increases Pyroclasm Size.",
+    Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Pyroclasm,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Pyroclasm,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 0.15, SCALING.Additive, { SKILL_TAG.Pyroclasm }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- !SECTION -- Active Skills
+-- SECTION -- Passive - Type 1
+-- ================================================================================================
+
+Data.PhysicalDamage = {
+    Key = "PhysicalDamage",
+
+    -- UI Information
+    DisplayName = "Physical Damage",
+    ShortDescription = "Increases Physical Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Physical,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Physical }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.FireDamage = {
+    Key = "FireDamage",
+
+    -- UI Information
+    DisplayName = "Fire Damage",
+    ShortDescription = "Increases Fire Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Fire,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Fire }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ColdDamage = {
+    Key = "ColdDamage",
+
+    -- UI Information
+    DisplayName = "Cold Damage",
+    ShortDescription = "Increases Cold Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Cold,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Cold }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ShockDamage = {
+    Key = "ShockDamage",
+
+    -- UI Information
+    DisplayName = "Shock Damage",
+    ShortDescription = "Increases Shock Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Shock,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Shock }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ToxicDamage = {
+    Key = "ToxicDamage",
+
+    -- UI Information
+    DisplayName = "Toxic Damage",
+    ShortDescription = "Increases Toxic Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Toxic,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Toxic }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.VoidDamage = {
+    Key = "VoidDamage",
+
+    -- UI Information
+    DisplayName = "Void Damage",
+    ShortDescription = "Increases Void Damage.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Void,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 1,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Void }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- !SECTION -- Passive - Type 1
+-- SECTION -- Passive - Type 2
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Passive - Type 2
+-- SECTION -- Passive Skills
+-- ================================================================================================
+
+Data.Resolve = {
+    Key = "Resolve",
+
+    -- UI Information
+    DisplayName = "Resolve",
+    ShortDescription = "Gain increased armor and regeneration.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Armor, 3, SCALING.Scaled),
+                Modifier.New(STAT.HealthRegeneration, 1, SCALING.Scaled),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.LeadExplorer = {
+    Key = "LeadExplorer",
+
+    -- UI Information
+    DisplayName = "Lead Explorer",
+    ShortDescription = "Gain increased movement speed and pickup range.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.MoveSpeed, 0.03, SCALING.Additive),
+                Modifier.New(STAT.PickupRange, 0.10, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Data.Heatwave = {
+--     Key = "Heatwave",
+
+--     -- UI Information
+--     DisplayName = "Heatwave",
+--     ShortDescription = "Fire skills gain increased damage and size.",
+--     Icon = DCEI.Texture("cartoon_icon_tag_fire_survivor"),
+
+--     -- Skill Information
+--     MaxLevel = 5,
+--     Type = SKILL_TYPE.Passive,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.Fire,
+--     },
+--     Requirements = {
+--         {
+--             { -- Make sure we have at least 1 Skill that uses Fire
+--                 GroupTag = SKILL_TAG.Fire,
+--             },
+--         },
+--     },
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {
+--                 Modifier.New(STAT.Damage, 0.15, SCALING.Additive, { SKILL_TAG.Fire }),
+--                 Modifier.New(STAT.SkillSize, 0.10, SCALING.Additive, { SKILL_TAG.Fire }),
+--             },
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {},
+--     RemoveStatInheritance = {},
+-- }
+
+Data.Tinker = {
+    Key = "Tinker",
+
+    -- UI Information
+    DisplayName = "Tinker",
+    ShortDescription = "Tinker skills gain increased cooldown reduction.",
+    Icon = DCEI.Texture("skill_tag_recharge"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Recharge,
+    },
+    Requirements = {
+        {
+            { -- Make sure we have at least 1 Skill that uses Fire
+                GroupTag = SKILL_TAG.Recharge,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Cooldown, 0.95, SCALING.Multiplier, { SKILL_TAG.Recharge }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Impetus = {
+    Key = "Impetus",
+
+    -- UI Information
+    DisplayName = "Impetus",
+    ShortDescription = "Precision skills gain increased damage and speed.",
+    Icon = DCEI.Texture("skill_tag_precision"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Precision,
+    },
+    Requirements = {
+        {
+            { -- Make sure we have at least 1 Skill that uses Fire
+                GroupTag = SKILL_TAG.Precision,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 3, SCALING.Scaled, { SKILL_TAG.Precision }),
+                Modifier.New(STAT.ProjectileSpeed, 0.30, SCALING.Additive, { SKILL_TAG.Precision }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Barrage = {
+    Key = "Barrage",
+
+    -- UI Information
+    DisplayName = "Barrage",
+    ShortDescription = "Burst skills gain increased projectiles at the cost of damage.",
+    Icon = DCEI.Texture("skill_tag_burst"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Burst,
+    },
+    Requirements = {
+        {
+            { -- Make sure we have at least 1 Skill that uses Fire
+                GroupTag = SKILL_TAG.Burst,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.Burst }),
+                Modifier.New(STAT.Damage, 0.90, SCALING.Multiplier, { SKILL_TAG.Burst }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Dexterous = {
+    Key = "Dexterous",
+
+    -- UI Information
+    DisplayName = "Dexterous",
+    ShortDescription = "Attack skills gain increased attack speed.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Attack,
+    },
+    Requirements = {
+        {
+            { -- Make sure we have at least 1 Skill that uses Attack
+                GroupTag = SKILL_TAG.Attack,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 0.93, SCALING.Multiplier, { SKILL_TAG.Attack }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Hawkeye = {
+    Key = "Hawkeye",
+
+    -- UI Information
+    DisplayName = "Hawkeye",
+    ShortDescription = "Annie gains increased Range.",
+    Icon = DCEI.Texture("icon_enhance_sproutingoak_faerienests_wildsurvivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Projectile,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 6,
+            },
+            {
+                Tag = SKILL_TAG.Range,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 5,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillRange, 1.00, SCALING.Additive),
+                Modifier.New(STAT.CriticalChance, 1.00, SCALING.Scaled, { SKILL_TAG.ScarletArrow }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Domain = {
+    Key = "Domain",
+
+    -- UI Information
+    DisplayName = "Domain",
+    ShortDescription = "Area Skills gain increased Radius.",
+    Icon = DCEI.Texture("icon_enhance_cloudtower_blownaway_wildsurvivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {
+            {
+                Tag = SKILL_TAG.Area,
+                Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+                Level = 5,
+            },
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 0.50, SCALING.Additive, { SKILL_TAG.Area }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- !SECTION -- Passive Skills
+-- SECTION -- Consumables
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Health Potion
+-- ================================================================================================
+
+Data.HealthPotion = {
+    Key = "HealthPotion",
+
+    -- UI Information
+    DisplayName = "Health Potion",
+    ShortDescription = "Restores Health.",
+    Icon = DCEI.Texture("wildsurvivor_icon_rune_potion_healingelixir"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Number Required to Collect
+                Modifier.New(STAT.RequiredStacks, 3, SCALING.Scaled, { SKILL_TAG.HealthPotion }),
+                -- Healing Amount
+                Modifier.New(STAT.Healing, 100, SCALING.Scaled, { SKILL_TAG.HealthPotion }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        HealthPotion = {
+            SKILL_TAG.Global,
+            SKILL_TAG.HealthPotion,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- !SECTION -- Consumables
+-- SECTION -- Prologue
+-- ================================================================================================
+
+Data.PrologueStartingUpgrade = {
+    Key = "PrologueStartingUpgrade",
+
+    -- UI Information
+    DisplayName = "",
+    ShortDescription = "",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Strafe,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Health, 1000, SCALING.Scaled),
+                Modifier.New(STAT.PickupRange, 3, SCALING.Scaled),
+                Modifier.New(STAT.ProjectileHealth, 10, SCALING.Scaled, { SKILL_TAG.Strafe }),
+                Modifier.New(STAT.Damage, 5, SCALING.Multiplier, { SKILL_TAG.Strafe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.PrologueStrafeVolley = {
+    Key = "PrologueStrafeVolley",
+
+    -- UI Information
+    DisplayName = "Volley",
+    ShortDescription = "Release a burst of arrows.",
+    Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Strafe,
+    },
+    Requirements = {
+        {
+            InheritedLevel = SKILL_TAG.Strafe,
+            Comparison = COMPARISON_TYPE.GreaterThanOrEqualTo,
+            Level = 1,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileCount, 2, SCALING.Scaled, { SKILL_TAG.Strafe }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- !SECTION -- Prologue
+-- ================================================================================================
+-- !SECTION -- Data
+-- ================================================================================================
+
+return Data

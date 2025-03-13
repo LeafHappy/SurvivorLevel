@@ -1,0 +1,69 @@
+-- Used for controllers as these animation don't require use of libraries
+-- MODULE
+local AnimationBasic = {}
+
+-- FADE
+function AnimationBasic.FadeIn(frame, duration)
+    local k1, k2 = 0, 1
+    local duration = duration or 0.125
+    local ease = "Linear"
+
+    local animation = DCEI.AnimateFrameAlpha(frame, k1, k2, duration, ease)
+    return animation
+end
+
+function AnimationBasic.FadeOut(frame, duration)
+    local k1, k2 = 1, 0
+    local duration = duration or 0.125
+    local ease = "Linear"
+
+    local animation = DCEI.AnimateFrameAlpha(frame, k1, k2, duration, ease)
+    return animation
+end
+
+-- POP
+function AnimationBasic.PopIn(frame, args)
+    args = args or {}
+
+    local start_size = args.start_size or 0
+    local final_size = args.final_size or 1
+
+    local k1 = { x = start_size, y = start_size, z = start_size }
+    local k2 = { x = final_size, y = final_size, z = final_size }
+    local duration = args.duration or 0.375
+    local ease = args.ease or "OutBack"
+
+    local animation = DCEI.AnimateFrameScale(frame, k1, k2, duration, ease)
+    return animation
+end
+
+function AnimationBasic.PopOut(frame, args)
+    args = args or {}
+
+    local start_size = args.start_size or 1
+    local final_size = args.final_size or 0
+
+    local k1 = { x = start_size, y = start_size, z = start_size }
+    local k2 = { x = final_size, y = final_size, z = final_size }
+    local duration = args.duration or 0.375
+    local ease = args.ease or "InBack"
+
+    local animation = DCEI.AnimateFrameScale(frame, k1, k2, duration, ease)
+    return animation
+end
+
+-- STRETCH
+function AnimationBasic.StretchIn(frame, args)
+    args = args or {}
+
+    local k1 = { x = 0, y = 1, z = 1 }
+    local k2 = { x = 1, y = 1, z = 1 }
+    local duration = args.duration or 0.375
+    local ease = "OutBack"
+
+    local animation = DCEI.AnimateFrameScale(frame, k1, k2, duration, ease)
+    return animation
+end
+
+-- EXPORT
+return AnimationBasic

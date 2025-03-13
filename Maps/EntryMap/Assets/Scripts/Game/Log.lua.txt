@@ -1,0 +1,368 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+
+local CommonDataAccess = require("Class/CommonDataAccess")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local _PRINT = nil
+
+if _Dev then
+    _PRINT = _Dev.Log.logging
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Log a User Event
+---@param event_name string
+---@param event_data table | nil
+local function LogEvent(event_name, event_data)
+    event_data = event_data or {}
+    ---Error Checking: Make sure we have a valid event name.
+    if not event_name then
+        Help.Error("Attempted to log an Event with no Name.")
+        return
+    end
+
+    -- Log the Event
+    DCEI.Event.Log(event_name, event_data)
+
+    ---DEBUG: Print Event to Console
+    if _PRINT then
+        Help.Warn("LOGGING USER EVENT [" .. event_name .. "]", nil, event_data)
+    end
+end
+
+---Log a User Property
+---@param property_name string
+---@param property_value any
+local function LogProperty(property_name, property_value)
+    ---Error Checking: Make sure we have a valid property name.
+    if not property_name then
+        Help.Error("Attempted to log a Property with no Name.")
+        return
+    end
+
+    -- Log the Property
+    DCEI.Event.SetUserProperty(property_name, property_value)
+
+    ---DEBUG: Print Property to Console
+    if _PRINT then
+        Help.Warn("LOGGING USER PROPERTY [" .. property_name .. "]", property_value)
+    end
+end
+
+---Log Game State
+---@param state_name string
+local function LogState(state_name)
+    ---Error Checking: Make sure we have a valid state name.
+    if not state_name then
+        Help.Error("Attempted to log a State with no Name.")
+        return
+    end
+
+    -- Log the State
+    DCEI.Event.SetGameState(state_name)
+
+    ---DEBUG: Print State to Console
+    if _PRINT then
+        Help.Warn("LOGGING STATE [" .. state_name .. "]")
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Library
+-- ================================================================================================
+
+local Log = {}
+
+-- =======================================================================================
+-- ANCHOR: Helper
+-- =======================================================================================
+
+Log.Performance = {}
+
+---Resets Performance Tracking Stats
+function Log.Performance.Reset()
+    DCEI.PerformanceTracking.ResetStats()
+end
+
+---Get Performance Tracking Stats.
+---@param reset_stats boolean | nil Automatically resets Perfomance Stats after collecting data.
+---@return table
+function Log.Performance.GetStats(reset_stats)
+    local data = {}
+    local stats = DCEI.PerformanceTracking.CollectStats()
+
+    -- Formatting
+    for k, v in pairs(stats) do
+        local key = "_" .. k
+        data[key] = v
+    end
+
+    if reset_stats then
+        Log.Performance.Reset()
+    end
+
+    return data
+end
+
+---Log a Performance Event with the current Performance Stats.
+---@param event_data table | nil
+function Log.Performance.Event(event_data)
+    event_data = event_data or {}
+    event_data.performance = Log.Performance.GetStats(true)
+    LogEvent("Performance", event_data)
+end
+
+-- =======================================================================================
+-- ANCHOR: Generic
+-- =======================================================================================
+
+Log.Generic = {}
+
+---Log a New User, also records Loading Time.
+function Log.Generic.NewUser()
+    LogEvent("New User", {
+        load_time = DCEI.GetLevelDataLoadingTime(),
+    })
+end
+
+---Records a New User Session.
+---@param event_data table | nil
+function Log.Generic.NewSession(event_data)
+    LogEvent("New Session", event_data)
+end
+
+---Records a New User State.
+---Can only use numbers, letters, and spaces.
+---Auto-strips underscores (_) into spaces.
+---@param name string
+function Log.Generic.NewState(name)
+    local state_name = name:gsub("_+", " ")
+
+    LogState(state_name)
+end
+
+---Record the Review Rating.
+---@param rating integer
+function Log.Generic.ReviewInviteRating(rating)
+    LogEvent("Review Invite Rating", {
+        rating = rating,
+    })
+end
+
+---User Accepted Review Invite
+function Log.Generic.ReviewInviteAccepted()
+    LogEvent("Review Invite Accepted")
+end
+
+-- =======================================================================================
+-- ANCHOR: Meta Data - Tutorial
+-- =======================================================================================
+
+Log.Tutorial = {}
+
+function Log.Tutorial.MovementStarted()
+    LogEvent("Movement Tutorial Started")
+end
+
+function Log.Tutorial.MovementCompleted()
+    LogEvent("Movement Tutorial Completed")
+end
+
+function Log.Tutorial.CraftFirstItemStarted()
+    LogEvent("Craft First Item Started")
+end
+
+function Log.Tutorial.CraftFirstItemCompleted()
+    LogEvent("Craft First Item Completed")
+end
+
+function Log.Tutorial.StartSecondRunStarted()
+    LogEvent("Start Second Run Started")
+end
+
+function Log.Tutorial.StartSecondRunCompleted()
+    LogEvent("Start Second Run Completed")
+end
+
+-- =======================================================================================
+-- ANCHOR: Hero
+-- =======================================================================================
+
+Log.Hero = {}
+
+---Log Perk Selection
+---@param event_data table | nil
+function Log.Hero.PerkSelection(event_data)
+    LogEvent("Perk Selection", event_data)
+end
+
+-- =======================================================================================
+-- ANCHOR: Game Mode - Generic
+-- =======================================================================================
+
+Log.Game = {}
+
+---Log the Game Start.
+---@param event_data table | nil
+function Log.Game.Start(event_data)
+    event_data = event_data or {}
+    LogEvent("Game Start", event_data)
+end
+
+---Log the Game End.
+---@param event_data table | nil
+function Log.Game.End(event_data)
+    event_data = event_data or {}
+    LogEvent("Game End", event_data)
+end
+
+---Log a Game Event Completion
+---@param event_data table | nil
+function Log.Game.EventCompleted(event_data)
+    LogEvent("Game Event Completed", event_data)
+end
+
+-- =======================================================================================
+-- ANCHOR: Elite
+-- =======================================================================================
+
+Log.Elite = {}
+
+function Log.Elite.Spawn(event_data)
+    LogEvent("Elite Spawn", event_data)
+end
+
+function Log.Elite.Death(event_data)
+    LogEvent("Elite Death", event_data)
+end
+
+-- =======================================================================================
+-- ANCHOR: Boss
+-- =======================================================================================
+
+Log.Boss = {}
+
+function Log.Boss.Spawn(event_data)
+    LogEvent("Boss Spawn", event_data)
+end
+
+function Log.Boss.Death(event_data)
+    LogEvent("Boss Death", event_data)
+end
+
+-- =======================================================================================
+-- ANCHOR: Game Mode - Nexus
+-- =======================================================================================
+
+Log.Nexus = {}
+
+---Logs the Completion of Nexus Movement Tutorial.
+function Log.Nexus.MovementTutorialCompleted()
+    LogEvent("Nexus Movement Tutorial Completed")
+end
+
+-- ---Logs the Difficulty Increase.
+-- ---@param time integer
+-- ---@param difficulty integer
+-- function Log.NexusDifficultyIncrease(time, difficulty)
+-- 	LogEvent("Nexus Difficulty Increased", {
+-- 		time = time,
+-- 		difficulty = difficulty,
+-- 	})
+-- end
+
+-- ---Logs the number of Nexus Destroyed.
+-- ---@param time integer
+-- ---@param count integer
+-- function Log.NexusObjectiveDestroyed(time, count)
+-- 	LogEvent("Nexus Destroyed", {
+-- 		time = time,
+-- 		count = count,
+-- 	})
+-- end
+
+-- ---Logs the number of Bosses Defeated.
+-- ---@param time integer
+-- ---@param count integer
+-- function Log.NexusBossDefeated(time, count)
+-- 	LogEvent("Nexus Boss Defeated", {
+-- 		time = time,
+-- 		count = count,
+-- 	})
+-- end
+
+-- =======================================================================================
+-- ANCHOR: Game Mode - Shadowfall
+-- =======================================================================================
+
+---Records when an Inhibitor is Destroyed.
+-- function Log.ShadowfallInhibitorDestroyed()
+-- 	LogEvent("Shadowfall Inhibitor Destroyed")
+-- end
+
+-- ---Record the Start of a Wave
+-- ---@param stage_level integer
+-- ---@param wave integer
+-- ---@param difficulty number
+-- function Log.ShadowfallWaveStart(stage_level, wave, difficulty)
+-- 	LogEvent("Shadowfall Wave Start", {
+-- 		stage_level = stage_level,
+-- 		wave = wave,
+-- 		difficulty = difficulty,
+-- 	})
+-- end
+
+-- =======================================================================================
+-- ANCHOR: Meta
+-- =======================================================================================
+
+---Hero Meta Level Gained
+---@param event_data any
+local function LogMetaHeroLevel(event_data)
+    LogEvent("Hero Meta Level Gained", event_data)
+end
+Core.Event.RegisterSimulationEvent("Log.Meta.HeroLevel", LogMetaHeroLevel)
+
+---Trophy Road Reward Claimed
+---@param event_data any
+local function LogMetaTrophyRoadClaimed(event_data)
+    LogEvent("Trophy Road Claimed", event_data)
+end
+Core.Event.RegisterSimulationEvent("Log.Meta.TrophyRoadClaimed", LogMetaTrophyRoadClaimed)
+
+---Shop Product Purchased
+---@param event_data any
+local function LogShopProductPurchased(event_data)
+    LogEvent("Product Purchased", event_data)
+end
+Core.Event.RegisterSimulationEvent("Log.Shop.ProductPurchased", LogShopProductPurchased)
+
+---Achievement Reward Claimed
+---@param event_data any
+local function LogAchievementRewardClaimed(event_data)
+    LogEvent("Achievement Reward Claimed", event_data)
+end
+Core.Event.RegisterSimulationEvent("Log.Achievement.RewardClaimed", LogAchievementRewardClaimed)
+
+-- ================================================================================================
+-- !SECTION -- Library
+-- ================================================================================================
+
+return Log

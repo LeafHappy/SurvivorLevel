@@ -1,0 +1,150 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Vector3 = require("Class/Vector3")
+local Vector2 = require("Class/Vector2")
+
+local Colors = require("Data/Colors")
+local EJS = require("Data/EJS")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---@alias LootData SimpleUnit
+
+---Register a loot item.
+---Can be Spawned via SimpleSpawn using the Type or by accessing the LootData table.
+---@param loot_data any
+---@return LootData
+local function RegisterLoot(loot_data)
+    local loot = SimpleUnit.New(loot_data.Type)
+    -- loot:SetUnitType(loot_data.Type)
+    loot:SetCollision(CollisionLayers.Item, CollisionLayers.Friendly | CollisionLayers.Collector, 0.5)
+    loot:SetCollisionEffect(loot_data.Effect, CollisionTiming.Start, 1, SIMPLE_TAG.Hero)
+    loot:SetMover(true)
+    loot:SetMass(1)
+    loot:SetTag(SIMPLE_TAG.Collectable)
+
+    -- loot:RegisterAsLoot(PLAYER.Terrain)
+    loot:Register()
+    return loot
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Initialization
+-- ================================================================================================
+
+---@type table<LootData>
+local LootData = {
+    ---ANCHOR: Game Resources
+    SmallExperience = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Small Experience"),
+        Effect = DCEI.Effect("Loot - Experience - Small - OnEnter"),
+    }),
+    MediumExperience = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Medium Experience"),
+        Effect = DCEI.Effect("Loot - Experience - Medium - OnEnter"),
+    }),
+    LargeExperience = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Large Experience"),
+        Effect = DCEI.Effect("Loot - Experience - Large - OnEnter"),
+    }),
+
+    ---ANCHOR: Hero Points
+    TomeLevel = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Tome - Level Point"),
+        Effect = DCEI.Effect("Loot - Tome - Level Point - OnEnter"),
+    }),
+    TomeHeroic = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Tome - Heroic Point"),
+        Effect = DCEI.Effect("Loot - Tome - Heroic Point - OnEnter"),
+    }),
+
+    ---ANCHOR: Healing Potions
+    SmallPotion = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Small Potion"),
+        Effect = DCEI.Effect("Loot - Small Potion - OnEnter"),
+    }),
+    Potion = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Potion"),
+        Effect = DCEI.Effect("Loot - Potion - OnEnter"),
+    }),
+
+    ---ANCHOR: Special Pickups
+    Bomb = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Bomb"),
+        Effect = DCEI.Effect("Loot - Bomb - OnEnter"),
+    }),
+    Magnet = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Magnet"),
+        Effect = DCEI.Effect("Loot - Magnet - OnEnter"),
+    }),
+
+    ---ANCHOR: Consumables
+    PotionCharge = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Potion Charge"),
+        Effect = DCEI.Effect("Loot - Potion Charge - OnEnter"),
+    }),
+
+    ---ANCHOR: Meta Resources
+    -- Wood
+    Wood = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Wood"),
+        Effect = DCEI.Effect("Loot - Wood - OnEnter"),
+    }),
+    Stone = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Stone"),
+        Effect = DCEI.Effect("Loot - Stone - OnEnter"),
+    }),
+    Pumpkin = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Pumpkin"),
+        Effect = DCEI.Effect("Loot - Pumpkin - OnEnter"),
+    }),
+    -- Meat
+    Meat = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Meat"),
+        Effect = DCEI.Effect("Loot - Meat - OnEnter"),
+    }),
+    -- Gold
+    Gold = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Gold"),
+        Effect = DCEI.Effect("Loot - Gold - OnEnter"),
+    }),
+
+    ---ANCHOR: Meta Chests
+    NormalChest = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Normal Chest"),
+        Effect = DCEI.Effect("Loot - Normal Chest - OnEnter"),
+    }),
+    EliteChest = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Elite Chest"),
+        Effect = DCEI.Effect("Loot - Elite Chest - OnEnter"),
+    }),
+    BossChest = RegisterLoot({
+        Type = DCEI.SimpleUnit("Loot - Boss Chest"),
+        Effect = DCEI.Effect("Loot - Boss Chest - OnEnter"),
+    }),
+}
+
+-- ================================================================================================
+-- !SECTION -- Initialization
+-- SECTION -- Loot
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Loot
+-- ================================================================================================
+
+return LootData

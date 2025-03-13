@@ -1,0 +1,1715 @@
+local Vector2 = require("Class/Vector2")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local EJS = require("Data/EJS")
+
+---@class HybridCampData.ResourceCost
+---@field key CampManager.SaveKey
+---@field amount number
+---@field spend_distance number
+---@field replacement string
+
+---@class HybridCampData.OverheadDisplay
+---@field layout_name string
+---@field show_distance number
+---@field offset Vector2
+---@field label string
+---@field event_id string
+---@field callback_id string
+---@field required_resource_overhead HybridCampData.ResourceCost
+
+---@class HybridCampData
+---@field Key string
+---@field StatusSaveKey SAVE_KEY | nil
+---@field Name string Display Name
+---@field UnitType UnitType
+---@field Player PLAYER | nil Default: Player1
+---@field Position Vector2
+---@field Rotation Vector2
+---@field is_destructible boolean
+---@field TriggerDefeatOnDestoyed boolean
+---@field ArmorType ArmorType
+---@field OnEnter string
+---@field Modifiers table<Modifier>
+---@field CampModifiers table<Modifier>
+---@field Overrides table<STAT, table<EffectPath>>
+---@field ShowStatusBar boolean
+---@field MetaRequirements table<META_DATA>
+---@field quest_requirement table | nil
+---@field MetaApplier table<META_DATA>
+---@field MetaRemover table<META_DATA>
+---@field overhead_display HybridCampData.OverheadDisplay
+---@field required_resource HybridCampData.ResourceCost
+
+local REF = {
+    -- Generic Structure Effects
+    StructureOnEnter = DCEI.Effect("Hybrid - Structure - OnEnter"),
+    StructureDamage = DCEI.Effect("Hybrid - Structure - Damage"),
+    StructureKnockback = DCEI.Effect("Hybrid - Structure - Knockback"),
+
+    -- Units
+    StarUnit = DCEI.Unit("Hybrid - Star"),
+    ShrineUnit = DCEI.Unit("Hybrid - Shrine"),
+
+    PerkOfferStrafe = DCEI.Unit("Hybrid - Perk Offer - Strafe"),
+    PerkOfferBoomerang = DCEI.Unit("Hybrid - Perk Offer - Boomerang"),
+    PerkOfferHeatwave = DCEI.Unit("Hybrid - Perk Offer - Heatwave"),
+    PerkOffer_GuardianShield = DCEI.Unit("Sifu - Guardian Shield"),
+
+    TrainingDummy = DCEI.Unit("Hybrid - Training Dummy"),
+
+    DestroyedBarricade = DCEI.Unit("Hybrid - Barricade - Rank 01 - Destroyed"),
+
+    -- Meat Grinder
+    MeatGrinder = DCEI.Unit("Hybrid - Meat Grinder"),
+    ThrowMeat = DCEI.Effect("Hybrid - Meat Grinder - Throw Meat"),
+    ThrowWood = DCEI.Effect("Hybrid - Meat Grinder - Throw Wood"),
+    GenerateCoin = DCEI.Effect("Hybrid - Meat Grinder - Spawn Coin"),
+}
+
+local POS = {
+    Star = Vector2.New(2.5, -2.5),
+
+    TalentExchange = Vector2.New(17, 15),
+    Talents = Vector2.New(20, 15),
+    Shrine_Strafe = Vector2.New(0, -8),
+    Shrine_Bash = Vector2.New(0, -16),
+
+    Mine = Vector2.New(-1, 17),
+    Treasury = Vector2.New(-1, 12),
+
+    ArcherSlot_1 = Vector2.New(-4, 0),
+    ArcherSlot_2 = Vector2.New(1.5, 6),
+    ArcherSlot_3 = Vector2.New(-4.5, 6),
+    ArcherSlot_4 = Vector2.New(4.5, 6),
+
+    Masonry = Vector2.New(4, 0),
+    BarricadeSlot1 = Vector2.New(-3, 6),
+    BarricadeSlot2 = Vector2.New(3, 6),
+    BarricadeSlot3 = Vector2.New(-3, 10.5),
+    BarricadeSlot4 = Vector2.New(3, 10.5),
+
+    TrainingDummy_1 = Vector2.Down() * 23,
+    TrainingDummy_2 = Vector2.Down() * 20 + Vector2.Left() * 1.5,
+    TrainingDummy_3 = Vector2.Down() * 20 + Vector2.Right() * 1.5,
+
+    PerkOffer_Strafe = Vector2.New(5, -5),
+    PerkOffer_Heatwave = Vector2.New(2.5, -18),
+    PerkOffer_GuardianShield = Vector2.New(20, 3),
+
+    MeatGrinder = Vector2.New(6, 6),
+}
+
+local data = {
+    -- Star = {
+    --     Key = "Star",
+    --     StatusSaveKey = SAVE_KEY.StarStatus,
+    --     Name = "Star",
+    --     UnitType = REF.StarUnit,
+    --     Position = POS.Star,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     -- overhead_display = {
+    --     --     layout_name = "Hybrid/Start",
+    --     --     show_distance = 4.5,
+    --     --     label = "Start Next Wave",
+    --     --     offset = Vector2.New(0, 150),
+
+    --     --     callback_id = "Hybrid.StartWave",
+    --     --     require_repair_ready = true,
+    --     -- },
+
+    --     is_destructible = true,
+    --     need_repair = true,
+    --     TriggerDefeatOnDestoyed = true,
+
+    --     -- Simple Unit Interactions
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 500, SCALING.Scaled),
+    --         Modifier.New(STAT.Thorns, 10, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 2.5, SCALING.Scaled),
+    --         Modifier.New(STAT.Knockback, 15, SCALING.Scaled),
+    --     },
+
+    --     CampModifiers = {
+    --         Modifier.New(STAT.GoldStorageLimit, 50, SCALING.Scaled, nil, "Star"),
+    --     },
+
+    --     Overrides = {
+    --         [STAT.Thorns] = {
+    --             EffectPath.New(REF.StructureDamage, EJS.Damage.Value),
+    --         },
+    --         [STAT.Knockback] = { -- Knockback has custom configuration
+    --             EffectPath.New(REF.StructureKnockback),
+    --         },
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+    -- Vault = {
+    --     Key = "Vault",
+    --     StatusSaveKey = SAVE_KEY.StarStatus,
+    --     Name = "Vault",
+    --     UnitType = DCEI.Unit("Hybrid - Talent"),
+    --     Position = Vector2.New(-6, -10),
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/Start",
+    --         show_distance = 4.5,
+    --         label = "View Vault",
+    --         offset = Vector2.New(0, 80),
+    --         callback_id = "Hybrid.Vault",
+    --     },
+
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 100, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.vault_slot,
+    --     },
+
+    --     ShowStatusBar = true,
+    -- },
+
+    -- Dummy_1 = {
+    --     Key = "Dummy_1",
+    --     Name = "Dummy_1",
+    --     UnitType = REF.TrainingDummy,
+    --     Position = POS.TrainingDummy_1,
+    --     Rotation = Vector2.Down(),
+    --     Player = PLAYER.Hostile,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 999999999, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.5, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.first_talent_offer,
+    --     },
+    -- },
+
+    -- Dummy_2 = {
+    --     Key = "Dummy_2",
+    --     Name = "Dummy_2",
+    --     UnitType = REF.TrainingDummy,
+    --     Position = POS.TrainingDummy_2,
+    --     Rotation = Vector2.Down(),
+    --     Player = PLAYER.Hostile,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 999999999, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.5, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.first_talent_offer,
+    --     },
+    -- },
+
+    -- Dummy_3 = {
+    --     Key = "Dummy_3",
+    --     Name = "Dummy_3",
+    --     UnitType = REF.TrainingDummy,
+    --     Position = POS.TrainingDummy_3,
+    --     Rotation = Vector2.Down(),
+    --     Player = PLAYER.Hostile,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 999999999, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.5, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.first_talent_offer,
+    --     },
+    -- },
+
+    PerkOffer_Strafe = {
+        Key = "PerkOffer_Strafe",
+        StatusSaveKey = SAVE_KEY.FirstTalentOffer,
+        Name = "PerkOffer_Strafe",
+        UnitType = REF.PerkOfferStrafe,
+        Position = POS.PerkOffer_Strafe,
+        Rotation = Vector2.New(1, -1),
+        Player = PLAYER.Player2,
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Strafe",
+            show_distance = 99,
+            offset = Vector2.New(0, 150),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            increase_key = SAVE_KEY.PerkStrafe,
+            amount = 150,
+            increasing_amount = 300,
+            spend_distance = 2.5,
+        },
+
+        perk_offers = {
+            key = SAVE_KEY.PerkStrafe,
+            cached = {
+                "Strafe",
+            },
+            order = {
+                "Trickshot",
+                "Sideshow",
+            },
+        },
+
+        TriggerDefeatOnDestoyed = false,
+
+        -- Simple Unit Interactions
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 500, SCALING.Scaled),
+            Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+        },
+
+        Overrides = {},
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.zone_1,
+        },
+    },
+
+    PerkOffer_GuardianShield = {
+        Key = "PerkOffer_GuardianShield",
+        StatusSaveKey = SAVE_KEY.TalentOffer_GuardianShield,
+        -- Name = "PerkOffer_GuardianShield",
+        UnitType = REF.PerkOffer_GuardianShield,
+        Position = POS.PerkOffer_GuardianShield,
+        Rotation = Vector2.New(0, -1),
+        Player = PLAYER.Player2,
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Guardian Shield",
+            show_distance = 99,
+            offset = Vector2.New(0, -2),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            increase_key = SAVE_KEY.PerkGuardianShield,
+            amount = 40,
+            increasing_amount = 300,
+            spend_distance = 2.5,
+        },
+
+        perk_offers = {
+            key = SAVE_KEY.PerkGuardianShield,
+            order = {
+                "GuardianShield",
+            },
+        },
+
+        TriggerDefeatOnDestoyed = false,
+
+        -- Simple Unit Interactions
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 500, SCALING.Scaled),
+            Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+        },
+
+        Overrides = {},
+
+        MetaRequirements = {
+            "Zone_3_2",
+        },
+    },
+
+    -- PerkOffer_Heatwave = {
+    --     Key = "PerkOffer_Heatwave",
+    --     StatusSaveKey = SAVE_KEY.SecondTalentOffer,
+    --     Name = "PerkOffer_Heatwave",
+    --     UnitType = REF.PerkOfferHeatwave,
+    --     Position = POS.PerkOffer_Heatwave,
+    --     Rotation = Vector2.New(-1, -1),
+    --     Player = PLAYER.Player3,
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         upgrade_type = "Heatwave",
+    --         show_distance = 99,
+    --         offset = Vector2.New(0, 150),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         increase_key = SAVE_KEY.PerkHeatwave,
+    --         amount = 150,
+    --         increasing_amount = 300,
+    --         spend_distance = 2.5,
+    --     },
+
+    --     perk_offers = {
+    --         key = SAVE_KEY.PerkHeatwave,
+    --         order = {
+    --             "Heatwave",
+    --             "FlameSwell",
+    --             "Meltdown",
+    --             "VitalSurge",
+    --             "Detonation",
+    --         },
+    --     },
+
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     -- Simple Unit Interactions
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 500, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     Overrides = {},
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.second_talent_offer,
+    --     },
+    -- },
+
+    -- ArcherSlot_1 = {
+    --     Key = "ArcherSlot_1",
+    --     Name = "ArcherSlot_1",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Slot"),
+    --     Position = POS.ArcherSlot_1,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         upgrade_type = "Barrack",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         amount = 5,
+    --         spend_distance = 2.5,
+    --         replacement = "ArcherCamp_1_Rank1",
+    --     },
+
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_slot_1,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_1,
+    --     },
+
+    --     MetaApplier = { -- Triggered on Replacement
+    --         META_DATA.archer_tower_rank_1,
+    --     },
+    -- },
+
+    -- ArcherCamp_1_Rank1 = {
+    --     Key = "ArcherCamp_1_Rank1",
+    --     StatusSaveKey = SAVE_KEY.ArcherStatus,
+    --     Name = "ArcherCamp_1_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherBarrack - Rank 01"),
+    --     Position = POS.ArcherSlot_1,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         upgrade_type = "Archer",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         increase_key = SAVE_KEY.ArcherCount,
+    --         amount = 5,
+    --         increasing_amount = 2,
+    --         spend_distance = 2.5,
+    --         generate_archer = true,
+    --     },
+
+    --     ShowStatusBar = false,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1, SCALING.Scaled),
+    --     },
+
+    --     quest_requirement = { -- Must start quest before appearing
+    --         key = "create_archer", -- Which quest
+    --         objective = 1, -- Which objective
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_rank_1,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_1,
+    --     },
+    -- },
+
+    -- ArcherCamp_1_Rank2 = {
+    --     Key = "ArcherCamp_1_Rank2",
+    --     Name = "ArcherCamp_1_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Rank 02"),
+    --     Position = POS.ArcherSlot_1,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     ShowStatusBar = true,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.50, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.archer_tower_rank_2,
+    --     },
+    -- },
+
+    -- ArcherSlot_2 = {
+    --     Key = "ArcherSlot_2",
+    --     Name = "ArcherSlot_2",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Slot"),
+    --     Position = POS.ArcherSlot_2,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         amount = 30,
+    --         spend_distance = 2.5,
+    --         replacement = "ArcherCamp_2_Rank1",
+    --     },
+
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_slot_2,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_2,
+    --     },
+
+    --     MetaApplier = { -- Triggered on Replacement
+    --         META_DATA.archer_tower_slot_2_rank_1,
+    --     },
+    -- },
+
+    -- ArcherCamp_2_Rank1 = {
+    --     Key = "ArcherCamp_2_Rank1",
+    --     Name = "ArcherCamp_2_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Rank 01"),
+    --     Position = POS.ArcherSlot_2,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         amount = 120,
+    --         spend_distance = 2.5,
+    --         replacement = "ArcherCamp_2_Rank2",
+    --     },
+
+    --     ShowStatusBar = true,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 200, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.50, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_slot_2_rank_1,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_2_rank_1,
+    --     },
+
+    --     MetaApplier = { -- Triggered on Replacement
+    --         META_DATA.archer_tower_slot_2_rank_2,
+    --     },
+    -- },
+
+    -- ArcherCamp_2_Rank2 = {
+    --     Key = "ArcherCamp_2_Rank2",
+    --     Name = "ArcherCamp_2_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Rank 02"),
+    --     Position = POS.ArcherSlot_2,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     ShowStatusBar = true,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.50, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.archer_tower_slot_2_rank_2,
+    --     },
+    -- },
+
+    -- ArcherSlot_3 = {
+    --     Key = "ArcherSlot_3",
+    --     Name = "ArcherSlot_3",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Slot"),
+    --     Position = POS.ArcherSlot_3,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         amount = 45,
+    --         spend_distance = 2.5,
+    --         replacement = "ArcherCamp_3_Rank1",
+    --     },
+
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_slot_3,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_3,
+    --     },
+
+    --     MetaApplier = { -- Triggered on Replacement
+    --         META_DATA.archer_tower_slot_3_rank_1,
+    --     },
+    -- },
+    -- ArcherCamp_3_Rank1 = {
+    --     Key = "ArcherCamp_3_Rank1",
+    --     Name = "ArcherCamp_3_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Rank 01"),
+    --     Position = POS.ArcherSlot_3,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         amount = 180,
+    --         spend_distance = 2.5,
+    --         replacement = "ArcherCamp_3_Rank2",
+    --     },
+
+    --     ShowStatusBar = true,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 200, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.50, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_slot_3_rank_1,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_3_rank_1,
+    --     },
+
+    --     MetaApplier = { -- Triggered on Replacement
+    --         META_DATA.archer_tower_slot_3_rank_2,
+    --     },
+    -- },
+
+    -- ArcherCamp_3_Rank2 = {
+    --     Key = "ArcherCamp_3_Rank2",
+    --     Name = "ArcherCamp_3_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Rank 02"),
+    --     Position = POS.ArcherSlot_3,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     ShowStatusBar = true,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.50, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.archer_tower_slot_3_rank_2,
+    --     },
+    -- },
+
+    -- ArcherSlot_4 = {
+    --     Key = "ArcherSlot_4",
+    --     Name = "ArcherSlot_4",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Slot"),
+    --     Position = POS.ArcherSlot_4,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         amount = 60,
+    --         spend_distance = 2.5,
+    --         replacement = "ArcherCamp_4_Rank1",
+    --     },
+
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_slot_4,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_4,
+    --     },
+
+    --     MetaApplier = { -- Triggered on Replacement
+    --         META_DATA.archer_tower_slot_4_rank_1,
+    --     },
+    -- },
+
+    -- ArcherCamp_4_Rank1 = {
+    --     Key = "ArcherCamp_4_Rank1",
+    --     Name = "ArcherCamp_4_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Rank 01"),
+    --     Position = POS.ArcherSlot_4,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         amount = 180,
+    --         spend_distance = 2.5,
+    --         replacement = "ArcherCamp_4_Rank2",
+    --     },
+
+    --     ShowStatusBar = true,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 200, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.50, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.archer_tower_slot_4_rank_1,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.archer_tower_slot_4_rank_1,
+    --     },
+
+    --     MetaApplier = { -- Triggered on Replacement
+    --         META_DATA.archer_tower_slot_4_rank_2,
+    --     },
+    -- },
+
+    -- ArcherCamp_4_Rank2 = {
+    --     Key = "ArcherCamp_4_Rank2",
+    --     Name = "ArcherCamp_4_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - ArcherCamp - Rank 02"),
+    --     Position = POS.ArcherSlot_4,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     ShowStatusBar = true,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 0.50, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.archer_tower_slot_4_rank_2,
+    --     },
+    -- },
+
+    MineSlot = {
+        Key = "MineSlot",
+        StatusSaveKey = SAVE_KEY.MineStatus,
+        Name = "MineSlot",
+        UnitType = DCEI.Unit("Hybrid - Mine"),
+        Position = POS.Mine,
+        Rotation = Vector2.New(0, -1),
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Miner",
+            show_distance = 4.5,
+            offset = Vector2.New(0, 80),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            increase_key = SAVE_KEY.Miner,
+            amount = 20, -- TODO: support boss scroll
+            increasing_amount = 40,
+            spend_distance = 2.5,
+            generate_miner = true,
+        },
+
+        ShowStatusBar = false,
+        is_destructible = false,
+        TriggerDefeatOnDestoyed = false,
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 500, SCALING.Scaled),
+            Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+        },
+
+        -- quest_requirement = { -- Must start quest before appearing
+        --     key = "recruit_miner", -- Which quest
+        --     objective = 1, -- Which objective
+        -- },
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.mine_slot,
+        },
+    },
+
+    TalentExchange = {
+        Key = "TalentExchange",
+        Name = "Talents",
+        UnitType = DCEI.Unit("Hybrid - Talent"),
+        Position = POS.TalentExchange,
+        Rotation = Vector2.New(0, -1),
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Exchange",
+            show_distance = 99,
+            offset = Vector2.New(0, 0),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            increase_key = SAVE_KEY.TalentExchange,
+            amount = 10,
+            increasing_amount = 5,
+            spend_distance = 2.5,
+            gain_skill_point = true,
+        },
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 1, SCALING.Scaled),
+        },
+
+        -- quest_requirement = { -- Must start quest before appearing
+        --     key = "tech_up", -- Which quest
+        --     objective = 1, -- Which objective
+        -- },
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.talents,
+        },
+    },
+
+    Talents = {
+        Key = "Talents",
+        Name = "Talents",
+        UnitType = DCEI.Unit("Hybrid - Talent"),
+        Position = POS.Talents,
+        Rotation = Vector2.New(0, -1),
+
+        overhead_display = {
+            layout_name = "Hybrid/SkillUp",
+            show_distance = 99,
+            label = "Talents",
+            offset = Vector2.New(0, 0),
+            callback_id = "Hybrid.TalentMenu",
+            required_resource_overhead = {
+                key = SAVE_KEY.SkillPoints,
+                amount = 1,
+            },
+        },
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 1, SCALING.Scaled),
+        },
+
+        -- quest_requirement = { -- Must start quest before appearing
+        --     key = "tech_up", -- Which quest
+        --     objective = 1, -- Which objective
+        -- },
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.talents,
+        },
+    },
+
+    -- Shop = {
+    --     Key = "Shop",
+    --     Name = "Shop",
+    --     UnitType = DCEI.Unit("Hybrid - Talent"),
+    --     Position = Vector2.New(0, -26),
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/Start",
+    --         show_distance = 4.5,
+    --         label = "View Shop",
+    --         offset = Vector2.New(0, 80),
+    --         callback_id = "Hybrid.Shop",
+    --     },
+
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 100, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.shop_slot,
+    --     },
+
+    --     ShowStatusBar = true,
+    -- },
+
+    -- ---ANCHOR: Treasury
+    TreasurySlot = {
+        Key = "TreasurySlot",
+        StatusSaveKey = SAVE_KEY.TreasuryStatus,
+        Name = "TreasurySlot",
+        UnitType = DCEI.Unit("Hybrid - Treasury - Slot"),
+        Position = POS.Treasury,
+        Rotation = Vector2.New(0, -1),
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Gold Storage",
+            show_distance = 5,
+            offset = Vector2.New(0, 80),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            amount = 10,
+            spend_distance = 2.5,
+            replacement = "Treasury_Rank1",
+        },
+
+        is_treasury = true,
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 1, SCALING.Scaled),
+        },
+
+        -- quest_requirement = { -- Must start quest before appearing
+        --     key = "build_storage", -- Which quest
+        --     objective = 1, -- Which objective
+        -- },
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.treasury_slot,
+        },
+    },
+
+    Treasury_Rank1 = {
+        Key = "Treasury_Rank1",
+        StatusSaveKey = SAVE_KEY.TreasuryStatus,
+        Name = "Treasury_Rank1",
+        UnitType = DCEI.Unit("Hybrid - Treasury - Rank 1"),
+        Position = POS.Treasury,
+        Rotation = Vector2.New(0, -1),
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Gold Storage",
+            show_distance = 5,
+            offset = Vector2.New(0, 80),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            amount = 50,
+            spend_distance = 2.5,
+            replacement = "Treasury_Rank2",
+        },
+
+        is_treasury = true,
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 1, SCALING.Scaled),
+        },
+
+        CampModifiers = {
+            Modifier.New(STAT.GoldStorageLimit, 50, SCALING.Scaled, nil, "Treasury"),
+        },
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.treasury_rank_1,
+        },
+
+        MetaApplier = { -- Triggered on Replacement
+            META_DATA.treasury_rank_1,
+            META_DATA.mine_slot,
+        },
+
+        MetaRemover = { -- Remove on Replacement
+            META_DATA.treasury_slot,
+        },
+    },
+
+    Treasury_Rank2 = {
+        Key = "Treasury_Rank2",
+        StatusSaveKey = SAVE_KEY.TreasuryStatus,
+        Name = "Treasury_Rank2",
+        UnitType = DCEI.Unit("Hybrid - Treasury - Rank 2"),
+        Position = POS.Treasury,
+        Rotation = Vector2.New(0, -1),
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Gold Storage",
+            show_distance = 5,
+            offset = Vector2.New(0, 80),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            amount = 100,
+            spend_distance = 2.5,
+            replacement = "Treasury_Rank3",
+        },
+
+        is_treasury = true,
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 1, SCALING.Scaled),
+        },
+
+        CampModifiers = {
+            Modifier.New(STAT.GoldStorageLimit, 100, SCALING.Scaled, nil, "Treasury"),
+        },
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.treasury_rank_2,
+        },
+
+        MetaApplier = { -- Triggered on Replacement
+            META_DATA.treasury_rank_2,
+        },
+
+        MetaRemover = { -- Remove on Replacement
+            META_DATA.treasury_rank_1,
+        },
+    },
+
+    Treasury_Rank3 = {
+        Key = "Treasury_Rank3",
+        StatusSaveKey = SAVE_KEY.TreasuryStatus,
+        Name = "Treasury_Rank3",
+        UnitType = DCEI.Unit("Hybrid - Treasury - Rank 3"),
+        Position = POS.Treasury,
+        Rotation = Vector2.New(0, -1),
+
+        is_treasury = true,
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 1, SCALING.Scaled),
+        },
+
+        CampModifiers = {
+            Modifier.New(STAT.GoldStorageLimit, 200, SCALING.Scaled, nil, "Treasury"),
+        },
+
+        MetaRequirements = { -- Required to Build
+            META_DATA.treasury_rank_3,
+        },
+
+        MetaApplier = { -- Triggered on Replacement
+            META_DATA.treasury_rank_3,
+        },
+
+        MetaRemover = { -- Remove on Replacement
+            META_DATA.treasury_rank_2,
+        },
+    },
+
+    -- ---ANCHOR: Masonry
+
+    -- Masonry = {
+    --     Key = "Masonry",
+    --     StatusSaveKey = SAVE_KEY.MasonryStatus,
+    --     Name = "Masonry",
+    --     UnitType = DCEI.Unit("Hybrid - Masonry"),
+    --     Position = POS.Masonry,
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         upgrade_type = "Masonry",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         increase_key = SAVE_KEY.Masonry,
+    --         amount = 10,
+    --         increasing_amount = 10,
+    --         spend_distance = 2.5,
+    --         structure_order = {
+    --             {
+    --                 Add = "Barricade_Slot1_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot2_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot3_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot4_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot1_Rank2",
+    --                 Remove = "Barricade_Slot1_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot2_Rank2",
+    --                 Remove = "Barricade_Slot2_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot3_Rank2",
+    --                 Remove = "Barricade_Slot3_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot4_Rank2",
+    --                 Remove = "Barricade_Slot4_Rank1",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot1_Rank3",
+    --                 Remove = "Barricade_Slot1_Rank2",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot2_Rank3",
+    --                 Remove = "Barricade_Slot2_Rank2",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot3_Rank3",
+    --                 Remove = "Barricade_Slot3_Rank2",
+    --             },
+    --             {
+    --                 Add = "Barricade_Slot4_Rank3",
+    --                 Remove = "Barricade_Slot4_Rank2",
+    --             },
+    --         },
+    --     },
+
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1, SCALING.Scaled),
+    --     },
+
+    --     quest_requirement = { -- Must start quest before appearing
+    --         key = "build_barricade", -- Which quest
+    --         objective = 1, -- Which objective
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.masonry_unlocked,
+    --     },
+    -- },
+
+    -- ---ANCHOR: Barricade Slot 1
+
+    -- Barricade_Slot1_Rank1 = {
+    --     Key = "Barricade_Slot1_Rank1",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot1Status,
+    --     Name = "Barricade_Slot1_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 01"),
+    --     Position = POS.BarricadeSlot1,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.barricade_slot_1_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot1_Rank2 = {
+    --     Key = "Barricade_Slot1_Rank2",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot1Status,
+    --     Name = "Barricade_Slot1_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 02"),
+    --     Position = POS.BarricadeSlot1,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 600, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_1_rank_2,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_1_rank_2,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_1_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot1_Rank3 = {
+    --     Key = "Barricade_Slot1_Rank3",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot1Status,
+    --     Name = "Barricade_Slot1_Rank3",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 03"),
+    --     Position = POS.BarricadeSlot1,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1200, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_1_rank_3,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_1_rank_3,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_1_rank_2,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- ---ANCHOR: Barricade Slot 2
+
+    -- Barricade_Slot2_Rank1 = {
+    --     Key = "Barricade_Slot2_Rank1",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot2Status,
+    --     Name = "Barricade_Slot2_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 01"),
+    --     Position = POS.BarricadeSlot2,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.barricade_slot_2_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot2_Rank2 = {
+    --     Key = "Barricade_Slot2_Rank2",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot2Status,
+    --     Name = "Barricade_Slot2_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 02"),
+    --     Position = POS.BarricadeSlot2,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 600, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_2_rank_2,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_2_rank_2,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_2_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot2_Rank3 = {
+    --     Key = "Barricade_Slot2_Rank3",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot2Status,
+    --     Name = "Barricade_Slot2_Rank3",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 03"),
+    --     Position = POS.BarricadeSlot2,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1200, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_2_rank_3,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_2_rank_3,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_2_rank_2,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- ---ANCHOR: Barricade Slot 3
+
+    -- Barricade_Slot3_Rank1 = {
+    --     Key = "Barricade_Slot3_Rank1",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot3Status,
+    --     Name = "Barricade_Slot3_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 01"),
+    --     Position = POS.BarricadeSlot3,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.barricade_slot_3_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot3_Rank2 = {
+    --     Key = "Barricade_Slot3_Rank2",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot3Status,
+    --     Name = "Barricade_Slot3_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 02"),
+    --     Position = POS.BarricadeSlot3,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 600, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_3_rank_2,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_3_rank_2,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_3_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot3_Rank3 = {
+    --     Key = "Barricade_Slot3_Rank3",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot3Status,
+    --     Name = "Barricade_Slot3_Rank3",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 03"),
+    --     Position = POS.BarricadeSlot3,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1200, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_3_rank_3,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_3_rank_3,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_3_rank_2,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- ---ANCHOR: Barricade Slot 4
+
+    -- Barricade_Slot4_Rank1 = {
+    --     Key = "Barricade_Slot4_Rank1",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot4Status,
+    --     Name = "Barricade_Slot4_Rank1",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 01"),
+    --     Position = POS.BarricadeSlot4,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 300, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.barricade_slot_4_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot4_Rank2 = {
+    --     Key = "Barricade_Slot4_Rank2",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot4Status,
+    --     Name = "Barricade_Slot4_Rank2",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 02"),
+    --     Position = POS.BarricadeSlot4,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 600, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_4_rank_2,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_4_rank_2,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_4_rank_1,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    -- Barricade_Slot4_Rank3 = {
+    --     Key = "Barricade_Slot4_Rank3",
+    --     StatusSaveKey = SAVE_KEY.BarricadeSlot4Status,
+    --     Name = "Barricade_Slot4_Rank3",
+    --     UnitType = DCEI.Unit("Hybrid - Barricade - Rank 03"),
+    --     Position = POS.BarricadeSlot4,
+
+    --     ShowStatusBar = true,
+    --     is_destructible = true,
+    --     need_repair = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1200, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     MetaRequirements = {
+    --         META_DATA.barricade_slot_4_rank_3,
+    --     },
+
+    --     MetaApplier = {
+    --         META_DATA.barricade_slot_4_rank_3,
+    --     },
+
+    --     MetaRemover = { -- Remove on Replacement
+    --         META_DATA.barricade_slot_4_rank_2,
+    --     },
+
+    --     DestroyedVersion = REF.DestroyedBarricade,
+    -- },
+
+    MeatGrinder = {
+        Key = "MeatGrinder",
+        StatusSaveKey = SAVE_KEY.MeatGrinderStatus,
+        Name = "MeatGrinder",
+        UnitType = REF.MeatGrinder,
+        Position = POS.MeatGrinder,
+        Rotation = Vector2.New(0, -1),
+
+        force_show_stand = true,
+
+        -- Collector --
+        resource_collector = {
+            resource_key = SAVE_KEY.Wood,
+            save_key = SAVE_KEY.MeatGrinderStatus,
+            deposit_range = 2.5,
+            require_stationary = true,
+            frequency = 0.25,
+            increase_frequency = true,
+
+            on_trigger = {
+                effect = REF.ThrowWood,
+                delay = 0.50,
+            },
+        },
+
+        -- Progress
+        progress = {
+            resource_key = SAVE_KEY.Wood,
+            save_key = SAVE_KEY.MeatGrinderStatus,
+
+            intake_amount = 3, -- Converts 2 Gold into 1 Coin
+            required_time = 5,
+            -- hero_work_speed = 2.00, -- Increases work speed by 200%
+            output = {
+                effect = REF.GenerateCoin,
+            },
+        },
+
+        -- UI Configuration
+        ui_info = {
+            layout_name = "Hybrid/Progress",
+            banner_icon = DCEI.Texture("cartoon_icon_forest_wood_bg_wildsurvivor"),
+            progress_prefix_icon = DCEI.Texture("cartoon_icon_coin3_mergewar"),
+        },
+
+        -- Simple Unit Interactions
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 1, SCALING.Scaled),
+        },
+
+        MetaRequirements = { -- Required to Build
+            "start_transfer2",
+        },
+    },
+}
+
+return data

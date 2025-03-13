@@ -1,0 +1,253 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+local Server = require("DFServer")
+
+-- Contains Enum Constants for the Project
+-- needs to be called above script requires in case they reference enums
+require("SharedData/Types")
+
+-- Scripts
+local Event = require("Class/Event")
+local Hero = require("Game/Hero")
+local Joystick = require("Class/Joystick")
+local DamageNumbers = require("Game/DamageNumbers")
+local _Dev = require("_Dev")
+local _DevTextCommand = require("_DevTextCommand")
+
+local SaveDataManager = require("Class/SaveDataManager")
+
+local Log = require("Game/Log")
+local UiHelper = require("Game/UiHelper")
+local Help = require("Help")
+
+local MetaData = require("SharedData/MetaData")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Initializers
+---============================================================================
+
+-- Need this to initialize ResourceData Stats
+-- local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+---============================================================================
+---!SECTION: Initializers
+---SECTION: Variables
+---============================================================================
+
+-- Registered Game Events (single-call only)
+RegisteredGameEvents = require("Game/RegisteredGameEvents")
+
+-- Map Settings
+TICK_RATE = 0.03125
+TickRate = require("Class/Tick").New()
+
+--[[
+	TICK_TRACK
+	-- Tracks the current Tick
+	
+	TickTrack(1) = 1 Tick or 0.03125 seconds
+	TickTrack(2) = 2 Ticks or 0.0625 seconds
+	TickTrack(3) = 3 Ticks or 0.09375 seconds
+
+	TickTrack uses 1/TICK_RATE to determine minimum Tick interval (for looping)
+	Functions can subscribe to TickTrack to run on a specific interval_delay.
+
+	This allows us to put things on different tick intervals, to reduce overhead on a single Frame.
+]]
+
+-- FSM
+FSM = require("FSM/Machine") -- Requires TICK_RATE
+
+-- Custom Global Game Events
+OnGamePauseEvent = Event.New()
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: UI Callbacks
+---============================================================================
+
+local function OnMoveToMeta()
+    FSM:Transition(FSM.States.Meta)
+end
+
+local function OnMoveToCamp()
+    FSM:Transition(FSM.States.Camp)
+end
+
+local function OnPauseGame()
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+    OnGamePauseEvent()
+end
+
+local function OnResumeGame()
+    Joystick.Fetch(PLAYER.Player1):SetActive(true)
+    -- DCEI.SetUpdateFrequency(1)
+end
+
+local function OnExitGame()
+    -- Log:GameEnd("incomplete")
+
+    -- Hide Game UI
+    UiHelper.SetGameUIActive(false)
+
+    FSM:Transition(FSM.States.Camp, { is_return = true })
+
+    -- Hide pause menu & confirmation in case exiting from pause menu
+    GMUI.SendUiLayoutCommand("ui.game.pause_menu", "Hide")
+    GMUI.SendUiLayoutCommand("ui.game.exit_run_confirmation", "Hide")
+end
+
+-- REGISTER UI CONTEXT
+GMUI.RegisterUiLayoutContext("ui.game.results", { OnMoveToMeta = OnMoveToMeta })
+GMUI.RegisterUiLayoutContext("ui.game.pause_menu", {
+    OnPauseGame = OnPauseGame,
+    OnResumeGame = OnResumeGame,
+})
+GMUI.RegisterUiLayoutContext("ui.game.exit_run_confirmation", { OnExitGame = OnExitGame })
+
+---============================================================================
+---!SECTION: UI Callbacks
+---SECTION: Local Functions
+---============================================================================
+
+---Standard Setup for the Game.
+local function Setup()
+    -- Set Random Seed
+    Core.Random.SetSeed(os.time())
+
+    -- Set Core Timer Tick Rate
+    Core.Timer.SetGlobalTickRate(TICK_RATE)
+
+    -- Load Save Data
+    SaveDataManager.Load()
+
+    -- Suppress Pause Menu
+    DCEI.SuppressPauseMenuOnApplicationPause()
+    -- Hide Pause Button
+    DCEI.SetPauseButtonFrame(DCEI.CreateButtonFrame(DCEI.GetUiRootFrame()))
+    -- Prevent Screen Dimming
+    DCEI.SetScreenSleep(false)
+    -- Prevent Back Button from opening
+    DCEI.SetBackButton(function() end)
+end
+
+---Initializes Damage Numbers.
+local function SetupDamageNumbers()
+    if not _HIDE_DAMAGE_NUMBERS then
+        DamageNumbers.Initialize()
+    else
+        DamageNumbers.HideDamageNumbers()
+    end
+end
+
+local function SetupServer()
+    local server = Server()
+    server.SetDevConfig(3, false)
+    server.FetchServerTime(function() end, 15)
+end
+
+---Checks if the user is new and logs a new user/session
+---@return boolean is_first_session
+local function CheckNewUserSession()
+    local is_first_session = false
+
+    local user_data = DCEI.Save.Get("user_data")
+
+    if not user_data then
+        ---LOG: New User
+        Log.Generic.NewUser()
+
+        -- Generate Total Sessions Field
+        user_data = {
+            total_sessions = 0,
+        }
+
+        is_first_session = true
+    else
+        -- Decode User Data (Json --> Lua)
+        user_data = Json.decode(user_data)
+    end
+
+    user_data.total_sessions = user_data.total_sessions + 1
+
+    -- Add a way to Track the number of Attempts this Session.
+    user_data.session_attempts = 0
+
+    ---LOG: New Session
+    Log.Generic.NewSession({ total_sessions = user_data.total_sessions })
+
+    -- DCEI.Save.Set("user_data", Json.encode(user_data))
+    -- DCEI.Save.Commit()
+
+    return is_first_session
+end
+
+-- Ads can only be show in simulation, register event
+local function ProcessAdsInSimulation()
+    local function ResolveAds(success)
+        Core.Event.SendPresentationEvent("SimulationWatchAdsResult", success)
+    end
+    DCEI.ShowAds(ResolveAds, true)
+end
+
+---Order of Setup
+local function OnMapStart()
+    Setup()
+    SetupDamageNumbers()
+    SetupServer()
+    MetaData.Load()
+
+    UiHelper.FadeOut(0)
+    DCEI.Wait(0.25, true)
+
+    ---LOG: New User/Session
+    -- local is_first_session = CheckNewUserSession()
+    -- FSM:Transition(FSM.States.Meta, { is_first_session = is_first_session, is_new_session = true })
+
+    FSM:Transition(FSM.States.Hybrid)
+    -- Core.Event.SendPresentationEvent("InAppOfferManager.OpenInitialOffer")
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Initialization
+---============================================================================
+
+DCEI.TriggerAddTimerEventElapsed(DCEI.Coroutine(OnMapStart), 0)
+Core.Event.RegisterSimulationEvent("ProcessAdsInSimulation", ProcessAdsInSimulation)
+--DCEI.TriggerOnFocusChange(function(has_focus) if has_focus then SetupServer() end end)
+
+---============================================================================
+---!SECTION: Initialization
+---SECTION: Developer
+---============================================================================
+
+if _Dev then
+    _Dev.Events.Register("Time Pause", function()
+        Help.SetGameSpeed(0)
+    end)
+
+    _Dev.Events.Register("Time Normal", function()
+        Help.SetGameSpeed(1)
+    end)
+
+    _Dev.Events.Register("Time Double", function()
+        Help.SetGameSpeed(2)
+    end)
+
+    _Dev.Events.Register("Time Triple", function()
+        Help.SetGameSpeed(3)
+    end)
+
+    _DevTextCommand.Init()
+end
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================

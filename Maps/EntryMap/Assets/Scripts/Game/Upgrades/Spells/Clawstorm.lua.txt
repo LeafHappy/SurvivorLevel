@@ -1,0 +1,95 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local ability = DCEI.Ability("Clawstorm")
+
+local behaviors = {}
+
+local effects = {
+    count = DCEI.Effect("Clawstorm - Count"),
+    scan = DCEI.Effect("Clawstorm - Scan"),
+    duration = DCEI.Effect("Clawstorm - Apply Duration"),
+    area = DCEI.Effect("Clawstorm - Area"),
+    damage = DCEI.Effect("Clawstorm - Damage"),
+    actor_size = DCEI.Effect("Clawstorm - Apply Actor Size"),
+    pull = DCEI.Effect("Clawstorm - Pull"),
+    amplify = DCEI.Effect("Clawstorm - Amplify"),
+    slow = DCEI.Effect("Clawstorm - Slow"),
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = "Clawstorm",
+}
+
+Upgrade.Cache = {
+    -- [STAT.CastSpeed] placeholder required for Abilities with Cooldowns.
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(effects.scan, EJS.AreaSearch.Radius),
+    },
+    [STAT.ProjectileCount] = {
+        -- EffectPath.New(effects.scan, EJS.AreaSearch.Count),
+        EffectPath.New(effects.count, EJS.Persistent.Count),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(effects.area, EJS.AreaSearch.Radius),
+        EffectPath.New(effects.actor_size, EJS.ApplyBehavior.Count, nil, 80),
+    },
+    [STAT.SkillDuration] = {
+        EffectPath.New(effects.duration, EJS.ApplyBehavior.Duration),
+        EffectPath.New(effects.amplify, EJS.DamageIntake.Duration),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(effects.damage, EJS.Damage.Value),
+    },
+    [STAT.Break] = {
+        EffectPath.New(effects.amplify, EJS.DamageIntake.Unscaled, 1),
+    },
+    [STAT.Force] = {
+        EffectPath.New(effects.pull),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(effects.slow, EJS.Slow.Unified),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(effects.slow, EJS.Slow.Duration),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero) end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

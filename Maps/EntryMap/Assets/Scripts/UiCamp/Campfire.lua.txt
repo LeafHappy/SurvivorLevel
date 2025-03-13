@@ -1,0 +1,260 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local StarBarComponent = require("UiMeta/Components/StarBarComponent")
+local SkillTooltip = require("UiMeta/HeroCollection/SkillTooltip")
+
+-- DATA
+local DataManager = require("UiMeta/DataManager")
+local Heroes = require("SharedData/Heroes")
+local HeroUnlockData = require("SharedData/HeroUnlockData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local Campfire = {}
+Campfire.hero_items = {}
+Campfire.is_initialized = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function GenerateHeroCamera(hero_camera)
+    local width = 660
+    local height = 660
+
+    local camera_frame = DCEI.CreateCameraFrame(hero_camera)
+    DCEI.SetFrameSize(camera_frame, width, height)
+    DCEI.SetCameraFrameViewportSize(camera_frame, 1000, 1000)
+    DCEI.SetCameraFrameViewportWorldPosition(camera_frame, 997.75, 1.25, 998.75)
+    DCEI.SetCameraFrameViewportRotation(camera_frame, 35, 85, 0)
+end
+
+local function ItemPressed(hero_name)
+    -- early escape if hero selected is the same as pressed
+    if Campfire.selected_hero == hero_name then
+        return
+    end
+
+    -- deselect current selected hero card color
+    if DataManager.IsCardUnlocked(Campfire.selected_hero) then
+        Campfire.hero_items[Campfire.selected_hero].state.Selected = false
+    end
+
+    local heroData = DataManager.GetCardData(hero_name)
+
+    -- if hero unlocked, get save data. otherwise, get base stats
+    local hero_meta = {}
+    if DataManager.IsCardUnlocked(hero_name) then
+        hero_meta = DataManager.save_data.heroes[hero_name]
+    else
+        hero_meta.level = 1
+    end
+
+    -- Update hero collection
+    Campfire.selected_hero = hero_name
+    Campfire.UpdateUiState(hero_meta, heroData)
+end
+
+local function UpdateHeroItemState(item_layout, hero_name)
+    local state = item_layout.state
+    local hero_data = DataManager.GetCardData(hero_name)
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+
+    state.Name = hero_data.Name
+    state.Icon = hero_data.Portrait
+    state.Locked = not DataManager.IsCardUnlocked(hero_name)
+    state.Selected = Campfire.selected_hero == hero_name and true or false
+
+    if hero_meta then
+        state.Level = hero_meta.level
+        item_layout.stars:Update(hero_meta.rank)
+    end
+
+    if state.Locked then
+        state.UnlockCondition = HeroUnlockData[hero_name].UnlockCondition
+    end
+end
+
+local function CreateHeroLayout(hero_name)
+    local parent = Campfire.layout.CollectionContent
+    local layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/HeroSelection/Item",
+        parent = parent,
+    })
+
+    Campfire.hero_items[hero_name] = layout
+
+    DCEI.SetOnClickCallback(layout.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ItemPressed(hero_name)
+    end)
+
+    StarBarComponent:Initialize(layout.stars)
+
+    UpdateHeroItemState(layout, hero_name)
+end
+
+local function SelectHero(hero_name)
+    -- Equip hero on hero collection and home page
+    -- DataManager.save_data.player.hero = hero_name
+    -- DataManager.Save()
+    DataManager.SelectHero(hero_name)
+
+    Core.Event.SendSimulationEvent("Camp.ChangeHero", hero_name)
+
+    Campfire.Close()
+end
+
+local function UpdateHeroItems()
+    local items = Campfire.hero_items
+    for _, hero_data in ipairs(Heroes) do
+        -- Make sure layout exists
+        local layout = items[hero_data.Name]
+        if not layout then
+            layout = CreateHeroLayout(hero_data.Name)
+        end
+
+        -- Update states on layout
+        UpdateHeroItemState(layout, hero_data.Name)
+    end
+end
+
+---@param callback function
+local function GiveAuthority(data, callback)
+    local selected_hero = DataManager.save_data.player.hero
+    Campfire.Open(selected_hero, callback)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function Campfire.Initialize()
+    if Campfire.is_initialized then
+        return
+    end
+
+    -- Create layout
+    Campfire.layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/HeroSelection",
+        parent = ui.z3.Lower,
+    })
+    ui.camp.campfire = Campfire.layout
+
+    -- Setup popup animations
+    local args = {
+        popup_frame = Campfire.layout.Background,
+        mask_layout = ui.mask,
+    }
+    PopupManager.ApplyPopupAnimations(Campfire.layout, args)
+
+    -- Init skill tooltip
+    SkillTooltip.Initialize()
+
+    -- Init stars
+    StarBarComponent:Initialize(Campfire.layout.stars)
+
+    -- Create all hero layouts
+    for _, hero_data in ipairs(Heroes) do
+        CreateHeroLayout(hero_data.Name)
+    end
+
+    -- Create hero display
+    GenerateHeroCamera(Campfire.layout.HeroCamera)
+
+    -- Setup click callbacks
+    DCEI.SetOnClickCallback(Campfire.layout.equip_button.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        SelectHero(Campfire.selected_hero)
+    end)
+
+    DCEI.SetOnClickCallback(Campfire.layout.SkillTipButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local hero_data = DataManager.GetCardData(Campfire.selected_hero)
+        local skill_data = hero_data.DisplayedSkill or {}
+        SkillTooltip.Open(skill_data)
+    end)
+
+    -- Make sure it's hidden on init
+    DCEI.SetFrameActive(Campfire.layout.Background, false)
+    Campfire.is_initialized = true
+end
+
+function Campfire.Open(selected_hero, callback)
+    if not Campfire.is_initialized then
+        Campfire.Initialize()
+    end
+
+    -- Make sure frame is active on open
+    if not DCEI.IsFrameActive(Campfire.layout.Background) then
+        DCEI.SetFrameActive(Campfire.layout.Background, true)
+    end
+
+    -- Select currently selected hero
+    ItemPressed(selected_hero)
+
+    -- Make sure items are up to date
+    UpdateHeroItems()
+
+    -- Show popup
+    Campfire.layout:Show()
+    function Campfire.layout.OnHide()
+        GMUI.RunSimulationCallback(callback)
+    end
+end
+
+function Campfire.Close()
+    Campfire.layout:Hide()
+end
+
+---@param hero_meta any
+---@param hero_data HeroData
+function Campfire.UpdateUiState(hero_meta, hero_data)
+    -- Update to show newly selected hero
+    local state = Campfire.layout.state
+    state.HeroName = hero_data.Name
+    state.HeroLevel = "Lv " .. hero_meta.level
+    state.Unlocked = DataManager.IsCardUnlocked(hero_data.Name)
+    state.SkillIcon = hero_data.DisplayedSkill and hero_data.DisplayedSkill.Icon
+        or DCEI.Texture("cartoon_icon_skill_starblast_survivor")
+
+    -- Update stars
+    Campfire.layout.stars:Update(hero_meta.rank or 0)
+
+    -- Update camera hero
+    Core.Event.SendSimulationEvent("UpdateHeroCollectionCameraHero", hero_data.Unit)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.Campfire", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return Campfire

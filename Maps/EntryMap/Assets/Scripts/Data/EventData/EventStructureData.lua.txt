@@ -1,0 +1,456 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local HostilePatternData = require("Data/Events/HostilePatternData")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local Elites = require("Game/AI/Elites")
+
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+local CollisionEffect = require("SharedData/Class/CollisionEffect")
+
+-- local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local REF = {
+    Behavior = {
+        EventRadius = DCEI.Behavior("Event - Radius"), -- Generates a Radius VFX around the Event
+        MoveNearby = DCEI.Behavior("Event - Move Nearby"), -- Issue order to move to a position near the player.
+        MoveSpeed = DCEI.Behavior("Stats - Move Speed"),
+    },
+
+    Effect = {
+        Decay = DCEI.Effect("Event - OnEnter - Decay"), -- Causes self-damage when triggered.
+
+        LevelPoint = DCEI.Effect("Gain Stats - Level Point"), -- Gain a Level Point
+        HeroicPoint = DCEI.Effect("Gain Stats - Heroic Point"), -- Gain a Heroic Point
+    },
+}
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Data
+---============================================================================
+
+---@class EventStructureData : EventData
+---@field UnitType UnitType
+---@field SpawnSettings EventData.SpawnSettings
+---@field CombatSettings EventStructureData.CombatSettings
+---@field CollisionSettings EventStructureData.CollisionSettings
+
+---@class EventStructureData.CombatSettings
+---@field Health number The Health of the Event
+---@field ArmorType ArmorType The Armor Type of the Event
+---@field IsAttackable boolean Allows Targeting and taking Damage from Attacks
+---@field SimpleTags SIMPLE_TAG | integer Applied Simple Tags
+
+---@class EventStructureData.CollisionSettings
+---@field CollisionSize number The Collision Size
+---@field CollisionLayer CollisionLayers The Collision Layer I am on
+---@field CollisionLayerHit CollisionLayers The Collision Layer I interact with
+---@field CollisionEffects table<CollisionEffect> Effects I apply when interacting with CollisionLayerHit
+
+---@type table<EventStructureData>
+local Data = {}
+
+---============================================================================
+---ANCHOR: Drone Cache Event
+---============================================================================
+
+Data.DroneCache = {
+    UnitType = DCEI.Unit("Event - Drone Cache"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Offset = Vector2.New(0, 0),
+        Distance = Vector2.New(10, 12),
+    },
+
+    CombatSettings = {
+        Health = 3,
+        IsAttackable = true,
+        ArmorType = ARMOR_TYPES.Structure,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 0.75,
+        CollisionLayer = CollisionLayers.Hostile,
+        CollisionLayerHit = CollisionLayers.None,
+        CollisionEffects = {},
+    },
+
+    AppliedBehaviors = {
+        Behavior.New(REF.Behavior.MoveNearby, 250), -- Issue order every 2.5 Seconds.
+        Behavior.New(REF.Behavior.MoveSpeed, 175), -- Move Speed set to 1.75
+    },
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+
+        DropTable = DropTables.Drone101,
+    },
+
+    DisplaySettings = {
+        ModelScale = 2.25,
+        -- ShowOffscreenIndicator = true,
+        -- Icon = DCEI.Texture("shard_tower_draconichatchery_wildsurvivor"),
+        ShowHealth = true,
+    },
+}
+
+---============================================================================
+---ANCHOR: Relic Event
+---============================================================================
+
+Data.Relic = {
+    UnitType = DCEI.Unit("Event - Relic"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Offset = Vector2.New(0, 0),
+        Distance = Vector2.New(40, 50),
+    },
+
+    CombatSettings = {
+        Health = 5,
+        IsAttackable = false,
+        ArmorType = ARMOR_TYPES.Default,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 5,
+        CollisionLayer = CollisionLayers.None,
+        CollisionLayerHit = CollisionLayers.Friendly,
+        CollisionEffects = {
+            CollisionEffect.New(REF.Effect.Decay, CollisionTiming.Start | CollisionTiming.Continue, 0, SIMPLE_TAG.Hero),
+        },
+    },
+
+    AppliedBehaviors = {
+        Behavior.New(REF.Behavior.EventRadius, 500), -- Size set to match CollisionSize (behaviors are 100x for scale)
+    },
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {
+            REF.Effect.HeroicPoint,
+        },
+    },
+
+    DisplaySettings = {
+        ModelScale = 0.75,
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_tower_draconichatchery_wildsurvivor"),
+        ShowHealth = true,
+    },
+}
+
+---============================================================================
+---ANCHOR: Abandoned Potion Shop
+---============================================================================
+
+Data.AbandonedPotionShop = {
+    UnitType = DCEI.Unit("Event - Abandoned Potion Shop"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Offset = Vector2.New(0, 0),
+        Distance = Vector2.New(15, 25),
+    },
+
+    CombatSettings = {
+        Health = 20,
+        IsAttackable = true,
+        ArmorType = ARMOR_TYPES.Structure,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 1,
+        CollisionLayer = CollisionLayers.Hostile,
+        CollisionLayerHit = CollisionLayers.None,
+        CollisionEffects = {},
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.AbandonedPotionShop,
+    },
+
+    DisplaySettings = {
+        ModelScale = 1.75,
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_tower_potiondealer_tower"),
+        ShowHealth = true,
+    },
+}
+
+---============================================================================
+---ANCHOR: Evil Altar
+---============================================================================
+
+---TODO: Setup a way to configure Spawning (During Event and Post-Event)
+---Currently, there is no good way to setup an Elite Spawn post-event completion
+
+Data.EvilAltar = {
+    UnitType = DCEI.Unit("Event - Evil Altar"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Offset = Vector2.New(0, 3),
+        Distance = Vector2.New(15, 25),
+    },
+
+    CombatSettings = {
+        Health = 10,
+        IsAttackable = false,
+        ArmorType = ARMOR_TYPES.Default,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 5,
+        CollisionLayer = CollisionLayers.None,
+        CollisionLayerHit = CollisionLayers.Friendly,
+        CollisionEffects = {
+            CollisionEffect.New(REF.Effect.Decay, CollisionTiming.Start | CollisionTiming.Continue, 0, SIMPLE_TAG.Hero),
+        },
+    },
+
+    AppliedBehaviors = {
+        Behavior.New(REF.Behavior.EventRadius, 500), -- Size set to match CollisionSize (behaviors are 100x for scale)
+    },
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {
+            REF.Effect.HeroicPoint,
+            -- How do we add an Elite Spawn?
+        },
+        -- DropTable = DropTables.AbandonedPotionShop,
+    },
+
+    DisplaySettings = {
+        ModelScale = 1.75,
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("shard_spell_darksummons_wildsurvivor"),
+        ShowHealth = false,
+
+        ---TODO: Customize Health Bar
+        ---TODO: Objective Updates
+    },
+}
+
+---============================================================================
+---ANCHOR: Crate
+---============================================================================
+
+Data.Crate = {
+    UnitType = DCEI.Unit("Event - Crate"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Distance = Vector2.New(15, 20),
+    },
+
+    CombatSettings = {
+        Health = 1,
+        IsAttackable = true,
+        ArmorType = ARMOR_TYPES.Default,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 1,
+        CollisionLayer = CollisionLayers.Hostile,
+        CollisionLayerHit = CollisionLayers.None,
+        CollisionEffects = {},
+    },
+
+    AppliedBehaviors = {},
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {},
+        DropTable = DropTables.Crate101,
+    },
+
+    DisplaySettings = {
+        ModelScale = 1.75,
+        ShowOffscreenIndicator = false,
+        ShowHealth = false,
+    },
+}
+
+---============================================================================
+---ANCHOR: Dark Ritual - 1
+---============================================================================
+
+Data.DarkRitual_1 = {
+    UnitType = DCEI.Unit("Event - Dark Ritual - 1"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Offset = Vector2.New(0, 0),
+        Distance = Vector2.New(30, 40),
+    },
+
+    CombatSettings = {
+        Health = 5,
+        IsAttackable = false,
+        ArmorType = ARMOR_TYPES.Default,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 5,
+        CollisionLayer = CollisionLayers.None,
+        CollisionLayerHit = CollisionLayers.Friendly,
+        CollisionEffects = {
+            CollisionEffect.New(REF.Effect.Decay, CollisionTiming.Start | CollisionTiming.Continue, 0, SIMPLE_TAG.Hero),
+        },
+    },
+
+    AppliedBehaviors = {
+        Behavior.New(REF.Behavior.EventRadius, 500), -- Size set to match CollisionSize (behaviors are 100x for scale)
+    },
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {
+            -- REF.Effect.LevelPoint,
+        },
+        DropTable = DropTables.DarkRitual,
+    },
+
+    DisplaySettings = {
+        ModelScale = 1.75,
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("cartoon_icon_event_dark_ritual_survivor"),
+        ShowHealth = true,
+    },
+}
+
+---============================================================================
+---ANCHOR: Dark Ritual - 2
+---============================================================================
+
+Data.DarkRitual_2 = {
+    UnitType = DCEI.Unit("Event - Dark Ritual - 2"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Offset = Vector2.New(0, 0),
+        Distance = Vector2.New(40, 50),
+    },
+
+    CombatSettings = {
+        Health = 7.5,
+        IsAttackable = false,
+        ArmorType = ARMOR_TYPES.Default,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 5,
+        CollisionLayer = CollisionLayers.None,
+        CollisionLayerHit = CollisionLayers.Friendly,
+        CollisionEffects = {
+            CollisionEffect.New(REF.Effect.Decay, CollisionTiming.Start | CollisionTiming.Continue, 0, SIMPLE_TAG.Hero),
+        },
+    },
+
+    AppliedBehaviors = {
+        Behavior.New(REF.Behavior.EventRadius, 500), -- Size set to match CollisionSize (behaviors are 100x for scale)
+    },
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {
+            REF.Effect.HeroicPoint,
+        },
+    },
+
+    DisplaySettings = {
+        ModelScale = 1.75,
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("cartoon_icon_event_dark_ritual_survivor"),
+        ShowHealth = true,
+    },
+}
+
+---============================================================================
+---ANCHOR: Dark Ritual - 3
+---============================================================================
+
+Data.DarkRitual_3 = {
+    UnitType = DCEI.Unit("Event - Dark Ritual - 3"),
+
+    SpawnSettings = {
+        BaseSpawnPositionType = EVENT_SPAWN_BASE.UsePlayerPosition,
+        Offset = Vector2.New(0, 0),
+        Distance = Vector2.New(50, 60),
+    },
+
+    CombatSettings = {
+        Health = 10,
+        IsAttackable = false,
+        ArmorType = ARMOR_TYPES.Default,
+        SimpleTags = SIMPLE_TAG.Hostile,
+    },
+
+    CollisionSettings = {
+        CollisionSize = 5,
+        CollisionLayer = CollisionLayers.None,
+        CollisionLayerHit = CollisionLayers.Friendly,
+        CollisionEffects = {
+            CollisionEffect.New(REF.Effect.Decay, CollisionTiming.Start | CollisionTiming.Continue, 0, SIMPLE_TAG.Hero),
+        },
+    },
+
+    AppliedBehaviors = {
+        Behavior.New(REF.Behavior.EventRadius, 500), -- Size set to match CollisionSize (behaviors are 100x for scale)
+    },
+
+    DeathSettings = {
+        Delay = 0.25,
+        DeathEffects = {
+            REF.Effect.HeroicPoint,
+        },
+    },
+
+    DisplaySettings = {
+        ModelScale = 1.75,
+        ShowOffscreenIndicator = true,
+        Icon = DCEI.Texture("cartoon_icon_event_dark_ritual_survivor"),
+        ShowHealth = true,
+    },
+}
+
+---============================================================================
+---!SECTION: Data
+---============================================================================
+
+return Data

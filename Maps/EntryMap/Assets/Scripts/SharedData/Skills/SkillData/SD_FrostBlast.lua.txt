@@ -1,0 +1,75 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.FrostBlast = {
+    Key = "FrostBlast",
+
+    -- UI Information
+    DisplayName = "Frost Blast",
+    ShortDescription = "Causes a blast of cold air around your target.",
+    Icon = DCEI.Texture("cartoon_icon_skill_frostnova_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.FrostBlast,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Frost Blast"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.SkillRange, 5.5, SCALING.Scaled, { SKILL_TAG.FrostBlast }),
+                Modifier.New(STAT.BaseAttackTime, 2.35, SCALING.Scaled, { SKILL_TAG.FrostBlast }),
+
+                -- Impact
+                Modifier.New(STAT.SkillSize, 2.75, SCALING.Scaled, { SKILL_TAG.FrostBlast }),
+                Modifier.New(STAT.Damage, 6, SCALING.Scaled, { SKILL_TAG.FrostBlast }),
+                Modifier.New(STAT.SlowEffectiveness, 0.30, SCALING.Scaled, { SKILL_TAG.FrostBlast }), -- 30% Slow
+                Modifier.New(STAT.SlowDuration, 2, SCALING.Scaled, { SKILL_TAG.FrostBlast }),
+
+                -- Extras
+
+                -- Reset
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        FrostBlast = {
+            SKILL_TAG.Global,
+            SKILL_TAG.FrostBlast,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+return Data

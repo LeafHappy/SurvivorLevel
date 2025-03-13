@@ -1,0 +1,134 @@
+-- LOCAL FUNCTIONS
+local function InitializeController(ui)
+    local controller = {}
+    local refs = DCEI.GetChildrenFramesIdAndFrameType(ui)
+    for _, ref in ipairs(refs) do
+        local id = ref.id
+        controller[id] = DCEI.GetChildFrameById(ui, id)
+    end
+    return controller
+end
+
+-- CONTROLLER
+return function(ui)
+    local controller = InitializeController(ui)
+    controller.DelayEventFunc = DCEI.TriggerAddTimerEventElapsed
+
+    -- Override when in Presentation
+    function controller:SetDelayEffectFunc(TimerFunc)
+        self.DelayEventFunc = TimerFunc
+    end
+
+    -- Delay Event
+    local function DelayEvent(callback, delay)
+        controller.DelayEventFunc(callback, delay, true, true)
+    end
+
+    -- Custom Periodic Event for Presentation
+    local function PeriodicEvent(callback, interval, total_tick_count)
+        for i = 1, total_tick_count do
+            controller.DelayEventFunc(callback, i * interval, true, true)
+        end
+    end
+
+    function controller:Reset()
+        -- Reset Star
+        DCEI.SetFrameAlpha(self.Star, 0)
+
+        -- Reset Alpha so we can animate it in
+        DCEI.SetFrameAlpha(self.GlowLeft, 1)
+        DCEI.SetFrameAlpha(self.GlowRight, 1)
+
+        -- Reset Width Percentage
+        DCEI.SetFrameWidthPercent(self.GlowLeft, 0)
+        DCEI.SetFrameWidthPercent(self.GlowRight, 0)
+
+        -- Reset Anchor
+        DCEI.SetFrameLeft(self.GlowLeft, 0)
+        DCEI.SetFrameRight(self.GlowRight, 0)
+    end
+
+    function controller:AnimateGlowFill(duration)
+        duration = duration or 0.50
+
+        local interval = 0.03125
+        local total_tick_count = math.floor(duration / interval)
+
+        local tick = 0
+        PeriodicEvent(function()
+            tick = tick + 1
+            local width = tick / total_tick_count * 50
+            DCEI.SetFrameWidthPercent(self.GlowLeft, width)
+            DCEI.SetFrameWidthPercent(self.GlowRight, width)
+        end, interval, total_tick_count)
+    end
+
+    function controller:AnimateGlowShrink(duration)
+        duration = duration or 0.50
+
+        local offset = 200
+        DCEI.SetFrameLeft(self.GlowLeft, offset)
+        DCEI.SetFrameRight(self.GlowRight, offset)
+
+        local interval = 0.03125
+        local total_tick_count = math.floor(duration / interval)
+
+        local tick = 0
+        PeriodicEvent(function()
+            tick = tick + 1
+            local width = 50 - tick / total_tick_count * 50
+            DCEI.SetFrameWidthPercent(self.GlowLeft, width)
+            DCEI.SetFrameWidthPercent(self.GlowRight, width)
+        end, interval, total_tick_count)
+    end
+
+    function controller:AnimateStar(duration)
+        duration = 0.25
+
+        local a_k1 = 0
+        local a_k2 = 1
+
+        local s_k1 = { x = 1, y = 1, z = 1 }
+        local s_k2 = { x = 3, y = 3, z = 3 }
+
+        -- Alpha from 0 to 1
+        DCEI.AnimateFrameAlpha(self.Star, a_k1, a_k2, duration, "OutSine")
+
+        -- Scale from 1 to 3
+        DCEI.AnimateFrameScale(self.Star, s_k1, s_k2, duration, "OutSine")
+
+        -- After the duration, fade out the star
+        DelayEvent(function()
+            -- Reset Alpha back to 0
+            DCEI.AnimateFrameAlpha(self.Star, a_k2, a_k1, duration, "OutSine")
+
+            -- Reset Scale back to original
+            DCEI.AnimateFrameScale(self.Star, s_k2, s_k1, duration, "OutSine")
+        end, duration)
+    end
+
+    -- play full animation sequence
+    function controller:PlayAnimation()
+        self:Reset()
+        self:AnimateGlowFill(0.25)
+
+        -- Delay Star Animation
+        DelayEvent(function()
+            self:AnimateStar(0.25)
+        end, 0.25)
+
+        DelayEvent(function()
+            self:AnimateGlowShrink(0.25)
+        end, 0.25)
+    end
+
+    -- Hookup testing button
+    if controller.Test then
+        DCEI.SetOnClickCallback(controller.Test, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+            controller:PlayAnimation()
+        end)
+    end
+
+    return controller
+end

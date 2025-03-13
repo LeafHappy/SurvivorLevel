@@ -1,0 +1,207 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local Help = require("Help")
+local Vector2 = require("Class/Vector2")
+
+local Colors = require("Data/Colors")
+
+local Hero = require("Game/Hero")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local REF = {
+    Indicator = DCEI.Unit("Indicator"),
+}
+
+local MinimumDistanceThreshold = 2
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Debug Options
+---============================================================================
+
+local Debug = {
+    ShowHeat = false,
+    ShowDangerBalance = false,
+}
+
+local HeatIndicator = nil
+local DangerBalanceIndicator = nil
+
+---comment
+---@param position Vector2
+---@param danger_level number
+local function ShowHeat(position, danger_level)
+    if not HeatIndicator then
+        HeatIndicator = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Indicator, position.x, position.y)
+        Help.SetTintColor(HeatIndicator, Colors.Hex.Orange)
+    end
+
+    DCEI.SetUnitPosition2DWithInterpolation(HeatIndicator, position.x, position.y)
+    Help.SetModelScale(HeatIndicator, 1 + danger_level, TICK_RATE)
+end
+
+---comment
+---@param position Vector2
+---@param balance_value number
+local function ShowBalanceIndicator(position, balance_value)
+    if not DangerBalanceIndicator then
+        DangerBalanceIndicator = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Indicator, position.x, position.y)
+        Help.SetTintColor(DangerBalanceIndicator, Colors.Hex.White)
+    end
+
+    DCEI.SetUnitPosition2DWithInterpolation(DangerBalanceIndicator, position.x, position.y)
+    Help.SetModelScale(DangerBalanceIndicator, 1 + balance_value, TICK_RATE)
+end
+
+---============================================================================
+---!SECTION: Debug Options
+---SECTION: Local Functions
+---============================================================================
+
+---Get all Simple Units
+---@return table<SimpleUnitInstance>
+local function GetHostiles()
+    return DCEI.FindSimpleUnitsByPlayerId(PLAYER.Hostile)
+end
+
+---Converts Simple Unit Instances to Positions
+---@param units table<SimpleUnitInstance>
+---@return table<Vector2>
+local function ConvertUnitsToPositions(units)
+    local t = {}
+    for i = 1, #units do
+        table.insert(t, Vector2.UnitPosition(units[i]))
+    end
+    return t
+end
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Class
+---============================================================================
+
+---@class Heatmap
+---@field TotalDanger number Total Danger Level of all hostiles.
+---@field NormalizedDanger number Total Danger divided by the number of hostiles.
+---@field DangerOffset Vector2 Offset based on the danger of all hostiles.
+---@field ClosestDangerPosition Vector2 Position of the closest danger.
+---@field DangerBalance Vector2 Reverse offset based on the current Danger Offset.
+---@field BalancingOffset Vector2 Offset based on the average position of all hostiles.
+---@field BalancingAngle number Angle of the Balancing Offset.
+local Heatmap = {}
+Heatmap.__index = Heatmap
+
+---Generates a new Heatmap.
+---@return Heatmap
+local function NewHeatmap()
+    local self = setmetatable({}, Heatmap)
+
+    -- What do we need to track?
+    self.TotalDanger = 0
+    self.NormalizedDanger = 0
+    self.DangerOffset = Vector2.Zero()
+    self.ClosestDangerPosition = Vector2.Zero()
+    self.DangerBalance = Vector2.Zero()
+    self.BalancingOffset = Vector2.Zero()
+    self.BalancingAngle = 0
+
+    return self
+end
+
+---Updates the Heatmap, only call once per frame.
+---@param center_point Vector2 Typically the player's position.
+function Heatmap:Update(center_point)
+    -- Update the Heatmap
+
+    local hostiles = GetHostiles()
+    local positions = ConvertUnitsToPositions(hostiles)
+
+    local danger_offset = Vector2.Zero()
+    local total_danger = 0
+    local highest_danger_recorded = 0
+    local highest_danger_index = 0
+    local recorded = 0
+
+    local cluster_offset = Vector2.Zero()
+
+    for i = 1, #positions do
+        local offset = positions[i] - center_point
+        local sqr_mag = Vector2.SqrMagnitude(offset)
+
+        if sqr_mag <= MinimumDistanceThreshold * MinimumDistanceThreshold then
+            goto continue
+        end
+
+        recorded = recorded + 1
+
+        local danger = 1 / sqr_mag
+        danger = math.min(danger, 0.5)
+
+        total_danger = total_danger + danger
+
+        danger_offset.x = danger_offset.x + offset.x * danger
+        danger_offset.y = danger_offset.y + offset.y * danger
+
+        cluster_offset.x = cluster_offset.x + offset.x
+        cluster_offset.y = cluster_offset.y + offset.y
+
+        if danger > highest_danger_recorded then
+            highest_danger_recorded = danger
+            highest_danger_index = i
+        end
+
+        ::continue::
+    end
+
+    self.TotalDanger = total_danger
+    self.NormalizedDanger = total_danger / recorded
+    self.DangerOffset = danger_offset
+    self.ClosestDangerPosition = positions[highest_danger_index]
+    self.DangerBalance = center_point - self.DangerOffset
+
+    self.BalancingOffset = (center_point - cluster_offset) / recorded
+
+    self.BalancingAngle = Vector2.Angle(self.BalancingOffset)
+
+    if self.BalancingAngle ~= self.BalancingAngle then
+        self.BalancingAngle = 0
+    end
+
+    if Debug.ShowHeat then
+        ShowHeat(center_point + danger_offset, self.TotalDanger)
+    end
+
+    if Debug.ShowDangerBalance then
+        ShowBalanceIndicator(center_point + self.BalancingOffset, self.NormalizedDanger)
+    end
+end
+
+---============================================================================
+---!SECTION: Class
+---SECTION: Singleton
+---============================================================================
+
+local Instance = NewHeatmap()
+Heatmap.Instance = Instance
+
+---============================================================================
+---!SECTION: Singleton
+---SECTION: Getters
+---============================================================================
+
+function Heatmap.GetDangerBalanceAngle()
+    return Instance.BalancingAngle
+end
+
+---============================================================================
+---!SECTION: Getters
+---============================================================================
+
+return Heatmap

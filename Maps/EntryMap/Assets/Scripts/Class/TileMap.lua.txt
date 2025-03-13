@@ -1,0 +1,309 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Generates a 2D TileMap (Square Only)
+
+    ---TODO: 
+        Teleportation - Does not account for Unloading Distant Tile
+        Resizing
+        Non-Symmetrical Tile Sizes
+        Padding for Loading/Unloading
+            - This can either be Delayed Unloading (flagging) or an Unload Padding around the Player
+        Create a TileInstance Class to improve flexibility of Loading/Unloading
+            - It can have a flag for "Loaded" and "Unloaded" to prevent Unnecessary Loading/Unloading
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+-- local SPACING = -0.05
+local SPACING = 0.5
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function ConvertTileDataToRegisteredSimpleUnits(tile_data)
+    local tiles = {}
+
+    for key, value in pairs(tile_data) do
+        local simple_unit = SimpleUnits.Helpers.RegisterTerrain(value)
+        table.insert(tiles, simple_unit)
+    end
+
+    return tiles
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class TileData
+---@field Size number
+---@field LoadDistance number
+---@field TileOptions table<SimpleUnit>
+
+---@class TileMap
+---@field TileSize number
+---@field TileLoadDistance number
+---@field TileOptions table
+---@field Map table A list of available Tiles
+---@field LastTileIndex Vector2 Used to prevent Updating Tiles too frequently.
+---@field protected _OnTileLoad table
+---@field protected _OnTileUnload table
+local TileMap = {}
+TileMap.__index = TileMap
+
+---Generates a New TileMap based on the given properties.
+---@param tile_data TileData
+---@return TileMap
+function TileMap.New(tile_data)
+    ---@type TileMap
+    local self = setmetatable({}, TileMap)
+    self.TileSize = tile_data.Size
+    self.TileLoadDistance = tile_data.LoadDistance
+    self.TileOptions = ConvertTileDataToRegisteredSimpleUnits(tile_data.TileOptions)
+    self.Map = {}
+
+    -- Used to prevent updating Tiles when attempting to Update the same Tile Index
+    self.LastTileIndex = nil
+
+    self._OnTileLoad = {}
+    self._OnTileUnload = {}
+
+    return self
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+---Callback for when a Tile is Loaded.
+---@param r integer
+---@param c integer
+---@protected
+function TileMap:_OnTileLoadCallback(r, c)
+    for _, value in pairs(self._OnTileLoad) do
+        value(r, c)
+    end
+end
+
+---Callback for when a Tile is Unloaded.
+---@param r integer
+---@param c integer
+---@protected
+function TileMap:_OnTileUnloadCallback(r, c)
+    for _, value in pairs(self._OnTileUnload) do
+        value(r, c)
+    end
+end
+
+---Loads the Tile (creating the Tile Unit).
+---@param r integer
+---@param c integer
+---@protected
+function TileMap:_Load(r, c)
+    if not self.Map[r] then
+        self.Map[r] = {}
+    end
+
+    if not self.Map[r][c] then
+        self.Map[r][c] = {}
+    end
+
+    if not self.Map[r][c].TileIndex then
+        self.Map[r][c].TileIndex = Core.Random.GetInteger(1, #self.TileOptions)
+    end
+
+    if not self.Map[r][c].Unit then
+        ---@type SimpleUnit
+        local tile_type = self.TileOptions[self.Map[r][c].TileIndex]
+        local tile_position = self:GetWorldPositionFromTileIndex(r, c)
+
+        -- Spawn and Assign the Unit (Standard/Simple Unit Implementation)
+        -- self.Map[r][c].Unit = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, tile_type, tile_position.x, tile_position.y)
+
+        local instance = tile_type:SpawnSyncStationary(TEAM.Terrain, PLAYER.Terrain, tile_position)
+
+        -- self.Map[r][c].Unit = tile_type:SpawnSyncStationary(TEAM.Terrain, PLAYER.Terrain, tile_position)
+
+        local y_offset = -0.01 - (math.abs(r) + math.abs(c)) * 0.0001
+
+        DCEI.ApplyTransformAnimationToSimpleUnit(instance, {
+            end_scale = Vector3.New(1, 1, 1),
+            end_position = Vector3.New(0, y_offset, 0), -- Handles Render Order
+        })
+
+        self.Map[r][c].Unit = instance
+
+        -- Callback
+        self:_OnTileLoadCallback(r, c)
+    end
+end
+
+---Unloads the Tile (removing the Tile Unit).
+---@param r integer
+---@param c integer
+---@protected
+function TileMap:_Unload(r, c)
+    local tile = self.Map[r] and self.Map[r][c]
+
+    if not tile or not tile.Unit then
+        return
+    end
+
+    -- Remove the Unit (Standard/Simple Unit Implementation)
+    -- DCEI.RemoveUnit(tile.Unit)
+    DCEI.RemoveSimpleUnit(tile.Unit)
+
+    tile.Unit = nil
+
+    -- Callback
+    ---NOTE: Validate when we need to perform the Callback (when Unit is Removed or Always)
+    self:_OnTileUnloadCallback(r, c)
+end
+
+function TileMap:_Remove(r, c)
+    local tile_info = self.Map[r][c]
+
+    -- Simple Unit Removal
+    if tile_info.Unit then
+        if DCEI.SimpleUnitExists(tile_info.Unit) then
+            DCEI.RemoveSimpleUnit(tile_info.Unit)
+        end
+
+        tile_info.Unit = nil
+    end
+
+    -- Standard Unit Removal
+    -- if c.Unit then
+    --     DCEI.RemoveUnit(c.Unit)
+    --     c.Unit = nil
+    -- end
+
+    if tile_info.TileIndex then
+        tile_info.TileIndex = nil
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+---Converts Tile Index to World Space Coordinates
+---@param r integer
+---@param c integer
+---@return Vector2
+function TileMap:GetWorldPositionFromTileIndex(r, c)
+    local tile_position = Vector2.New(r * self.TileSize, c * self.TileSize)
+    local tile_offset = Vector2.New(r * SPACING, c * SPACING)
+    return tile_position + tile_offset
+end
+
+---Converts World Space Coordinates to Tile Index
+---@param position Vector2
+---@return Vector2
+function TileMap:GetTileIndexFromWorldPosition(position)
+    local r = math.floor(position.x / (self.TileSize + SPACING) + 0.5)
+    local c = math.floor(position.y / (self.TileSize + SPACING) + 0.5)
+    return Vector2.New(r, c)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+---Un/Load all tiles around the given index.
+---@param tile_index Vector2
+function TileMap:Update(tile_index)
+    -- Prevent Updating when the tile_index is the same as the Last Tile Index.
+    if self.LastTileIndex and tile_index and self.LastTileIndex == tile_index then
+        return
+    end
+
+    -- Set Last Tile Index
+    self.LastTileIndex = tile_index
+
+    -- Determine what Indexes we need to iterate through
+    -- We use -1 and +1 to include Indexes to Check for Unloading
+    local r_bounds = Vector2.New(tile_index.x - self.TileLoadDistance - 1, tile_index.x + self.TileLoadDistance + 1)
+    local c_bounds = Vector2.New(tile_index.y - self.TileLoadDistance - 1, tile_index.y + self.TileLoadDistance + 1)
+
+    -- Iterate through Unload/Load Tiles
+    for r = r_bounds.x, r_bounds.y do
+        for c = c_bounds.x, c_bounds.y do
+            -- (Unload) Need to check at least r or c is the min or max
+            local is_r_unload = (r == r_bounds.x) or (r == r_bounds.y)
+            local is_c_unload = (c == c_bounds.x) or (c == c_bounds.y)
+
+            if is_r_unload or is_c_unload then
+                self:_Unload(r, c)
+            else
+                self:_Load(r, c)
+            end
+        end
+    end
+end
+
+---Removes all Tiles saved in the Map.
+function TileMap:Reset()
+    for r, _ in pairs(self.Map) do
+        for c, _ in pairs(self.Map[r]) do
+            self:_Remove(r, c)
+        end
+    end
+    self.Map = {}
+
+    -- Clear Callbacks
+    self._OnTileLoad = {}
+    self._OnTileUnload = {}
+end
+
+---Registers a function to the OnTileLoad Event.
+---@param callback function<integer, integer> Row, Column
+function TileMap:RegisterOnLoad(callback)
+    table.insert(self._OnTileLoad, callback)
+end
+
+---Registers a function to the OnTileUnload Event.
+---@param callback function<integer, integer> Row, Column
+function TileMap:RegisterOnUnload(callback)
+    table.insert(self._OnTileUnload, callback)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Library
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Library
+-- ================================================================================================
+
+return TileMap

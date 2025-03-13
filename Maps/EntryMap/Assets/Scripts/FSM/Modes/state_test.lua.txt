@@ -1,0 +1,725 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+    -- Provides Designers a way to Test specific Upgrades and Hostiles
+
+
+    Version 1 (Current)
+        - Provide a Data Table for Selecting Hero, Meta Level, and Unlocked Upgrades.
+        - Provide a Data Table for Hostile Difficulty and Types.
+        - End-user will have to manually Level in this version.
+    
+    TODO:
+        - Refactor Upgrade Data Structure
+        - Record "Run" Results (Time, Hostiles Killed, Upgrades Used, etc.)
+        - UI Handling
+            - Reset Functionality (Select New Hero, Select Upgrades, Select Difficulty)
+        - Automatic Testing/Runs
+            - Automatic Upgrade Selection (Based on Input Level)
+            - Automatic Reset after Hero Death or Time Expired (select new Hero toggle)
+
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- SCRIPTS
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New("Test")
+
+-- Classes
+local Vector2 = require("Class/Vector2")
+local CommonDataAccess = require("Class/CommonDataAccess")
+local TileMap = require("Class/TileMap")
+local FogOfWar = require("Class/FogOfWar")
+local Experience = require("Class/Experience")
+local Joystick = require("Class/Joystick")
+local Event = require("Class/Event")
+local Camera = require("Class/FollowCamera")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+
+-- Data
+local Heroes = require("SharedData/Heroes")
+local Pattern = require("Data/Pattern")
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Biome = require("Data/Biomes/Try")
+local TestData = require("Data/Modes/TestData")
+
+-- Shared Data
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+-- Directors
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+-- Constants
+local TICK_RATE = TICK_RATE or 0.0625
+local HOSTILE_SPAWN_DISTANCE = 10
+
+---@type TileMap
+local _Map = nil
+
+-- Auto-Start
+local _AutoStart = false
+local _ResetReady = false
+
+-- Spawning
+local _IsSpawning = false
+local _SpawnCooldowns = {}
+
+-- Leveling
+local _AutomaticLeveling = false
+
+-- Timer Settings
+local _IsCountdownTimer = false
+local _GameTimer = 0
+local _GameTime = 0
+
+-- Custom Events
+local _OnReset = Event.New()
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: GMUI Commands
+---============================================================================
+
+local function UI_SetGUIActive(is_active)
+    if is_active then
+        GMUI.SendUiLayoutCommand("ui.test.gui", "Show")
+    else
+        GMUI.SendUiLayoutCommand("ui.test.gui", "Hide")
+    end
+end
+
+local function UI_SetTestUIActive(is_active)
+    if is_active then
+        GMUI.SendUiLayoutCommand("ui.test", "Show")
+    else
+        GMUI.SendUiLayoutCommand("ui.test", "Hide")
+    end
+end
+
+---Toggle the Confugration UI On
+---@param auto_start boolean
+local function UI_SetConfigurationActive(auto_start)
+    GMUI.SendUiLayoutCommand("ui.test.configuration", "SetActive", auto_start)
+end
+
+---Sends a Command to the GMUI to Reset the Hero Info
+---@param hero_name string
+---@param meta_level integer
+local function UI_ResetHeroInfo(hero_name, meta_level, hero_level)
+    local game_data = {
+        MetaLevel = meta_level,
+        HeroLevel = hero_level,
+    }
+
+    -- Get the Hero Portrait from the Hero List
+    for i = 1, #Heroes do
+        if Heroes[i].Name == hero_name then
+            game_data.Portrait = Heroes[i].Portrait
+            break
+        end
+    end
+
+    GMUI.SendUiLayoutCommand("ui.test.gui", "ResetHeroInfo", game_data)
+end
+
+---Sends a Command to the GMUI to Set the Hero Level
+---@param level integer
+local function UI_SetHeroLevel(level)
+    GMUI.SendUiLayoutCommand("ui.test.gui", "SetHeroLevel", level)
+end
+
+---Sends a Command to the GMUI to Update the Damage Metrics
+---@param data_pass table<string, integer>
+local function UI_UpdateDamageMetrics(data_pass)
+    GMUI.SendUiLayoutCommand("ui.test.gui", "UpdateDamageMetrics", data_pass)
+end
+
+local function UI_UpdateTimer(time)
+    GMUI.SendUiLayoutCommand("ui.test.gui", "UpdateTimer", time)
+end
+
+---============================================================================
+---!SECTION: GMUI Commands
+---SECTION: Local Functions
+---============================================================================
+
+local function LogRunStats()
+    -- Need to check and see if there is anything we can log about the run
+    -- The Level of Each Ability
+    -- Level of the Hero
+    local tracked_stats, count = StageHelper.GetTrackedStats()
+
+    if count <= 0 then
+        -- Help.Log("No Available Tracked Stats")
+        return
+    end
+
+    -- _GameTime -- The Total Time Elapsed in this run
+
+    -- local hero = Hero.Fetch(PLAYER.Player1)
+    -- local p, s = hero.SkillSelector:GetSkillLevels(SKILL_TAG.ScarletArrow)
+    -- Help.Log("Scarlet Arrow Primary Level", p)
+    -- Help.Log("Scarlet Arrow Secondary Level", s)
+
+    -- Help.Log("Tracked Stats", nil, tracked_stats)
+end
+
+local function LogHeroStats()
+    local stats = StageHelper.GetTrackedStats()
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local active_skills = hero.SkillSelector:GetLearnedActiveSkills()
+    -- Help.Log("Learned Active Skills", nil, active_skills)
+
+    local data = {
+        actives = {
+            -- [1] = {
+            --     name = "Strafe",
+            --     level = 1,
+            --     damage = 1423,
+            -- }
+        },
+        passives = {
+            -- [1] = {
+            --     name = "Scavenger",
+            --     level = 1,
+            -- }
+        },
+    }
+
+    for _, skill_data in ipairs(active_skills) do
+        ---@type SkillData
+        skill_data = skill_data
+
+        -- local tags = hero.SkillSelector:GetInheritedTags(skill_data.Key)
+
+        local primary, secondary = hero.SkillSelector:GetSkillLevels(skill_data.Key)
+
+        local extracted_data = {
+            name = skill_data.DisplayName,
+            level = secondary,
+            damage = stats[skill_data.Key],
+        }
+
+        table.insert(data.actives, extracted_data)
+    end
+
+    -- Should also get a full list of Passive Upgrades and Levels
+    -- This way we can compare which ones are out-performing others
+    local passive_skills = hero.SkillSelector:GetLearnedPassiveSkills()
+
+    for _, skill_data in ipairs(passive_skills) do
+        local extracted_data = {
+            name = skill_data.DisplayName,
+            level = skill_data.Level,
+        }
+
+        table.insert(data.passives, extracted_data)
+    end
+
+    Help.Log("Test Summary", nil, data)
+end
+
+local function Reset()
+    LogHeroStats()
+
+    StageHelper.RemoveAllUnits()
+
+    DCEI.ResetPlayerStats()
+
+    _Map = TileMap.New(Biome.TILE_DATA)
+
+    StageHelper.SetupGlobalExperience()
+    StageHelper.InitializeTrackedStats()
+    StageHelper.SetupPlayerCount(1)
+    Hero.SetLevelUpDelay(false)
+
+    StageHelper.ClearUI()
+    UI_SetConfigurationActive(_AutoStart)
+
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+
+    TickRate:ResetTick()
+
+    -- Set Camera (Temporary psuedo-fix for post-first run)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    camera:SetSize(12)
+    camera:SetPitch(45)
+end
+
+local function UnsubscribeFromHeroEvents()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    -- hero.OnRemoveEvent:Unsubscribe(LogHeroStats)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Reset
+    _ResetReady = true
+end
+
+---Spawn a new Hero
+---@param hero_name string
+---@param meta_level integer
+---@param upgrades table<SkillData>
+local function SpawnHero(hero_name, meta_level, upgrades, starting_level, auto_level)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:Reset()
+
+    StageHelper.SetupPlayerHero(PLAYER.Player1, hero_name, meta_level, Vector2.Zero(), nil, upgrades)
+
+    -- Since there are no starting upgrades, let the player pick one.
+    hero:ModifyUpgradePoints(HERO_POINT.Heroic, 1)
+    if auto_level then
+        hero:Update(true)
+    end
+
+    -- Level the Hero to the Starting Level
+    for i = 1, starting_level - 1 do
+        hero:GainLevel()
+        hero:Update(true)
+    end
+
+    UI_ResetHeroInfo(hero_name, meta_level, starting_level)
+
+    -- hero.OnRemoveEvent:Subscribe(LogHeroStats)
+    hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+end
+
+-- Need to select the Difficulty of Enemy Spawns
+---@param difficulty integer
+---@param hostile_configuration_data table<boolean, string, integer> Active, Key, Count
+local function SetupHostiles(difficulty, hostile_configuration_data)
+    -- Table<Active, Key, Count>
+    -- Help.Log("Difficulty", difficulty)
+    -- Help.Log("Hostile Configuration Data", nil, hostile_configuration_data)
+
+    local hostile_data = {}
+
+    for i = 1, #hostile_configuration_data do
+        if hostile_configuration_data[i].Active then
+            table.insert(hostile_data, {
+                Type = HostileData[hostile_configuration_data[i].Key],
+                SpawnRate = hostile_configuration_data[i].Count,
+            })
+        end
+    end
+
+    local scaling = {}
+
+    -- Setup Stat Modifiers
+    for _, modifier in pairs(TestData.Scaling) do
+        local modifier_copy = Modifier.Copy(modifier)
+        table.insert(scaling, modifier_copy)
+        modifier_copy.value = modifier_copy.value * difficulty
+    end
+
+    -- Reset
+    _SpawnCooldowns = {}
+    SpawnDirector.Instance:Reset()
+
+    -- Loop through all of the Types and Register them.
+    for _, spawn_data in pairs(hostile_data) do
+        local spawn_rate = 60 / spawn_data.SpawnRate
+
+        _SpawnCooldowns[spawn_data.Type] = {
+            Max = spawn_rate,
+            Current = spawn_rate,
+        }
+
+        SpawnDirector.Instance:RemoveUnit(spawn_data.Type)
+        SpawnDirector.Instance:AddNewUnit(spawn_data.Type)
+
+        -- Apply all Modifiers to the Unit
+        for _, modifier in pairs(scaling) do
+            SpawnDirector.Instance:AddModifier(spawn_data.Type, modifier)
+        end
+    end
+end
+
+local function SpawnBosses(boss_info, difficulty)
+    -- Loop through all passed Bosses
+    for i = 1, #boss_info do
+        -- Check if they are Active
+        if boss_info[i].Active then
+            -- Get the Boss Type
+            local boss_type = Bosses.Types[boss_info[i].Key]
+            Help.Log("Boss Type", boss_type, boss_type)
+
+            -- Validate Boss Type
+            if boss_type then
+                -- Get a Random Position Near the Player
+                local position = Vector2.Zero() + Vector2.Random() * HOSTILE_SPAWN_DISTANCE
+
+                -- Setup Modifiers
+                local modifiers = {
+                    Modifier.New(STAT.Health, difficulty / 10, SCALING.Additive),
+                    Modifier.New(STAT.Thorns, difficulty / 100, SCALING.Additive),
+                    -- Modifier.New(STAT.MoveSpeed, difficulty / 1000, SCALING.Additive),
+                }
+
+                -- Spawn the Boss
+                local name = boss_type.Data.Key
+                local boss = Bosses.Spawn(name, position, modifiers)
+
+                -- Apply Overhead Healthbar
+                Bosses.ApplyOverheadHealthbar(boss)
+            end
+        end
+    end
+end
+
+local function GameOver()
+    if not FSM:IsCurrentState(State) then
+        return
+    end
+
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+    FSM:Transition(State)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Update Functions
+---============================================================================
+
+-- Show Developer Information
+-- Check Hero Death
+-- Update Player Movement
+-- Update Map?
+-- Timer
+-- Game Performance
+
+local function CheckHeroAlive()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        GameOver()
+    end
+end
+
+local function PlayerUpdate()
+    StageHelper.PlayerUpdate(_AutomaticLeveling)
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero or not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    StageHelper.SetSimpleUnitBounds(hero_position, 100, 100)
+end
+
+local function SpawnEnemies(delta)
+    if not _IsSpawning then
+        return
+    end
+
+    local target = Hero.GetRandomTarget()
+    if not target then
+        return
+    end
+
+    local target_position = Vector2.UnitPosition(target)
+
+    -- Iterate through all Cooldowns.
+    for unit_type, data in pairs(_SpawnCooldowns) do
+        data.Current = data.Current - delta
+
+        if data.Current <= 0 then
+            local offset = Vector2.Random() * HOSTILE_SPAWN_DISTANCE
+            local position = target_position + offset
+
+            SpawnDirector.Instance:SpawnFollow(unit_type, position, target)
+            data.Current = data.Current + data.Max
+        end
+    end
+end
+
+-- Every 1 Second
+local function UpdateDeveloperInformation()
+    if not (_Dev and _Dev.UI and _Dev.UI.show_dev_info) then
+        return
+    end
+
+    -- Show Active Hostiles
+    local hostiles = StageHelper.GetHostileCount()
+
+    local ids = {
+        hostile_count = string.format("Hostile Count: %d", hostiles),
+    }
+
+    for key, value in pairs(ids) do
+        UiHelper.SetDeveloperText(key, value)
+    end
+end
+
+-- Every 1 Second
+local function UpdateDamageMetrics()
+    -- Update Player Stats
+    StageHelper.UpdatePlayerStats(true)
+
+    -- Get the Total Damage Dealt and pass it to the GUI
+    local stats = StageHelper.GetTrackedStats()
+
+    -- Loop through and see if any of the stats are related to a Learned Weapon
+    local data_pass = {}
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    for key, value in pairs(stats) do
+        if hero:IsSkillLearned(key) then
+            data_pass[key] = { value = value }
+        end
+    end
+
+    -- Also get the Skill Level
+    for key, _ in pairs(data_pass) do
+        local p, s = hero.SkillSelector:GetSkillLevels(key)
+        local level = p + s
+        data_pass[key].level = level
+    end
+
+    UI_UpdateDamageMetrics(data_pass)
+end
+
+local function UpdateTimer(delta)
+    if _IsCountdownTimer then
+        if _GameTimer <= 0 then
+            return
+        end
+
+        _GameTimer = _GameTimer - delta
+
+        if _GameTimer <= 0 then
+            _ResetReady = true
+        end
+    else
+        _GameTimer = _GameTimer + delta
+    end
+
+    UI_UpdateTimer(_GameTimer)
+
+    _GameTime = _GameTime + delta
+end
+
+---Updates the Map Tiles based on the hero's position.
+---@param delta number
+local function UpdateMap(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+
+    _Map:Update(tile_index)
+end
+
+---============================================================================
+---!SECTION: Update Functions
+---SECTION: Registered Functions
+---============================================================================
+
+-- Table consisting of Tick Rate Dependent Functions
+-- Includes the Tick Rate Frequency (in Ticks) and the respective Function
+local _TickRateUpdates = {
+    -- {
+    --     Interval = 1,
+    --     Function = CheckHeroAlive,
+    -- },
+    {
+        Interval = 1,
+        Function = PlayerUpdate,
+    },
+    {
+        Interval = 1,
+        Function = SpawnEnemies,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = UpdateDeveloperInformation,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = UpdateDamageMetrics,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = UpdateTimer,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = UpdateMap,
+    },
+}
+
+---Subscribe to Tick Rate Dependent Functions
+local function SubscribeTickRates()
+    for _, entry in pairs(_TickRateUpdates) do
+        TickRate:Subscribe(entry.Interval, entry.Function)
+    end
+end
+
+---Unsubscribe from Tick Rate Dependent Functions
+local function UnsubscribeTickRates()
+    for _, entry in pairs(_TickRateUpdates) do
+        TickRate:Unsubscribe(entry.Interval, entry.Function)
+    end
+end
+
+---comment
+---@param loot_table LootTable
+---@return SimpleUnit
+local function ExtractFromLootTable(loot_table)
+    local total_weight = 0
+    for loot, weight in pairs(loot_table) do
+        total_weight = total_weight + weight
+    end
+
+    local random_selection = math.random(1, total_weight)
+    for loot, weight in pairs(loot_table) do
+        random_selection = random_selection - weight
+        if random_selection <= 0 then
+            return loot
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Registered Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    Reset()
+
+    -- SpawnHero(TestData.Hero)
+
+    -- SetupHostiles()
+
+    UiHelper.FadeIn(0)
+    -- SetTestUIActive(true)
+end
+
+function State:OnEnter()
+    TickRate:ResetTick()
+    SubscribeTickRates()
+end
+
+function State:OnGameUpdate()
+    if _ResetReady then
+        Reset()
+        _ResetReady = false
+    end
+end
+
+function State:OnTransitionExit()
+    UnsubscribeTickRates()
+end
+
+function State:OnExit()
+    Hero.SetLevelUpDelay(true)
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: UI Hookups
+---============================================================================
+
+---TODO: Fix double hookup (Try and Test use HeroLevel and HeroArtifactPoint)
+
+Core.Event.RegisterSimulationEvent("test.reset", function()
+    _ResetReady = true
+    -- Reset()
+end)
+
+Core.Event.RegisterSimulationEvent("test.auto_start.set", function(is_active)
+    _AutoStart = is_active
+end)
+
+Core.Event.RegisterSimulationEvent("test.toggle_automatic_leveling", function(is_active)
+    _AutomaticLeveling = is_active
+end)
+
+Core.Event.RegisterSimulationEvent("test.hero_level", function()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:GainLevel()
+    UI_SetHeroLevel(hero.level)
+end)
+
+Core.Event.RegisterSimulationEvent("test.heroic_point", function()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:ModifyUpgradePoints(HERO_POINT.Heroic, 1)
+end)
+
+Core.Event.RegisterSimulationEvent("test.spawning.set", function(is_active)
+    _IsSpawning = is_active
+end)
+
+Core.Event.RegisterSimulationEvent("test.configuration.confirm", function(data)
+    Help.Log("Configuration Data", nil, data)
+
+    local hero_name = data.Hero.Name
+    local meta_level = data.MetaLevel
+    local upgrades = data.Upgrades
+    local settings = data.Settings
+
+    local starting_level = settings.AutoLevel and settings.TargetHeroLevel or 1
+    SpawnHero(hero_name, meta_level, upgrades, starting_level, settings.AutoLevel)
+
+    SetupHostiles(settings.Difficulty, data.Hostiles)
+
+    SpawnBosses(data.Bosses, settings.Difficulty)
+
+    if _Dev and _Dev.Extra and _Dev.Extra.hide_test_mode_ui then
+        UI_SetGUIActive(false)
+    else
+        -- -- For now, use the TestData Hostile section
+        UiHelper.SetDeveloperText("hostile_difficulty", string.format("Hostile Difficulty: %d", settings.Difficulty))
+        UI_SetGUIActive(true)
+    end
+
+    -- Setup Timer
+    _IsCountdownTimer = settings.TimedReset
+    _GameTimer = _IsCountdownTimer and settings.TimedResetTime or 0
+    _GameTime = 0
+    UI_UpdateTimer(_GameTimer)
+end)
+
+---============================================================================
+---!SECTION: UI Hookups
+---SECTION: Developer
+---============================================================================
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

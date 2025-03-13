@@ -1,0 +1,100 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local ability = DCEI.Ability("Viper Strike")
+
+local behaviors = {
+    missile_speed = DCEI.Behavior("Viper Strike - Missile Speed"),
+}
+
+local effects = {
+    -- Count
+    count = DCEI.Effect("Viper Strike - Count"),
+    -- Range
+    scan = DCEI.Effect("Viper Strike - Scan"),
+    launch = DCEI.Effect("Viper Strike - Launch"),
+    -- Damage
+    damage = DCEI.Effect("Viper Strike - Damage"),
+    damage_over_time = DCEI.Effect("Viper Strike - Damage over Time"),
+    -- Size
+    apply_actor_size = DCEI.Effect("Viper Strike - Apply Actor Size"),
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = "Viper Strike",
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(effects.scan, EJS.AreaSearch.Radius),
+        EffectPath.New(effects.launch, EJS.Launch.Impact.Distance),
+    },
+    [STAT.ProjectileCount] = {
+        EffectPath.New(effects.count, EJS.Persistent.Count),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(effects.apply_actor_size, EJS.ApplyBehavior.Count, nil, 100),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(effects.damage, EJS.Damage.Value, nil, 0.5),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(effects.damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(effects.damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.SkillDuration] = {
+        EffectPath.New(effects.damage_over_time, EJS.Damage.Duration),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Speed
+    local speed = hero:GetStat(STAT.ProjectileSpeed, Upgrade.Name)
+    local speed_stacks = math.floor(speed * 100)
+    Core.Unit.SetBehaviorCount(hero.unit, behaviors.missile_speed, speed_stacks)
+
+    -- Damage over Time
+    local damage = hero:GetStat(STAT.Damage, Upgrade.Name)
+    local duration = hero:GetStat(STAT.SkillDuration, Upgrade.Name)
+    local damage_over_time = damage * duration
+    hero:SetEffectValue(effects.damage_over_time, EJS.Damage.Value, damage_over_time)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

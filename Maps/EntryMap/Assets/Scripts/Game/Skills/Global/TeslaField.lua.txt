@@ -1,0 +1,172 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Tesla Field"),
+
+    -- Effects
+    Scan = DCEI.Effect("Skill - Tesla Field - Scan"),
+    OnEnter = DCEI.Effect("Skill - Tesla Field - OnEnter"),
+    Damage = DCEI.Effect("Skill - Tesla Field - Damage"),
+    ArmorBreak = DCEI.Effect("Skill - Tesla Field - Armor Break"),
+    Slow = DCEI.Effect("Skill - Tesla Field - Slow"),
+
+    -- Units
+    Aura = DCEI.Unit("Skill - Tesla Field - Aura"),
+
+    -- Learned - Static Discharge
+    StaticDischargeScanAll = DCEI.Effect("Skill - Tesla Field - Static Discharge - Scan - All"),
+    StaticDischargeDamage = DCEI.Effect("Skill - Tesla Field - Static Discharge - Damage"),
+}
+
+---@type table<integer, Hero>
+local _Heroes = {}
+
+---@type table<integer, UnitInstance>
+local _Units = {}
+
+local MODEL_SCALE = 0.43
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param hero Hero
+local function UpdateAura(hero)
+    local instance = _Units[hero.player_id]
+
+    if not instance or not Help.ValidateUnit(instance) then
+        local position = hero:GetPosition()
+        instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Aura, position.x, position.y)
+        DCEI.AttachUnit(instance, hero.unit, { use_child_facing = true })
+
+        -- Remove Aura when Hero Dies
+        DCEI.TriggerAddUnitRemovedEvent(hero.unit, function()
+            -- Cleanup
+            DCEI.RemoveUnit(instance)
+            _Units[hero.player_id] = nil
+        end)
+
+        _Units[hero.player_id] = instance
+    end
+
+    -- local tags = hero:GetInheritedTags(SkillData.TeslaField.Key)
+
+    -- Update Size/Collision
+    local size = hero:GetStat(STAT.PickupRange)
+    Help.SetModelScale(instance, size * MODEL_SCALE, 0.50, Ease.InOutBack)
+
+    -- SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.None, size)
+
+    -- local frequency = hero:GetStat(STAT.Frequency, tags)
+    -- local collision_effects = {
+    --     ---FIXME: Frequency is not working as intended.
+    --     SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start | CollisionTiming.Continue, 0.10),
+    -- }
+
+    -- SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    _Units[hero.player_id] = instance
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.PickupRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.StaticDischargeScanAll, EJS.AreaSearch.Radius),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+        -- EffectPath.New(REF.StaticDischargeDamage, EJS.Damage.Value, { SKILL_TAG.StaticDischarge }),
+    },
+    [STAT.SkillDuration] = {
+        EffectPath.New(REF.ArmorBreak, EJS.DamageIntake.Duration),
+    },
+    [STAT.Break] = {
+        EffectPath.New(REF.ArmorBreak, EJS.DamageIntake.Scaled),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Additive, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    UpdateAura(hero)
+
+    -- Skill Tags
+    local tags = hero:GetInheritedTags(SKILL_TAG.TeslaField)
+
+    -- Static Discharge Damage Calculation
+    local damage = hero:GetStat(STAT.Damage, tags)
+    local damage_boost = hero:GetStat(STAT.DamageBoost, tags)
+    local damage_final = damage * (1 + damage_boost)
+    hero:SetEffectValue(REF.StaticDischargeDamage, EJS.Damage.Value, damage_final)
+end
+
+-- ANCHOR: PostCorrection
+---@param hero Hero
+function Upgrade.PostCorrection(hero)
+    -- Manual Attack Speed based on Frequency only
+    local tags = hero:GetInheritedTags(SKILL_TAG.TeslaField)
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+    DCEI.SetUnitAbilityMaxCooldown(hero.unit, REF.Ability, frequency)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

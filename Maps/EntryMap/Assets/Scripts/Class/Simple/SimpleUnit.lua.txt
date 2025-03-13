@@ -1,0 +1,594 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+    Contains Generators for Simple Units
+    Also contains a few Methods for Hybrid Units (Complex Units with Simple Unit Features)
+
+    ---TODO: Detect Modifications (Provide warning if spawning with pending Register)
+    ---TODO: ForceRegister (When spawning, do a ForceRegister with a Warning to pre-register during down time)
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Globals
+---============================================================================
+
+---============================================================================
+-- !SECTION -- Globals
+-- SECTION -- Class Initialization
+---============================================================================
+
+---@alias SimpleUnitInstance Unit
+
+---@class SimpleUnit
+---@field name string
+---@field protected registered boolean
+---@field protected options table
+---@field protected loot_id integer
+---@field protected transform_animation_options TransformAnimationOptions
+local SimpleUnit = {}
+SimpleUnit.__index = SimpleUnit
+
+---Generate a New Simple Unit.
+---@param name string Unique Identifier to this unit. This is used as the Unit Type by default.
+---@return SimpleUnit
+function SimpleUnit.New(name)
+    local self = setmetatable({}, SimpleUnit)
+    self.name = name
+    self.registered = false
+    self.loot_id = nil
+    self.options = {}
+    self.transform_animation_options = nil
+
+    self:SetUnitType(name)
+
+    return self
+end
+
+---Generate a New Simple Unit based on another unit.
+---@param name string Unique Identifier to this unit.
+---@param simple_unit SimpleUnit
+---@return SimpleUnit
+function SimpleUnit.Clone(name, simple_unit)
+    local self = setmetatable({}, SimpleUnit)
+    self.name = name
+    self.registered = false
+    self.loot_id = nil
+    self.options = Core.Table.DeepCopy(simple_unit.options)
+
+    return self
+end
+
+---============================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Functions (Simple Unit Set)
+---============================================================================
+
+---Set the Simple Unit Type
+---@param unit_type string | nil Must be a registered SimpleUnit: DCEI.SimpleUnit("engine_name_reference")
+function SimpleUnit:SetUnitType(unit_type)
+    self.options.meta = {
+        type_name = unit_type,
+    }
+    return self
+end
+
+---Set the Simple Units Health properties.
+---@param starting_health number
+---@param max_health number | nil Default: Starting Health
+function SimpleUnit:SetHealth(starting_health, max_health)
+    max_health = max_health or starting_health
+
+    self.options.health_options = {
+        value = starting_health,
+        max = max_health,
+    }
+end
+
+---Sets the Simple Units' max speed
+---@param speed number
+function SimpleUnit:SetSpeed(speed)
+    self.options.movement_options = {
+        max_speed = speed,
+    }
+end
+
+---Determines if the Simple Unit will adhere to local avoidance.
+---@param enabled boolean
+function SimpleUnit:SetLocalAvoidance(enabled)
+    self.options.local_avoidance_options = {
+        enabled = enabled,
+    }
+end
+
+---Determines if the Simple Unit can have a Mover applied to it.
+---@param enabled boolean
+function SimpleUnit:SetMover(enabled)
+    self.options.mover_options = {
+        enabled = enabled,
+    }
+end
+
+---Setup Collision for the Simple Unit.
+---@param layer CollisionLayers | nil Default: None
+---@param hit_layer CollisionLayers | nil Default: None
+---@param radius number
+function SimpleUnit:SetCollision(layer, hit_layer, radius)
+    if not radius then
+        local message = string.format("Attempting to Set Invalid Simple Unit Collision Size: nil")
+        DCEI.LogError(message)
+    elseif radius <= 0 then
+        local message = string.format("Attempting to Set Invalid Simple Unit Collision Size: %f", radius)
+        DCEI.LogError(message)
+    end
+
+    local _layer = layer or CollisionLayers.None
+    local _hit_layer = hit_layer or CollisionLayers.None
+
+    self.options.collision_options = {
+        belongs_to_layer_mask = _layer,
+        collides_with_layer_mask = _hit_layer,
+        radius = radius,
+    }
+end
+
+---Add OnDeath Effect Options to the Simple Unit.
+---@param effect string | Effect
+function SimpleUnit:SetDeathEffect(effect)
+    if not self.options.cast_effect_options then
+        self.options.cast_effect_options = {}
+    end
+
+    self.options.cast_effect_options.on_death = effect
+end
+
+---Add OnCollision Effect to the Simple Unit.
+---NOTE: This should have at most 3 cases: Start, Continue, Stop.
+---If more effects are needed, use a Set or Switch Effect.
+---@param effect string | Effect
+---@param timing CollisionTiming | nil Default: Start | Continue
+---@param cooldown number | nil Default: 1 second
+---@param tag_mask_filter SIMPLE_TAG | integer | nil Default: All
+---@param index integer | nil Default: 1 [1 - 3]
+function SimpleUnit:SetCollisionEffect(effect, timing, cooldown, tag_mask_filter, index)
+    cooldown = cooldown or 1
+    index = index or 1
+    tag_mask_filter = tag_mask_filter or SIMPLE_TAG.AllEnemies
+
+    if not self.options.cast_effect_options then
+        self.options.cast_effect_options = {}
+    end
+
+    if not self.options.cast_effect_options.collision_effects then
+        self.options.cast_effect_options.collision_effects = {}
+    end
+
+    local _timing = timing or CollisionTiming.Start | CollisionTiming.Continue
+
+    -- Default to All Tags
+    if not tag_mask_filter then
+        tag_mask_filter = SIMPLE_TAG.AllEnemies
+    end
+
+    self.options.cast_effect_options.collision_effects[index] = {
+        effect_name = effect,
+        timing = _timing,
+        cooldown_seconds = cooldown,
+        tag_mask_filter = tag_mask_filter,
+    }
+end
+
+---Add OnCollision Effect to the Simple Unit.
+---NOTE: This should have at most 3 cases: Start, Continue, Stop.
+---If more effects are needed, use a Set or Switch Effect.
+---@param effect string | Effect
+---@param timing CollisionTiming | nil Default: Start | Continue
+---@param cooldown number | nil
+---@param tag_mask_filter SIMPLE_TAG | integer | nil
+function SimpleUnit:AddCollisionEffect(effect, timing, cooldown, tag_mask_filter)
+    cooldown = cooldown or 1
+    tag_mask_filter = tag_mask_filter or SIMPLE_TAG.AllEnemies
+
+    if not self.options.cast_effect_options then
+        self.options.cast_effect_options = {}
+    end
+
+    if not self.options.cast_effect_options.collision_effects then
+        self.options.cast_effect_options.collision_effects = {}
+    end
+
+    local _timing = timing or CollisionTiming.Start | CollisionTiming.Continue
+
+    -- Default to All Tags
+    if not tag_mask_filter then
+        tag_mask_filter = SIMPLE_TAG.AllEnemies
+    end
+
+    table.insert(self.options.cast_effect_options.collision_effects, {
+        effect_name = effect,
+        timing = _timing,
+        cooldown_seconds = cooldown,
+        tag_mask_filter = tag_mask_filter,
+    })
+end
+
+---Add Timer Options to the Simple Unit.
+---@param kill_time number | nil The amount of time since spawn to kill the unit.
+---@param remove_time number | nil The amount of time since spawn to remove the unit.
+-- -@param actor_time number | nil The amount of time the actor remains after being killed.
+function SimpleUnit:SetTimer(kill_time, remove_time)
+    self.options.timer_options = {
+        kill_unit_after_seconds = kill_time,
+        remove_unit_after_seconds = remove_time,
+        -- FIXME: Engine Update Required to work again.
+        -- remove_actor_after_killed_seconds = actor_time,
+    }
+end
+
+---Add Mass to the Simple Unit. Affects Knockback effects.
+---@param mass number
+function SimpleUnit:SetMass(mass)
+    self.options.mass = mass
+end
+
+---TODO [8/3]: Setup Tags
+---Assigns a Tag for the given Simple Unit
+---@param tag SIMPLE_TAG
+function SimpleUnit:SetTag(tag)
+    self.options.tag_options = {
+        value = tag,
+    }
+end
+
+---TODO [8/3]: Setup AnimatorOptions
+
+---Add Shadow Options to the Simple Unit.
+---@param radius number
+function SimpleUnit:SetShadow(radius)
+    if not self.options.animator_options then
+        self.options.animator_options = {}
+    end
+
+    self.options.animator_options.shadow_options = {
+        enabled = true,
+        shadow_radius = radius,
+    }
+end
+
+---Register another unit as a loot drop.
+---@param registered_loot any
+---@param drop_rate number | nil Default: 1 [0 - 1]
+function SimpleUnit:SetLoot(registered_loot, drop_rate)
+    drop_rate = drop_rate or 1
+
+    if not registered_loot.loot_id then
+        DCEI.LogWarning("> SimpleUnit: Unable to register Loot. Make sure to use RegisterAsLoot first.")
+        return
+    end
+
+    self.options.loot_options = {
+        loot_id = registered_loot.loot_id,
+        drop_rate = drop_rate,
+    }
+end
+
+---Applies a given Armor Type to the Simple Unit.
+---@param armor_type ArmorType
+function SimpleUnit:SetArmorType(armor_type)
+    self.options.armor_options = { type = armor_type }
+end
+
+---Adds Transform Animation Options to the Simple Unit
+---NOTE: Only applicable to Sync Units.
+---TODO: Determine if we need to do a bool check for as_copy so this can be modifiable.
+---@param transform_animation_options TransformAnimationOptions
+function SimpleUnit:SetTransformAnimation(transform_animation_options)
+    self.transform_animation_options = transform_animation_options
+end
+
+---============================================================================
+-- !SECTION -- Class Functions (Simple Unit Set)
+-- SECTION -- Class Functions (Register)
+---============================================================================
+
+---Register as Loot.
+---@param player_id integer
+function SimpleUnit:RegisterAsLoot(player_id)
+    if not self.registered then
+        self:Register()
+    end
+
+    local instance_options = {
+        player_id = player_id,
+    }
+
+    -- self.loot_id = DCEI.RegisterSimpleUnitType(self.name, instance_options)
+    self.loot_id = DCEI.RegisterSimpleLoot(self.name, self.name, instance_options)
+end
+
+---Updates the Registered Properties of this Simple Unit in-engine.
+function SimpleUnit:Register()
+    self.registered = true
+    DCEI.RegisterSimpleUnitType(self.name, self.options)
+    return self
+end
+
+---Spawn a Unit Synchronously.
+---@param player_id integer
+---@param team_id integer
+---@param position Vector2
+---@param follow_target Unit | nil
+---@param move_position Vector2 | nil
+---@param move_direction Vector2 | nil
+---@return SimpleUnitInstance
+function SimpleUnit:SpawnSync(player_id, team_id, position, follow_target, move_position, move_direction)
+    if not self.registered then
+        DCEI.LogError("> SimpleUnit: Cannot Spawn a non-registered Simple Unit")
+    end
+
+    local instance_options = {
+        player_id = player_id,
+        team_id = team_id,
+        position = { x = position.x, y = 0, z = position.y },
+        move_target_unit = follow_target,
+        move_target_position = move_position and { x = move_position.x, y = 0, z = move_position.y } or nil,
+        move_target_direction = move_direction and { x = move_direction.x, y = 0, z = move_direction.y } or nil,
+    }
+
+    -- Fix Facing (In Operation Order)
+    if follow_target then
+        local target_position = DCEI.GetUnitPosition2D(follow_target)
+        instance_options.facing = { x = target_position.x - position.x, y = target_position.y - position.y }
+    elseif move_direction then
+        instance_options.facing = move_direction
+    elseif move_position then
+        instance_options.facing = { x = move_position.x - position.x, y = move_position.y - position.y }
+    end
+
+    local instance = DCEI.CreateSimpleUnitSync(self.name, instance_options)
+
+    -- Check for Transform Aniamtion Options
+    if self.transform_animation_options then
+        -- Help.Log("Applying TransformAnimationOptions", nil, self.transform_animation_options)
+        DCEI.ApplyTransformAnimationToSimpleUnit(instance, self.transform_animation_options)
+    end
+
+    -- Priority
+    SimpleUnit.ModifyTargetingPriority(instance, 1)
+
+    return instance
+end
+
+---Spawn a Stationary Unit Synchronously.
+---@param player_id integer
+---@param team_id integer
+---@param position Vector2
+---@param facing Vector2 | nil
+---@return SimpleUnitInstance
+function SimpleUnit:SpawnSyncStationary(player_id, team_id, position, facing)
+    if not self.registered then
+        DCEI.LogError("> SimpleUnit: Cannot Spawn a non-registered Simple Unit")
+    end
+
+    local instance_options = {
+        player_id = player_id,
+        team_id = team_id,
+        position = { x = position.x, y = 0, z = position.y },
+        facing = facing,
+        move_target_position = { x = position.x, y = 0, z = position.y },
+    }
+
+    local instance = DCEI.CreateSimpleUnitSync(self.name, instance_options)
+
+    -- Check for Transform Aniamtion Options
+    if self.transform_animation_options then
+        -- Help.Log("Applying TransformAnimationOptions", nil, self.transform_animation_options)
+        DCEI.ApplyTransformAnimationToSimpleUnit(instance, self.transform_animation_options)
+    end
+
+    -- Priority
+    SimpleUnit.ModifyTargetingPriority(instance, 1)
+
+    return instance
+end
+
+-- ---Spawn a Unit Asynchronously.
+-- ---@param player_id integer
+-- ---@param team_id integer
+-- ---@param position Vector2
+-- ---@param follow_target Unit | nil
+-- ---@param move_position Vector2 | nil
+-- ---@param move_direction Vector2 | nil
+-- function SimpleUnit:SpawnAsync(player_id, team_id, position, follow_target, move_position, move_direction)
+--     if not self.registered then
+--         DCEI.LogError("> SimpleUnit: Cannot Spawn a non-registered Simple Unit")
+--     end
+
+--     local instance_options = {
+--         player_id = player_id,
+--         team_id = team_id,
+--         position = { x = position.x, y = 0, z = position.y },
+--         move_target_unit = follow_target,
+--         move_target_position = move_position and { x = move_position.x, y = 0, z = move_position.y } or nil,
+--         move_target_direction = move_direction and { x = move_direction.x, y = 0, z = move_direction.y } or nil,
+--     }
+
+--     -- Fix Facing (In Operation Order)
+--     if follow_target then
+--         local target_position = DCEI.GetUnitPosition2D(follow_target)
+--         instance_options.facing = { x = target_position.x - position.x, y = target_position.y - position.y }
+--     elseif move_direction then
+--         instance_options.facing = move_direction
+--     elseif move_position then
+--         instance_options.facing = { x = move_position.x - position.x, y = move_position.y - position.y }
+--     end
+
+--     DCEI.CreateSimpleUnitAsync(self.name, instance_options)
+-- end
+
+-- ---Spawn a Stationary Unit Asynchronously.
+-- ---@param player_id integer
+-- ---@param team_id integer
+-- ---@param position Vector2
+-- ---@param facing Vector2 | nil
+-- function SimpleUnit:SpawnAsyncStationary(player_id, team_id, position, facing)
+--     if not self.registered then
+--         DCEI.LogError("> SimpleUnit: Cannot Spawn a non-registered Simple Unit")
+--     end
+
+--     local instance_options = {
+--         player_id = player_id,
+--         team_id = team_id,
+--         position = { x = position.x, y = 0, z = position.y },
+--         facing = facing,
+--         move_target_position = { x = position.x, y = 0, z = position.y },
+--     }
+
+--     DCEI.CreateSimpleUnitAsync(self.name, instance_options)
+-- end
+
+---============================================================================
+-- !SECTION -- Class Functions (Register)
+-- SECTION -- Library
+---============================================================================
+
+---@class KnockbackData
+---@field force number
+---@field duration number
+---@field friction number
+
+---Converts force into a table containing force, duration and friction to replicate a smooth knockback.
+---@param force number
+---@return KnockbackData
+function SimpleUnit.GenerateKnockbackData(force)
+    local is_pull = force < 0
+    if is_pull then
+        force = -force
+    end
+
+    local duration = (force * 0.1) / (1 + (force * 0.1))
+    local friction = force / duration
+
+    if is_pull then
+        force = -force
+    end
+
+    return {
+        force = force,
+        duration = duration,
+        friction = friction,
+    }
+end
+
+---Modifies a spawned unit's Health Settings.
+---@param unit Unit
+---@param health number
+---@param max number | nil Uses health if not provided.
+function SimpleUnit.ModifyHealth(unit, health, max)
+    local _max = max or health
+
+    local health_data = {
+        value = health,
+        max = _max,
+    }
+
+    DCEI.SetSimpleHealthData(unit, health_data)
+end
+
+---Modifies the unit's Armor Type.
+---@param unit Unit
+---@param armor_type ArmorType
+function SimpleUnit.ModifyArmor(unit, armor_type)
+    local armor_data = {
+        type = armor_type,
+    }
+
+    DCEI.SetArmorData(unit, armor_data)
+end
+
+---Modifies a spawned unit's Collision Settings.
+---@param unit Unit
+---@param layer CollisionLayers
+---@param hit_layer CollisionLayers
+---@param radius number
+function SimpleUnit.ModifyCollision(unit, layer, hit_layer, radius)
+    local collision_data = {
+        belongs_to_layer_mask = layer,
+        collides_with_layer_mask = hit_layer,
+        radius = radius,
+    }
+
+    DCEI.SetCollisionComponentData(unit, collision_data)
+end
+
+---@class SimpleCollisionEffect
+---@field effect_name Effect | string
+---@field timing CollisionTiming | integer
+---@field cooldown_seconds number
+---@field tag_mask_filter SIMPLE_TAG | integer
+
+---Generate a SimpleCollisionEffect
+---@param effect Effect | string
+---@param timing CollisionTiming | integer | nil Default: Start | Continue
+---@param cooldown number | nil Default: 1 The amount of time in seconds before the effect can trigger again.
+---@param tag_mask_filter SIMPLE_TAG | integer | nil Default: AllEnemies | Prop
+---@return SimpleCollisionEffect
+function SimpleUnit.GenerateCollisionEffect(effect, timing, cooldown, tag_mask_filter)
+    timing = timing or CollisionTiming.Start | CollisionTiming.Continue
+    cooldown = cooldown or 1
+    tag_mask_filter = tag_mask_filter or (SIMPLE_TAG.AllEnemies | SIMPLE_TAG.Prop)
+
+    return {
+        effect_name = effect,
+        timing = timing,
+        cooldown_seconds = cooldown,
+        tag_mask_filter = tag_mask_filter,
+    }
+end
+
+---Apply Collision Effects to the Standard Unit.
+---@param unit Unit
+---@param collision_effects table<SimpleCollisionEffect> | nil
+function SimpleUnit.ModifyCollisionEffects(unit, collision_effects)
+    local collision_effect_options = {
+        collision_effects = collision_effects,
+    }
+
+    DCEI.SetCollisionEffectTriggers(unit, collision_effect_options)
+end
+
+---Modifies the spawned unit's Mass Amount.
+---@param unit Unit
+---@param amount number
+function SimpleUnit.ModifyMass(unit, amount)
+    DCEI.SetUnitMass(unit, amount)
+end
+
+---Modifies the spawned unit's Tag(s).
+---@param unit UnitInstance
+---@param tag SIMPLE_TAG | integer
+function SimpleUnit.ModifyTag(unit, tag)
+    DCEI.SetUnitSimpleTag(unit, { value = tag })
+end
+
+---Modifies the unit's Targeting Priority.
+---@param unit UnitInstance
+---@param priority integer
+function SimpleUnit.ModifyTargetingPriority(unit, priority)
+    DCEI.SetUnitSimplePriority(unit, priority)
+end
+
+---============================================================================
+-- !SECTION -- Library
+---============================================================================
+
+return SimpleUnit

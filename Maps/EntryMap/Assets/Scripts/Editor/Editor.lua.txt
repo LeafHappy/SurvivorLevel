@@ -1,0 +1,556 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local PresentationTimer = require("Presentation/PresentationTimer")
+local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local FlyingRewards = require("UiMeta/FlyingRewards")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+local PropData = require("Map/PropData")
+
+local ZoneTileData = require("Editor/ZoneTileData")
+local ZonePropData = require("Editor/ZonePropData")
+local ZoneKeyItemData = require("Editor/ZoneKeyItemData")
+
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---@class ZoneItemData
+---@field Key string
+---@field Icon string
+---@field GhostPlacement string
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local REF = {
+    -- ZoneTool = DCEI.Texture("pocketquest_proptile_camp_slot_ground1"),
+    TileIcon = DCEI.Texture("pocketquest_proptile_camp_slot_ground1"),
+    PropIcon = DCEI.Texture("prop_wildsurvivor_tree03"),
+    KeyItemIcon = DCEI.Texture("icon_event_physical_key"),
+}
+
+local TOOL_LAYOUTS = {
+    {
+        Id = SELECTION_TOOL.Tile,
+        Icon = REF.TileIcon,
+    },
+    {
+        Id = SELECTION_TOOL.Prop,
+        Icon = REF.PropIcon,
+    },
+    {
+        Id = SELECTION_TOOL.KeyItem,
+        Icon = REF.KeyItemIcon,
+    },
+}
+
+local ZONE_STATUS_ORDER = {
+    ZONE_STATUS.Available,
+    ZONE_STATUS.Occupied,
+    ZONE_STATUS.Cleansed,
+}
+
+local ui = GMUI.ui
+local Layout = GMUI.Layout.New({
+    name = "Editor",
+    parent = ui.root,
+})
+
+local _IsActive = false
+local _LatestZoneData = nil
+local _RequestNewZone = false
+
+---@class Editor.ItemLayout
+---@field Layout Layout
+---@field Data ZoneItemData
+---@field Index integer
+
+---@class Editor.ItemLayouts
+---@field Items table<Editor.ItemLayout>
+---@field CurrentlySelectedIndex integer
+
+---@type table<SELECTION_TOOL, Editor.ItemLayouts>
+local _ItemLayouts = {}
+
+---@type table<integer, Layout>
+local _StatusLayouts = {}
+
+local _EditorClosestZoneKey = ""
+local _EditorSelectedZoneStatus = ""
+local _EditorCameraPosition = Vector2.Zero()
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+function Layout:_InitializeSaveButton()
+    DCEI.SetOnClickCallback(self.Save.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Core.Event.SendSimulationEvent("Editor.SaveZoneData")
+
+        local state = self.Save.state
+
+        state.IsSaveButtonActive = false
+
+        -- Save Button (put on a timer to prevent spamming)
+        PresentationTimer.Create(function()
+            state.IsSaveButtonActive = true
+        end, 1)
+    end)
+end
+
+---comment
+---@param tool SELECTION_TOOL
+---@param index integer
+function Layout:_OnItemLayoutPressed(tool, index)
+    local item_layouts = _ItemLayouts[tool]
+
+    local currently_selected_index = item_layouts.CurrentlySelectedIndex
+
+    -- Deselect
+    local current_layout = item_layouts.Items[currently_selected_index].Layout
+    local current_state = current_layout.state
+    current_state.IsSelected = false
+
+    -- Select
+    local new_layout = item_layouts.Items[index].Layout
+    local new_state = new_layout.state
+    new_state.IsSelected = true
+
+    -- Set the selected index
+    item_layouts.CurrentlySelectedIndex = index
+
+    self:_SetSelectionTool(tool, _ItemLayouts[tool].Items[index].Data.Key)
+end
+
+---comment
+---@param parent Layout
+---@param data ZoneItemData
+---@param tool SELECTION_TOOL
+---@param index integer
+function Layout:_GenerateItemLayout(parent, data, tool, index)
+    local layout = GMUI.Layout.New({
+        name = "Editor/ItemScroll/Item",
+        parent = parent,
+    })
+
+    local is_selected = index == 1
+
+    -- Set State
+    local state = layout.state
+    state.Icon = data.Icon
+    state.IsSelected = is_selected
+
+    -- Initialize the Item Layout Data
+    _ItemLayouts[tool] = _ItemLayouts[tool] or {
+        Items = {},
+        CurrentlySelectedIndex = 1,
+    }
+
+    _ItemLayouts[tool].Items[index] = {
+        Layout = layout,
+        Data = data,
+        Index = index,
+    }
+
+    -- Callback
+    DCEI.SetOnClickCallback(layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:_OnItemLayoutPressed(tool, index)
+    end)
+
+    if is_selected then
+        self:_OnItemLayoutPressed(tool, index)
+    end
+end
+
+---@class Editor.ItemSelectedData
+---@field Tool SELECTION_TOOL
+---@field Key string
+
+---comment
+---@param tool SELECTION_TOOL
+---@param key string | nil
+function Layout:_SetSelectionTool(tool, key)
+    self.state.ToolSelected = tool
+
+    local data = {
+        Tool = tool,
+        Key = key,
+    }
+    Core.Event.SendSimulationEvent("Editor.ItemSelected", data)
+end
+
+---TODO: Order the List of Items
+---Generate the list of Items
+---@param parent Layout
+---@param items table<ZoneItemData>
+---@param tool SELECTION_TOOL
+function Layout:_GenerateItemScroll(parent, items, tool)
+    local index = 0
+    for key, value in pairs(items) do
+        index = index + 1
+        self:_GenerateItemLayout(parent.ItemScroll, value, tool, index)
+    end
+
+    -- Back Button
+    DCEI.SetOnClickCallback(parent.BackButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        self:_SetSelectionTool(SELECTION_TOOL.None, nil)
+    end)
+end
+
+function Layout:_GenerateToolSelectorLayout(parent, index)
+    local layout = GMUI.Layout.New({
+        name = "Editor/ToolSelector/Item",
+        parent = parent,
+    })
+
+    local state = layout.state
+    state.Icon = TOOL_LAYOUTS[index].Icon
+    state.IsSelected = false
+
+    DCEI.SetOnClickCallback(layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        -- Set ToolSelected
+        local item_layout = _ItemLayouts[TOOL_LAYOUTS[index].Id]
+        self:_SetSelectionTool(TOOL_LAYOUTS[index].Id, item_layout.Items[item_layout.CurrentlySelectedIndex].Data.Key)
+    end)
+end
+
+function Layout:_GenerateToolSelectorLayouts(parent)
+    for i = 1, #TOOL_LAYOUTS do
+        self:_GenerateToolSelectorLayout(parent, i)
+    end
+end
+
+function Layout:_InitializeAutoZoneToggle()
+    local state = self.AutoZone.state
+
+    DCEI.SetOnClickCallback(self.AutoZone.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        state.IsActive = not state.IsActive
+
+        -- Core.Event.SendSimulationEvent("Editor.AutoZoneToggle", state.IsAutoZone)
+    end)
+end
+
+function Layout:_InitializeCreateZone()
+    ---TODO: Record if we are trying to Create a Zone and request Position and Key Validation
+
+    -- Create New Zone Button
+    DCEI.SetOnClickCallback(self.NewZone.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        self.state.IsCreateZoneActive = true
+    end)
+
+    -- Create New Zone Cancel Button
+    DCEI.SetOnClickCallback(self.CreateZone.CancelButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        self.state.IsCreateZoneActive = false
+    end)
+
+    -- Create Button
+    DCEI.SetOnClickCallback(self.CreateZone.CreateButton, function()
+        _RequestNewZone = true
+    end)
+
+    -- StartingStatus Dropdown
+    -- CreateZone.StartingStatus.DropdownButton
+    DCEI.SetOnClickCallback(self.CreateZone.StartingStatus.DropdownButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        local state = self.CreateZone.StartingStatus.state
+        state.IsOpen = not state.IsOpen
+    end)
+
+    -- Move the Dropdown to the Top
+    -- self.CreateZone.StartingStatus.Dropdown
+    -- For now, we have moved the frame outside to prevent overlap
+
+    -- Fill the Content with ZONE_STATUS
+    for key, value in pairs(ZONE_STATUS_ORDER) do
+        local layout = GMUI.Layout.New({
+            name = "Standard/Dropdown/Item",
+            parent = self.CreateZone.StartingStatus.Content,
+        })
+
+        local state = layout.state
+        state.Name = value
+
+        DCEI.SetOnClickCallback(layout.Button, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+            self.CreateZone.StartingStatus.state.IsOpen = false
+            self.CreateZone.StartingStatus.state.Selected = value
+        end)
+    end
+
+    -- Set the Starting Status to the First ZONE_STATUS
+    self.CreateZone.StartingStatus.state.Selected = ZONE_STATUS_ORDER[1]
+end
+
+function Layout:_InitializeZoneStatus()
+    -- StatusZone
+
+    -- Add ZONE_STATUS_ORDER to the StatusZone.Items
+    for index, value in ipairs(ZONE_STATUS_ORDER) do
+        local layout = GMUI.Layout.New({
+            name = "Editor/Zone/Status/Item",
+            parent = self.StatusZone.Items,
+        })
+
+        local state = layout.state
+        state.Name = value
+        state.IsSelected = false
+
+        _StatusLayouts[index] = layout
+
+        DCEI.SetOnClickCallback(layout.Button, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+            -- -- Deselect the Current Status
+            -- for _, status_layout in pairs(_StatusLayouts) do
+            --     status_layout.state.IsSelected = false
+            -- end
+
+            -- -- Select the New Status
+            -- state.IsSelected = true
+
+            ---TODO: Send Message to Update the Zone Manager to Change the Status for Editing
+            Core.Event.SendSimulationEvent("Editor.UpdateZoneStatus", value)
+        end)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout Functions
+---============================================================================
+
+function Layout:Initialize()
+    self:OnShow()
+
+    self:_InitializeSaveButton()
+
+    -- Generate Props into Props/Items
+    -- Set the First Prop to IsSelected
+    ---TODO: Zone Selection/Placement Handling
+    -- self:_GeneratePropLayouts(self.Props.Items)
+
+    -- New Zone
+    self:_InitializeCreateZone()
+
+    -- Zone Status
+    self:_InitializeZoneStatus()
+
+    -- Toggle AutoZone
+    self:_InitializeAutoZoneToggle()
+
+    -- Generate ToolSelector Options
+    self:_GenerateToolSelectorLayouts(self.ToolSelector.Items)
+    self:_GenerateItemScroll(self.Tiles, ZoneTileData, SELECTION_TOOL.Tile)
+    self:_GenerateItemScroll(self.Props, ZonePropData, SELECTION_TOOL.Prop)
+    self:_GenerateItemScroll(self.KeyItems, ZoneKeyItemData, SELECTION_TOOL.KeyItem)
+
+    self:Hide()
+end
+
+---============================================================================
+---!SECTION: Layout Functions
+---SECTION: Layout Overrides
+---============================================================================
+
+---@class Editor.NewZoneData
+---@field Position Vector2
+---@field Key string
+---@field StartingStatus ZONE_STATUS
+
+---comment
+---@param data Editor.NewZoneData
+function Layout:_CreateNewZone(data)
+    Help.Log("Create New Zone", data.Key, data)
+    Core.Event.SendSimulationEvent("Editor.CreateNewZone", data)
+end
+
+function Layout:Update(delta_time)
+    if not _IsActive then
+        return
+    end
+
+    ---TODO: Update Closest Zone Name
+    if _EditorClosestZoneKey == nil or _EditorClosestZoneKey == "" then
+        self.ModifyZone.state.Key = ""
+        self.StatusZone.state.IsActive = false
+    else
+        self.ModifyZone.state.Key = _EditorClosestZoneKey
+        self.StatusZone.state.IsActive = true
+        -- Set the Zone Status
+    end
+
+    if _EditorSelectedZoneStatus == nil or _EditorSelectedZoneStatus == "" then
+        for _, status_layout in pairs(_StatusLayouts) do
+            status_layout.state.IsSelected = false
+        end
+    else
+        -- Set the Zone Status
+        for _, status_layout in pairs(_StatusLayouts) do
+            status_layout.state.IsSelected = status_layout.state.Name == _EditorSelectedZoneStatus
+        end
+    end
+
+    -- Configure Zone Status
+
+    ---TODO: Update Create Zone Position if Active
+    if self.state.IsCreateZoneActive then
+        -- Update Position
+        local position_x = Core.Math.Round(_EditorCameraPosition.x, 2)
+        local position_y = Core.Math.Round(_EditorCameraPosition.y, 2)
+
+        self.CreateZone.state.PositionX = string.format("%.0f", position_x)
+        self.CreateZone.state.PositionY = string.format("%.0f", position_y)
+
+        -- Validate Key
+        local key_input = DCEI.GetInputFrameText(self.CreateZone.KeyInput)
+        local is_key_valid = true
+        local error_message = ""
+
+        if key_input == "" then -- Empty Key
+            is_key_valid = false
+            error_message = "Key is Empty"
+        elseif _LatestZoneData and _LatestZoneData[key_input] then -- Key Already Exists
+            is_key_valid = false
+            error_message = "Duplicate Key"
+        end
+
+        -- Check duplicate Zone Position
+        for _, zone_data in pairs(_LatestZoneData) do
+            if zone_data.Position.x == position_x and zone_data.Position.y == position_y then
+                is_key_valid = false
+                error_message = "Position Occupied"
+                break
+            end
+        end
+
+        self.CreateZone.state.IsValid = is_key_valid
+        self.CreateZone.state.ErrorMessage = error_message
+
+        -- Attempt to Create a New Zone
+        if _RequestNewZone then
+            _RequestNewZone = false
+
+            if not is_key_valid then
+                return
+            else -- Create New Zone
+                local data = {
+                    Key = key_input,
+                    Position = {
+                        x = position_x,
+                        y = position_y,
+                    },
+                    StartingStatus = self.CreateZone.StartingStatus.state.Selected,
+                }
+                self:_CreateNewZone(data)
+            end
+        end
+    end
+end
+
+function Layout:OnShow()
+    _IsActive = true
+
+    -- Deselect Tool
+    self:_SetSelectionTool(SELECTION_TOOL.None, nil)
+end
+
+function Layout:OnHide()
+    _IsActive = false
+end
+
+---============================================================================
+---!SECTION: Layout Overrides
+---SECTION: Event Handling
+---============================================================================
+
+---comment
+---@param status boolean
+local function EventSetActive(status)
+    if status then
+        Layout:Show()
+    else
+        Layout:Hide()
+    end
+end
+
+---Toggle the Editor Display
+local function EventToggleActive()
+    if _IsActive then
+        Layout:Hide()
+    else
+        Layout:Show()
+    end
+end
+
+local function EventSetZoneData(zone_data)
+    _LatestZoneData = zone_data
+end
+
+---@class Editor.UpdateData
+---@field Key string
+---@field Status ZONE_STATUS
+---@field Position Vector2
+
+---comment
+---@param data Editor.UpdateData
+local function EventSendEditorUpdateData(data)
+    _EditorClosestZoneKey = data.Key
+    _EditorSelectedZoneStatus = data.Status
+    _EditorCameraPosition = Vector2.NewFromTable(data.Position)
+end
+
+---============================================================================
+---!SECTION: Event Handling
+---SECTION: Event Registration
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Editor.SetActive", EventSetActive)
+Core.Event.RegisterPresentationEvent("Editor.ToggleActive", EventToggleActive)
+
+Core.Event.RegisterPresentationEvent("Editor.SetZoneData", EventSetZoneData)
+Core.Event.RegisterPresentationEvent("Editor.SendEditorUpdateData", EventSendEditorUpdateData)
+
+---============================================================================
+---!SECTION: Event Registration
+---============================================================================
+
+Layout:Initialize()
+
+DCEI.TriggerAddUpdateEvent(function(delta_time)
+    Layout:Update(delta_time)
+end)
+
+return Layout

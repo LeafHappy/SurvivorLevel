@@ -1,0 +1,384 @@
+-- ============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Boss
+local Boss = {}
+
+---@type BossData
+Boss.Data = {
+    Key = "Reaper",
+    Name = "Reaper",
+    Type = DCEI.Unit("Boss - Reaper"),
+    Stats = {
+        Modifier.New(STAT.Health, 750, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 20, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.80, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 2.53, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 500, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 250, SCALING.Scaled),
+
+        Modifier.New(STAT.MinionHealth, 15, SCALING.Scaled),
+        Modifier.New(STAT.MinionDamage, 5, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 1.30, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 3.25
+
+local WALK_CUTOFF_DISTANCE = 1.5
+local WALK_TIME = Vector2.New(1.75, 3.25)
+local WALK_RANGE = Vector2.New(4, 6)
+
+local states = {
+    -- Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Custom
+    Move = "Move",
+    Dash = "Dash",
+    Summon = "Summon",
+}
+
+local abilities = {
+    -- Custom
+    Dash = DCEI.Ability("Boss - Reaper - Dash"),
+    Summon = DCEI.Ability("Boss - Reaper - Summon Start"),
+}
+
+local behaviors = {}
+
+local effects = {
+    OnStay = DCEI.Effect("Boss - Reaper - OnStay"),
+}
+
+local simple_units = {
+    [SimpleUnits.Data.FlyingSkull] = SimpleUnit.New(SimpleUnits.Data.FlyingSkull.Type),
+}
+
+local overrides = {
+    EffectPath.New(DCEI.Effect("Boss - Reaper - Contact Damage"), EJS.Damage.Value, STAT.Thorns, 1),
+    EffectPath.New(DCEI.Effect("Reaper - Minion - Flying Skull - Damage"), EJS.Damage.Value, STAT.MinionDamage, 1),
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+---comment
+---@param attributes Attributes
+local function RegisterSimpleUnits(attributes)
+    for unit_data, _ in pairs(simple_units) do
+        simple_units[unit_data] = SimpleUnits.Helpers.QuickRegister(unit_data, attributes)
+    end
+end
+
+---Spawn a Flying Skull at Position.
+---@param ai AIHandler
+---@param position Vector2
+local function SpawnFlyingSkull(ai, position)
+    -- Validate AI is Alive
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    -- Validate Target is Alive
+    if not Help.ValidateUnit(ai.Data.Target) then
+        return
+    end
+
+    simple_units[SimpleUnits.Data.FlyingSkull]:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, ai.Data.Target)
+    -- simple_units.flying_skull:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, ai.Data.Target)
+end
+
+---Spawn a Marker. After a 2 second Delay, spawn a Flying Skull.
+---@param ai AIHandler
+---@param position Vector2
+local function SpawnFlyingSkullWithMarker(ai, position)
+    AIHelper.SpawnMarker(ai.unit, position, function()
+        SpawnFlyingSkull(ai, position)
+    end)
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Patterns
+---============================================================================
+
+-- Phase 2
+-- Create 2 Lines parallel to the reaper
+---@param ai AIHandler
+local function ReaperDashPattern(ai)
+    -- Validate Unit
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        ai:RunState(states.BaseDecision)
+        return
+    end
+
+    -- Validate Target
+    if not ai.Data.Target or not Help.ValidateUnit(ai.Data.Target) then
+        ai:RunState(states.BaseDecision)
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local spawn_delay = TICK_RATE * 3
+    local radius = 1 + (ai.phase * 0.5)
+
+    local count = 6 - ai.phase
+    local distance = radius * 1.1 * count
+
+    local angle = Vector2.AngleBetween(position, target_position)
+
+    local left_anchor = position + Vector2.NewFromAngle(angle - 90) * 3
+    local left_start = left_anchor + Vector2.NewFromAngle(angle + 180) * distance * 1 / 3
+    local left_end = left_anchor + Vector2.NewFromAngle(angle) * distance * 2 / 3
+    local left_pattern = Pattern.Line(left_start, left_end, count)
+
+    local right_anchor = position + Vector2.NewFromAngle(angle + 90) * 3
+    local right_start = right_anchor + Vector2.NewFromAngle(angle + 180) * distance * 1 / 3
+    local right_end = right_anchor + Vector2.NewFromAngle(angle) * distance * 2 / 3
+    local right_pattern = Pattern.Line(right_start, right_end, count)
+
+    -- for i = 1, count do
+    -- 	AIHelper.DelayedEvent(spawn_delay * i, function()
+    -- 		SpawnFlyingSkullWithMarker(ai, left_pattern[i])
+    -- 		SpawnFlyingSkullWithMarker(ai, right_pattern[i])
+    -- 	end)
+    -- end
+
+    AIHelper.SpawnExplosionsFromPatternWithDelay(left_pattern, spawn_delay, radius)
+    AIHelper.SpawnExplosionsFromPatternWithDelay(right_pattern, spawn_delay, radius)
+end
+
+-- Phase 3
+-- Create a "Cave" behind the player
+-- Count and Size are based on Distance to the Target
+local function ReaperPursuePattern(position, target_position)
+    local angle = Vector2.AngleBetween(position, target_position)
+    local distance = Vector2.Distance(position, target_position)
+    local sqrt_distance = math.sqrt(distance)
+
+    local spawn_distance = distance + sqrt_distance
+
+    local range = 90
+    local count = 6
+
+    local starting_angle = angle - range / 2
+    local angle_increase = range / count
+
+    local pattern = {}
+    for i = 0, count - 1 do
+        local _angle = starting_angle + i * angle_increase
+        local _offset = Vector2.NewFromAngle(_angle) * spawn_distance
+        table.insert(pattern, position + _offset)
+    end
+
+    AIHelper.SpawnExplosionsFromPatternWithDelay(pattern, TICK_RATE, sqrt_distance)
+end
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Local Casters
+---============================================================================
+
+---@param ai AIHandler
+local function Dash(ai)
+    -- Validate Target
+    if not ai.Data.Target or not Help.ValidateUnit(ai.Data.Target) then
+        ai:RunState(states.BaseDecision)
+        return
+    end
+
+    local dash_distance = 5
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local facing = Vector2.GetUnitOffsetVector(ai.unit, ai.Data.Target, true)
+    local dash_position = unit_position + facing * dash_distance
+
+    DCEI.TurnUnitTowards(ai.unit, facing.x, facing.y, TICK_RATE)
+    -- AIHelper.SpawnMarker(ai.unit, dash_position)
+
+    DCEI.CastAbilityAtPosition(abilities.Dash, ai.unit, dash_position.x, dash_position.y)
+
+    -- if ai.phase >= 2 then
+    ReaperDashPattern(ai)
+    -- end
+
+    ai.Data.DashCount = ai.Data.DashCount - 1
+
+    if ai.Data.DashCount <= 0 then
+        ai:SetState(states.BaseDecision)
+    end
+end
+
+---@param ai AIHandler
+local function Summon(ai)
+    -- Summon Stuff
+    DCEI.CastAbilityAtUnit(abilities.Summon, ai.unit, ai.unit)
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+
+    local count = 6 + ai.phase * 2
+    local distance = 5 + ai.phase
+
+    if Help.ValidateUnit(ai.Data.Target) then
+        local pattern = Pattern.EllipseEdge(unit_position, distance, distance, count)
+
+        for i = 1, #pattern do
+            SpawnFlyingSkullWithMarker(ai, pattern[i])
+        end
+    end
+
+    ai:SetState(states.BaseDecision)
+end
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---@param ai AIHandler
+local function Move(ai)
+    -- Validate Unit
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    -- Validate Target
+    if ai.Data.Target and not Help.ValidateUnit(ai.Data.Target) then
+        ai.Data.Target = nil
+        ai:RunState(states.BaseDecision)
+        return
+    end
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local unit_forward = Vector2.UnitForward(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target) + unit_forward
+    local distance = Vector2.Distance(unit_position, target_position)
+
+    DCEI.Move(ai.unit, target_position.x, target_position.y)
+
+    local duration = 0.25
+    if not Help.WaitAndValidateUnit(duration, ai.unit) then
+        return
+    end
+
+    ai.Data.MoveTime = ai.Data.MoveTime - duration
+
+    -- Exit Conditions
+    if distance < Help.GetValue(WALK_CUTOFF_DISTANCE) or ai.Data.MoveTime <= 0 then
+        ai:RunState(states.BaseDecision)
+        return
+    end
+
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(unit_position, target_position)
+
+    ---TODO: Boss Specific Actions
+    if not ai:IsLastState(states.Move) and (Help.InRange(distance, WALK_RANGE) or distance > WALK_RANGE.y) then
+        -- Move
+        ai.Data.MoveTime = Help.GetValue(WALK_TIME)
+        ai:SetState(states.Move)
+
+        if ai.phase >= 3 then
+            ReaperPursuePattern(unit_position, target_position)
+        end
+    elseif not ai:IsLastState(states.Summon) and Help.Chance(0.60) then
+        ai:SetState(states.Summon)
+    elseif not ai:IsLastState(states.Dash) and distance < WALK_RANGE.x then
+        -- Dash
+        ai.Data.DashCount = ai:GetTargetPhaseHealth()
+        ai:SetState(states.Dash)
+    else
+        ai:SetState(states.Summon)
+    end
+
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Boss.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, overrides, true)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, effects.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    RegisterSimpleUnits(attributes)
+
+    -- Core States
+    ai:AddState(states.Move, Move)
+    ai:AddState(states.AdvancedDecision, AdvancedDecision)
+
+    -- Boss Specific
+    ai:AddState(states.Dash, Dash)
+    ai:AddState(states.Summon, Summon)
+
+    -- Stagger
+    AIHelper.RegisterBossStaggerUpdate(ai)
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Boss

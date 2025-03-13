@@ -1,0 +1,203 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local ability = DCEI.Ability("Spectral Arrow")
+
+local behaviors = {
+    angle = DCEI.Behavior("Spectral Arrow - Angle Stack"),
+    speed = DCEI.Behavior("Spectral Arrow - Projectile Speed"),
+    actor_size = DCEI.Behavior("Actor - Size"),
+}
+
+local effects = {
+    trigger = DCEI.Effect("Spectral Arrow - Trigger"),
+    on_enter = DCEI.Effect("Spectral Arrow - Collision - OnEnter"),
+
+    launch = DCEI.Effect("Spectral Arrow - Launch"),
+    damage = DCEI.Effect("Spectral Arrow - Damage"),
+}
+
+local units = {
+    actor = DCEI.Unit("Spectral Arrow - Actor"),
+    projectile = DCEI.Unit("Spectral Arrow - Projectile"),
+    simple_collider = DCEI.Unit("Simple Collider"),
+}
+
+local spectral_arrow_filter = DCEI.CreateUnitFilter({ name = units.projectile })
+
+---@type SimpleUnit
+local spectral_arrow_collider = SimpleUnit.New(ability)
+
+---@type table<Hero>
+local hero_references = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Registers the Simple Unit that is used for Collision
+---@param hero Hero
+local function RegisterSimpleUnit(hero)
+    local size = hero:GetStat(STAT.SkillSize, ability)
+
+    ---TODO: Assign some information here.
+    spectral_arrow_collider:SetUnitType(units.simple_collider)
+    spectral_arrow_collider:SetCollision(CollisionLayers.None, CollisionLayers.Hostile, size)
+    spectral_arrow_collider:SetCollisionEffect(effects.on_enter, CollisionTiming.Start)
+
+    -- Register the Unit to be used.
+    spectral_arrow_collider:Register()
+end
+
+local function OnProjectileSpawn()
+    local spawned_unit = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(spawned_unit)
+
+    local position = Vector2.UnitPosition(spawned_unit)
+    local simple_unit =
+        spectral_arrow_collider:SpawnSyncStationary(player_id, TEAM.Friendly, position, Vector2.Quadrant(3))
+
+    -- Size the Visual Projectile
+    local size = spectral_arrow_collider.options.collision_options.radius
+    DCEI.ApplyBehaviorToSelf(spawned_unit, behaviors.actor_size, math.floor(size * 50))
+
+    -- Force the Simple Unit to inherit the Missile's position.
+    DCEI.AttachUnit(simple_unit, spawned_unit, {})
+
+    -- Callback Remove Simple Unit when Parent Dies.
+    DCEI.TriggerAddUnitRemovedEvent(spawned_unit, function()
+        DCEI.RemoveSimpleUnit(simple_unit)
+    end)
+end
+
+local function SpawnActor(player_id, position, facing, speed)
+    local unit = DCEI.CreateUnit(TEAM.Friendly, player_id, units.actor, position.x, position.y, facing.x, facing.y)
+    DCEI.ApplyBehaviorToSelf(unit, behaviors.speed, math.floor(speed * 100))
+    return unit
+end
+
+local function OnTrigger(ctx)
+    local caster = ctx.caster
+    local caster_position = Vector2.UnitPosition(caster)
+
+    local player_id = DCEI.GetUnitPlayerId(caster)
+
+    -- Rotation (Above or Below?)
+    -- local angle_stack = DCEI.GetUnitBehaviorStackCount(caster, behaviors.angle)
+
+    -- Hero Stats
+    ---@type Hero
+    local hero = hero_references[player_id]
+    local count = hero:GetStat(STAT.ProjectileCount, ability)
+    local range = hero:GetStat(STAT.SkillRange, ability)
+    local size = hero:GetStat(STAT.SkillSize, ability)
+    local speed = hero:GetStat(STAT.ProjectileSpeed, ability)
+    local frequency = hero:GetStat(STAT.Frequency, ability)
+
+    -- Start at the Top and Rotate Counter-Clockwise
+    -- local angle = 135 - angle_stack * 90
+    local angle = -90
+    local distance = range / 2.5
+
+    -- local base_position = caster_position + Vector2.NewFromAngle(angle) * distance
+    local offset = Vector2.NewFromAngle(angle) * distance
+
+    for i = 1, count do
+        local timer = Core.Timer.Game:New()
+        timer:AddDuration(frequency * i)
+
+        function timer:Action()
+            if not Help.ValidateUnit(caster) then
+                return
+            end
+
+            local position = Vector2.UnitPosition(caster) + offset
+            local facing = Vector2.NewFromAngle(angle + 180)
+            SpawnActor(player_id, position, facing, speed)
+        end
+    end
+
+    -- if count == 1 then
+    --     local facing = Vector2.NewFromAngle(angle + 180)
+    --     SpawnActor(player_id, base_position, facing, speed)
+    -- else -- Count > 1
+    --     local gap_size = count * size / 2
+    --     local p1 = base_position + Vector2.NewFromAngle(angle + 90) * gap_size
+    --     local p2 = base_position + Vector2.NewFromAngle(angle - 90) * gap_size
+    --     local pattern = Pattern.Line(p1, p2, count)
+    --     local facing = Vector2.NewFromAngle(angle + 180)
+    --     for i = 1, #pattern do
+    --         DCEI.Wait(frequency)
+    --         SpawnActor(player_id, pattern[i], facing, speed)
+    --     end
+    -- end
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = "Spectral Arrow",
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(effects.launch, EJS.Launch.Impact.Distance),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(effects.damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(effects.damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(effects.damage, EJS.Damage.CriticalMultiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    local player_id = hero.player_id
+    hero_references[player_id] = hero
+
+    RegisterSimpleUnit(hero)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(effects.trigger, OnTrigger)
+DCEI.TriggerAddUnitSpawnEvent(spectral_arrow_filter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

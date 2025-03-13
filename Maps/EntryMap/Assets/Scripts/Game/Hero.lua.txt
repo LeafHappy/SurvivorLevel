@@ -1,0 +1,1929 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+-- Core Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+-- Classes
+local Event = require("Class/Event")
+local Vector2 = require("Class/Vector2")
+local Joystick = require("Class/Joystick")
+local Camera = require("Class/FollowCamera")
+local Attributes = require("Class/Attributes")
+local Experience = require("Class/Experience")
+local CommonDataAccess = require("Class/CommonDataAccess")
+local SkillSelector = require("Class/SkillSelector")
+local Event = require("Class/Event")
+
+-- Simple Unit
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+
+-- Data
+local EJS = require("Data/EJS")
+
+-- Shared Data
+local Heroes = require("SharedData/Heroes")
+local SkillData = require("SharedData/Skills/SkillData")
+local Log = require("Game/Log")
+
+local _SkillData = require("Game/Skills/_SkillData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Helper
+local Help = require("Help")
+
+-- Dev
+local _Dev = require("_Dev")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- CONSTANTS
+-- ================================================================================================
+
+local ACTIVE_LIMIT = 5
+local UPGRADE_TALENT_LEVEL = 10
+
+-- ================================================================================================
+-- !SECTION -- CONSTANTS
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    ---SECTION: Effects
+    RetaliationArmor = DCEI.Effect("Hero - Retaliation Armor"),
+
+    -- Hero Hookups
+    TopTrigger = DCEI.Effect("Hero Top - Trigger"),
+    SetTargetLock = DCEI.Effect("SetTargetLock"),
+    ReleaseTargetLock = DCEI.Effect("ReleaseTargetLock"),
+    TopScanHostile = DCEI.Effect("Hero Top - Scan - Hostile"),
+    TopScanAll = DCEI.Effect("Hero Top - Scan - All"),
+    OnStay = DCEI.Effect("Hero - Collision - OnStay"),
+
+    LevelVFX = DCEI.Effect("Hero - Level Up"),
+
+    -- Stats
+    HealthRegeneration = DCEI.Effect("Health Regeneration - Heal"),
+    BombDamage = DCEI.Effect("Bomb - Damage"),
+    PotionHeal = DCEI.Effect("Loot - Potion - Heal"),
+    SmallPotionHeal = DCEI.Effect("Loot - Small Potion - Heal"),
+    WaveEndHeal = DCEI.Effect("Wave End - Heal"),
+    ThornsDamage = DCEI.Effect("Hero - Collision - Thorns"),
+    Knockback = DCEI.Effect("Hero - Collision - Knockback"),
+
+    -- Stagger [Elite/Boss]
+    StaggerDamageMultiplier = DCEI.Effect("Boss - Stagger Increased Damage"),
+    StaggerDuration = DCEI.Effect("Boss - Apply Stagger Stun"),
+
+    ---SECTION: Behaviors
+    MoveSpeed = DCEI.Behavior("Stats - Move Speed"),
+}
+
+local _heroes = {}
+
+local _tops = {
+    ["Hero - Annie"] = DCEI.Unit("Hero - Annie - Top"),
+    ["Hero - Jorian"] = DCEI.Unit("Hero - Jorian - Top"),
+    ["Hero - Erik"] = DCEI.Unit("Hero - Erik - Top"),
+    ["Hero - Ghost"] = DCEI.Unit("Hero - Ghost - Top"),
+    ["Hero - Amber"] = DCEI.Unit("Hero - Amber - Top"),
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Get the Table Value where its key matches the passed value.
+---@param t table
+---@param key string
+---@param value any
+---@return table
+local function FindMatchingIndex(t, key, value, ignore_missing_key)
+    for i = 1, #t do
+        if t[i][key] == value then
+            return t[i]
+        end
+    end
+
+    if ignore_missing_key then
+        return {}
+    end
+
+    local message = string.format("Attempted to get Matching Index [%s, %s].", tostring(key), tostring(value))
+    Help.Error(message, nil, t)
+    return {}
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Local Functions - UI
+-- ================================================================================================
+
+local UI_perk_selection_open = false
+
+---comment
+---@param skill_data SkillData
+local function ExtractStatInheritanceTagsFromSkillData(skill_data)
+    local inheritance_key_tables = skill_data.ApplyStatInheritance
+
+    local tags = {}
+
+    local omitted_tags = {
+        [SKILL_TAG.Global] = true,
+        [skill_data.Key] = true,
+    }
+
+    -- Loop through all Inheritance Key Tables
+    for _, tags_table in pairs(inheritance_key_tables) do
+        for _, tag in pairs(tags_table) do
+            if not omitted_tags[tag] then
+                table.insert(tags, tag)
+            end
+        end
+    end
+
+    return tags
+end
+
+---Standard Perk Selection
+---@param skill_selector SkillSelector
+---@param options table<SkillData>
+---@param callback function
+local function ShowPerkSelection(skill_selector, options, callback)
+    if not UI_perk_selection_open then
+        Joystick.Fetch(1):Hide()
+        GMUI.SendUiLayoutCommand("ui.game.perk_select", "Show")
+    end
+
+    DCEI.PlaySound(DCEI.Sound("smh_perk_land_legendary"))
+
+    UI_perk_selection_open = true
+
+    -- Update Active Skill Data
+    local learned_active_skills = skill_selector:GetLearnedActiveSkills()
+    -- Help.Log("Learned Active Skills", nil, learned_active_skills)
+
+    local active_skill_data_pass = {}
+    for _, skill_data in pairs(learned_active_skills) do
+        local p, s = skill_selector:GetSkillLevels(skill_data.Key)
+        local level = p + s
+
+        table.insert(active_skill_data_pass, {
+            Icon = skill_data.Icon,
+            Level = level,
+        })
+    end
+
+    -- Update the top bar
+    Core.Event.SendPresentationEvent("Game.PerkSelect.UpdateActiveSkillData", active_skill_data_pass)
+
+    -- Update Selection Options
+    local selection_options_data_pass = {}
+
+    -- Help.Log("Options", nil, options)
+
+    for index, skill_option_data in ipairs(options) do
+        -- Get the Related Skill Tags
+        local tags = {}
+        local inherited_tags = ExtractStatInheritanceTagsFromSkillData(skill_option_data)
+
+        if #skill_option_data.AppliedSkillTagLevels <= 0 then
+            -- Pass no Tags
+        elseif skill_option_data.Type == SKILL_TYPE.Passive or skill_option_data.Type == SKILL_TYPE.Unique then
+            -- Check for any Applied Skill Tag Levels (Passive Skills will grant these Tags)
+            -- Passive Skills will Display Active Skills that Inherit from these Tags
+
+            -- Loop through all Active Skills
+            for _, active_skill_data in pairs(learned_active_skills) do
+                -- Check if the Skill utilizes one of the Applied Skill Tag Levels
+                if skill_selector:GetSkillHasTag(active_skill_data.Key, skill_option_data.AppliedSkillTagLevels) then
+                    table.insert(tags, active_skill_data.Key)
+                end
+            end
+        elseif skill_option_data.Type == SKILL_TYPE.Active then
+            ---ANCHOR: New Version will show any overlap in Skill Tags with Learned Active Skills
+
+            -- Use this Skill's Inherited Skill Tags as a filter for currently learned Active Skill Tags
+            local skill_tags = {}
+
+            -- TODO: Add Error check for when Key does not exist
+
+            for index, value in ipairs(skill_option_data.ApplyStatInheritance[skill_option_data.Key]) do
+                -- Exempt Global and Self Key Tag
+                if value ~= SKILL_TAG.Global and value ~= skill_option_data.Key then
+                    table.insert(skill_tags, value)
+                end
+            end
+
+            -- Check each Active Skill for Tag Overlap
+            for _, skill_data in pairs(learned_active_skills) do
+                if skill_selector:GetSkillHasTag(skill_data.Key, skill_tags) then
+                    table.insert(tags, skill_data.Key)
+                end
+            end
+
+            -- Check for any Stat Inheritance Levels (Active Skills will inherit from these Tags)
+            -- tags = Core.Table.DeepCopy(skill_option_data.ApplyStatInheritance[skill_option_data.Key])
+
+            -- -- Active Skills need to strip Global and Key Tags
+            -- for i = #tags, 1, -1 do
+            --     if tags[i] == SKILL_TAG.Global or tags[i] == skill_option_data.Key then
+            --         table.remove(tags, i)
+            --     end
+            -- end
+        end
+
+        table.insert(selection_options_data_pass, {
+            Key = skill_option_data.Key,
+            Level = skill_option_data.Level,
+            Tags = tags,
+            InheritedTags = inherited_tags,
+        })
+    end
+
+    -- Help.Log("Selection Options", nil, selection_options_data_pass)
+    Core.Event.SendPresentationEvent("Game.PerkSelect.UpdateSelectionOptionData", selection_options_data_pass)
+
+    -- What gets sent back to the game.
+    local key_pass = {}
+    for _, skill_data in pairs(options) do
+        table.insert(key_pass, skill_data.Key)
+    end
+
+    Help.SetGameSpeed(0) -- Helps mitigate time pass between UI and Game.
+    Core.Event.SendPresentationEvent("Game.PerkSelect.GiveAuthority", key_pass, callback)
+    -- GMUI.SendUiLayoutCommand("ui.game.perk_select", "Update", options, callback)
+end
+
+local function HidePerkSelection()
+    if UI_perk_selection_open then
+        Joystick.Fetch(1):Show()
+        GMUI.SendUiLayoutCommand("ui.game.perk_select", "Hide")
+        Help.SetGameSpeed(1)
+    end
+
+    UI_perk_selection_open = false
+end
+
+-- ---Super Perk Selection
+-- ---@param hero Hero
+-- ---@param options table
+-- ---@param callback function
+-- local function ShowSuperPerkSelection(hero, options, callback)
+--     GMUI.SendUiLayoutCommand("ui.game.perk_select", "Hide")
+--     GMUI.SendUiLayoutCommand("ui.game.super_perk", "Show")
+--     GMUI.SendUiLayoutCommand("ui.game.super_perk", "Update", options, callback)
+-- end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions - UI
+-- SECTION -- Class - Core
+-- ================================================================================================
+
+---@class PositionData
+---@field LastPosition Vector2 | nil
+---@field CurrentPosition Vector2 | nil
+---@field Velocity Vector2 | nil
+---@field DistanceTraveled number
+
+---@class UpgradeOptionDataPass
+---@field Name string
+---@field Index integer
+---@field Level integer
+
+-- -@class HeroUpgrade
+-- -@field Name string
+-- -@field Level integer
+-- -@field Data UpgradeData
+-- -@field Game _Upgrade
+-- -@field Ranks table
+
+---@class Hero
+---@field player_id integer
+---@field unit Unit
+---@field PositionData PositionData
+---@field Points table<string, integer>
+---@field RecordedStats table<string, number>
+---@field SkillSelector SkillSelector
+---@field Attributes Attributes
+---@field OnLevelGained Event
+---@field OnUpdateEvent Event
+---@field OnRemoveEvent Event
+---@field OnSkillLearned Event
+local Hero = {}
+Hero.__index = Hero
+
+---@param player_id integer
+---@return Hero
+function Hero.New(player_id)
+    local self = setmetatable({}, Hero)
+    self.player_id = player_id
+    _heroes[self.player_id] = self
+
+    self.SkillSelector = SkillSelector.New()
+    self.Attributes = Attributes.New()
+
+    self.OnLevelGained = Event.New()
+    self.OnUpdateEvent = Event.New()
+    self.OnRemoveEvent = Event.New()
+
+    self.OnSkillLearned = Event.New()
+
+    self:Reset()
+
+    return self
+end
+
+function Hero:Reset()
+    self.PositionData = {
+        LastPosition = nil,
+        CurrentPosition = nil,
+        Velocity = nil,
+        DistanceTraveled = 0,
+    }
+
+    self.is_dirty = true
+    self.level = 1
+    self.meta_level = 1
+
+    self.Points = {}
+    self.Upgrades = {}
+    self.RecordedStats = {}
+
+    self.SkillSelector:Reset()
+    self.Attributes:Reset()
+
+    -- Add Attribute Subroutines
+    self.Attributes:AddSubroutine(STAT.CriticalChance, STAT.Luck, SCALING.Multiplier, 1)
+    self.Attributes:AddSubroutine(STAT.Damage, STAT.ProjectileSpeed, SCALING.Scaled, STAT.ProjectileSpeedToDamage)
+
+    -- Cast Range is an accumulation of SkillRange and Skill Size
+    self.Attributes:AddSubroutine(STAT.CastRange, STAT.SkillRange, SCALING.Scaled, 1)
+    self.Attributes:AddSubroutine(STAT.CastRange, STAT.SkillSize, SCALING.Scaled, 1)
+
+    ---NOTE: Things we have to remember and clear for Game Engine
+    if self.UnitType and self.Abilities then
+        for _, ability_name in pairs(self.Abilities) do
+            DCEI.RemoveUnitAbility(self.UnitType, ability_name)
+        end
+    end
+
+    if Help.ValidateUnit(self.unit) then
+        DCEI.RemoveUnit(self.unit)
+    end
+
+    -- if self.top then
+    --     DCEI.RemoveUnit(self.top)
+    -- end
+
+    -- if self.unit then
+    --     DCEI.RemoveUnit(self.unit)
+    -- end
+
+    if self.collector then
+        DCEI.RemoveSimpleUnit(self.collector)
+    end
+
+    self.UnitType = ""
+    self.Abilities = {}
+
+    self.allow_perk_selection = true
+    self.closest_target = nil
+
+    self.is_in_combat = false
+
+    self.OnSkillLearned = Event.New()
+end
+
+-- ================================================================================================
+-- !SECTION -- Class - Core
+-- SECTION -- Class - Internal
+-- ================================================================================================
+
+---Set the Hero's Closest Target in Range.
+---Used for Rotating the Hero.
+---@param target Unit
+function Hero:_SetClosestTarget(target)
+    self.closest_target = target
+end
+
+function Hero:_UpdateShadow(size)
+    if self.shadow ~= nil and DCEI.SimpleUnitExists(self.shadow) then
+        DCEI.RemoveSimpleUnit(self.shadow)
+    end
+
+    self.shadow = SimpleUnits.Helpers.AttachComplexShadow(self.unit, size)
+end
+
+function Hero:_CreateTop()
+    if self.top ~= nil and DCEI.UnitExists(self.top) then
+        DCEI.RemoveUnit(self.top)
+    end
+
+    local position = self:GetPosition()
+    local top = _tops[self.UnitType]
+
+    if not top then
+        Help.Error("Failed to get the Hero's Top Section.", self.UnitType)
+        return
+    end
+
+    self.top = DCEI.CreateUnit(TEAM.Friendly, self.player_id, _tops[self.UnitType], position.x, position.y)
+
+    DCEI.AttachUnit(self.top, self.unit, { use_child_facing = true })
+
+    -- DCEI.TriggerAddUnitDiedEvent(self.unit, function()
+    --     if not Help.ValidateUnit(self.top) then
+    --         return
+    --     end
+
+    --     DCEI.RemoveUnit(self.top)
+    -- end, true)
+
+    -- DCEI.TriggerAddUnitRemovedEvent(self.unit, function()
+    --     if not Help.ValidateUnit(self.top) then
+    --         return
+    --     end
+
+    --     DCEI.RemoveUnit(self.top)
+    -- end, true)
+
+    local hero = self
+
+    -- Target Locking
+    DCEI.TriggerAddEffectEvent(REF.SetTargetLock, function(ctx)
+        local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+        if player_id == hero.player_id then
+            hero.target_lock_unit = ctx.target
+        end
+    end, true)
+
+    -- Release Target Locking
+    DCEI.TriggerAddEffectEvent(REF.ReleaseTargetLock, function(ctx)
+        local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+        if player_id == hero.player_id then
+            hero.target_lock_unit = nil
+        end
+    end, true)
+
+    -- Closest Target
+    DCEI.TriggerAddEffectEvent(REF.TopTrigger, function(ctx)
+        local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+        if player_id == hero.player_id then
+            hero:_SetClosestTarget(ctx.target)
+        end
+    end, true)
+end
+
+---Checks for Specific Stats that update the Hero (non-Weapons).
+---@param stat STAT
+function Hero:_ApplyHeroStat(stat)
+    local value = self:GetStat(stat)
+
+    if stat == STAT.CameraDistance then
+        -- local camera = Camera.Fetch(self.player_id)
+        -- camera:SetSize(value, 1)
+    elseif stat == STAT.Health then
+        local max_health = DCEI.GetMaxHealth(self.unit)
+        local current_health = DCEI.GetHealth(self.unit)
+        local max_health_increased = value - max_health
+        local new_current_health = current_health + max_health_increased
+        SimpleUnit.ModifyHealth(self.unit, new_current_health, value)
+    elseif stat == STAT.HealthRegeneration then
+        self:SetEffectValue(REF.HealthRegeneration, EJS.Heal.Value, value)
+    elseif stat == STAT.CollisionSize then
+        self:SetCollisionRadius(value)
+    elseif stat == STAT.MoveSpeed then
+        local speed_stacks = math.floor(value)
+        Core.Unit.SetBehaviorCount(self.unit, REF.MoveSpeed, speed_stacks)
+    elseif stat == STAT.Thorns then
+        self:SetThornsDamage(value)
+    elseif stat == STAT.Knockback then
+        self:SetKnockback(value)
+    elseif stat == STAT.PickupRange then
+        self:SetCollectorRadius(value)
+    elseif stat == STAT.ExperienceMultiplier then
+        ---FIXME: This is not going to work in multiplayer.
+        Experience.Fetch(self.player_id):SetMultiplier(value)
+    elseif stat == STAT.Luck then
+        ---TODO: Implement Luck
+
+        ---NOTE: Old Stats
+        -- elseif stat == STAT.Mana then
+        -- DCEI.SetMaxMana(self.unit, value)
+    elseif stat == STAT.BombDamage then
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Terrain, REF.BombDamage, EJS.Damage.Value, value)
+    elseif stat == STAT.PotionHeal then
+        -- Small Potion
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Terrain, REF.SmallPotionHeal, EJS.Heal.Value, value * 0.25)
+        -- Regular Potion
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Terrain, REF.PotionHeal, EJS.Heal.Value, value * 1.00)
+    elseif stat == STAT.WaveEndHeal then
+        self:SetEffectValue(REF.WaveEndHeal, EJS.Heal.Value, value)
+    elseif stat == STAT.StaggerDamageMultiplier then
+        DCEI.SetEffectFieldValueForPlayer(
+            PLAYER.Hostile,
+            REF.StaggerDamageMultiplier,
+            EJS.DamageIntake.Multiplier,
+            value
+        )
+    elseif stat == STAT.StaggerDuration then
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, REF.StaggerDamageMultiplier, EJS.DamageIntake.Duration, value)
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, REF.StaggerDuration, EJS.ApplyBehavior.Duration, value)
+    end
+end
+
+---comment
+---@param behavior Behavior
+function Hero:ApplyBehavior(behavior)
+    if behavior.application_type == APPLICATION_TYPE.Modify then
+        DCEI.ApplyBehaviorToSelf(self.unit, behavior.behavior, behavior.count)
+    elseif behavior.application_type == APPLICATION_TYPE.Set then
+        Core.Unit.SetBehaviorCount(self.unit, behavior.behavior, behavior.count)
+    end
+end
+
+---comment
+---@param modifier Modifier
+---@param overwrite boolean | nil
+---@param set_dirty boolean | nil
+function Hero:ApplyModifier(modifier, overwrite, set_dirty)
+    self.Attributes:Add(modifier, overwrite)
+    self:_ApplyHeroStat(modifier.stat)
+
+    if set_dirty then
+        self.is_dirty = true
+    end
+end
+
+---comment
+---@param modifiers table<Modifier>
+function Hero:ApplyModifiers(modifiers)
+    for _, modifier in pairs(modifiers) do
+        self:ApplyModifier(modifier)
+    end
+end
+
+---comment
+---@param id string
+function Hero:RemoveModifierId(id)
+    self.Attributes:RemoveId(id)
+
+    self.is_dirty = true
+end
+
+---Applies a set of Applications to the Hero.
+---@param applications Applications
+function Hero:_ApplyApplications(applications)
+    -- Help.Log("Applications", nil, applications)
+
+    -- Apply Abilities
+    for _, ability in pairs(applications.Abilities) do
+        table.insert(self.Abilities, ability)
+        DCEI.AddUnitAbility(self.UnitType, ability)
+    end
+
+    -- Apply Behaviors
+    for _, behavior in pairs(applications.Behaviors) do
+        self:ApplyBehavior(behavior)
+    end
+
+    -- Apply Modifiers
+    for _, modifier in pairs(applications.Modifiers) do
+        self:ApplyModifier(modifier)
+    end
+
+    ---TODO: Damage Affinity
+    DamageAffinity.Instance:SetArmorFromAttributes(DAMAGE_TYPES.Hostile, ARMOR_TYPES.Hero, self.Attributes)
+    -- DamageAffinity.Instance:SetHeroArmor(self.Attributes)
+    -- for _, affinity in pairs(applications.Affinities) do
+    --     local damage_affinity = DamageAffinity.GetInstance()
+    --     damage_affinity:ModifyDamage(affinity.ModifierType, affinity.DamageType, affinity.Amount, affinity.ArmorType)
+    --     damage_affinity:Update()
+    -- end
+end
+
+---Apply the Upgrade's Cache.
+---@param key string
+function Hero:_ApplyUpgradeCache(key)
+    local core_tags = self.SkillSelector:GetInheritedTags(key)
+
+    ---@type _SkillData
+    local upgrade = _SkillData[key]
+
+    if not upgrade then
+        Help.Error("Upgrade Does not exist", key)
+        return
+    end
+
+    if not upgrade.Cache then
+        return
+    end
+
+    for stat, effect_paths in pairs(upgrade.Cache) do
+        -- Backup if no Effect Paths
+        -- if #effect_paths <= 0 then
+        --     -- We need a way to force Attack Speed to get Checked when in the Cache
+        --     if stat == STAT.AttackSpeed then
+        --         local value = self:GetStat(stat, core_tags)
+        --         DCEI.SetUnitAbilityMaxCooldown(self.unit, upgrade.Name, value)
+        --     end
+        -- end
+
+        -- Iterate through all Effect Paths
+        for _, effect_path in pairs(effect_paths) do
+            -- local value = self:GetStat(stat, effect_path.tags) * effect_path.scalar
+
+            -- Combine Core and Local Tags
+            local combined_tags = Core.Table.DeepCopy(core_tags)
+            if effect_path.tags then
+                for _, tag in pairs(effect_path.tags) do
+                    table.insert(combined_tags, tag)
+                end
+            end
+
+            -- Calculate the Value
+            local value = self:GetStat(stat, combined_tags) * effect_path.scalar
+
+            -- Custom Appliers
+            if stat == STAT.Force then -- Special Case: Force
+                local knockback_data = SimpleUnit.GenerateKnockbackData(value)
+
+                self:SetEffectValue(effect_path.effect, EJS.Force.Horizontal.Force, knockback_data.force)
+                self:SetEffectValue(effect_path.effect, EJS.Force.Horizontal.Friction, knockback_data.friction)
+                self:SetEffectValue(effect_path.effect, EJS.Force.Duration, knockback_data.duration)
+            else -- Default Case
+                self:SetEffectValue(effect_path.effect, effect_path.path, value)
+
+                -- Log the Change
+                -- local header = string.format("Setting [%s] Effect [%s]: %f", key, stat, value * effect_path.scalar)
+                -- Help.Log(header, nil, effect_path)
+            end
+        end
+    end
+end
+
+---Apply all learned Upgrade Caches.
+function Hero:_ApplyPreCache()
+    local learned_skills = self.SkillSelector:GetLearnedSkills()
+
+    for _, skill_data in pairs(learned_skills) do
+        local core_skill = _SkillData[skill_data.Key]
+        if core_skill and core_skill.PreCache then
+            _SkillData[skill_data.Key].PreCache(self)
+        end
+    end
+end
+
+function Hero:_PostCorrection()
+    local learned_skills = self.SkillSelector:GetLearnedSkills()
+
+    for _, skill_data in pairs(learned_skills) do
+        local core_skill = _SkillData[skill_data.Key]
+        if core_skill and core_skill.PostCorrection then
+            _SkillData[skill_data.Key].PostCorrection(self)
+        end
+    end
+end
+
+---Apply all learned Upgrade Caches.
+function Hero:_ApplyAllCache()
+    local learned_skills = self.SkillSelector:GetLearnedSkills()
+
+    for key, skill_data in pairs(learned_skills) do
+        local core_skill = _SkillData[skill_data.Key]
+        if core_skill and core_skill.Cache then
+            self:_ApplyUpgradeCache(skill_data.Key)
+        end
+    end
+end
+
+---Apply all learned Upgrade Overrides.
+function Hero:_ApplyAllOverride()
+    local learned_skills = self.SkillSelector:GetLearnedSkills()
+
+    -- Loop through all Learned Skills
+    for key, skill_data in pairs(learned_skills) do
+        local core_skill = _SkillData[skill_data.Key]
+        if core_skill and core_skill.Override then
+            _SkillData[skill_data.Key].Override(self)
+        end
+    end
+end
+
+---Get the Ability from the Skill Data.
+---NOTE: Only returns the first skill in list.
+---@param skill_data SkillData
+---@return string | nil
+function Hero:GetAbilityFromSkillData(skill_data)
+    if
+        skill_data.Applications
+        and skill_data.Applications.FirstLevelOnly
+        and skill_data.Applications.FirstLevelOnly.Abilities
+    then
+        return skill_data.Applications.FirstLevelOnly.Abilities[1]
+    end
+
+    return nil
+end
+
+---Get the Skill Data Cooldown
+---@param skill_data SkillData
+---@return number
+function Hero:GetAbilityCooldown(skill_data)
+    local ability = self:GetAbilityFromSkillData(skill_data)
+
+    if not ability then
+        return 0
+    end
+
+    local tags = self.SkillSelector:GetInheritedTags(skill_data.Key)
+
+    local base_attack_time = self:GetStat(STAT.BaseAttackTime, tags)
+    local attack_speed_increase = self:GetStat(STAT.AttackSpeed, tags)
+    local final_cooldown = base_attack_time / (1 + attack_speed_increase)
+
+    return final_cooldown
+end
+
+function Hero:_AutoCorrectCooldowns()
+    -- Get all skills
+    local learned_skills = self.SkillSelector:GetLearnedSkills()
+
+    -- Loop through all Learned Skills
+    for _, skill_data in pairs(learned_skills) do
+        -- Help.Log("Skill Data", nil, skill_data)
+
+        -- Find the Ability
+        local ability = self:GetAbilityFromSkillData(skill_data)
+
+        if not ability then
+            goto skip_cooldown
+        end
+
+        local cooldown = self:GetAbilityCooldown(skill_data)
+        DCEI.SetUnitAbilityMaxCooldown(self.unit, ability, cooldown)
+
+        -- local message = string.format("%s Cooldown: %f", ability, cooldown)
+        -- Help.Log(message)
+
+        ::skip_cooldown::
+    end
+end
+
+---Set up the Hero's Starting and Meta Stats
+---@param hero_data HeroData
+---@param meta_level integer
+function Hero:_InitializeStats(hero_data, meta_level)
+    self.meta_level = meta_level
+
+    -- Calculate Damage Separately so we can make it a Multiplier
+    local damage = 0
+
+    -- Generate Starting Stats
+    local starting_stats = hero_data.StartingStats
+    for stat, value in pairs(starting_stats) do
+        if stat == STAT.Damage then
+            damage = damage + value
+        else
+            self:ApplyModifier(Modifier.New(stat, value, SCALING.Scaled))
+        end
+    end
+
+    -- Apply Meta Level
+    local meta_stats = hero_data.MetaStats
+    if meta_level - 1 > 0 then -- Default Level is 1
+        local applied_meta_levels = meta_level - 1
+        for stat, amount in pairs(meta_stats) do
+            local calculated_value = amount * applied_meta_levels
+            if stat == STAT.Damage then
+                damage = damage + calculated_value
+            else
+                local modifier = Modifier.New(stat, calculated_value, SCALING.Scaled)
+                self:ApplyModifier(modifier)
+                -- Help.Log("Applied Modifier", nil, modifier)
+            end
+        end
+    end
+
+    -- Apply Damage Multiplier
+    local damage_modifier = Modifier.New(STAT.Damage, damage, SCALING.Multiplier)
+    self:ApplyModifier(damage_modifier)
+    -- Help.Log("Applied Modifier", nil, damage_modifier)
+end
+
+---Returns the Player's Perk Selection (from Presentation).
+---@param skill_data SkillData
+function Hero:_OnPerkSelectionCallback(skill_data)
+    self:LearnSkill(skill_data)
+
+    if not self:TriggerPerkSelection() then
+        HidePerkSelection()
+    end
+end
+
+function Hero:_RegisterCallbacks()
+    if not self.unit then
+        Help.Error("No Unit to add callbacks to.")
+        return
+    end
+
+    DCEI.TriggerAddUnitDiedEvent(self.unit, function()
+        self:OnDeath()
+    end)
+
+    DCEI.TriggerAddUnitRemovedEvent(self.unit, function()
+        self:OnRemove()
+    end)
+end
+
+function Hero:_GainLevelStats()
+    local value_increase = self.level * self.meta_level * 0.01
+
+    local id = "Health Level Increase"
+    local modifier = Modifier.New(STAT.Health, value_increase, SCALING.Additive, nil, id)
+    self:ModifyStat(modifier)
+
+    id = "Damage Level Increase"
+    local modifier = Modifier.New(STAT.Damage, value_increase, SCALING.Additive, nil, id)
+    self:ModifyStat(modifier)
+
+    ---TODO: Force Spawns Offscreen so we can increase Camera Distance.
+    -- if self.level % 10 == 0 and self.level < 40 then
+    --     id = "Camera Distance Level Increase"
+    --     value_increase = math.floor(self.level / 10) * 0.05
+    --     modifier = Modifier.New(STAT.CameraDistance, value_increase, SCALING.Additive, nil, id)
+    --     self:ModifyStat(modifier)
+    -- end
+end
+
+function Hero:_UpdateBombDamage()
+    local modifier = Modifier.New(STAT.BombDamage, 25, SCALING.Scaled)
+
+    -- local amount = self.level * 100
+    -- local id = "Bomb Damage"
+    -- local modifier = Modifier.New(STAT.BombDamage, amount, SCALING.Scaled, nil, id)
+    -- local modifier = Modifier.New(STAT.BombDamage, amount, SCALING.Unscaled, nil, id)
+    self:ModifyStat(modifier)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class - Internal
+-- SECTION -- Class - Getters & Setters
+-- ================================================================================================
+
+---Returns the Hero's Health Percentage.
+---@return number
+function Hero:GetHealthPercentage()
+    if not self.unit then
+        return 0
+    end
+
+    return DCEI.GetHealth(self.unit) / DCEI.GetMaxHealth(self.unit)
+end
+
+---Returns how far the Hero has traveled this frame.
+---@return number
+function Hero:GetTravelDistance()
+    return self.PositionData.DistanceTraveled
+    -- return self.DistanceTraveled
+end
+
+---Checks to see if this Upgrade has been Learned
+---@param name string
+---@return boolean
+function Hero:IsSkillLearned(name)
+    return self.SkillSelector:IsSkillLearned(name)
+
+    -- local upgrade = FindMatchingIndex(self.Upgrades, "Name", name, true)
+    -- return upgrade and upgrade.Level or false
+end
+
+---Gets the associated Skill Tags for the given Skill Id.
+---@param skill_id any
+---@return table<SKILL_TAG>
+function Hero:GetInheritedTags(skill_id)
+    return self.SkillSelector:GetInheritedTags(skill_id)
+end
+
+---Get the requested Upgrade Level.
+---@param skill_tag SKILL_TAG
+---@return integer
+function Hero:GetUpgradeLevel(skill_tag)
+    return self.SkillSelector:GetSkillTagLevel(skill_tag)
+end
+
+---Set the Current Detection Range
+function Hero:SetDetectionRange(distance)
+    local modifier = Modifier.New(STAT.DetectionRange, distance, SCALING.Scaled, nil, "Detection Range")
+    self:ApplyModifier(modifier, true)
+
+    -- self.Attributes:Add(STAT.DetectionRange, STAT.DetectionRange, distance, SCALING.Scaled)
+    local range = self:GetDetectionRange()
+    self:SetEffectValue(REF.TopScanHostile, EJS.AreaSearch.Radius, range)
+    self:SetEffectValue(REF.TopScanAll, EJS.AreaSearch.Radius, range)
+end
+
+---Get the Current Detection Range
+---@return number
+function Hero:GetDetectionRange()
+    local weapon_detection_range = self:GetStat(STAT.DetectionRange)
+    return weapon_detection_range
+end
+
+---Set the effect field value for this hero's player.
+---@param effect string | Effect
+---@param path table<string>
+---@param value number
+function Hero:SetEffectValue(effect, path, value)
+    DCEI.SetEffectFieldValueForPlayer(self.player_id, effect, path, value)
+end
+
+---Allows a way to directly apply Modifiers.
+---@param modifier Modifier
+---@param duration number | nil
+function Hero:ModifyStat(modifier, duration)
+    self.is_dirty = true
+
+    self.Attributes:Add(modifier)
+    self:_ApplyHeroStat(modifier.stat)
+
+    if duration and duration > 0 then
+        local timer = Core.Timer.Game.New()
+        timer:AddDuration(duration)
+
+        local hero = self
+        function timer:Action()
+            if not hero:IsUnitAlive() then
+                return
+            end
+
+            hero.is_dirty = true
+            hero.Attributes:RemoveModifier(modifier)
+            hero:_ApplyHeroStat(modifier.stat)
+        end
+    end
+end
+
+---Shorthand for getting Stat Calculations.
+---@param stat STAT | string
+---@param tags SkillTagList | table<SkillTagList> | nil
+---@param scaling_type SCALING | nil
+---@return number
+function Hero:GetStat(stat, tags, scaling_type)
+    if scaling_type then
+        return self.Attributes:GetStatScaling(stat, scaling_type, tags)
+    else
+        return self.Attributes:Get(stat, tags)
+    end
+end
+
+---Returns a table of stats.
+---@param stats table<STAT | string>
+---@param tags SkillTagList | nil
+function Hero:GetStats(stats, tags)
+    local t = {}
+    for _, stat in pairs(stats) do
+        t[stat] = self:GetStat(stat, tags)
+    end
+
+    return t
+end
+
+---Set the Hero's Collision Radius
+---@param radius number
+function Hero:SetCollisionRadius(radius)
+    SimpleUnit.ModifyCollision(self.unit, CollisionLayers.Friendly, CollisionLayers.Hostile, radius)
+    self:_UpdateShadow(radius)
+end
+
+---Set the Hero's Thorns Damage
+---@param damage number
+function Hero:SetThornsDamage(damage)
+    self:SetEffectValue(REF.ThornsDamage, EJS.Damage.Value, damage)
+end
+
+---TODO [12/14]: Change this to a CollisionEffect.
+---Set the Hero's Contact Knockback Amount.
+---@param value number
+function Hero:SetKnockback(value)
+    local knockback_data = SimpleUnit.GenerateKnockbackData(value)
+
+    self:SetEffectValue(REF.Knockback, EJS.Force.Horizontal.Force, knockback_data.force)
+    self:SetEffectValue(REF.Knockback, EJS.Force.Horizontal.Friction, knockback_data.friction)
+    self:SetEffectValue(REF.Knockback, EJS.Force.Duration, knockback_data.duration)
+end
+
+-- Timer used for modifying Collector Radius for a set duration.
+local _ModifierCollectorRadiusTimer = nil
+
+---Set the distance at which experience is collected.
+---@param radius number | nil When no value is provided, the hero's pickup range is used.
+---@param override_value boolean | nil [Default: false] When true, the radius is set to the provided value. When false, the radius is set to the hero's pickup range.
+---@param duration number | nil [Default: 1] The duration for which the radius is set to the provided value when using override_value.
+function Hero:SetCollectorRadius(radius, override_value, duration)
+    local hero = self
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    -- If no radius is provided, use the hero's pickup range
+    if not radius then
+        radius = self:GetStat(STAT.PickupRange)
+    end
+
+    -- If no override value is provided, set the radius to the hero's pickup range
+    if not override_value then
+        SimpleUnit.ModifyCollision(self.collector, CollisionLayers.None, CollisionLayers.Item, radius)
+        return
+    end
+
+    -- If no duration is provided, set the radius to the provided value for 1 second
+    if not duration then
+        duration = 1
+    end
+
+    -- Clear the existing timer
+    if _ModifierCollectorRadiusTimer then
+        _ModifierCollectorRadiusTimer:Destroy()
+        _ModifierCollectorRadiusTimer = nil
+    end
+
+    -- Use the new Radius
+    SimpleUnit.ModifyCollision(self.collector, CollisionLayers.None, CollisionLayers.Item, radius)
+
+    -- Setup a Timer to Reset the Radius
+    _ModifierCollectorRadiusTimer = Core.Timer.Game.New()
+    _ModifierCollectorRadiusTimer:AddDuration(duration)
+
+    -- Apply the Default Radius when Timer Expires
+    function _ModifierCollectorRadiusTimer:Action()
+        hero:SetCollectorRadius()
+        _ModifierCollectorRadiusTimer = nil
+    end
+end
+
+---Allows the Player to Select a Perk.
+---@param status boolean
+function Hero:SetAllowPerkSelection(status)
+    self.allow_perk_selection = status
+end
+
+---Provides whether the Hero Unit is Alive or Dead.
+---@return boolean
+function Hero:IsUnitAlive()
+    return Help.ValidateUnit(self.unit)
+end
+
+---Get the Hero's positional data.
+---@return PositionData
+function Hero:GetPositionData()
+    return self.PositionData
+end
+
+---Returns the Hero's Position.
+---@return Vector2
+function Hero:GetPosition()
+    return self.PositionData.CurrentPosition
+end
+
+---Modify the Recorded Stat Value.
+---@param stat string
+---@param value number
+function Hero:ModifyRecordedStats(stat, value)
+    -- Nil check
+    if not self.RecordedStats[stat] then
+        self.RecordedStats[stat] = 0
+    end
+
+    -- Modify the Value
+    self.RecordedStats[stat] = self.RecordedStats[stat] + value
+end
+
+---Returns the requested Stat Value.
+---@param stat GAME_STATS
+---@return number
+function Hero:GetRecordedStat(stat)
+    return self.RecordedStats[stat] or 0
+end
+
+---Returns the Recorded Stats Table.
+---@return table<string, number>
+function Hero:GetRecordedStats()
+    return self.RecordedStats
+end
+
+function Hero:ClearRecordedStats()
+    self.RecordedStats = {}
+end
+
+---comment
+---@param status boolean
+function Hero:SetIsInCombat(status)
+    self.is_in_combat = status
+end
+
+---comment
+---@return boolean
+function Hero:IsInCombat()
+    return self.is_in_combat
+end
+
+-- ================================================================================================
+-- !SECTION -- Class - Getters & Setters
+-- SECTION -- Class
+-- ================================================================================================
+
+---Spawn the Hero at the designated position.
+---@param position Vector2
+---@param hero_name SURVIVOR
+---@param meta_level integer
+---@param starting_upgrades table<SkillData>
+---@param optional_upgrades table<SkillData>
+---@param featured_skills table<SkillData>
+---@return Unit
+function Hero:SpawnHero(position, hero_name, meta_level, starting_upgrades, optional_upgrades, featured_skills)
+    ---@type HeroData
+    local hero_data = FindMatchingIndex(Heroes, "Name", hero_name)
+    self.UnitType = hero_data.Unit
+
+    -- local hero_data = GetHeroDataByName(hero_name)
+    if not hero_data then
+        Help.Error("Could not retrieve Hero Data", hero_name)
+        return nil
+    end
+
+    -- Spawn Unit
+    local facing = Vector2.Down()
+    self.unit =
+        DCEI.CreateUnit(TEAM.Friendly, self.player_id, hero_data.Unit, position.x, position.y, facing.x, facing.y)
+
+    self.PositionData.CurrentPosition = position
+    self.PositionData.LastPosition = position
+    self.PositionData.Velocity = Vector2.Zero()
+
+    -- Apply Thorns to Hero
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnStay),
+    }
+
+    -- local thorns_effect = DCEI.Effect("Hero - Collision - Thorns")
+    -- local collision_effects = {
+    --     SimpleUnit.GenerateCollisionEffect(thorns_effect),
+    -- }
+    SimpleUnit.ModifyCollisionEffects(self.unit, collision_effects)
+
+    -- Create Top
+    self:_CreateTop()
+
+    -- Force into Hybrid Unit (Complex & Simple)
+    SimpleUnit.ModifyHealth(self.unit, 1)
+    SimpleUnit.ModifyArmor(self.unit, ARMOR_TYPES.Hero)
+
+    -- Hero Simple tag
+    SimpleUnit.ModifyTag(self.unit, SIMPLE_TAG.Hero)
+
+    -- Register Unit Callbacks
+    self:_RegisterCallbacks()
+
+    -- Status Bar
+    local unit_ref = GMUI.CreateUnitReference(self.unit)
+    Core.Event.SendPresentationEvent("StatusBarManager.NewHeroStatus", unit_ref)
+
+    -- Setup Collector & Attach to Hero Unit
+    self.collector =
+        SimpleUnits.Helpers.Collector:SpawnSyncStationary(self.player_id, TEAM.Friendly, position, Vector2.Quadrant(3))
+    DCEI.AttachUnit(self.collector, self.unit, { use_child_facing = true })
+
+    -- Setup Hero Stats
+    self:_InitializeStats(hero_data, meta_level)
+
+    -- Setup Skill Selector
+    self.SkillSelector:Reset()
+    self.SkillSelector:SetHeroType(hero_name)
+    self.SkillSelector:SetMetaLevel(meta_level)
+    self.SkillSelector:AddSkillOptions(starting_upgrades)
+    self.SkillSelector:AddSkillOptions(optional_upgrades)
+
+    -- Setup Featured Skills
+    self.FeaturedSkills = featured_skills
+
+    -- Setup Hero Weapon/Upgrades
+    -- self:_InitializeUpgrades(hero_data, upgrade_pass)
+
+    -- Apply Starting Upgrades
+    for _, skill_data in pairs(hero_data.StartingUpgrades) do
+        self:LearnSkill(skill_data)
+    end
+
+    if starting_upgrades then
+        -- Help.Log("Starting Upgrades", nil, starting_upgrades)
+
+        -- Needs to be the skill Data, not the key
+        for _, skill_data in pairs(starting_upgrades) do
+            self:LearnSkill(skill_data)
+        end
+    end
+
+    -- Stat Effect Resets
+    self:_UpdateBombDamage()
+
+    return self.unit
+end
+
+---comment
+---@param skill_data SkillData | string
+function Hero:LearnSkill(skill_data)
+    if type(skill_data) == "string" then
+        skill_data = SkillData[skill_data]
+    end
+
+    local skill_selection_type = self.SkillSelector:LearnSkill(skill_data)
+
+    if not skill_selection_type then
+        return
+    end
+
+    if skill_selection_type == SKILL_SELECTION_TYPE.FirstLevel then
+        self:_ApplyApplications(skill_data.Applications.FirstLevelOnly)
+    elseif skill_selection_type == SKILL_SELECTION_TYPE.NonFirstLevel then
+        self:_ApplyApplications(skill_data.Applications.EveryLevelAfterFirst)
+    end
+
+    self:_ApplyApplications(skill_data.Applications.EveryLevel)
+
+    self.is_dirty = true
+
+    self.OnSkillLearned(skill_data.Key)
+end
+
+---comment
+---@param point_type HERO_POINT
+function Hero:GetSkillList(point_type)
+    -- Check for Featured Skills at level 2
+    if self.level == 2 and self.FeaturedSkills and #self.FeaturedSkills > 0 then
+        -- Help.Log("Featured Skills", nil, self.FeaturedSkills)
+        local featured_skill_options = {}
+
+        -- Lookup Featured Skills
+        for _, skill_name in ipairs(self.FeaturedSkills) do
+            local selected_option = self.SkillSelector:GetSkillOptions(1, { Key = skill_name })
+
+            if selected_option and selected_option[1] and selected_option[1].Key then
+                featured_skill_options = Help.CombineTables(featured_skill_options, selected_option)
+            end
+        end
+
+        -- Remove random entries until we have 3
+        while #featured_skill_options > 3 do
+            table.remove(featured_skill_options, Core.Random.GetInteger(1, #featured_skill_options))
+        end
+
+        return featured_skill_options
+    end
+
+    if point_type == HERO_POINT.Skill then
+        return self.SkillSelector:GetSkillOptions(3, { SkillType = { SKILL_TYPE.Active } })
+    elseif point_type == HERO_POINT.Heroic then
+        local learned_active_skills = #self.SkillSelector:GetLearnedActiveSkills()
+
+        -- If we only have 1 Active Skill, return 3 Active Skill Options
+        if learned_active_skills <= 1 then
+            local active_options = self.SkillSelector:GetSkillOptions(3, { SkillType = { SKILL_TYPE.Active } })
+            if #active_options > 0 then
+                return active_options
+            end
+        end
+
+        -- If we have 6 Active Skills, only return Unique Skills
+        if learned_active_skills >= 6 then
+            local unique_options = self.SkillSelector:GetSkillOptions(3, { SkillType = { SKILL_TYPE.Unique } })
+
+            if #unique_options > 0 then
+                return unique_options
+            else
+                return self:GetSkillList(HERO_POINT.Level)
+            end
+        end
+
+        -- Return a random assortment of Active/Unique Skills
+        local active_options = self.SkillSelector:GetSkillOptions(3, { SkillType = { SKILL_TYPE.Active } })
+        local unique_options = self.SkillSelector:GetSkillOptions(3, { SkillType = { SKILL_TYPE.Unique } })
+
+        local combined_options = Help.CombineTables(active_options, unique_options)
+
+        -- Help.Log("Options", nil, combined_options)
+
+        if #combined_options <= 0 then
+            return self:GetSkillList(HERO_POINT.Level)
+        end
+
+        -- Remove random entries until we have 3
+        while #combined_options > 3 do
+            table.remove(combined_options, Core.Random.GetInteger(1, #combined_options))
+        end
+
+        return combined_options
+    elseif point_type == HERO_POINT.Level then
+        return self.SkillSelector:GetSkillOptions(3, { SkillType = { SKILL_TYPE.Passive } })
+    end
+end
+
+---comment
+---@param automated boolean | nil
+---@return boolean
+function Hero:TriggerPerkSelection(automated)
+    -- We cannot do this while the UI is already open.
+    if UI_perk_selection_open then
+        return false
+    end
+
+    if not self.allow_perk_selection then
+        return false
+    end
+
+    -- Get available options based on HERO_POINT type
+    local options = {}
+
+    if self:SpendUpgradePoint(HERO_POINT.Skill) then
+        options = self:GetSkillList(HERO_POINT.Skill)
+    elseif self:SpendUpgradePoint(HERO_POINT.Heroic) then
+        options = self:GetSkillList(HERO_POINT.Heroic)
+    elseif self:SpendUpgradePoint(HERO_POINT.Level) then
+        options = self:GetSkillList(HERO_POINT.Level)
+    end
+
+    if #options <= 0 then
+        return false
+    end
+
+    -- Automated Selection
+    if automated then
+        local selection = options[Core.Random.GetInteger(1, #options)]
+        self:LearnSkill(selection)
+
+        -- self:_OnPerkSelectionCallback(selection)
+        return false
+    end
+
+    ShowPerkSelection(self.SkillSelector, options, function(skill_data)
+        self:_OnPerkSelectionCallback(skill_data)
+    end)
+
+    return true
+end
+
+function Hero:SpendUpgradePoint(name)
+    local points = self.Points[name]
+
+    if not points then
+        return false
+    end
+
+    if points > 0 then
+        self:ModifyUpgradePoints(name, -1)
+        return true
+    end
+
+    return false
+end
+
+function Hero:GetUpgradePoints(name)
+    local points = self.Points[name]
+
+    if not points then
+        return 0
+    end
+
+    return points
+end
+
+---Grant the Hero the indicated currency.
+---@param name HERO_POINT
+---@param amount integer | nil Default: 1
+---@param count_as_level boolean | nil Default: false
+function Hero:ModifyUpgradePoints(name, amount, count_as_level)
+    amount = amount or 1
+
+    local points = self.Points[name]
+
+    if not points then
+        self.Points[name] = 0
+    end
+
+    self.Points[name] = self.Points[name] + amount
+end
+
+function Hero:Kill()
+    if not self.unit then
+        return
+    end
+
+    if self.collector then
+        DCEI.RemoveSimpleUnit(self.collector)
+    end
+
+    DCEI.KillUnit(self.unit)
+end
+
+function Hero:Remove()
+    if not self.unit then
+        return
+    end
+
+    if self.collector then
+        DCEI.RemoveSimpleUnit(self.collector)
+    end
+
+    DCEI.RemoveUnit(self.unit)
+end
+
+---FIXME: Need to come up with a better solution for Leveling
+local talent_chance = 0.03
+
+local _LevelUpDelay = false
+
+---Set the Level Up Delay Flag
+---When True, a delay will be added to the Level Up Process.
+---When False, the Level Up Process will be instant.
+---@param flag boolean
+function Hero.SetLevelUpDelay(flag)
+    _LevelUpDelay = flag
+end
+
+---comment
+---@param passed_point_type HERO_POINT | nil
+---@return integer
+function Hero:GainLevel(passed_point_type)
+    DCEI.PlaySound(DCEI.Sound("level_up"))
+
+    self.level = self.level + 1
+    CommonDataAccess.Set("hero_level", self.level)
+
+    -- Add Level Tag to SkillSelector
+    self.SkillSelector:AddSkillTagLevel(SKILL_TAG.HeroLevel)
+
+    ---TODO: This has to be configured in the Stage
+    -- If Level is 10 or 20, increase Camera distance.
+    -- if self.level == 10 or self.level == 20 then
+    --     local id = "Camera Distance Level Increase"
+    --     local value_increase = (self.level / 10)
+    --     local modifier = Modifier.New(STAT.CameraDistance, value_increase, SCALING.Scaled, nil, id)
+    --     self:ModifyStat(modifier)
+    -- end
+
+    -- self:_GainLevelStats()
+    self:_UpdateBombDamage()
+
+    local point_type = passed_point_type
+
+    if not point_type then
+        if self.level == 2 then
+            point_type = HERO_POINT.Skill
+        -- elseif self.level % 10 == 0 then
+        elseif self.level % 5 == 0 then
+            point_type = HERO_POINT.Heroic
+        else
+            point_type = HERO_POINT.Level
+        end
+    end
+
+    ---TODO: Play VFX
+    -- Level Up Effect (VFX, Damage, Knockback)
+    Help.CreateEffect(PLAYER.Player1, REF.LevelVFX, self.unit)
+
+    -- Allows a way to skip the Level Delay process.
+    if not _LevelUpDelay then
+        self:ModifyUpgradePoints(point_type)
+        return self.level
+    end
+
+    -- Delay the Point (allows the experience animation to play out)
+    local animation_delay = 0.75
+    local timer = Core.Timer.Game.New()
+    timer:AddDuration(animation_delay)
+
+    local hero = self
+    function timer:Action()
+        hero:ModifyUpgradePoints(point_type)
+    end
+
+    self.OnLevelGained(self.level)
+
+    return self.level
+end
+
+-- ================================================================================================
+-- !SECTION -- Class
+-- SECTION -- Callbacks
+-- ================================================================================================
+
+function Hero:ReleaseTargetLock()
+    self.closest_target = nil
+    self.target_lock_unit = nil
+    self.target_lock_position = nil
+end
+
+---comment
+---@param direction Vector2
+---@param duration number
+---@param callback function<Vector2>
+---@param callback_time number | nil Default: duration
+function Hero:AttackDirectionCallback(direction, duration, callback, callback_time)
+    callback_time = callback_time or duration
+
+    Help.SendActorEvent(self.top, "Attack") -- Informs Actor to change States
+    Help.PlayAnimationWithDuration(self.top, "attack", duration)
+
+    local hero = self
+
+    local condition = function()
+        return hero:IsUnitAlive()
+    end
+
+    local recurring_action = function()
+        hero.target_lock_position = hero:GetPosition() + direction
+    end
+
+    local callback_action = function()
+        hero.target_lock_position = hero:GetPosition() + direction
+        callback(hero.target_lock_position)
+    end
+
+    local cancel_action = function()
+        hero.target_lock_position = nil
+    end
+
+    Help.GameTimer(duration, condition, recurring_action, cancel_action, cancel_action) -- Handles Rotation
+    Help.GameTimer(callback_time, condition, nil, callback_action) -- Triggers Attack Callback
+end
+
+---comment
+---@param target_unit Unit
+---@param duration number
+---@param callback function<Vector2>
+---@param callback_time number | nil Default: duration
+---@param animation string | nil Default: "attack"
+function Hero:AttackTargetCallback(target_unit, duration, callback, callback_time, animation)
+    callback_time = callback_time or duration
+    animation = animation or "attack"
+
+    Help.SendActorEvent(self.top, "Attack") -- Informs Actor to change States
+    Help.PlayAnimationWithDuration(self.top, animation, duration)
+
+    local hero = self
+
+    local target_position = Vector2.UnitPosition(target_unit)
+    hero.target_lock_position = target_position
+
+    -- Update the Lastest Target Position (Used if the Target Dies)
+    local update_target_position = function()
+        if Help.ValidateSimpleUnit(target_unit) then
+            target_position = Vector2.UnitPosition(target_unit)
+            hero.target_lock_position = target_position
+        end
+    end
+
+    local condition = function()
+        return hero:IsUnitAlive()
+    end
+
+    local recurring_action = function()
+        update_target_position()
+    end
+
+    local callback_action = function()
+        update_target_position()
+        callback(target_position)
+    end
+
+    local cancel_action = function()
+        hero.target_lock_position = nil
+    end
+
+    Help.GameTimer(duration, condition, recurring_action, cancel_action, cancel_action) -- Handles Rotation
+    Help.GameTimer(callback_time, condition, nil, callback_action) -- Triggers Attack Callback
+end
+
+---Rotates the Top Section of the Hero
+---@return Vector2 | nil
+function Hero:_RotateTop()
+    -- Help.Log("Rotate Top")
+
+    -- Validate Top
+    if not Help.ValidateUnit(self.top) then
+        -- Help.Log("Top is Invalid")
+        return
+    end
+
+    -- Check for Target Lock Position
+    if self.target_lock_position ~= nil then
+        local top_position = Vector2.UnitPosition(self.top)
+        local offset = Vector2.Normalized(self.target_lock_position - top_position)
+        DCEI.TurnUnitTowards(self.top, offset.x, offset.y)
+        return
+    end
+
+    -- Check for Target Locking
+    if Help.ValidateSimpleUnit(self.target_lock_unit) or Help.ValidateUnit(self.target_lock_unit) then
+        -- Help.Log("Target Locking")
+        local top_position = Vector2.UnitPosition(self.top)
+        local target_position = Vector2.UnitPosition(self.target_lock_unit)
+        local offset = Vector2.Normalized(target_position - top_position)
+        DCEI.TurnUnitTowards(self.top, offset.x, offset.y)
+        return
+    end
+
+    -- Validate Target
+    if not self.closest_target then
+        -- Help.Log("No Target")
+        local unit_facing = DCEI.GetUnitFacing2D(self.unit)
+        DCEI.TurnUnitTowards(self.top, unit_facing.x, unit_facing.y)
+        -- return
+    end
+
+    -- Since the Target can be a Regular Unit or a Simple Unit
+    if
+        self.closest_target
+        and not DCEI.UnitExists(self.closest_target)
+        and not DCEI.SimpleUnitExists(self.closest_target)
+    then
+        -- Help.Log("Target is Invalid")
+        self.closest_target = nil
+
+        local unit_facing = DCEI.GetUnitFacing2D(self.unit)
+        DCEI.TurnUnitTowards(self.top, unit_facing.x, unit_facing.y)
+        return
+    else
+        -- Update Default Idle Animation
+        local move_direction = Joystick.Fetch(self.player_id).axes
+        if Vector2.Magnitude(move_direction) > 0.1 then
+            DCEI.DirectionalMove(self.top, move_direction.x, move_direction.y)
+            DCEI.SendSendCustomEventActorAction(self.top, { identifier = "Walk" })
+        -- Help.Log("Walk")
+        else
+            DCEI.SendSendCustomEventActorAction(self.top, { identifier = "Idle" })
+        end
+        return
+    end
+
+    local facing_threshold = self:GetDetectionRange()
+    local top_position = Vector2.UnitPosition(self.top)
+    local target_position = Vector2.UnitPosition(self.closest_target)
+
+    -- Target is out of Range
+    if Vector2.Distance(top_position, target_position) > facing_threshold then
+        local unit_facing = DCEI.GetUnitFacing2D(self.unit)
+        DCEI.TurnUnitTowards(self.top, unit_facing.x, unit_facing.y)
+    else -- Target is in Range
+        local offset = Vector2.Normalized(target_position - top_position)
+        DCEI.TurnUnitTowards(self.top, offset.x, offset.y)
+        return offset
+    end
+end
+
+function Hero:_SetBottomAnimation(top_forward)
+    -- No Target, just walk forward
+    if not Help.ValidateSimpleUnit(self.target_lock_unit) or not Help.ValidateUnit(self.target_lock_unit) then
+        DCEI.SendSendCustomEventActorAction(self.unit, { identifier = "SetWalk1" })
+        return
+    end
+
+    -- Forward Check
+    if top_forward == nil then
+        return
+    end
+
+    local move_direction = Joystick.Fetch(self.player_id).axes
+    if Vector2.Magnitude(move_direction) <= 0.1 then
+        -- Set Angle to the same as the Top Rotation
+        local top_facing = DCEI.GetUnitFacing2D(self.top)
+        DCEI.TurnUnitTowards(self.unit, top_facing.x, top_facing.y)
+        return
+    end
+
+    local top_angle = Vector2.Angle(top_forward)
+    local move_angle = Vector2.Angle(move_direction)
+
+    top_angle = (top_angle + 360) % 360
+    move_angle = (move_angle + 360 - 45) % 360
+    local difference = top_angle - move_angle
+
+    if difference >= -90 and difference <= 90 then
+        DCEI.SendSendCustomEventActorAction(self.unit, { identifier = "SetWalk1" })
+    else
+        DCEI.SendSendCustomEventActorAction(self.unit, { identifier = "SetWalk2" })
+    end
+
+    -- Help.Log("Top Angle", top_angle)
+    -- Help.Log("Move Angle", move_angle)
+
+    -- local message = string.format("Top [%f] Bottom [%f] Difference [%f]", top_angle, move_angle, difference)
+    -- Help.Log(message)
+end
+
+function Hero:HybridCampUpdate()
+    -- Update Positional Data
+    if not self.PositionData.CurrentPosition then
+        self.PositionData.CurrentPosition = Vector2.UnitPosition(self.unit)
+        self.PositionData.LastPosition = self.PositionData.CurrentPosition
+    end
+
+    local last_position = self.PositionData.CurrentPosition
+    local current_position = Vector2.UnitPosition(self.unit)
+    local velocity = last_position - current_position
+    local distance_traveled = Vector2.Magnitude(velocity)
+
+    self.PositionData.LastPosition = last_position
+    self.PositionData.CurrentPosition = current_position
+    self.PositionData.Velocity = velocity
+    self.PositionData.DistanceTraveled = distance_traveled
+
+    if self.is_dirty then
+        self.is_dirty = false
+        self:_ApplyPreCache()
+        self:_ApplyAllCache()
+        self:_ApplyAllOverride()
+        self:_AutoCorrectCooldowns()
+        self:_PostCorrection()
+    end
+
+    -- Call the Update Event for any Script Hookups
+    -- Needs to be called prior to Clearing Stats
+    self.OnUpdateEvent(self)
+
+    -- Clear Recorded Game Stats
+    self:ClearRecordedStats()
+end
+
+---Should be called once per frame.
+---@param automated boolean | nil
+function Hero:Update(automated)
+    if _Dev and _Dev.Game and _Dev.Game.auto_level then
+        automated = true
+    end
+
+    -- Prevent Update if the Unit is Dead
+    if not Help.ValidateUnit(self.unit) then
+        return
+    end
+
+    -- Update Positional Data
+    local last_position = self.PositionData.CurrentPosition
+    local current_position = Vector2.UnitPosition(self.unit)
+    local velocity = last_position - current_position
+    local distance_traveled = Vector2.Magnitude(velocity)
+
+    self.PositionData.LastPosition = last_position
+    self.PositionData.CurrentPosition = current_position
+    self.PositionData.Velocity = velocity
+    self.PositionData.DistanceTraveled = distance_traveled
+
+    -- Whatever we want to call in the Update Method
+
+    ---TODO: Implement an IsDirty for needing to update Cache/Override
+    if self.is_dirty then
+        self.is_dirty = false
+        self:_ApplyPreCache()
+        self:_ApplyAllCache()
+        self:_ApplyAllOverride()
+        self:_AutoCorrectCooldowns()
+        self:_PostCorrection()
+    end
+
+    self:TriggerPerkSelection(automated)
+
+    -- Top & Bottom Handling
+    -- Top:
+    -- -- Has Target in Range: Look towards Target
+    -- -- Attack Animation: Triggered from Skill Script as Event Pass to Engine
+    -- -- No Target: Use Movement Direction
+    local top_forward = self:_RotateTop()
+
+    -- Bottom:
+    -- -- Checks Top Direction
+    -- -- If Move Direction is in same Direction as Top, then Move
+    -- -- Else Move2
+    self:_SetBottomAnimation(top_forward)
+
+    -- Call the Update Event for any Script Hookups
+    -- Needs to be called prior to Clearing Stats
+    self.OnUpdateEvent(self)
+
+    -- Clear Recorded Game Stats
+    self:ClearRecordedStats()
+end
+
+---Triggered when the Hero Unit is Dead.
+function Hero:OnDeath()
+    self.unit = nil
+
+    -- Remove Top
+    if Help.ValidateUnit(self.top) and DCEI.UnitIsAlive(self.top) then
+        DCEI.KillUnit(self.top)
+    end
+end
+
+---Triggered when the Hero Unit is Removed.
+function Hero:OnRemove()
+    -- Call the Remove Event for any Script Hookups
+    self.OnRemoveEvent(self)
+    self.unit = nil
+    self.top = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Callbacks
+-- SECTION -- Library
+-- ================================================================================================
+
+---Get the Hero associated to the given ID.
+---@param player_id integer
+---@return Hero
+function Hero.Fetch(player_id, auto_generate)
+    local hero = _heroes[player_id]
+
+    -- Return the hero if we find them.
+    if hero then
+        return hero
+    end
+
+    return Hero.New(player_id)
+end
+
+-- Returns a list of all heroes
+---@return table<Hero>
+function Hero.GetHeroes()
+    local t = {}
+    for _, hero in pairs(_heroes) do
+        table.insert(t, hero)
+    end
+
+    return t
+end
+
+function Hero.GetRandomHero()
+    local heroes = Hero.GetHeroes()
+
+    local t = {}
+    for _, hero in pairs(heroes) do
+        if Help.ValidateUnit(hero.unit) then
+            table.insert(t, hero)
+        end
+    end
+
+    if #t <= 0 then
+        return nil
+    end
+
+    while #t > 1 do
+        table.remove(t, Core.Random.GetInteger(1, #t))
+    end
+
+    return t[1]
+end
+
+---Returns nil when no target unit available.
+function Hero.GetRandomTarget()
+    local hero = Hero.GetRandomHero()
+
+    if hero then
+        return hero.unit
+    else
+        return nil
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Library
+-- SECTION -- Dev
+-- ================================================================================================
+
+if _Dev then
+    ---NOTE: Hero Leveling is handled in Experience.
+    local function GainHeroArtifact()
+        local hero = Hero.Fetch(PLAYER.Player1)
+        hero:ModifyUpgradePoints(HERO_POINT.Heroic, 1)
+    end
+
+    _Dev.Events.Register("Gain Hero Artifact", GainHeroArtifact)
+end
+
+-- ================================================================================================
+-- !SECTION -- Dev
+-- ================================================================================================
+
+return Hero

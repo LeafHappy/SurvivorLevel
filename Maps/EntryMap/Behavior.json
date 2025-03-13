@@ -1,0 +1,520 @@
+{
+    "behaviors": {
+        "AI - Danger Level": {
+            "defaultStackType": {
+                "refreshStack": true
+            },
+            "duration": 0.5
+        },
+        "AI - Delayed - Stop and State Trigger": {
+            "defaultStackType": {},
+            "expireEffect": "AI  - Stop and State Trigger"
+        },
+        "AI - Delayed State Trigger": {
+            "defaultStackType": {},
+            "expireEffect": "AI - State Trigger"
+        },
+        "AI - Flee - Cooldown": {
+            "maxStackCount": 1,
+            "defaultStackType": {}
+        },
+        "AI - Home - Cooldown": {
+            "defaultStackType": {}
+        },
+        "AI - Prioritize Healing": {
+            "maxStackCount": 1,
+            "defaultStackType": {}
+        },
+        "AI - Pursue - Cooldown": {
+            "maxStackCount": 1,
+            "defaultStackType": {}
+        },
+        "AI - Turn - Cooldown": {
+            "maxStackCount": 1,
+            "defaultStackType": {}
+        },
+        "AI - Wander - Cooldown": {
+            "maxStackCount": 1,
+            "defaultStackType": {}
+        },
+        "Actor - Size": {
+            "defaultStackType": {}
+        },
+        "Arcane Orb - Distance": {
+            "defaultStackType": {}
+        },
+        "Boss - Alchemist - Blast - Damage": {
+            "maxStackCount": 1,
+            "defaultStackType": {},
+            "duration": 1,
+            "startEffect": "Boss - Alchemist - Blast - Damage"
+        },
+        "Boss - Alchemist - Blast - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Boss - Alchemist - Contaminate": {
+            "maxStackCount": 1,
+            "defaultStackType": {},
+            "duration": 0.25,
+            "startEffect": "Boss - Alchemist - Contaminate - Damage",
+            "modifiers": {
+                "moveSpeedModifier": {
+                    "additiveFactor": -0.3
+                }
+            }
+        },
+        "Boss - Explosion Damage": {
+            "maxStackCount": 1,
+            "defaultStackType": {},
+            "duration": 1,
+            "startEffect": "Boss - Explosion - Damage"
+        },
+        "Boss - Giant - Ground Pound - Projectile Time": {
+            "defaultStackType": {}
+        },
+        "Boss - Reaper - Dark Speed": {
+            "defaultStackType": {},
+            "periodicInterval": 0.25,
+            "periodicEffect": "Boss - Reaper - Dark Speed - Scan"
+        },
+        "Boss - Skeleton King - Flame Strike - Secondary Impact - Damage Applier": {
+            "parent": "_DamageApplier",
+            "startEffect": "Boss - Skeleton King - Flame Strike - Secondary Impact - Damage"
+        },
+        "Boss - Stagger Stun": {
+            "defaultStackType": {},
+            "duration": 10,
+            "expireEffect": "Boss - Stagger Clear"
+        },
+        "Campfire - Behavior": {
+            "defaultStackType": {},
+            "periodicInterval": 1,
+            "periodicEffect": "Campfire - Scan"
+        },
+        "Chilling Presence": {
+            "defaultStackType": {},
+            "startEffect": "Chilling Touch - Start Size Fix",
+            "periodicInterval": 0.5,
+            "periodicEffect": "Chilling Presence - Scan",
+            "modifiers": {
+                "disabledAbilities": [
+                    "Chilling Presence"
+                ]
+            }
+        },
+        "Chilling Presence - Size": {
+            "defaultStackType": {}
+        },
+        "Clawstorm - Duration": {
+            "defaultStackType": {},
+            "startEffect": "Clawstorm - Area",
+            "finalEffect": "Remove Source",
+            "periodicInterval": 0.25,
+            "periodicEffect": "Clawstorm - Area"
+        },
+        "Collider Radius": {
+            "defaultStackType": {},
+            "modifiers": {
+                "unitRadiusModifier": {
+                    "scaled": 0.01
+                }
+            }
+        },
+        "Complex Collector": {
+            "defaultStackType": {},
+            "periodicIntervalExpressions": [
+                {
+                    "namedExpression": {
+                        "name": "TICK_RATE"
+                    }
+                }
+            ],
+            "periodicEffect": "Complex Collector - Area Search"
+        },
+        "Death Blossom - Cooldown": {
+            "defaultStackType": {}
+        },
+        "Death Blossom - Learned": {
+            "defaultStackType": {}
+        },
+        "Degenerate": {
+            "defaultStackType": {},
+            "periodicInterval": 1,
+            "periodicEffect": "Degenerate"
+        },
+        "Destroy and Delay Remove": {
+            "defaultStackType": {},
+            "duration": 1,
+            "startEffect": "Kill Source",
+            "finalEffect": "Remove Source"
+        },
+        "Distance - Stacks": {
+            "defaultStackType": {}
+        },
+        "Double Swing - Critical Chance - Stacks": {
+            "defaultStackType": {}
+        },
+        "Event - Move Nearby": {
+            "defaultStackType": {},
+            "periodicInterval": 0.001,
+            "periodicIntervalExpressions": [
+                {
+                    "multiply": {
+                        "expressions": [
+                            {
+                                "value": {
+                                    "behaviorStackCount": {
+                                        "unit": 1,
+                                        "behavior": "Event - Move Nearby"
+                                    }
+                                }
+                            },
+                            {
+                                "value": {
+                                    "constant": {
+                                        "doubleValue": 0.01
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "periodicEffect": "Event - Move Nearby - Scan"
+        },
+        "Event - Radius": {
+            "defaultStackType": {}
+        },
+        "ForceCast": {
+            "defaultStackType": {}
+        },
+        "Health Regeneration": {
+            "defaultStackType": {},
+            "periodicInterval": 1,
+            "periodicEffect": "Health Regeneration - Heal"
+        },
+        "Hero - Slow": {
+            "maxStackCount": 5,
+            "independentStackType": {},
+            "duration": 1,
+            "modifiers": {
+                "moveSpeedModifier": {
+                    "additiveFactor": -0.1
+                }
+            }
+        },
+        "HitBack": {
+            "defaultStackType": {},
+            "damageResponse": {
+                "chance": 1,
+                "effect": "ApplyHitBackTrigger"
+            }
+        },
+        "HitBackTrigger": {
+            "defaultStackType": {},
+            "startEffect": "RemoveHitBackTrigger"
+        },
+        "Hybrid - Archer - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Hydra - Active": {
+            "defaultStackType": {}
+        },
+        "Hydra - Duration": {
+            "defaultStackType": {},
+            "expireEffect": "Hydra - Expiration Effects"
+        },
+        "Indicator - Red": {
+            "defaultStackType": {}
+        },
+        "Indicator Radius": {
+            "defaultStackType": {}
+        },
+        "Item - Hero Detector": {
+            "defaultStackType": {},
+            "periodicInterval": 0.0001,
+            "periodicIntervalExpressions": [
+                {
+                    "namedExpression": {
+                        "name": "TICK_RATE"
+                    }
+                }
+            ],
+            "periodicEffect": "Item - Hero Detector - Scan"
+        },
+        "KeyItem - Disable Pickup": {
+            "defaultStackType": {},
+            "modifiers": {
+                "flags": {
+                    "suppressAbility": true
+                }
+            }
+        },
+        "Knockout": {
+            "defaultStackType": {},
+            "periodicInterval": 100,
+            "periodicIntervalExpressions": [
+                {
+                    "namedExpression": {
+                        "name": "TICK_RATE"
+                    }
+                }
+            ],
+            "periodicEffect": "Knockout - Scan"
+        },
+        "Magnet - VFX": {
+            "defaultStackType": {
+                "refreshStack": true
+            }
+        },
+        "Missile - Pierce": {
+            "defaultStackType": {}
+        },
+        "Mystic Archer - Charged Shot - Speed": {
+            "defaultStackType": {}
+        },
+        "Mystic Archer - Rotation Stack": {
+            "defaultStackType": {}
+        },
+        "Occupy - Amp - OnDeath": {
+            "defaultStackType": {},
+            "deathResponse": {
+                "chance": 1,
+                "effect": "Occupy - Amp - Scan"
+            }
+        },
+        "Occupy - Detector": {
+            "defaultStackType": {},
+            "periodicInterval": 0.000001,
+            "periodicIntervalExpressions": [
+                {
+                    "namedExpression": {
+                        "name": "TICK_RATE"
+                    }
+                }
+            ],
+            "periodicEffect": "Occupy - Detector"
+        },
+        "Occupy - Dynamite - OnDeath": {
+            "defaultStackType": {},
+            "deathResponse": {
+                "chance": 1,
+                "effect": "Occupy - Dynamite - OnDeath - Scan"
+            }
+        },
+        "Occupy - Heals": {
+            "defaultStackType": {}
+        },
+        "Occupy - Magnet - OnDeath": {
+            "defaultStackType": {},
+            "deathResponse": {
+                "chance": 1,
+                "effect": "Occupy - Magnet - Trigger"
+            }
+        },
+        "Occupy - Potion - OnDeath": {
+            "defaultStackType": {},
+            "deathResponse": {
+                "chance": 1,
+                "effect": "Occupy - Potion - Scan"
+            }
+        },
+        "Occupy - Rocket - OnDeath": {
+            "defaultStackType": {},
+            "deathResponse": {
+                "chance": 1
+            }
+        },
+        "Out of Bounds": {
+            "defaultStackType": {
+                "refreshStack": true,
+                "refreshEffect": "Out of Bounds - Damage"
+            },
+            "duration": 2,
+            "startEffect": "Out of Bounds - Damage"
+        },
+        "Radiance - Learned": {
+            "defaultStackType": {}
+        },
+        "Radiance - Size": {
+            "defaultStackType": {}
+        },
+        "Salvo - Bonus Bomb Chance": {
+            "defaultStackType": {}
+        },
+        "Salvo - Critical Cast Chance": {
+            "defaultStackType": {}
+        },
+        "Shot - Learned - Double Shot": {
+            "defaultStackType": {}
+        },
+        "Skill - Archer - Cast": {
+            "defaultStackType": {},
+            "duration": 0.0625
+        },
+        "Skill - Bash - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Skill - Blade Trap - Learned - Maim": {
+            "defaultStackType": {}
+        },
+        "Skill - Blade Trap - Learned - Seeking Blades": {
+            "defaultStackType": {}
+        },
+        "Skill - Blade Trap - Seeking Blades": {
+            "defaultStackType": {},
+            "periodicInterval": 1,
+            "periodicEffect": "Skill - Blade Trap - Seeking Blades - Scan"
+        },
+        "Skill - Fireball - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Skill - Frostfang - Hibernation": {
+            "defaultStackType": {},
+            "periodicInterval": 0.25,
+            "periodicEffect": "Skill - Frostfang - Hibernation - Scan"
+        },
+        "Skill - Ice Barrage - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Skill - Ice Rupture - Learned - Ice Locked": {
+            "defaultStackType": {}
+        },
+        "Skill - Ice Rupture - Skill Size": {
+            "defaultStackType": {}
+        },
+        "Skill - Lightning Splash - Learned": {
+            "defaultStackType": {}
+        },
+        "Skill - Mighty Axe - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Skill - Static Remnants - Storm Serpent - Damage": {
+            "defaultStackType": {}
+        },
+        "Skill - Static Remnants - Storm Serpent - Size": {
+            "defaultStackType": {}
+        },
+        "Skill - Strafe - Learned - Quick Draw": {
+            "defaultStackType": {}
+        },
+        "Skill - Strafe - Learned - Trickshot": {
+            "defaultStackType": {}
+        },
+        "Skill - Strafe - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Skill - Tesla Field - Learned - Static Discharge": {
+            "defaultStackType": {}
+        },
+        "Slow Hero": {
+            "defaultStackType": {
+                "stacksRemovedOnExpire": 1
+            },
+            "periodicInterval": 0.0625,
+            "periodicEffect": "Slow Hero - Diminish",
+            "modifiers": {
+                "moveSpeedModifier": {
+                    "multiplierFactor": -0.01
+                }
+            }
+        },
+        "Spectral Arrow - Angle Stack": {
+            "defaultStackType": {}
+        },
+        "Spectral Arrow - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Stage 1 - Wall of Fire - Behavior": {
+            "defaultStackType": {},
+            "periodicInterval": 0.25,
+            "periodicEffect": "Stage 1 - Wall of Fire - Scan"
+        },
+        "Stagger": {
+            "defaultStackType": {}
+        },
+        "Stats - Cast Speed": {
+            "defaultStackType": {},
+            "modifiers": {
+                "abilitySpeedModifier": {
+                    "additiveFactor": 0.01
+                }
+            }
+        },
+        "Stats - Move Speed": {
+            "defaultStackType": {},
+            "modifiers": {
+                "moveSpeedModifier": {
+                    "scaled": 0.01
+                }
+            }
+        },
+        "Status - Amp": {
+            "defaultStackType": {},
+            "duration": 0.01,
+            "modifiers": {
+                "abilityCooldownModifier": {
+                    "additiveFactor": 2
+                }
+            }
+        },
+        "Temporary - Destroy": {
+            "defaultStackType": {},
+            "duration": 1,
+            "finalEffect": "Apply Destroy and Delay Remove"
+        },
+        "Temporary - Remove": {
+            "defaultStackType": {},
+            "duration": 3,
+            "finalEffect": "Remove Source"
+        },
+        "Uncontrollable": {
+            "defaultStackType": {},
+            "duration": 1
+        },
+        "Viper Strike - Missile Speed": {
+            "defaultStackType": {}
+        },
+        "Weapon - Salvo - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Weapon - Scarlet Arrow - Explosion - Learned": {
+            "defaultStackType": {}
+        },
+        "Weapon - Scarlet Arrow - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Weapon - Scarlet Arrow - Quick Draw - Learned": {
+            "defaultStackType": {}
+        },
+        "Weapon - Scarlet Arrow - Quick Draw - OnCooldown": {
+            "defaultStackType": {}
+        },
+        "Weapon - Spitfire - Projectile Deceleration Rate": {
+            "defaultStackType": {}
+        },
+        "Weapon - Spitfire - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Weapon - Spitfire - Projectile Spread": {
+            "defaultStackType": {}
+        },
+        "Wisp - Collected": {
+            "defaultStackType": {},
+            "periodicIntervalExpressions": [
+                {
+                    "namedExpression": {
+                        "name": "TICK_RATE"
+                    }
+                }
+            ],
+            "periodicEffect": "Wisp - Detector"
+        },
+        "_DamageApplier": {
+            "template": true,
+            "maxStackCount": 1,
+            "defaultStackType": {},
+            "duration": 1
+        }
+    }
+}

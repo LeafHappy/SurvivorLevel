@@ -1,0 +1,580 @@
+---@class GameStat
+---@field Key string
+---@field DisplayName string
+---@field ShortDescription string | nil
+---@field BadgePriority number | nil
+---@field BadgeDescription string | nil
+---@field Icon string
+---@field Format string | nil
+---@field Section string
+
+---@class GameStats<GameStat>
+---@readonly
+local GameStats = {
+    ---ANCHOR: General
+    ["Game Time"] = {
+        Key = "Game Time",
+        DisplayName = "Time",
+        ShortDescription = "Time in round",
+        BadgePriority = 1,
+        BadgeDescription = "Time Survived",
+        Icon = DCEI.Texture("general_icon_time_yellow_wildsurvivor"),
+        Format = "time",
+        Section = "SkillStats",
+    },
+
+    ---ANCHOR: Key Game Events
+    ["Nexus"] = {
+        Key = "Nexus",
+        DisplayName = "Nexus",
+        BadgePriority = 2,
+        BadgeDescription = "Nexus Events Completed",
+        Icon = DCEI.Texture("mine_dungeon_floor_hero_btn_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Inhibitor"] = {
+        Key = "Inhibitor",
+        DisplayName = "Inhibitor",
+        BadgePriority = 2,
+        BadgeDescription = "Inhibitors Destroyed",
+        Icon = DCEI.Texture("shard_spell_darksummons_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+
+    ---ANCHOR: Specific Basic Enemies
+    ["Runner"] = {
+        Key = "Runner",
+        DisplayName = "Runner",
+        BadgePriority = 10,
+        BadgeDescription = "Runner Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_runner_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+    ["Banshee"] = {
+        Key = "Banshee",
+        DisplayName = "Banshee",
+        BadgePriority = 10,
+        BadgeDescription = "Banshee Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_banshee_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+    ["Walker"] = {
+        Key = "Walker",
+        DisplayName = "Walker",
+        BadgePriority = 10,
+        BadgeDescription = "Walker Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_walker_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+    ["Marauder"] = {
+        Key = "Marauder",
+        DisplayName = "Marauder",
+        BadgePriority = 10,
+        BadgeDescription = "Marauder Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_marauder_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+    ["Boomer"] = {
+        Key = "Boomer",
+        DisplayName = "Boomer",
+        BadgePriority = 10,
+        BadgeDescription = "Boomer Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_boomer_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+    ["Brute"] = {
+        Key = "Brute",
+        DisplayName = "Brute",
+        BadgePriority = 10,
+        BadgeDescription = "Brute Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_brute_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+
+    -- ["Witch"] = {
+    --     Key = "Witch",
+    --     DisplayName = "Witch",
+    --     BadgePriority = 10,
+    --     BadgeDescription = "Witch Kills",
+    --     Icon = DCEI.Texture("btn_unit_wildsurvivor_necromancer_skelemancer_black"),
+    --     Format = "damage",
+    -- },
+    -- ["Gargoyle"] = {
+    --     Key = "Gargoyle",
+    --     DisplayName = "Gargoyle",
+    --     BadgePriority = 10,
+    --     BadgeDescription = "Gargoyle Kills",
+    --     Icon = DCEI.Texture("unlock_unit_gargoyle_wildsurvivor"),
+    --     Format = "damage",
+    -- },
+
+    ---ANCHOR: Total Basic Enemies
+    ["Basic Kills"] = {
+        Key = "Basic Kills",
+        DisplayName = "Kills",
+        BadgePriority = 11,
+        BadgeDescription = "Basic Kills",
+        Icon = DCEI.Texture("cartoon_icon_unit_standard_kills_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+
+    ---ANCHOR: Elite Boss Enemies
+    ["Golem"] = {
+        Key = "Golem",
+        DisplayName = "Golem",
+        BadgePriority = 20,
+        BadgeDescription = "Golem Kills",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_alchemist_pet_golem"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+    ---ANCHOR: Elite Boss Enemies
+    ["Skull"] = {
+        Key = "Skull",
+        DisplayName = "Skull",
+        BadgePriority = 20,
+        BadgeDescription = "Skull Kills",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_skull_bouncing"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+
+    ---ANCHOR: Total Elite Enemies
+    ["Elite Kills"] = {
+        Key = "Elite Kills",
+        DisplayName = "Elite Kills",
+        BadgePriority = 21,
+        BadgeDescription = "Elite Kills",
+        Icon = DCEI.Texture("cartoon_icon_unit_elite_kills_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+
+    ---ANCHOR: Specific Boss Enemies
+
+    ["Shieldbearer"] = { -- Boss 1
+        Key = "Shieldbearer",
+        DisplayName = "Shieldbearer",
+        BadgePriority = 30,
+        BadgeDescription = "Shieldbearer Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_shieldbearer_badge_survivor"),
+        Format = "damage",
+        UnitType = DCEI.Unit("Boss - Shieldbearer"),
+        Section = "KillStats",
+    },
+    ["Alchemist"] = { -- Boss 2
+        Key = "Alchemist",
+        DisplayName = "Alchemist",
+        BadgePriority = 30,
+        BadgeDescription = "Alchemist Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_alchemist_badge_survivor"),
+        Format = "damage",
+        UnitType = DCEI.Unit("Boss - Alchemist"),
+        Section = "KillStats",
+    },
+    ["Skeleton King"] = { -- Boss 3
+        Key = "Skeleton King",
+        DisplayName = "Skeleton King",
+        BadgePriority = 30,
+        BadgeDescription = "Skeleton King Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_skeletonking_badge_survivor"),
+        Format = "damage",
+        UnitType = DCEI.Unit("Boss - Skeleton King"),
+        Section = "KillStats",
+    },
+    ["Knight"] = { -- Boss 4
+        Key = "Knight",
+        DisplayName = "Knight",
+        BadgePriority = 30,
+        BadgeDescription = "Knight Kills",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_deathknight_mounted"),
+        Format = "damage",
+        UnitType = DCEI.Unit("Boss - Knight"),
+        Section = "KillStats",
+    },
+    ["Giant"] = { -- Boss 5
+        Key = "Giant",
+        DisplayName = "Giant",
+        BadgePriority = 30,
+        BadgeDescription = "Giant Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_giant_badge_survivor"),
+        Format = "damage",
+        UnitType = DCEI.Unit("Boss - Giant"),
+        Section = "KillStats",
+    },
+    ["Fulminyx"] = { -- Boss 6
+        Key = "Fulminyx",
+        DisplayName = "Fulminyx",
+        BadgePriority = 30,
+        BadgeDescription = "Fulminyx Kills",
+        Icon = DCEI.Texture("cartoon_icon_enemy_fulminyx_fullbody_survivor"),
+        Format = "damage",
+        UnitType = DCEI.Unit("Boss - Fulminyx"),
+        Section = "KillStats",
+    },
+
+    ["Reaper"] = {
+        Key = "Reaper",
+        DisplayName = "Reaper",
+        BadgePriority = 30,
+        BadgeDescription = "Reaper Kills",
+        Icon = DCEI.Texture("btn_unit_wildsurvivor_necromancer_zombiemaster"),
+        Format = "damage",
+        UnitType = DCEI.Unit("Boss - Reaper"),
+        Section = "KillStats",
+    },
+
+    ---ANCHOR: Total Boss Enemies
+    ["Boss Kills"] = {
+        Key = "Boss Kills",
+        DisplayName = "Boss Kills",
+        BadgePriority = 31,
+        BadgeDescription = "Boss Kills",
+        Icon = DCEI.Texture("cartoon_icon_unit_boss_kills_survivor"),
+        Format = "damage",
+        Section = "KillStats",
+    },
+
+    ---ANCHOR: Shrines
+    ["Meditation Fountain"] = {
+        Key = "Meditation Fountain",
+        DisplayName = "Meditation Fountain",
+        BadgePriority = 50,
+        BadgeDescription = "Meditation Fountains Completed",
+        Icon = DCEI.Texture("shard_tower_meditationfountain_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Hall of Life"] = {
+        Key = "Hall of Life",
+        DisplayName = "Hall of Life",
+        BadgePriority = 50,
+        BadgeDescription = "Hall of Life Completed",
+        Icon = DCEI.Texture("shard_tower_halloflife_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Stoneguard"] = {
+        Key = "Stoneguard",
+        DisplayName = "Stoneguard",
+        BadgePriority = 50,
+        BadgeDescription = "Stoneguard Completed",
+        Icon = DCEI.Texture("shard_tower_stoneguard_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Fallen Star"] = {
+        Key = "Fallen Star",
+        DisplayName = "Fallen Star",
+        BadgePriority = 50,
+        BadgeDescription = "Fallen Star Completed",
+        Icon = DCEI.Texture("shard_tower_fallenstar_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Tavern"] = {
+        Key = "Tavern",
+        DisplayName = "Tavern",
+        BadgePriority = 50,
+        BadgeDescription = "Tavern Completed",
+        Icon = DCEI.Texture("shard_tower_saloon_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Sprouting Oak"] = {
+        Key = "Sprouting Oak",
+        DisplayName = "Sprouting Oak",
+        BadgePriority = 50,
+        BadgeDescription = "Sprouting Oak Completed",
+        Icon = DCEI.Texture("shard_tower_sproutingoak_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ---ANCHOR: Weapons
+
+    ---ANCHOR: Hero Weapons
+
+    ---ANCHOR: Stage 1 Weapons
+
+    ---ANCHOR: Stage 2 Weapons
+
+    ---ANCHOR: Stage 3 Weapons
+
+    ---ANCHOR: Stage 4 Weapons
+
+    ---ANCHOR: Stage 5 Weapons
+
+    ---ANCHOR: Stage 6 Weapons
+
+    ---ANCHOR: NEW
+    ["ScarletArrow"] = {
+        Key = "ScarletArrow",
+        DisplayName = "Scarlet Arrow",
+        BadgePriority = 100,
+        BadgeDescription = "Scarlet Arrow Damage",
+        Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["OrbitalShield"] = {
+        Key = "OrbitalShield",
+        DisplayName = "Orbital Shield",
+        BadgePriority = 100,
+        BadgeDescription = "Orbital Shield Damage",
+        Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Boomerang"] = {
+        Key = "Boomerang",
+        DisplayName = "Boomerang",
+        BadgePriority = 100,
+        BadgeDescription = "Boomerang Damage",
+        Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["MightyAxe"] = {
+        Key = "MightyAxe",
+        DisplayName = "Mighty Axe",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Frostnova"] = {
+        Key = "Frostnova",
+        DisplayName = "Frostnova",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_frostnova_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["FrostPillar"] = {
+        Key = "FrostPillar",
+        DisplayName = "Frost Pillar",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["TeslaField"] = {
+        Key = "TeslaField",
+        DisplayName = "Tesla Field",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_chilling_presence_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+
+    ---ANCHOR: OLD
+
+    ["Weapon - Homerun Bat"] = {
+        Key = "Weapon - Homerun Bat",
+        DisplayName = "Homerun Bat",
+        ShortDescription = "Smack em with a bat.",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_bunny_baseball_missile"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Weapon - Revenant"] = {
+        Key = "Weapon - Revenant",
+        DisplayName = "Revenant",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("icon_spell_summon_harbinger_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Weapon - Salvo"] = {
+        Key = "Weapon - Salvo",
+        DisplayName = "Salvo",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("icon_enhance_flamecannon_heatseekers_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ---ANCHOR: Universal Weapons
+    ["Weapon - Spitfire"] = {
+        Key = "Weapon - Spitfire",
+        DisplayName = "Spitfire",
+        ShortDescription = "Releases a series of fire in your facing direction.",
+        BadgePriority = 100,
+        BadgeDescription = "Spitfire Damage",
+        Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Weapon - Chakram"] = {
+        Key = "Weapon - Chakram",
+        DisplayName = "Chakram",
+        ShortDescription = "Release a series of Chakram that spin around you.",
+        BadgePriority = 100,
+        BadgeDescription = "Chakram Damage",
+        Icon = DCEI.Texture("cartoon_icon_skill_arcane_orb_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Weapon - Starblast"] = {
+        Key = "Weapon - Starblast",
+        DisplayName = "Starblast",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("icon_enhance_wardedgate_passingjudgement_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Artifact - Whirlwind"] = {
+        Key = "Artifact - Whirlwind",
+        DisplayName = "Whirlwind",
+        ShortDescription = "Releases a whirlwind that damages enemies.",
+        BadgePriority = 100,
+        BadgeDescription = "Whirlwind Damage",
+        Icon = DCEI.Texture("cartoon_icon_skill_whirlwind_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+
+    ---ANCHOR: Spells
+    ["Solar Crest"] = {
+        Key = "Solar Crest",
+        DisplayName = "Solar Crest",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_solar_crest_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Spectral Arrow"] = {
+        Key = "Spectral Arrow",
+        DisplayName = "Spectral Arrow",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_mystic_archer_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Lightning Strike"] = {
+        Key = "Lightning Strike",
+        DisplayName = "Lightning Strike",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_lightning_storm_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Chilling Presence"] = {
+        Key = "Chilling Presence",
+        DisplayName = "Chilling Presence",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_chilling_presence_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Clawstorm"] = {
+        Key = "Clawstorm",
+        DisplayName = "Clawstorm",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_clawstorm_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Guardian Shield"] = {
+        Key = "Guardian Shield",
+        DisplayName = "Guardian Shield",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Pyroclasm"] = {
+        Key = "Pyroclasm",
+        DisplayName = "Pyroclasm",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Viper Strike"] = {
+        Key = "Viper Strike",
+        DisplayName = "Viper Strike",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("icon_enhance_candycottage_toxicdroplets_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+
+    ---ANCHOR: Artifacts
+    ["Ice Rupture"] = {
+        Key = "Ice Rupture",
+        DisplayName = "Ice Rupture",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Whirlwind"] = {
+        Key = "Whirlwind",
+        DisplayName = "Whirlwind",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_whirlwind_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Hydra"] = {
+        Key = "Hydra",
+        DisplayName = "Hydra",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_hydra_missile_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Death Blossom"] = {
+        Key = "Death Blossom",
+        DisplayName = "Death Blossom",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_death_blossom_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["Flamebreak"] = {
+        Key = "Flamebreak",
+        DisplayName = "Flamebreak",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("icon_enhance_flamecannon_furnace_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+
+    ["IceBarrage"] = {
+        Key = "IceBarrage",
+        DisplayName = "Ice Barrage",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("icon_ingame_towerslot_frosttower_wildsurvivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["IceRupture"] = {
+        Key = "IceRupture",
+        DisplayName = "Ice Rupture",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+    ["MagmaOrb"] = {
+        Key = "MagmaOrb",
+        DisplayName = "Magma Orb",
+        BadgePriority = 100,
+        Icon = DCEI.Texture("cartoon_icon_skill_arcane_orb_survivor"),
+        Format = "damage",
+        Section = "SkillStats",
+    },
+}
+
+return GameStats

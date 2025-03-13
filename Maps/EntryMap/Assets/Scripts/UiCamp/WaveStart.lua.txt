@@ -1,0 +1,47 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Hybrid/WaveStart",
+    parent = ui.z2.Frame,
+})
+
+-- CONSTANTS
+local DEFAULT_ICON = DCEI.Texture("cartoon_icon_modifier_partinggift_wildsurvivor")
+local DEFAULT_TEXT = "Swarm Incoming!"
+local DEFAULT_DURATION = 3.25
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    -- Initialize UI controller
+    self.controller = DCEI.GetFrameController(self.Frame)
+    self.controller:SetTimerFunc(GMUI.RunFunctionAfterTimeElapsed)
+end
+
+function layout:PlayAnimation(data)
+    data = data or {}
+    local text = data.text or DEFAULT_TEXT
+    local icon = data.icon or DEFAULT_ICON
+    local duration = data.duration or DEFAULT_DURATION
+
+    -- update UI
+    DCEI.SetTextFrameText(self.Label, tostring(text))
+    DCEI.SetFrameImage(self.Icon, icon)
+
+    -- play animation
+    self.controller:PlayAnimation(duration)
+end
+
+local PlayAnimation = function(data)
+    layout:PlayAnimation(data)
+end
+
+Core.Event.RegisterPresentationEvent("Camp.Overlay.EventWarning", PlayAnimation)
+
+-- EXPORT
+return layout

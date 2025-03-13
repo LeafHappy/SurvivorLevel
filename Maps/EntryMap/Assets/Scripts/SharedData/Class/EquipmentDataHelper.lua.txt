@@ -1,0 +1,175 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Shared")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local EquipmentData = require("SharedData/GearData/EquipmentData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+---@class EquipmentDataHelper
+local EquipmentDataHelper = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@param name string
+---@return ItemData | nil
+local function GetEquipmentDisplayData(name)
+    for _, item in ipairs(EquipmentData.Equipment) do
+        if item.Name == name then
+            return item
+        end
+    end
+
+    DCEI.LogError("No equipment data with name " .. tostring(name))
+end
+
+---@param a EquipmentSaveData
+---@param b EquipmentSaveData
+---@return boolean
+local function SortBySlotType(a, b)
+    local a_data = GetEquipmentDisplayData(a.id)
+    local b_data = GetEquipmentDisplayData(b.id)
+    if not a_data or not b_data then
+        return false
+    end
+
+    local priority = {
+        weapon = 1,
+        ring = 2,
+        consumable = 3,
+        head = 4,
+        chest = 5,
+        boot = 6,
+    }
+
+    return priority[a_data.SlotType] < priority[b_data.SlotType]
+end
+
+---@param a EquipmentSaveData
+---@param b EquipmentSaveData
+---@return boolean
+local function SortByQuality(a, b)
+    return (a.quality or 0) > (b.quality or 0)
+end
+
+-- Adds passed modifier's value fields. Keeps first mod stat, scaling, and tags
+---@param mod_1 ModifierData
+---@param mod_2 ModifierData
+---@return ModifierData
+local function MergeModifier(mod_1, mod_2)
+    local merged_mod = {
+        Stat = mod_1.Stat,
+        Scaling = mod_1.Scaling,
+        Value = mod_1.Value + mod_2.Value,
+        Tags = mod_1.Tags,
+    }
+    return merged_mod
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+-- Sorts the passed equipment inventory in order of passed type
+---@param equipment table<EquipmentSaveData>
+---@param sort_type EQUIPMENT_SORTING_TYPES
+---@return table<EquipmentSaveData>
+function EquipmentDataHelper.SortInventory(equipment, sort_type)
+    if sort_type == EQUIPMENT_SORTING_TYPES.SlotType then
+        table.sort(equipment, SortBySlotType)
+    elseif sort_type == EQUIPMENT_SORTING_TYPES.Quality then
+        table.sort(equipment, SortByQuality)
+    end
+
+    return equipment
+end
+
+-- Returns if passed modifiers have same tags and stat
+---@param modifier ModifierData
+---@param compare_modifier ModifierData
+---@return boolean
+function EquipmentDataHelper.CompareModifier(modifier, compare_modifier)
+    if modifier.Stat ~= compare_modifier.Stat then
+        return false
+    end
+
+    if (not modifier.Tags and compare_modifier.Tags) or (not compare_modifier.Tags and modifier.Tags) then
+        return false
+    end
+
+    for _, tag in ipairs(modifier.Tags or {}) do
+        if not Core.Table.Contains(compare_modifier.Tags or {}, tag) then
+            return false
+        end
+    end
+
+    return true
+end
+
+-- Merges all modifiers with same tags and stat and returns merged modifier table
+---@param modifiers table<ModifierData>
+---@return table<ModifierData>
+function  EquipmentDataHelper.MergeDuplicateModifiers(modifiers)
+    -- DEBUG
+    -- DCEI.LogMessage("STARTING MERGE:")
+    -- Core.Util.LogDump(modifiers)
+
+    local update_mods = {}
+    local remove_indices = {}
+    for outer_i, modifier in ipairs(modifiers) do
+        local already_merged = Core.Table.Contains(remove_indices, outer_i)
+        if not already_merged then
+            for inner_i, compare_modifier in ipairs(modifiers) do
+                local is_same = outer_i == inner_i
+                local should_merge =  EquipmentDataHelper.CompareModifier(modifier, compare_modifier)
+                if not is_same and should_merge then
+                    -- Store merged mod to update later so table doesn't update during loop
+                    update_mods[outer_i] = MergeModifier(modifier, compare_modifier)
+
+                    -- Store mod that merged to remove so table doesn't update during loop
+                    table.insert(remove_indices, inner_i)
+                end
+            end
+        end
+    end
+
+    for i, merged_mod in pairs(update_mods) do
+        modifiers[i] = merged_mod
+    end
+
+    for _, index in ipairs(remove_indices) do
+        table.remove(modifiers, index)
+    end
+
+    -- DEBUG
+    -- if next(update_mods) then
+    --     DCEI.LogMessage("- [merged mods]:")
+    --     Core.Util.LogDump(update_mods)
+    --     DCEI.LogMessage("- [new mod list]:")
+    --     Core.Util.LogDump(modifiers)
+    -- else
+    --     DCEI.LogMessage("- NO MODS TO MERGE")
+    -- end
+
+    return modifiers
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return EquipmentDataHelper

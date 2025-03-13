@@ -1,0 +1,368 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local DataManager = require("UiMeta/DataManager")
+local GameStats = require("SharedData/GameStats")
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local StageData = require("SharedData/Stages/StageData")
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local StageInfo = {}
+StageInfo.is_initialized = false
+
+local selected_difficulty
+local selected_stage
+local current_tag_layouts = {}
+local current_skill_layouts = {}
+local current_drop_layouts = {}
+local difficulty_display_data = {
+    [1] = {
+        label = "Normal",
+        icon = "icon_rank03_wildsurvivor",
+    },
+    [2] = {
+        label = "Hard",
+        icon = "icon_rank02_wildsurvivor",
+    },
+    [3] = {
+        label = "Nightmare",
+        icon = "icon_rank01_wildsurvivor",
+    },
+}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function GenerateBossCamera(layout)
+    local width = 600
+    local height = 600
+
+    local camera_frame = DCEI.CreateCameraFrame(layout.BossCamera)
+    DCEI.SetFrameSize(camera_frame, width, height)
+    DCEI.SetCameraFrameViewportSize(camera_frame, 1000, 1000)
+    DCEI.SetCameraFrameViewportWorldPosition(camera_frame, 97.85, 1.55, 97.85)
+    DCEI.SetCameraFrameViewportRotation(camera_frame, 15, 45, 0)
+end
+
+local function CreateBossTag(parent, tag_data)
+    local tag = GMUI.Layout.New({
+        name = "Meta/StageInfo/BossTag",
+        parent = parent,
+    })
+
+    tag.state.icon = tag_data.icon
+
+    table.insert(current_tag_layouts, tag)
+end
+
+local function CreateDrop(parent, drop_data)
+    local drop = GMUI.Layout.New({
+        name = "Meta/StageInfo/Drop",
+        parent = parent,
+    })
+
+    drop.state.icon = drop_data.icon or drop_data.Icon
+
+    table.insert(current_drop_layouts, drop)
+end
+
+local function CreateSkill(parent, skill_data)
+    local skill = GMUI.Layout.New({
+        name = "Meta/StageInfo/Skill",
+        parent = parent,
+    })
+
+    skill.state.icon = skill_data.Icon
+    skill.state.display_name = skill_data.DisplayName
+
+    table.insert(current_skill_layouts, skill)
+end
+
+local function SetDifficulty(difficulty_level)
+    -- Safety check when the player wins and difficulty gets set to 4
+    if difficulty_level > 3 then
+        difficulty_level = 3
+    end
+
+    -- Store current difficulty
+    selected_difficulty = difficulty_level
+
+    -- Get difficulty data
+    local difficulty = difficulty_display_data[difficulty_level]
+
+    -- Unselect all other difficulties
+    for _, data in pairs(difficulty_display_data) do
+        data.button.state.is_selected = false
+    end
+
+    -- Select new difficulty
+    difficulty.button.state.is_selected = true
+
+    -- Set difficulty in the save data
+    DataManager.SetSelectedDifficulty(selected_stage, difficulty_level)
+
+    -- Update info for new difficulty
+    StageInfo.UpdateInfo(difficulty_level)
+end
+
+local function InitializeDifficulty()
+    difficulty_display_data[1].button = StageInfo.layout.normal_difficulty
+    difficulty_display_data[2].button = StageInfo.layout.hard_difficulty
+    difficulty_display_data[3].button = StageInfo.layout.nightmare_difficulty
+
+    for difficulty_level, difficulty in pairs(difficulty_display_data) do
+        difficulty.button.state.icon = difficulty.icon
+        difficulty.button.state.label = difficulty.label
+
+        DCEI.SetOnClickCallback(difficulty.button.Frame, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+            -- Escape early if trying to set difficulty to what it is already
+            if selected_difficulty == difficulty_level then
+                return
+            end
+
+            SetDifficulty(difficulty_level)
+        end)
+    end
+end
+
+local function UpdateBossCamera(stage)
+    local stage_data = StageData[stage]
+    if not stage_data then
+        return
+    end
+
+    local stage_boss = StageData[stage].boss
+    local unit = GameStats[stage_boss].UnitType
+    Core.Event.SendSimulationEvent("UpdateHomeCameraBoss", unit)
+end
+
+local function UpdateCurrentStage(stage)
+    if selected_stage == stage then
+        return
+    end
+
+    selected_stage = stage
+
+    -- Update ui to show info from new boss
+    UpdateBossCamera(stage)
+    StageInfo.Update()
+end
+
+local function GoToPreviousStage()
+    local min_stage = 1
+    local prev_stage = selected_stage - 1
+    prev_stage = math.max(min_stage, prev_stage)
+
+    UpdateCurrentStage(prev_stage)
+end
+
+local function GoToNextStage()
+    local max_stage = DataManager.GetCurrentStage()
+    local next_stage = selected_stage + 1
+    next_stage = math.min(max_stage, next_stage)
+
+    ---TODO: Remove this when we have more stages or a "Coming Soon".
+    -- Clamp to StageData Min and Max
+    local stage_data_count = #StageData
+    next_stage = math.min(stage_data_count, next_stage)
+
+    UpdateCurrentStage(next_stage)
+end
+
+local function CreateTags(tags)
+    for _, layout in ipairs(current_tag_layouts) do
+        layout:Destroy()
+    end
+    current_tag_layouts = {}
+
+    for _, tag_data in ipairs(tags) do
+        CreateBossTag(StageInfo.layout.BossTags, tag_data)
+    end
+end
+
+local function CreateDrops(drops)
+    for _, layout in ipairs(current_drop_layouts) do
+        layout:Destroy()
+    end
+    current_drop_layouts = {}
+
+    for _, drop_resource_data in ipairs(drops) do
+        CreateDrop(StageInfo.layout.PossibleDrops, drop_resource_data)
+    end
+end
+
+local function CreateSkills(skills)
+    for _, layout in ipairs(current_skill_layouts) do
+        layout:Destroy()
+    end
+    current_skill_layouts = {}
+
+    for _, skill_data in ipairs(skills) do
+        CreateSkill(StageInfo.layout.StageSkills, skill_data)
+    end
+end
+
+---@param callback function
+local function GiveAuthority(data, callback)
+    StageInfo.return_authority = callback
+    StageInfo.Open()
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function StageInfo.Initialize()
+    if StageInfo.is_initialized then
+        return
+    end
+
+    StageInfo.layout = GMUI.Layout.New({
+        name = "Meta/StageInfo",
+        parent = ui.z3.Lower,
+    })
+    ui.camp.stage_info = StageInfo.layout
+
+    -- Setup popup animations
+    local args = {
+        popup_frame = StageInfo.layout.Background,
+        mask_layout = ui.mask,
+    }
+    PopupManager.ApplyPopupAnimations(StageInfo.layout, args)
+
+    function StageInfo.layout:OnHide()
+        local saved_stage = DataManager.GetSelectedStage()
+        selected_difficulty = DataManager.GetSelectedDifficulty(saved_stage)
+
+        ---REVIEW: This is causing the Boss Dialogue on Close
+        -- Was there a reason this was here?
+        -- UpdateBossCamera(saved_stage)
+
+        -- Save any changes made to the save data
+        DataManager.Save()
+
+        GMUI.RunSimulationCallback(StageInfo.return_authority)
+    end
+
+    -- Boss display
+    GenerateBossCamera(StageInfo.layout)
+
+    -- Close callbacks
+    DCEI.SetOnClickCallback(StageInfo.layout.close.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        StageInfo.layout:Hide()
+    end)
+    DCEI.SetOnClickOutsideCallback(StageInfo.layout.Background, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        StageInfo.layout:Hide()
+    end)
+
+    -- Nav buttons
+    DCEI.SetOnClickCallback(StageInfo.layout.NextStage, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        GoToNextStage()
+    end)
+    DCEI.SetOnClickCallback(StageInfo.layout.PreviousStage, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        GoToPreviousStage()
+    end)
+
+    -- Get current boss
+    selected_stage = DataManager.GetSelectedStage()
+
+    -- Difficulty
+    InitializeDifficulty()
+
+    StageInfo.is_initialized = true
+end
+
+function StageInfo.UpdateInfo(difficulty)
+    local stage_data = StageData[selected_stage]
+
+    if not stage_data then
+        return
+    end
+
+    local stage_boss = StageData[selected_stage].boss
+    local boss_tags = DataManager.GetBossTags(stage_boss)
+    CreateTags(boss_tags)
+
+    local drops = DataManager.GetStageFeaturedLoot(selected_stage, difficulty)
+    CreateDrops(drops)
+
+    local skills = DataManager.GetStageFeaturedSkills(selected_stage, difficulty)
+    CreateSkills(skills)
+end
+
+function StageInfo.Update()
+    SetDifficulty(DataManager.GetSelectedDifficulty(selected_stage))
+
+    -- Update nav buttons
+    local is_at_max_stage = selected_stage == DataManager.GetCurrentStage()
+    local is_at_min_stage = selected_stage == 1
+    DCEI.SetFrameActive(StageInfo.layout.NextStage, not is_at_max_stage)
+    DCEI.SetFrameActive(StageInfo.layout.PreviousStage, not is_at_min_stage)
+
+    -- Update difficulty buttons
+    for difficulty_level, difficulty in ipairs(difficulty_display_data) do
+        local current_difficulty = DataManager.GetCurrentDifficulty(selected_stage)
+        local is_locked = difficulty_level > current_difficulty
+        difficulty.button.state.is_locked = is_locked
+    end
+
+    -- Update boss camera
+    UpdateBossCamera(selected_stage)
+
+    -- Select button
+    DCEI.SetOnClickCallback(StageInfo.layout.select_button.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        DataManager.SetSelectedStage(selected_stage)
+        StageInfo.layout:Hide()
+    end)
+end
+
+function StageInfo.Open()
+    if not StageInfo.is_initialized then
+        StageInfo.Initialize()
+    end
+
+    selected_stage = DataManager.GetSelectedStage()
+    StageInfo.Update()
+    StageInfo.layout:Show()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.StageInfo", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return StageInfo

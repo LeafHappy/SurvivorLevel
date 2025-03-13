@@ -1,0 +1,299 @@
+local Core = require("Core")
+local EquipmentData = require("SharedData/GearData/EquipmentData")
+local EquipmentDataHelper = require("SharedData/Class/EquipmentDataHelper")
+local StatData = require("SharedData/Skills/StatData")
+
+---@class EquipmentGenerator.ItemDataFilter
+---@field Hero SURVIVOR
+---@field SlotType EQUIPMENT_SLOT
+---@field EquipmentTags table<EQUIPMENT_TAG>
+---@field SkillTags table<SKILL_TAG> | nil
+
+---@class EquipmentGenerator.ModifierFilter
+---@field Stat STAT
+---@field SkillTags table<SKILL_TAG>
+---@field EquipmentTags table<EQUIPMENT_TAG>
+
+---@class ModifierData
+---@field Stat STAT
+---@field Scaling SCALING
+---@field Value number
+---@field Tags table<SKILL_TAG>
+
+---@class EquipmentData
+---@field Name string
+---@field Quality EQUIPMENT_QUALITY
+---@field Skill string
+---@field SlotType EQUIPMENT_SLOT
+---@field Modifiers table<ModifierData>
+
+---@class EquipmentGenerator
+local Generator = {}
+
+-- Replaces keys of table with keys of table2
+local function RecursiveDepthKeyReplace(table, table2)
+    for key, value in pairs(table) do
+        if type(value) == "table" and table2[key] then
+            RecursiveDepthKeyReplace(value, table2[key])
+        else
+            table[key] = table2[key] or value
+        end
+    end
+end
+
+---Returns a random Item Data based on the given filter.
+---@param filter EquipmentGenerator.ItemDataFilter
+---@return ItemData
+local function GetItemData(filter)
+    ---@type table<ItemData>
+    local equipment = Core.Table.DeepCopy(EquipmentData.Equipment)
+
+    -- Compare Filter
+    if filter then
+        -- Reverse Loop to avoid index issues
+        for i = #equipment, 1, -1 do
+            local item = equipment[i]
+
+            if filter.Hero and item.Hero ~= filter.Hero then
+                table.remove(equipment, i)
+            elseif filter.SlotType and item.SlotType ~= filter.SlotType then
+                table.remove(equipment, i)
+            elseif filter.EquipmentTags then
+                local hasTag = false
+
+                for _, tag in ipairs(filter.EquipmentTags) do
+                    if Core.Table.Contains(item.EquipmentTags, tag) then
+                        hasTag = true
+                        break
+                    end
+                end
+
+                if not hasTag then
+                    table.remove(equipment, i)
+                end
+            elseif filter.SkillTags then
+                local hasTag = false
+
+                for _, tag in ipairs(filter.SkillTags) do
+                    if Core.Table.Contains(item.SkillTags, tag) then
+                        hasTag = true
+                        break
+                    end
+                end
+
+                if not hasTag then
+                    table.remove(equipment, i)
+                end
+            end
+        end
+    end
+
+    -- Return Random Item
+    return equipment[math.random(1, #equipment)]
+end
+
+---Returns a random Modifier Data based on the given filter.
+---@param filter EquipmentGenerator.ModifierFilter
+---@return ModifierRollData
+local function GetModifierData(filter)
+    ---@type table<ModifierRollData>
+    local modifiers = Core.Table.DeepCopy(EquipmentData.Modifiers)
+
+    -- Compare Filter
+    if filter then
+        -- Reverse Loop to avoid index issues
+        for i = #modifiers, 1, -1 do
+            local modifier = modifiers[i]
+
+            if filter.Stat and modifier.Stat ~= filter.Stat then
+                table.remove(modifiers, i)
+            elseif filter.EquipmentTags then
+                local hasTag = false
+
+                for _, tag in ipairs(filter.EquipmentTags) do
+                    if Core.Table.Contains(modifier.EquipmentTags, tag) then
+                        hasTag = true
+                        break
+                    end
+                end
+
+                if not hasTag then
+                    table.remove(modifiers, i)
+                end
+            elseif filter.SkillTags then
+                local hasTag = false
+
+                for _, tag in ipairs(filter.SkillTags) do
+                    if Core.Table.Contains(modifier.SkillTags, tag) then
+                        hasTag = true
+                        break
+                    end
+                end
+
+                if not hasTag then
+                    table.remove(modifiers, i)
+                end
+            end
+        end
+    end
+
+    return modifiers[math.random(1, #modifiers)]
+end
+
+---@param min number
+---@param max number
+---@param intensity number | nil Default: 1
+---@return number
+local function RollInteger(min, max, intensity)
+    intensity = intensity or 1
+
+    local random_value = Core.Random.GetNumber(0, 1)
+    local curve_value = 1 - math.exp(-random_value * intensity)
+    local value = min + (max - min) * curve_value
+    value = Core.Math.Round(value, 0)
+
+    return value
+end
+
+---@param min number
+---@param max number
+---@param intensity number | nil Default: 1
+---@return number
+local function RollDecimal(min, max, intensity)
+    intensity = intensity or 1
+
+    local random_value = Core.Random.GetNumber(0, 1)
+    local curve_value = 1 - math.exp(-random_value * intensity)
+    local value = min + (max - min) * curve_value
+    value = Core.Math.Round(value, 2)
+
+    return value
+end
+
+---Rolls a Modifier Value with a skew towards lower values.
+---@param modifier_roll_data table
+---@param intensity number | nil Default: 1
+---@return number
+local function RollModifierValue(modifier_roll_data, intensity)
+    local stat = modifier_roll_data.Stat
+    local stat_data = StatData[stat]
+
+    local display_formatting = Core.Table.DeepCopy(StatData.DEFAULT_CONVERSION[modifier_roll_data.Scaling])
+    local display_overrides = stat_data.DisplayConversion and stat_data.DisplayConversion[modifier_roll_data.Scaling]
+    if display_overrides then
+        RecursiveDepthKeyReplace(display_formatting, display_overrides)
+    end
+
+    local value = 0
+    if display_formatting.Format == NUMBER_FORMAT.Integer then
+        value = RollInteger(modifier_roll_data.LowRoll, modifier_roll_data.HighRoll, intensity)
+    else
+        value = RollDecimal(modifier_roll_data.LowRoll, modifier_roll_data.HighRoll, intensity)
+    end
+
+    return value
+end
+
+---Generates a new Equipment Item.
+---@param filter EquipmentGenerator.ItemDataFilter | nil
+---@param quality EQUIPMENT_QUALITY | nil
+---@param intensity number | nil Default: 1
+---@return EquipmentData
+function Generator.NewItem(filter, quality, intensity)
+    filter = {}
+    quality = quality or EQUIPMENT_QUALITY.Common
+    intensity = intensity or 1
+
+    local item_data = GetItemData(filter)
+
+    -- Base Item Modifier (Item Specific)
+    local modifier_roll_data = GetModifierData({
+        Stat = item_data.Stat,
+        SkillTags = item_data.SkillTags or {},
+        EquipmentTags = item_data.EquipmentTags,
+    })
+
+    local value = RollModifierValue(modifier_roll_data, intensity)
+
+    ---@type ModifierData
+    local modifier = {
+        Stat = modifier_roll_data.Stat,
+        Scaling = modifier_roll_data.Scaling,
+        Value = value,
+        Tags = modifier_roll_data.SkillTags,
+    }
+
+    local item = {
+        Name = item_data.Name,
+        Quality = EQUIPMENT_QUALITY.Common,
+        Skill = item_data.Skill,
+        SlotType = item_data.SlotType,
+        Modifiers = {
+            modifier,
+        },
+    }
+
+    -- Apply Quality Modifiers (Equipment Tag Specific)
+    for i = 2, quality do
+        item = Generator.UpgradeItem(item, intensity)
+    end
+
+    return item
+end
+
+---Upgrades an Equipment Item.
+---@param item EquipmentData
+---@param intensity number | nil Default: 1
+---@return EquipmentData
+function Generator.UpgradeItem(item, intensity)
+    local item = Core.Table.DeepCopy(item)
+    intensity = intensity or 1
+
+    local current_quality = item.Quality
+
+    if current_quality == EQUIPMENT_QUALITY.Epic then
+        DCEI.LogWarning("> EquipmentGenerator.UpgradeItem: Item is already at max quality.")
+        return item
+    end
+
+    item.Quality = current_quality + 1
+
+    -- Fetch the Item Data based on the item's name
+    local item_data
+    for _, data in ipairs(EquipmentData.Equipment) do
+        if data.Name == item.Name then
+            item_data = data
+            break
+        end
+    end
+
+    if not item_data then
+        DCEI.LogWarning("> EquipmentGenerator.UpgradeItem: Item Data not found for item: " .. item.Name)
+        return item
+    end
+
+    -- Fetch the Modifier Data based on the item's modifier
+    local modifier_roll_data = GetModifierData({
+        EquipmentTags = item_data.EquipmentTags,
+    })
+
+    local value = RollModifierValue(modifier_roll_data, intensity)
+
+    ---@type ModifierData
+    local modifier = {
+        Stat = modifier_roll_data.Stat,
+        Scaling = modifier_roll_data.Scaling,
+        Value = value,
+        Tags = modifier_roll_data.SkillTags,
+    }
+
+    -- Modify Values
+    item.Quality = current_quality + 1
+    table.insert(item.Modifiers, modifier)
+
+    item.Modifiers = EquipmentDataHelper.MergeDuplicateModifiers(item.Modifiers)
+
+    return item
+end
+
+return Generator

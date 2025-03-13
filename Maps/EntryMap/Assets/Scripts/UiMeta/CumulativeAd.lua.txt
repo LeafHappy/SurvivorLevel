@@ -1,0 +1,362 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local ui = GMUI.ui
+
+-- SCRIPTS
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local DataManager = require("UiMeta/DataManager")
+local CumulativeAdData = require("SharedData/CumulativeAdData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local FlyingRewards = require("UiMeta/FlyingRewards")
+local Animation = require("Presentation/Animation")
+local ResourceDisplay = require("UiCamp/ResourceDisplay")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- CONSTANTS
+local NUM_ITEMS = 5
+
+-- 1/1/2024 06:00:00 PST
+EPOCH_START = 1704117600
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Meta/CumulativeAds",
+    parent = ui.z3.Upper,
+})
+
+local server_connected = false
+local layouts = {
+    ["BigItem"] = {},
+    ["Items"] = {},
+    ["Separators"] = {},
+}
+local data = {}
+
+-- LOCAL FUNCTIONS
+local function Save()
+    DataManager.SetCumulativeAdData(data)
+    DataManager.Save()
+end
+
+-- updates layout's claim status
+local function ActivateItem(index)
+    for _, item_layout in ipairs(layouts["Items"]) do
+        if item_layout.index == index then
+            local state = item_layout.state
+            state.can_claim = true
+        end
+    end
+end
+
+local function UpdateBigItemCounter()
+    for _, item_layout in ipairs(layouts["BigItem"]) do
+        local state = item_layout.state
+        state.current_progress = data.current_progress
+        state.can_claim = data.current_progress >= data.max_progress
+    end
+end
+
+local function CreateBigItem(item_data)
+    local item_layout = GMUI.LazyLayout.New({
+        name = "Meta/CumulativeAds/BigItem",
+        parent = layout.BigItem,
+    })
+    local state = item_layout.state
+    state.can_claim = data.current_progress >= data.max_progress
+    state.text = item_data.text
+    state.icon = ResourceData[item_data.type].icon
+    state.current_progress = data.current_progress
+    state.max_progress = data.max_progress
+
+    DCEI.SetOnClickCallback(item_layout.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        if data.current_progress >= data.max_progress then
+            data.current_progress = data.current_progress - data.max_progress
+            state.can_claim = data.current_progress >= data.max_progress
+
+            -- Set animation flag and value
+            if item_data.type:sub(1, 2) ~= "c_" then
+                local old_value = DataManager.GetInventoryItem(item_data.type)
+                ResourceDisplay.SetStartAnimationValue(item_data.type, old_value)
+            end
+
+            DataManager.AddInventoryResource(item_data.type, item_data.amount, true)
+            Save()
+
+            -- Fly animation
+            FlyingRewards.SpawnRewards(item_data.type, item_data.amount, 50)
+            Animation.StarExplosionAtFrame(item_layout.Frame)
+
+            -- hack: hide layout so chest page is not blocked by this window
+            if item_data.type:sub(1, 2) == "c_" then
+                layout:Hide()
+            end
+        end
+    end)
+    table.insert(layouts["BigItem"], item_layout)
+end
+
+local function CreateItem(item_data)
+    local item_layout = GMUI.LazyLayout.New({
+        name = "Meta/CumulativeAds/Item",
+        parent = layout.Items,
+    })
+    item_layout.index = item_data.index
+
+    local state = item_layout.state
+    state.claimed = item_data.claimed
+    state.can_claim = item_data.index == data.num_claimed + 2
+    state.text = item_data.text
+    state.icon = ResourceData[item_data.type].icon
+
+    DCEI.SetOnClickCallback(item_layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        if state.can_claim then
+            local function ResolveAds(success)
+                if success then
+                    data.num_claimed = data.num_claimed + 1
+                    data.current_progress = data.current_progress + 1
+                    data.items[item_data.index].claimed = true
+
+                    state.claimed = true
+                    state.can_claim = false
+
+                    UpdateBigItemCounter()
+
+                    -- Set animation flag and value
+                    if item_data.type:sub(1, 2) ~= "c_" then
+                        local old_value = DataManager.GetInventoryItem(item_data.type)
+                        ResourceDisplay.SetStartAnimationValue(item_data.type, old_value)
+                    end
+
+                    DataManager.AddInventoryResource(item_data.type, item_data.amount, true)
+                    ActivateItem(data.num_claimed + 2)
+                    Save()
+
+                    -- Fly animation
+                    FlyingRewards.SpawnRewards(item_data.type, item_data.amount, 50)
+                    Animation.StarExplosionAtFrame(item_layout.Button)
+
+                    -- show timer display if no more claimable rewards
+                    if data.num_claimed == NUM_ITEMS then
+                        layout.state.available = false
+                    end
+
+                    -- hack: hide layout so chest page is not blocked by this window
+                    if item_data.type:sub(1, 2) == "c_" then
+                        layout:Hide()
+                    end
+                else
+                    DCEI.LogError("FAILED TO SHOW ADS")
+                end
+            end
+
+            if DCEI.Platform == "WindowsPlayer" then
+                DCEI.LogMessage("WATCHING AD")
+                ResolveAds(true)
+            else
+                DCEI.ShowAds(ResolveAds)
+            end
+        end
+    end)
+    table.insert(layouts["Items"], item_layout)
+end
+
+local function CreateSeparator(item_type)
+    local item_layout = GMUI.LazyLayout.New({
+        name = "Meta/CumulativeAds/Arrow",
+        parent = layout.Items,
+    })
+    item_layout:Show()
+    table.insert(layouts["Separators"], item_layout)
+end
+
+local function ClearLayouts()
+    for _, item_layout in pairs(layouts["BigItem"]) do
+        item_layout:Destroy()
+    end
+    for _, item_layout in pairs(layouts["Items"]) do
+        item_layout:Destroy()
+    end
+    for _, item_layout in pairs(layouts["Separators"]) do
+        item_layout:Destroy()
+    end
+    layouts = {
+        ["BigItem"] = {},
+        ["Items"] = {},
+        ["Separators"] = {},
+    }
+end
+
+-- generates from save file
+local function GenerateLoadedItems()
+    -- create large item
+    CreateBigItem(data.items[1])
+
+    -- create small items, with separator
+    for i = 1, NUM_ITEMS do
+        CreateItem(data.items[i + 1])
+        if i < NUM_ITEMS then
+            CreateSeparator()
+        end
+    end
+end
+
+local function GenerateNewItems()
+    -- remove previous items
+    data.items = {}
+    data.num_claimed = 0
+
+    -- create large item
+    local item_data = CumulativeAdData["BigItem"][math.random(#CumulativeAdData["BigItem"])]
+    local saved_data = {
+        type = item_data.type,
+        text = item_data.text,
+        amount = math.random(item_data.min_value, item_data.max_value),
+    }
+    data.items[1] = saved_data
+    CreateBigItem(saved_data)
+
+    -- create small items, with separator
+    for i = 1, NUM_ITEMS do
+        local item_data = CumulativeAdData["SmallItem"][math.random(#CumulativeAdData["SmallItem"])]
+        local saved_data = {
+            type = item_data.type,
+            text = item_data.text,
+            index = i + 1,
+            amount = math.random(item_data.min_value, item_data.max_value),
+            claimed = false,
+        }
+        data.items[i + 1] = saved_data
+        CreateItem(saved_data)
+        if i < NUM_ITEMS then
+            CreateSeparator()
+        end
+    end
+
+    Save()
+end
+
+local function ServerTimeUpdate(time_stamp)
+    local day_length = 86400
+    local shop_age_in_seconds = time_stamp - EPOCH_START
+    local shop_age_day = math.floor(shop_age_in_seconds / day_length)
+
+    -- start timer to check for next server day update
+    data.time_until_refresh = (shop_age_day + 1) * day_length - (shop_age_in_seconds + DCEI.GetGameTime())
+
+    -- check if new day
+    if shop_age_day > data.current_day then
+        -- update new day
+        data.current_day = shop_age_day
+
+        GenerateNewItems()
+        return
+    else
+        GenerateLoadedItems()
+    end
+end
+
+local function FormatTimeDHM(seconds)
+    -- hack to show 1m when 1-59 seconds remain
+    seconds = seconds + 59
+
+    local day_length = 86400
+    local days = math.floor(seconds / day_length)
+    local hours = math.floor(seconds / 3600 % 24)
+    local minutes = math.floor(seconds / 60 % 60)
+    local d = "d"
+    local h = "h"
+    local m = "m"
+
+    if seconds > day_length then
+        return string.format("%s" .. d .. " %s" .. h .. " %s" .. m, days, hours, minutes)
+    else
+        return string.format("%s" .. h .. " %s" .. m, hours, minutes)
+    end
+end
+
+local function UpdateTimeDisplay()
+    local time_remaining_seconds = data.time_until_refresh - DCEI.GetGameTime()
+    if time_remaining_seconds > 0 then
+        local state = layout.state
+        state.refresh_time = FormatTimeDHM(time_remaining_seconds)
+    else
+        local server_time = ui.server.GetServerTime()
+        ServerTimeUpdate(server_time)
+        UpdateTimeDisplay()
+    end
+end
+
+local function Load()
+    data = DataManager.GetCumulativeAdData()
+    server_connected = ui.server.Initialized()
+    if not server_connected then
+        layout.state.server_connected = false
+        return
+    end
+
+    if layout:IsActive() then
+        layout.state.server_connected = true
+        local time_stamp = ui.server.GetServerTime()
+        ServerTimeUpdate(time_stamp)
+        UpdateTimeDisplay()
+    end
+
+    -- show timer display if no more claimable rewards
+    if data.num_claimed == NUM_ITEMS then
+        layout.state.available = false
+    end
+end
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    -- Initialize popup animations
+    local args = {
+        popup_frame = self.Frame,
+        mask_layout = ui.camp.overlay.meta_mask,
+    }
+    PopupManager.ApplyPopupAnimations(self, args)
+
+    -- Setup close button
+    DCEI.SetOnClickCallback(self.close.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Hide()
+    end)
+
+    -- Setup clicking outside to close
+    DCEI.SetOnClickOutsideCallback(self.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Hide()
+    end)
+
+    ui.server.AddOnGetServerTimeCallback(function()
+        server_connected = true
+        ClearLayouts()
+        Load()
+    end)
+end
+
+function layout:Open()
+    self:Show()
+    ClearLayouts()
+    Load()
+end
+
+function layout.OnShow()
+    --UpdateTimeDisplay()
+end
+
+function layout.OnHide()
+    local function CumulativeAdRewardAvailable()
+        local ad_data = DataManager.GetCumulativeAdData()
+        return ad_data.current_progress >= ad_data.max_progress
+    end
+    ui.home.reward_container.cumulative_ad_button.state.notify = CumulativeAdRewardAvailable()
+end
+
+-- EXPORT
+return layout

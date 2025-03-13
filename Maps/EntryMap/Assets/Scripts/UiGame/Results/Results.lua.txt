@@ -1,0 +1,696 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local DataManager = require("UiMeta/DataManager")
+local Animation = require("Presentation/Animation")
+local AdsManager = require("UiMeta/AdsManager")
+local ResultsAchievements = require("UiGame/Results/ResultsAchievements")
+local ui = GMUI.ui
+
+-- DATA
+local ChestData = require("SharedData/ChestData")
+local GameStats = require("SharedData/GameStats")
+local SkillData = require("SharedData/Skills/SkillData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+-- REGISTER TEXTURES
+local _register = DCEI.Texture("general_icon_wildsurvivor_win")
+local _register = DCEI.Texture("general_icon_wildsurvivor_defeat")
+
+-- CONSTANTS
+local ITEM_INFO_PRE_ANIMATION_DELAY = 0.2
+local ITEM_INFO_POST_ANIMATION_DELAY = 0.15
+
+local ITEM_INFO_ANIMATION_MAXIMUM_DURATION = 0.5
+local ITEM_INFO_ANIMATION_MINIMUM_DURATION = 0.1
+
+-- scale animation time based on this value (ex, if display value is 2 and reference_value is 10, take 20% of the
+-- default time. If the display value is above the reference value, animation time is capped at 100%)
+local REFERENCE_VALUE = 10
+
+local _ad_button_layout
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Game/Results",
+    parent = ui.z1.Upper,
+})
+
+---============================================================================
+---SECTION: Helper Functions
+---============================================================================
+
+-- Reward Helpers
+local function IsFormatTime(item_info)
+    return item_info.format and item_info.format == "time"
+end
+
+local function GetFormattedItemInfoValue(item_info, value)
+    value = value or item_info.value
+    if IsFormatTime(item_info) then
+        return Core.String.FormatTimeMinutes(value)
+    end
+    return math.floor(value)
+end
+
+-- Stats Helpers
+local function GetFormattedTime(value)
+    return Core.String.FormatTimeMinutes(value)
+end
+
+local function GetFormattedDamage(value)
+    local suffixes = { "", "k", "M", "B", "T" }
+    local suffixIndex = 1
+    while value >= 1000 and suffixIndex < #suffixes do
+        value = value / 1000
+        suffixIndex = suffixIndex + 1
+    end
+    value = math.floor(value * 100) / 100
+
+    -- Remove Trailing Zeros
+    local stripped_value = string.format("%.2f", value):gsub("%.?0+$", "")
+    return string.format("%s%s", stripped_value, suffixes[suffixIndex])
+end
+
+local function GetFormattedValue(formatting, value)
+    if formatting == "time" then
+        return GetFormattedTime(value)
+    elseif formatting == "damage" then
+        return GetFormattedDamage(value)
+    end
+
+    return value
+end
+
+---@param state string
+---@param args table
+local function AnimateCountOverTime(state, args)
+    args = args or {}
+
+    local end_value = args.end_value or 1
+    local start_value = args.start_value or 0
+
+    -- Set target to start_value
+    state.count = tostring(start_value)
+
+    local duration = args.duration or 0.25
+    local interval = args.interval or 0.04
+
+    for step = 0, duration - interval, interval do
+        -- Get next step value
+        local display_value = Core.Math.Lerp(start_value, end_value, step / duration)
+
+        if args.do_round then
+            display_value = math.floor(display_value)
+        end
+
+        -- Make sure to set to end value if at or over duration
+        if step >= duration then
+            display_value = end_value
+        end
+
+        -- Schedule setting text
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            local text = display_value or "0"
+
+            -- Run through any custom formatting functions
+            if args.formatting then
+                text = args.formatting(display_value)
+                text = text or "0"
+            end
+
+            -- Set target to display_value
+            state.count = tostring(text)
+        end, step)
+    end
+
+    -- Make sure to set to end value when done
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        local text = end_value or "0"
+
+        -- Run through any custom formatting functions
+        if args.formatting then
+            text = args.formatting(end_value)
+        end
+
+        -- Set target to display_value
+        state.count = tostring(text)
+    end, duration)
+end
+
+---============================================================================
+---!SECTION: Helper Functions
+---SECTION: Local Functions
+---============================================================================
+
+-- LOCAL FUNCTIONS
+local function SetupItemResult(item_layout, item_data)
+    local value_frame = item_layout.reward.Quantity
+    local icon_frame = item_layout.reward.Icon
+
+    -- Get material data for materials or inventory data for non-materials
+    local item_def = ResourceData[item_data.key]
+    if not item_def then
+        local config = DataManager.GetChestConfig(item_data.key)
+        item_def = { icon = ChestData.rarity_display_data[config.rarity].closed_icon }
+    end
+
+    function item_layout:AnimateIn()
+        DCEI.SetFrameAlpha(self.Frame, 1)
+
+        -- animate in title
+        local args = { duration = 0.25 }
+        Animation.PopIn(self.Frame, args)
+
+        -- then animate each value from 0 to its display value over time
+        local delay = ITEM_INFO_PRE_ANIMATION_DELAY
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            local target_value = item_data.value
+
+            local duration = self:GetAnimationTime()
+            local interval = 0.04
+            for t = 0, duration - interval, interval do
+                local display_value = t < duration and Core.Math.Lerp(0, target_value, t / duration) or target_value
+                GMUI.RunFunctionAfterTimeElapsed(function()
+                    local text = GetFormattedItemInfoValue(item_data, display_value)
+                    DCEI.SetTextFrameText(value_frame, tostring(text))
+                end, t)
+            end
+
+            -- set final value after total animation duration
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                local text = GetFormattedItemInfoValue(item_data, target_value)
+                DCEI.SetTextFrameText(value_frame, tostring(text))
+            end, duration)
+        end, delay)
+    end
+
+    function item_layout:GetAnimationTime()
+        local ratio = item_data.value / REFERENCE_VALUE
+        local duration = ratio * ITEM_INFO_ANIMATION_MAXIMUM_DURATION
+        return Core.Math.Clamp(duration, ITEM_INFO_ANIMATION_MINIMUM_DURATION, ITEM_INFO_ANIMATION_MAXIMUM_DURATION)
+    end
+
+    -- show an icon if the display value has one (used for kill count)
+    local icon = item_def.icon or item_def.Icon
+    if icon then
+        DCEI.SetFrameActive(icon_frame, true)
+        DCEI.SetFrameImage(icon_frame, icon)
+    end
+
+    -- hide item so it can be animated in
+    DCEI.SetFrameAlpha(item_layout.Frame, 0)
+
+    -- store item in parent table
+    table.insert(layout.items, item_layout)
+end
+
+local function ResetBadgeScroll()
+    DCEI.SetScrollFrameScrollPosition(layout.Scroll, 0)
+end
+
+---Animates the Scroll when a new Badge row is added/animated.
+---@param badge_layout Layout
+---@param item_number integer
+local function AnimateBadgeScroll(badge_layout, item_number)
+    -- We only want this to occur on the 6th, 11th, 16th, etc. Badge
+    if item_number < 6 or (item_number - 6) % 5 ~= 0 then
+        return
+    end
+
+    -- Scroll Down
+    local row = math.max(0, math.floor((item_number - 1) / 6) - 1)
+    local frame_height = DCEI.GetFrameHeight(badge_layout.Frame)
+    local total_height = DCEI.GetFrameHeight(layout.badge_container.Frame)
+    local target_offset = math.min(frame_height * row, total_height - frame_height * 2)
+
+    local current_scroll = DCEI.GetScrollFrameScrollPosition(layout.Scroll)
+    if current_scroll ~= target_offset then
+        DCEI.AnimateFrameScrollPosition(layout.Scroll, current_scroll, target_offset, 0.50, "InOutSine")
+    end
+end
+
+---Setup Badge Layout Properties
+---@param badge_layout Layout
+---@param item_data GameStat
+---@param value number
+---@param item_number integer
+local function SetupGameStatsBadge(badge_layout, item_data, value, item_number)
+    function badge_layout:AnimateIn()
+        -- AnimateBadgeScroll(badge_layout, item_number)
+
+        -- animate in title
+        local args = { duration = 0.25 }
+        Animation.PopIn(self.Frame, args)
+        DCEI.SetFrameAlpha(self.Frame, 1)
+
+        -- then animate each value from 0 to its display value over time
+        local delay = ITEM_INFO_PRE_ANIMATION_DELAY
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            -- Animate text overtime
+            local args = {
+                end_value = value,
+                duration = self:GetAnimationTime(),
+                interval = 0.04,
+                formatting = function(display_value)
+                    return GetFormattedValue(item_data.Format, display_value)
+                end,
+            }
+            AnimateCountOverTime(self.state, args)
+
+            -- set final value after total animation duration
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                local display_value = GetFormattedValue(item_data.Format, value)
+                self.state.count = tostring(display_value)
+            end, self:GetAnimationTime())
+        end, delay)
+    end
+
+    function badge_layout:GetAnimationTime()
+        local ratio = value / REFERENCE_VALUE
+        local duration = ratio * ITEM_INFO_ANIMATION_MAXIMUM_DURATION
+        return Core.Math.Clamp(duration, ITEM_INFO_ANIMATION_MINIMUM_DURATION, ITEM_INFO_ANIMATION_MAXIMUM_DURATION)
+    end
+
+    function badge_layout:ShowTooltip()
+        -- TODO: Implement better tooltips
+    end
+
+    -- Update Title
+    if item_data.BadgeTitle then
+        badge_layout.state.has_title = true
+        badge_layout.state.title = item_data.BadgeTitle
+    else
+        badge_layout.state.has_title = false
+    end
+
+    -- Update Icon
+    if item_data.Icon then
+        badge_layout.state.icon = item_data.Icon
+    end
+
+    -- Update Count
+    local initial_display_value = 0
+    badge_layout.state.count = initial_display_value
+
+    -- hide item so it can be animated in
+    DCEI.SetFrameAlpha(badge_layout.Frame, 0)
+
+    DCEI.SetOnClickCallback(badge_layout.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        badge_layout:ShowTooltip()
+    end)
+
+    -- store item in parent table
+    table.insert(layout.items, badge_layout)
+end
+
+local function CreateResultReward(item_data)
+    local item_layout = GMUI.Layout.New({
+        name = "Game/Results/ItemReward",
+        parent = layout.rewards_container.RewardsContent,
+    })
+    SetupItemResult(item_layout, item_data)
+end
+
+local function AddDoubledReward(reward)
+    -- Animate in new reward
+    CreateResultReward(reward)
+    for _, item_layout in ipairs(layout.items) do
+        item_layout:AnimateIn()
+    end
+
+    -- See if we should open chest or grant resource
+    if ResourceData[reward.key] then
+        DataManager.AddInventoryResource(reward.key, reward.value, true)
+        DataManager.Save()
+    elseif DataManager.GetChestConfig(reward.key) then
+        -- Open all of chests of same type at once
+        local chest_rewards = DataManager.OpenAllChests(reward)
+
+        -- Track opened chests to show graphic
+        AddResultsChest(reward, chest_rewards)
+    end
+end
+
+local function CreateAdButton(rewards)
+    -- Prevent Ad Button Duplication
+    if _ad_button_layout then
+        _ad_button_layout:Destroy()
+    end
+
+    -- Create New Ad Button
+    _ad_button_layout = GMUI.Layout.New({
+        name = "Game/Results/AdButton",
+        parent = layout.rewards_container.Background,
+    })
+
+    local state = _ad_button_layout.state
+    state.active = true
+    DCEI.SetFrameAlpha(_ad_button_layout.Button, 0)
+
+    -- double rewards if ad is watched
+    DCEI.SetOnClickCallback(_ad_button_layout.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        AdsManager.ShowDoubleRewardsAds(function()
+            -- Add all rewards again
+            for _, reward in ipairs(rewards) do
+                AddDoubledReward(reward)
+            end
+
+            -- Update ads watched and save data
+            DataManager.IncrementAdsWatched()
+            DataManager.Save()
+            state.active = false
+        end)
+    end)
+    table.insert(layout.ad_buttons, _ad_button_layout)
+end
+
+local function CreateGameStatLayout(item_data, value, item_number)
+    local parent = layout.badge_container.skill_stats_container.Content
+    if item_data.Section == "KillStats" then
+        parent = layout.badge_container.kill_stats_container.Content
+    else
+        parent = layout.badge_container.skill_stats_container.Content
+    end
+
+    local badge_layout = GMUI.Layout.New({
+        name = "Game/Results/Badge",
+        parent = parent,
+    })
+
+    SetupGameStatsBadge(badge_layout, item_data, value, item_number)
+end
+
+local function PlayAnimationAfterWait(duration, animation)
+    GMUI.RunFunctionAfterTimeElapsed(animation, duration)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout Methods
+---============================================================================
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    self.items = {}
+    self.ad_buttons = {}
+
+    DCEI.SetOnClickCallback(self.Continue, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Hide()
+        local showing_achievements = ui.game.results.achievements_popup.RunPopup(self.achievements)
+        if not showing_achievements then
+            StepGameResultsChests()
+        end
+    end)
+
+    -- override default Hide behavior so we can fade out on hide
+    layout.HideActual = layout.Hide
+
+    -- Initialize achievements popup
+    layout.achievements_popup = ResultsAchievements.Initialize(self)
+    layout.achievements_popup:HideActual()
+
+    function layout:Hide()
+        local k1, k2 = 1, 0
+        local duration = 0.2
+        local ease = "OutCubic"
+        DCEI.AnimateFrameAlpha(self.Frame, k1, k2, duration, ease)
+
+        -- block input during animations
+        local input_key = "hide_run_summary_animation"
+        GMUI.InputState.BlockUserInput(input_key)
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            GMUI.InputState.UnblockUserInput(input_key)
+            self:HideActual()
+        end, duration)
+    end
+end
+
+function layout:ResetLayout()
+    -- destroy info items
+    for _, v in ipairs(self.items) do
+        v:Destroy()
+    end
+
+    for _, v in ipairs(self.ad_buttons) do
+        v:Destroy()
+    end
+
+    self.items = {}
+    self.ad_buttons = {}
+
+    -- hide items to fade in
+    DCEI.SetFrameAlpha(self.ResultsBanner, 0)
+    DCEI.SetFrameAlpha(self.ResultsIcon, 0)
+    DCEI.SetFrameAlpha(self.rewards_container.Frame, 0)
+    DCEI.SetFrameAlpha(self.badge_container.Frame, 0)
+    DCEI.SetFrameAlpha(self.Continue, 0)
+    DCEI.SetFrameActive(self.Continue, false)
+
+    ResetBadgeScroll()
+end
+
+function layout:PlayAnimationSequence(trophy_earned, rewards, game_stats, achievements)
+    local function AnimateIcon()
+        local args = {
+            start_size = 5,
+            final_size = 1,
+        }
+        Animation.PopIn(self.ResultsIcon, args)
+        DCEI.SetFrameAlpha(self.ResultsIcon, 1)
+
+        -- Start ray spin loop
+        Animation.RotationLoop(self.ResultsFx, { duration = 1 })
+    end
+
+    local function AnimateTitle()
+        Animation.StretchIn(self.ResultsBanner)
+        DCEI.SetFrameAlpha(self.ResultsBanner, 1)
+    end
+
+    local function AnimateRewards()
+        Animation.StretchIn(self.rewards_container.Frame)
+        DCEI.SetFrameAlpha(self.rewards_container.Frame, 1)
+    end
+
+    local function AnimateScrollDownForBadges()
+        DCEI.SetScrollFrameScrollEnable(self.Scroll, false)
+
+        -- Scroll down a little to show badges
+        local total_height = DCEI.GetFrameHeight(layout.badge_container.Frame)
+        local target_offset = total_height / 2
+        local current_scroll = DCEI.GetScrollFrameScrollPosition(layout.Scroll)
+        if current_scroll ~= target_offset then
+            DCEI.AnimateFrameScrollPosition(layout.Scroll, current_scroll, target_offset, 0.50, "InOutSine")
+        end
+    end
+
+    local function AnimateBadges()
+        Animation.StretchIn(self.badge_container.Frame)
+        DCEI.SetFrameAlpha(self.badge_container.Frame, 1)
+    end
+
+    local function AnimateDoubleRewards()
+        if _ad_button_layout then
+            Animation.StretchIn(_ad_button_layout.Button)
+            DCEI.SetFrameAlpha(_ad_button_layout.Button, 1)
+        end
+    end
+
+    local function AnimateInContinue()
+        DCEI.SetScrollFrameScrollEnable(self.Scroll, true)
+        DCEI.SetFrameActive(self.Continue, true)
+        Animation.PopIn(self.Continue)
+        DCEI.SetFrameAlpha(self.Continue, 1)
+
+        -- Start fade loop
+        Animation.TextFadeLoop(self.Continue)
+    end
+
+    local sequence = {
+        AnimateIcon,
+        AnimateTitle,
+        AnimateRewards,
+        AnimateScrollDownForBadges,
+        AnimateBadges,
+        AnimateDoubleRewards,
+    }
+
+    -- fade into run summary
+    local fade_duration = 0.25
+    ui.game.transition_mask:FadeIn(fade_duration)
+
+    -- Set achievements for use on close
+    self.achievements = achievements or {}
+
+    -- reset UI
+    self:ResetLayout()
+
+    -- create new run summary items
+    if trophy_earned > 0 then
+        CreateResultReward({
+            key = "t_trophy",
+            value = trophy_earned,
+        })
+    end
+
+    if rewards then
+        local generated_rewards = {}
+
+        -- Collect all Resource Data
+        for _, reward in ipairs(rewards) do
+            CreateResultReward(reward)
+            table.insert(generated_rewards, reward)
+
+            -- Add non chest rewards
+            if ResourceData[reward.key] then
+                DataManager.AddInventoryResource(reward.key, reward.value, true)
+                DataManager.Save()
+            end
+        end
+
+        if #generated_rewards > 0 then
+            CreateAdButton(generated_rewards)
+            layout.rewards_container.state.has_rewards = true
+        else
+            layout.rewards_container.state.has_rewards = false
+        end
+    end
+
+    -- BadgePriority Order
+    -- Then Highest Value Order
+    local stats_order = {}
+
+    -- Generate BadgePriority Ordering
+    for key, value in pairs(game_stats) do
+        -- Verify this is a valid GameStat
+        if GameStats[key] then
+            -- Get the Priority of the Stat
+            local priority = GameStats[key].BadgePriority
+
+            -- If the Priority Group does not exist, create it
+            local priority_group = stats_order[priority] or {}
+
+            -- If the Priority Group is not part of the stats_order, add it
+            if not stats_order[priority] then
+                stats_order[priority] = priority_group
+            end
+
+            -- Insert the Stat into the Priority Group
+            table.insert(priority_group, {
+                key = key,
+                value = value,
+            })
+        elseif SkillData[key] then
+            stats_order[100] = stats_order[100] or {}
+
+            -- Insert the Stat into the Priority Group
+            table.insert(stats_order[100], {
+                key = key,
+                value = value,
+                is_skill_stat = true,
+            })
+        end
+    end
+
+    -- Collect Priority Keys
+    local priority_keys = {}
+    for key, _ in pairs(stats_order) do
+        table.insert(priority_keys, key)
+    end
+
+    -- Sort Priority Keys
+    table.sort(priority_keys)
+
+    -- Iterate through Priority Keys
+    local item_number = 0
+    for _, priority_key in ipairs(priority_keys) do
+        -- Sort the Priority Group by Value
+        table.sort(stats_order[priority_key], function(a, b)
+            return a.value > b.value
+        end)
+
+        -- Iterate through sorted Priority Group
+        for _, stat in ipairs(stats_order[priority_key]) do
+            item_number = item_number + 1
+            -- Generate Layout Elements
+            if stat.is_skill_stat then
+                CreateGameStatLayout(SkillData[stat.key], stat.value, item_number)
+            else
+                CreateGameStatLayout(GameStats[stat.key], stat.value, item_number)
+            end
+        end
+    end
+
+    local kill_stats = layout.badge_container.kill_stats_container
+    local has_kill_stats = DCEI.GetChildrenFrameCount(kill_stats.Content) > 0
+    DCEI.SetFrameActive(kill_stats.Frame, has_kill_stats)
+
+    local skill_stats = layout.badge_container.skill_stats_container
+    local has_skill_stats = DCEI.GetChildrenFrameCount(skill_stats.Content) > 0
+    DCEI.SetFrameActive(skill_stats.Frame, has_skill_stats)
+
+    -- Animate Badges
+    -- then begin animation sequence
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        local duration = 0.375
+        for i, animation in ipairs(sequence) do
+            PlayAnimationAfterWait(duration * (i - 1), animation)
+        end
+
+        -- then animate in each info item
+        -- We speed up the process by playing the next Badge half-way through the previous Badge's animation
+        local overlap_rate = 5
+        local item_delay = overlap_rate + duration * #sequence
+        local completion_time = item_delay
+        for _, item_layout in ipairs(self.items) do
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                item_layout:AnimateIn()
+            end, item_delay / overlap_rate)
+
+            local interval = item_layout:GetAnimationTime()
+                + ITEM_INFO_PRE_ANIMATION_DELAY
+                + ITEM_INFO_POST_ANIMATION_DELAY
+            item_delay = item_delay + interval
+            completion_time = item_delay / overlap_rate + interval
+        end
+
+        -- Animate in continue button
+        PlayAnimationAfterWait(completion_time, AnimateInContinue)
+    end, fade_duration)
+end
+
+function layout:Open(is_victory, trophy_earned, rewards, game_stats, achievements)
+    DCEI.LogMessage("game_stats:")
+    Core.Util.LogDump(game_stats)
+
+    self:Show()
+    ui.game:Hide()
+
+    -- Set victory state
+    self.state.is_victory = is_victory
+
+    if is_victory then
+        DCEI.PlaySound(DCEI.Sound("smh_campaign_win"))
+    else
+        DCEI.PlaySound(DCEI.Sound("smh_campaign_lost"))
+    end
+
+    -- reset frame alpha in case hidden by Hide animation
+    DCEI.SetFrameAlpha(self.Frame, 1)
+
+    -- store display data so we can use it in PlayAnimationSequence
+    self:PlayAnimationSequence(trophy_earned, rewards, game_stats, achievements)
+end
+
+---============================================================================
+---!SECTION: Layout Methods
+---============================================================================
+
+-- EXPORT
+return layout

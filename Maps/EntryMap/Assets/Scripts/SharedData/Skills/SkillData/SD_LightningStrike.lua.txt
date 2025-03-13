@@ -1,0 +1,257 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.LightningStrike = {
+    Key = "LightningStrike",
+
+    -- UI Information
+    DisplayName = "Lightning Strike",
+    ShortDescription = "Randomly strikes enemies with lightning.",
+    Icon = DCEI.Texture("cartoon_icon_skill_lightning_storm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.LightningStrike,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Lightning Strike"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.SkillRange, 5.00, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+                Modifier.New(STAT.BaseAttackTime, 1.75, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+                Modifier.New(STAT.Frequency, 0.125, SCALING.Scaled, { SKILL_TAG.LightningStrike }), -- Rate of Lightning Strikes
+                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.LightningStrike }), -- Number of Lightning Strikes
+
+                -- Impact
+                Modifier.New(STAT.Stagger, 15, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+                Modifier.New(STAT.Damage, 50, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+
+                -- Extras
+
+                -- Reset
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.LightningStrike] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.LightningStrike,
+
+            -- Exposed Tags
+            SKILL_TAG.Shock,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.Amplify = {
+    Key = "Amplify",
+
+    -- UI Information
+    DisplayName = "Amplify",
+    ShortDescription = "Increase Critical Damage.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_abomination_skill_putriddetonation"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Global,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.LightningStrike,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.CriticalMultiplier, 0.20, SCALING.Scaled),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Surge = {
+    Key = "Surge",
+
+    -- UI Information
+    DisplayName = "Surge",
+    ShortDescription = "Increase Move Speed.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_gatheringstorm_skill_ionizingfield"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {
+            Tag = SKILL_TAG.LightningStrike,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.MoveSpeed, 0.05, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+-- Increase Count
+
+Data.LightningDouble = {
+    Key = "LightningDouble",
+
+    -- UI Information
+    DisplayName = "Lightning Double",
+    ShortDescription = "Lightning Strike strikes more times.",
+    Icon = DCEI.Texture("cartoon_icon_skill_lightning_storm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.LightningStrike,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.LightningStrike,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Cause Area Damage
+
+Data.LightningSplash = {
+    Key = "LightningSplash",
+
+    -- UI Information
+    DisplayName = "Lightning Splash",
+    ShortDescription = "Lightning Strikes deals damage in an area.",
+    Icon = DCEI.Texture("cartoon_icon_skill_lightning_storm_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.LightningStrike,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.LightningStrike,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {
+                Behavior.New(DCEI.Behavior("Skill - Lightning Splash - Learned"), 1, APPLICATION_TYPE.Set),
+            },
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.SkillSize, 1.50, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+                Modifier.New(STAT.AreaDamage, 0.25, SCALING.Scaled, { SKILL_TAG.LightningStrike }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

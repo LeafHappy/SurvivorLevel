@@ -1,0 +1,258 @@
+local SkillData = require("SharedData/Skills/SkillData")
+
+---@class EquipmentData
+---@field Equipment table<ItemData>
+---@field ModifierRolls table<ModifierRollData>
+
+---@type table<EquipmentData>
+local EquipmentData = {}
+
+---@class ItemData
+---@field Name string
+---@field Hero SURVIVOR
+---@field Icon string
+---@field Skill string
+---@field Stat STAT
+---@field SlotType EQUIPMENT_SLOT
+---@field EquipmentTags table<EQUIPMENT_TAG>
+---@field SkillTags table<SKILL_TAG> | nil
+
+---@type table<ItemData>
+EquipmentData.Equipment = {
+    ---ANCHOR: Weapons (Hero Specific, Grants Unique Skill)
+    {
+        Name = "Strafe",
+        Hero = SURVIVOR.Annie,
+        Icon = DCEI.Texture("wildcastle_icon_bow_white"),
+        Skill = SkillData.Strafe.Key,
+        Stat = STAT.Damage,
+        SlotType = EQUIPMENT_SLOT.Weapon,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive },
+        SkillTags = { SKILL_TAG.Physical },
+    },
+    {
+        Name = "Frost Guard",
+        Hero = SURVIVOR.Jorian,
+        Icon = DCEI.Texture("icon_gear_soldier_sword_01"),
+        Skill = SkillData.FrostGuard.Key,
+        Stat = STAT.Damage,
+        SlotType = EQUIPMENT_SLOT.Weapon,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive },
+        SkillTags = { SKILL_TAG.Cold },
+    },
+
+    ---ANCHOR: Head
+    {
+        Name = "Helmet",
+        Icon = DCEI.Texture("pocketquest_icon_gear_helmet_blue"),
+        Stat = STAT.Armor,
+        SlotType = EQUIPMENT_SLOT.Head,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive, EQUIPMENT_TAG.Utility },
+    },
+    ---ANCHOR: Chest
+    {
+        Name = "Leather Armor",
+        Icon = DCEI.Texture("pocketquest_icon_armor_leather_white"),
+        Stat = STAT.Armor,
+        SlotType = EQUIPMENT_SLOT.Chest,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive, EQUIPMENT_TAG.Utility },
+    },
+    ---ANCHOR: Boot
+    {
+        Name = "Leather Boots",
+        Icon = DCEI.Texture("icon_attribute_speed_wildcastle"),
+        Stat = STAT.MoveSpeed,
+        SlotType = EQUIPMENT_SLOT.Boot,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive, EQUIPMENT_TAG.Utility },
+    },
+    ---ANCHOR: Ring
+    {
+        Name = "Ring",
+        Icon = DCEI.Texture("pocketquest_icon_gear_ring_white"),
+        Stat = STAT.Health,
+        SlotType = EQUIPMENT_SLOT.Ring,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive, EQUIPMENT_TAG.Offensive, EQUIPMENT_TAG.Utility },
+    },
+
+    ---ANCHOR: Consumable (Grants Unique Skill)
+    ---TODO: Add Consumable Skills
+    -- {
+    --     Name = "Life Flask",
+    --     Icon = DCEI.Texture("cartoon_icon_gear_healthelixir_mergewar"),
+    --     Skill = SkillData.HealthPotion.Key,
+    --     Stat = STAT.Health,
+    --     SlotType = EQUIPMENT_SLOT.Consumable,
+    --     EquipmentTags = { EQUIPMENT_TAG.Utility },
+    -- },
+}
+
+---@class ModifierRollData
+---@field Stat STAT
+---@field Scaling SCALING
+---@field LowRoll number
+---@field HighRoll number
+---@field EquipmentTags table<EQUIPMENT_TAG>
+---@field SkillTags table<SKILL_TAG> | nil
+
+---@type table<ModifierRollData>
+EquipmentData.Modifiers = {
+    ---ANCHOR: Global Modifiers (Affects All Skills)
+    -- Offensive
+    { -- Global Damage
+        Stat = STAT.Damage,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    },
+    { -- Attack Speed
+        Stat = STAT.AttackSpeed,
+        Scaling = SCALING.Scaled,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    },
+    { -- Critical Chance
+        Stat = STAT.CriticalChance,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    },
+    { -- Critical Multiplier
+        Stat = STAT.CriticalMultiplier,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    },
+    -- Offensive, Utility
+    { -- Skill Range
+        Stat = STAT.SkillRange,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive, EQUIPMENT_TAG.Utility },
+    },
+    { -- Skill Duration
+        Stat = STAT.SkillDuration,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive, EQUIPMENT_TAG.Utility },
+    },
+    { -- Skill Size
+        Stat = STAT.SkillSize,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive, EQUIPMENT_TAG.Utility },
+    },
+    { -- Projectile Speed
+        Stat = STAT.ProjectileSpeed,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Offensive, EQUIPMENT_TAG.Utility },
+    },
+    -- Defensive
+    { -- Health
+        Stat = STAT.Health,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive },
+    },
+    { -- Armor
+        Stat = STAT.Armor,
+        Scaling = SCALING.Scaled,
+        LowRoll = 1,
+        HighRoll = 5,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive },
+    },
+    { -- Health Regeneration
+        Stat = STAT.HealthRegeneration,
+        Scaling = SCALING.Scaled,
+        LowRoll = 1,
+        HighRoll = 5,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive },
+    },
+    { -- Healing
+        Stat = STAT.Healing,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Defensive },
+    },
+    -- Utility
+    { -- Move Speed
+        Stat = STAT.MoveSpeed,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Utility },
+    },
+    { -- Pickup Range
+        Stat = STAT.PickupRange,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Utility },
+    },
+    { -- Experience Multiplier
+        Stat = STAT.ExperienceMultiplier,
+        Scaling = SCALING.Additive,
+        LowRoll = 0.05,
+        HighRoll = 0.10,
+        EquipmentTags = { EQUIPMENT_TAG.Utility },
+    },
+
+    ---ANCHOR: Skill Tagged Modifiers
+    -- { -- Physical Damage
+    --     Stat = STAT.Damage,
+    --     Scaling = SCALING.Additive,
+    --     LowRoll = 0.10,
+    --     HighRoll = 0.20,
+    --     EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    --     SkillTags = { SKILL_TAG.Physical },
+    -- },
+    -- { -- Fire Damage
+    --     Stat = STAT.Damage,
+    --     Scaling = SCALING.Additive,
+    --     LowRoll = 0.10,
+    --     HighRoll = 0.20,
+    --     EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    --     SkillTags = { SKILL_TAG.Fire },
+    -- },
+    -- { -- Cold Damage
+    --     Stat = STAT.Damage,
+    --     Scaling = SCALING.Additive,
+    --     LowRoll = 0.10,
+    --     HighRoll = 0.20,
+    --     EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    --     SkillTags = { SKILL_TAG.Cold },
+    -- },
+    -- { -- Shock Damage
+    --     Stat = STAT.Damage,
+    --     Scaling = SCALING.Additive,
+    --     LowRoll = 0.10,
+    --     HighRoll = 0.20,
+    --     EquipmentTags = { EQUIPMENT_TAG.Offensive },
+    --     SkillTags = { SKILL_TAG.Shock },
+    -- },
+}
+
+---comment
+---@param item_id string
+---@return string
+function EquipmentData.GetSkillFromItemId(item_id)
+    for _, item in ipairs(EquipmentData.Equipment) do
+        if item.Name == item_id then
+            return item.Skill
+        end
+    end
+
+    return nil
+end
+
+return EquipmentData

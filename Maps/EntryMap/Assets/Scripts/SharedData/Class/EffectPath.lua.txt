@@ -1,0 +1,24 @@
+---@class EffectPath
+---@field effect string
+---@field path table
+---@field tags SkillTagList | nil
+---@field scalar number Default: 1
+local EffectPath = {}
+
+---comment
+---@param effect Effect | string | nil
+---@param path table<string> | nil
+---@param tags SkillTagList | nil
+---@param scalar number | nil Default: 1
+---@return table
+function EffectPath.New(effect, path, tags, scalar)
+    local self = setmetatable({}, EffectPath)
+    self.effect = effect
+    self.path = path
+    self.tags = tags
+    self.scalar = scalar or 1
+
+    return self
+end
+
+return EffectPath

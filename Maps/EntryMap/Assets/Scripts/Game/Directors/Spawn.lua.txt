@@ -1,0 +1,955 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Attributes = require("Class/Attributes")
+local Modifier = require("SharedData/Class/Modifier")
+
+local Pattern = require("Data/Pattern")
+
+local SimpleDropTableManager = require("Class/Simple/SimpleDropTableManager")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+
+local Heatmap = require("Class/Heatmap")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local MODIFIERS = {}
+
+local _Print = nil
+if _Dev then
+    _Print = _Dev.Log.stage_information
+end
+
+local _DropTables = {}
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+---Check to see if we have a registered DropTable for the given HostileData.
+---@param unit UnitInstance
+---@param hostile_data HostileData
+local function TryAddDropTableToUnit(unit, hostile_data)
+    local id = hostile_data.Key
+    if _DropTables[id] then
+        SimpleDropTableManager.ApplyDropTableToUnit(unit, _DropTables[id])
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Class Initialization
+---============================================================================
+
+---@class RegisteredSimpleUnit
+---@field Attributes Attributes
+---@field Unit SimpleUnit
+---@field Overrides table
+---@field Updated boolean
+---@field TransformAnimation table
+
+---@class SpawnDirector
+---@field active boolean
+---@field Registry table<RegisteredSimpleUnit>
+local SpawnDirector = {}
+SpawnDirector.__index = SpawnDirector
+
+local function New()
+    local self = setmetatable({}, SpawnDirector)
+    self.active = true
+    self:Reset()
+    return self
+end
+
+---Reset current Registry of Unit.
+function SpawnDirector:Reset()
+    self.active = true
+    self.Registry = {}
+    _DropTables = {}
+end
+
+local Instance = New()
+SpawnDirector.Instance = Instance
+
+---============================================================================
+---!SECTION: Class Initialization
+---SECTION: Class Internal Functions
+---============================================================================
+
+---TODO: Can we also allow SimpleUnitData to be accepted.
+---Validate the given identifier.
+---@param hostile_data HostileData
+---@return RegisteredSimpleUnit | nil
+function SpawnDirector:_Validate(hostile_data)
+    ---@type RegisteredSimpleUnit
+    local registered_simple_unit = self.Registry[hostile_data.Key]
+
+    if not registered_simple_unit then
+        return nil
+    end
+
+    return registered_simple_unit
+end
+
+---Update the Unit's stats and overrides.
+---@private
+---@param hostile_data HostileData
+function SpawnDirector:_Register(hostile_data)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return
+    end
+
+    local unit = registered_simple_unit.Unit
+    local attributes = registered_simple_unit.Attributes
+    local overrides = registered_simple_unit.Overrides or {}
+
+    local health = attributes:Get(STAT.Health)
+    unit:SetHealth(health)
+
+    local mass = attributes:Get(STAT.Mass)
+    unit:SetMass(mass)
+
+    local speed = attributes:Get(STAT.MoveSpeed)
+    unit:SetSpeed(speed)
+
+    local size = attributes:Get(STAT.CollisionSize)
+    unit:SetCollision(CollisionLayers.Hostile, CollisionLayers.Friendly, size)
+    unit:SetShadow(size * 2.0) -- Estimate to match Collision Size.
+
+    -- Iterate through Overrides
+    for _, override in pairs(overrides) do
+        local value = attributes:Get(override.Stat)
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, override.Effect, override.Path, value)
+    end
+
+    unit:Register()
+    -- Mark the unit as updated.
+    registered_simple_unit.Updated = true
+end
+
+---Validate and Register in a single call.
+---@param hostile_data HostileData
+---@return RegisteredSimpleUnit | nil
+function SpawnDirector:_ValidateAndRegister(hostile_data)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return nil
+    end
+
+    if not registered_simple_unit.Updated then
+        self:_Register(hostile_data)
+    end
+
+    return registered_simple_unit
+end
+
+---============================================================================
+---!SECTION: Class Internal Functions
+---SECTION: Class Setters/Getters
+---============================================================================
+
+function SpawnDirector:ClearRegisteredDropTables()
+    _DropTables = {}
+end
+
+---comment
+---@param key string
+---@param simple_drop_table any
+function SpawnDirector:SetHostileDropTable(key, simple_drop_table)
+    -- Help.Log("Registering Drop Table", hostile_id, simple_drop_table)
+    _DropTables[key] = simple_drop_table
+end
+
+---Determine whether or not the Spawn Director is allowed to spawn units.
+---@param status boolean
+function SpawnDirector:SetActive(status)
+    self.active = status
+end
+
+---============================================================================
+---!SECTION: Class Internal Functions
+---SECTION: Add/Modify Unit
+---============================================================================
+
+---Add a New Unit to that can be modified and spawned.
+---Automatically handles Registering the Simple Unit when modified.
+---@param hostile_data HostileData
+---@param drop_table SimpleDropTableData
+---@param modifiers table<Modifier>
+function SpawnDirector:AddNewUnit(hostile_data, drop_table, modifiers)
+    local unit = SimpleUnit.New(hostile_data.Key)
+    unit:SetUnitType(hostile_data.Type)
+    unit:SetLocalAvoidance(hostile_data.LocalAvoidance or false)
+    unit:SetTimer(hostile_data.KillTime, hostile_data.RemoveTime)
+
+    local attributes = Attributes.New()
+
+    -- Initialize Base Stats
+    for stat, value in pairs(hostile_data.Stats) do
+        attributes:Add(Modifier.New(stat, value, SCALING.Scaled))
+        -- attributes:AddModifier(stat, stat, value, SCALING.Scaled)
+    end
+
+    -- Add Modifiers
+    if modifiers then
+        for _, modifier in pairs(modifiers) do
+            attributes:Add(modifier)
+        end
+    end
+
+    -- Register Collision Effect Callback
+    if hostile_data.OnEnter then
+        unit:SetCollisionEffect(
+            hostile_data.OnEnter,
+            CollisionTiming.Start | CollisionTiming.Continue,
+            1,
+            SIMPLE_TAG.Friendly
+        )
+    end
+
+    -- Register Death Effeect Callback
+    if hostile_data.OnDeath then
+        unit:SetDeathEffect(hostile_data.OnDeath)
+    end
+
+    -- Overrides have to be applied post stat change.
+    local overrides = hostile_data.Overrides
+
+    -- Register Stats --
+    -- Do this for each of the related stats and all Overrides
+
+    -- Health
+    local health = attributes:Get(STAT.Health)
+    if health then
+        unit:SetHealth(health)
+    end
+
+    -- Armor
+    if hostile_data.ArmorType then
+        unit:SetArmorType(hostile_data.ArmorType)
+    end
+
+    -- Tag
+    if hostile_data.Tag then
+        unit:SetTag(hostile_data.Tag)
+    end
+
+    -- Transform Animation
+    if hostile_data.TransformAnimation then
+        Help.Log("Setting Transform Animation", nil, hostile_data.TransformAnimation)
+        unit:SetTransformAnimation(hostile_data.TransformAnimation)
+    end
+
+    -- Set Drop Table
+    if drop_table then
+        self:SetHostileDropTable(hostile_data.Key, drop_table)
+    end
+
+    -- Store in Registry
+    self.Registry[hostile_data.Key] = {
+        Unit = unit,
+        Attributes = attributes,
+        Overrides = overrides,
+        Updated = false,
+        TransformAnimation = hostile_data.TransformAnimation or nil,
+    }
+end
+
+---Apply a Modifier to the specified Unit associated to the Id.
+---@param hostile_data HostileData
+---@param modifier Modifier
+function SpawnDirector:AddModifier(hostile_data, modifier)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        Help.Log("No Registered Unit of the Id", hostile_data.Key)
+        return
+    end
+
+    -- Modifiers are imbeded using Modifier.New
+
+    local attributes = registered_simple_unit.Attributes
+    local modifier = Modifier.Copy(modifier)
+    attributes:Add(modifier)
+
+    -- Mark the unit as NOT updated.
+    registered_simple_unit.Updated = false
+end
+
+---Apply a set of Modifiers to the specified Unit associated to the Id.
+---@param hostile_data HostileData
+---@param modifiers table | table<Modifier>
+function SpawnDirector:AddModifiers(hostile_data, modifiers)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return
+    end
+
+    -- Iterate through each modifier and apply it.
+    for _, modifier in pairs(modifiers) do
+        self:AddModifier(hostile_data, modifier)
+    end
+end
+
+---Remove the given Entry by Id.
+---@param hostile_data HostileData
+function SpawnDirector:RemoveUnit(hostile_data)
+    self.Registry[hostile_data.Key] = nil
+end
+
+---============================================================================
+---!SECTION: Add/Modify Unit
+---SECTION: Formation Type Definition
+---============================================================================
+
+---@enum FORMATION_TYPE
+FORMATION_TYPE = {
+    Stream = "Stream",
+    StreamSequence = "StreamSequence",
+    Enclosure = "Enclosure",
+    EnclosureSequence = "EnclosureSequence",
+}
+
+---============================================================================
+---!SECTION: Formation Type Definition
+---SECTION: Synchronous Spawning
+---============================================================================
+
+---Spawn a Stationary Unit.
+---@param hostile_data HostileData
+---@param position Vector2 Where to spawn the Hostile.
+---@return SimpleUnitInstance | nil
+function SpawnDirector:SpawnStationary(hostile_data, position)
+    local registered_simple_unit = self:_ValidateAndRegister(hostile_data)
+    if not registered_simple_unit or not self.active then
+        return
+    end
+
+    local simple_unit = registered_simple_unit.Unit
+    local instance = simple_unit:SpawnSyncStationary(PLAYER.Hostile, TEAM.Hostile, position, Vector2.Quadrant(3))
+
+    if registered_simple_unit.TransformAnimation then
+        DCEI.ApplyTransformAnimationToSimpleUnit(instance, registered_simple_unit.TransformAnimation)
+    end
+
+    -- Check Drop Table
+    TryAddDropTableToUnit(instance, hostile_data)
+
+    return instance
+end
+
+---Spawn a Unit that Follows the given Target.
+---@param hostile_data HostileData
+---@param position Vector2 Where to spawn the Hostile.
+---@param target Unit The Unit to follow.
+---@return SimpleUnitInstance | nil
+function SpawnDirector:SpawnFollow(hostile_data, position, target)
+    local registered_simple_unit = self:_ValidateAndRegister(hostile_data)
+    if not registered_simple_unit or not self.active then
+        Help.Log("Invalid Simple Unit", hostile_data.Key)
+        return
+    end
+
+    local simple_unit = registered_simple_unit.Unit
+    local instance = simple_unit:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, target, nil, nil)
+
+    if registered_simple_unit.TransformAnimation then
+        DCEI.ApplyTransformAnimationToSimpleUnit(instance, registered_simple_unit.TransformAnimation)
+    end
+
+    -- Check Drop Table
+    TryAddDropTableToUnit(instance, hostile_data)
+
+    return instance
+end
+
+---Spawn a Unit that Moves in the given Direction.
+---@param hostile_data HostileData
+---@param position Vector2 Where to spawn the Hostile.
+---@param direction Vector2 The direction the Hostile will move.
+---@return SimpleUnitInstance | nil
+function SpawnDirector:SpawnDirection(hostile_data, position, direction)
+    local registered_simple_unit = self:_ValidateAndRegister(hostile_data)
+    if not registered_simple_unit or not self.active then
+        return
+    end
+
+    local simple_unit = registered_simple_unit.Unit
+    local instance = simple_unit:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, nil, nil, direction)
+
+    if registered_simple_unit.TransformAnimation then
+        DCEI.ApplyTransformAnimationToSimpleUnit(instance, registered_simple_unit.TransformAnimation)
+    end
+
+    -- Check Drop Table
+    TryAddDropTableToUnit(instance, hostile_data)
+
+    return instance
+end
+
+---comment
+---@param hostile_data HostileData
+---@param position Vector2
+---@param target_position Vector2
+---@return SimpleUnitInstance | nil
+function SpawnDirector:SpawnMoveTo(hostile_data, position, target_position)
+    local registered_simple_unit = self:_ValidateAndRegister(hostile_data)
+    if not registered_simple_unit or not self.active then
+        return
+    end
+
+    local simple_unit = registered_simple_unit.Unit
+    local instance = simple_unit:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, nil, target_position, nil)
+
+    if registered_simple_unit.TransformAnimation then
+        DCEI.ApplyTransformAnimationToSimpleUnit(instance, registered_simple_unit.TransformAnimation)
+    end
+
+    -- Check Drop Table
+    TryAddDropTableToUnit(instance, hostile_data)
+
+    return instance
+end
+
+---============================================================================
+---!SECTION: Synchronous Spawning
+---SECTION: Spawn Patterns
+---============================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Stream
+-- ================================================================================================
+
+---@class StreamProperties
+---@field center_point Vector2
+---@field distance number
+---@field width number
+---@field spawn_angle number
+---@field spawn_angle_range number
+---@field move_angle_range number
+---@field follow_target Unit
+---@field anchor_target Unit
+---@field center_point_as_move_direction boolean
+---@field spawn_rate number
+
+StreamProperties = {
+    center_point = "center_point", -- (Vector2) [Default: (0, 0)] Uses this as the reference point for spawning.
+
+    distance = "distance", -- [Default: 15] The distance at which the units spawn from the anchor point (target).
+    width = "width", -- [Default: 10] The spawn width.
+    spawn_angle = "spawn_angle", -- [Default: 0 (right)] The starting angle for all spawns.
+    spawn_angle_range = "spawn_angle_range", -- [Default: 0] Provides a random angle for spawning enemies.
+    move_angle_range = "move_angle_range", -- [Default: 0] Causes spawned enemies to move with a random angle within the range.
+
+    follow_target = "follow_target", -- (Unit) [Default: nil] Units will follow this Unit.
+    anchor_target = "anchor_target", -- (Unit) [Default: nil] Spawn positions are relative to the anchor_target.
+    center_point_as_move_direction = "center_point_as_move_direction", -- (boolean) [Default: false] Use the Center-Point as the Base Move Direction. Uses Anchor Target when provided.
+
+    spawn_rate = "spawn_rate", -- (integer) [Default: 1] The number of enemies spawned per TICK
+}
+
+---comment
+---@param properties StreamProperties
+---@return StreamProperties
+local function InitializeStreamProperties(properties)
+    local stream_properties = {}
+    stream_properties.center_point = properties.center_point or Vector2.Zero()
+    stream_properties.distance = properties.distance or 20
+    stream_properties.width = properties.width or 10
+    stream_properties.spawn_angle = properties.spawn_angle or 0
+    stream_properties.spawn_angle_range = properties.spawn_angle_range or 0
+    stream_properties.move_angle_range = properties.move_angle_range or 0
+    stream_properties.follow_target = properties.follow_target or nil
+    stream_properties.anchor_target = properties.anchor_target or nil
+    stream_properties.center_point_as_move_direction = properties.center_point_as_move_direction or false
+    stream_properties.spawn_rate = properties.spawn_rate or 1
+
+    return stream_properties
+end
+
+---Spawn a stream of enemies.
+---@param hostile_data HostileData
+---@param properties StreamProperties
+---@param count integer | nil Override
+function SpawnDirector:SpawnStream(hostile_data, properties, count)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return
+    end
+
+    -- Default Values
+    local np = InitializeStreamProperties(properties)
+    count = count or self:GetStat(hostile_data, STAT.Count, { SKILL_TAG.Spawning })
+
+    -- Split the Spawn when the count is too high.
+    if count > 500 then
+        Help.Log("======================================================")
+        Help.Log("Splitting Spawn", count)
+        Help.Log("======================================================")
+        local half = count / 2
+        self:SpawnStream(hostile_data, properties, half)
+        self:SpawnStream(hostile_data, properties, half)
+        return
+    end
+
+    -- Director Reference
+    local spawn_director = self
+
+    -- Internal Calculations
+    local duration = TICK_RATE * (1 + count)
+    local offset = Vector2.Right() * np.distance
+
+    -- Timer Setup
+    local timer = Core.Timer.Game.New()
+    timer:AddDuration(duration)
+
+    function timer:Tick()
+        -- Validate Follow Target (if applicable)
+        if np.follow_target and not Help.ValidateUnit(np.follow_target) then
+            timer:Destroy()
+            return
+        end
+
+        -- Validate Anchor Target (if applicable)
+        if np.anchor_target and not Help.ValidateUnit(np.anchor_target) then
+            timer:Destroy()
+            return
+        end
+
+        for i = 1, np.spawn_rate do
+            -- Prevent Overspawning when given a non-integer spawn_rate per TICK_RATE
+            if count <= 0 then
+                timer:Destroy()
+                return
+            end
+
+            -- Spawn Rate Adjustment
+            count = count - 1
+
+            local anchor_point = np.center_point
+            if np.anchor_target then
+                anchor_point = anchor_point + Vector2.UnitPosition(np.anchor_target)
+            end
+
+            local random_spawn_point = Vector2.RandomSquare(1, np.width)
+
+            local spawn_instance_angle = np.spawn_angle
+            if np.spawn_angle_range > 0 then
+                spawn_instance_angle = spawn_instance_angle
+                    + Core.Random.GetNumber(-np.spawn_angle_range / 2, np.spawn_angle_range / 2)
+            end
+
+            local spawn_offset = Vector2.RotateAround(offset + random_spawn_point, spawn_instance_angle)
+            local spawn_position = anchor_point + spawn_offset
+
+            if np.follow_target then -- Follow
+                spawn_director:SpawnFollow(hostile_data, spawn_position, np.follow_target)
+            else -- Directional Move
+                local move_angle = 0
+
+                if np.center_point_as_move_direction then -- Move Direction is based on Center Point.
+                    if np.anchor_target then -- We have an Anchor Target, use their Position.
+                        move_angle = Vector2.Angle(Vector2.UnitPosition(np.anchor_target) - spawn_position)
+                    else -- Use the Center Point.
+                        move_angle = Vector2.Angle(np.center_point - spawn_position)
+                    end
+                else -- Use the Opposite Direction of Spawn Angle
+                    move_angle = np.spawn_angle + 180
+                end
+
+                if np.move_angle_range > 0 then
+                    move_angle = move_angle + Core.Random.GetNumber(-np.move_angle_range / 2, np.move_angle_range / 2)
+                end
+
+                local move_direction = Vector2.NewFromAngle(move_angle)
+                spawn_director:SpawnDirection(hostile_data, spawn_position, move_direction)
+            end
+        end
+    end
+end
+
+-- ================================================================================================
+-- ANCHOR -- Stream Sequence
+-- ================================================================================================
+
+---@class StreamSequenceManipulators
+---@field distance number
+---@field width number
+---@field spawn_angle number
+---@field spawn_angle_range number
+---@field move_angle_range number
+
+StreamSequenceManipulators = {
+    distance = "distance", -- (number) [Default: 0] Increases the distance for each Stream.
+    width = "width", -- (number) [Default: 0] Increases the width for each Stream.
+    spawn_angle = "spawn_angle", -- (number) [Default: 0] Increases the spawn angle for each Stream.
+    spawn_angle_range = "spawn_angle_range", -- (number) [Default: 0] Increases the spawn angle range for each Stream.
+    move_angle_range = "move_angle_range", -- (number) [Default: 0] Increases the move angle range for each Stream.
+}
+
+---@class StreamSequenceProperties
+---@field stream_properties StreamProperties
+---@field stream_manipulators StreamSequenceManipulators
+
+StreamSequenceProperties = {
+    stream_properties = "stream_properties", -- (StreamProperties) [Default: nil] The base properties for the Stream.
+    stream_manipulators = "stream_manipulators", -- (StreamProperties) [Default: nil] Manipulates the Stream Properties for each Stream.
+}
+
+---comment
+---@param properties StreamSequenceManipulators
+---@return StreamSequenceManipulators
+local function InitializeStreamManipulatorProperties(properties)
+    local stream_properties = {}
+    stream_properties.distance = properties.distance or 0
+    stream_properties.width = properties.width or 0
+    stream_properties.spawn_angle = properties.spawn_angle or 0
+    stream_properties.spawn_angle_range = properties.spawn_angle_range or 0
+    stream_properties.move_angle_range = properties.move_angle_range or 0
+
+    return stream_properties
+end
+
+---Spawn a stream of enemies multiple times
+---@param hostile_data HostileData
+---@param properties StreamSequenceProperties
+function SpawnDirector:SpawnStreamSequence(hostile_data, properties)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return
+    end
+
+    -- Base Values (Stream Properties)
+    ---@type StreamProperties
+    local np = InitializeStreamProperties(properties.stream_properties or {})
+    local added_np = InitializeStreamManipulatorProperties(properties.stream_manipulators or {})
+
+    local count = self:GetStat(hostile_data, STAT.Count, { SKILL_TAG.Spawning })
+    local sequence_count = self:GetStat(hostile_data, STAT.SequenceCount) or 1
+    local sequence_rate = self:GetStat(hostile_data, STAT.SequenceFrequency) or 1
+    local increased_count = self:GetStat(hostile_data, STAT.IncreasedCount) or 0
+
+    -- Director Reference
+    local spawn_director = self
+
+    -- Spawn Streams
+    local condition = function()
+        if np.follow_target and not Help.ValidateUnit(np.follow_target) then
+            return false
+        end
+
+        if np.anchor_target and not Help.ValidateUnit(np.anchor_target) then
+            return false
+        end
+
+        return true
+    end
+
+    local current_sequence_count = 0
+
+    local action = function()
+        current_sequence_count = current_sequence_count + 1
+        -- Help.Log("Spawning Stream", current_spawn)
+
+        spawn_director:SpawnStream(hostile_data, np, count)
+
+        -- Apply Manipulators
+        np.distance = np.distance + added_np.distance
+        np.width = np.width + added_np.width
+        np.spawn_angle = np.spawn_angle + added_np.spawn_angle
+        np.spawn_angle_range = np.spawn_angle_range + added_np.spawn_angle_range
+        np.move_angle_range = np.move_angle_range + added_np.move_angle_range
+        count = count + increased_count
+    end
+
+    Help.PeriodicGameTimer(sequence_count, sequence_rate, condition, action)
+end
+
+-- ================================================================================================
+-- ANCHOR -- Enclosure
+-- ================================================================================================
+
+---@class EnclosureProperties
+---@field radius number
+---@field gap_size number
+---@field starting_angle number
+---@field move_angle_modifier number
+---@field target Unit | nil
+---@field offset Vector2 | nil
+
+EnclosureProperties = {
+    radius = "radius", -- [Default: 15] The distance at which enemies spawn.
+    gap_size = "gap_size", -- [Default: 0] Generates a gap in the enclosure.
+    starting_angle = "starting_angle", -- [Default: Random(0, 360)] Helpful when setting the gap_size.
+    move_angle_modifier = "move_angle_modifier", -- [Default: 0] Changes the spawned unit's move_direction angle.
+    target = "target", -- [Default: nil] Forces the spawned units to follow this Target.
+    offset = "offset", -- [Default: (0, 0)] Moves the enclosure.
+}
+
+---comment
+---@param properties EnclosureProperties
+---@return EnclosureProperties
+local function InitializeEnclosureProperties(properties)
+    local enclosure_properties = {}
+    enclosure_properties.radius = properties.radius or 15
+    enclosure_properties.gap_size = properties.gap_size or 0
+    enclosure_properties.starting_angle = properties.starting_angle or Core.Random.GetNumber(0, 360)
+    enclosure_properties.move_angle_modifier = properties.move_angle_modifier or 0
+    enclosure_properties.target = properties.target or nil
+    enclosure_properties.offset = properties.offset or Vector2.Zero()
+
+    return enclosure_properties
+end
+
+---Spawn a circle of enemies.
+---@param hostile_data HostileData
+---@param properties EnclosureProperties
+---@param count integer | nil Override
+function SpawnDirector:SpawnEnclosure(hostile_data, properties, count)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return
+    end
+
+    -- Default Values
+    ---@type EnclosureProperties
+    local np = InitializeEnclosureProperties(properties)
+    count = count or self:GetStat(hostile_data, STAT.Count, { SKILL_TAG.Spawning })
+
+    -- Internal Calculations
+    local total_angle = 360 - np.gap_size
+    local angle_between = total_angle / count
+
+    -- Spawn Loop
+    for i = 1, count do
+        local spawn_position = np.offset + Vector2.NewFromAngle(np.starting_angle + i * angle_between) * np.radius
+
+        if np.target and Help.ValidateUnit(np.target) then -- Follow and use the Unit's position.
+            spawn_position = spawn_position + Vector2.UnitPosition(np.target)
+            self:SpawnFollow(hostile_data, spawn_position, np.target)
+        else -- Directional Move
+            local move_angle = Vector2.Angle(np.offset - spawn_position)
+            local move_direction = Vector2.NewFromAngle(move_angle + np.move_angle_modifier)
+            self:SpawnDirection(hostile_data, spawn_position, move_direction)
+        end
+    end
+end
+
+-- ================================================================================================
+-- ANCHOR -- Enclosure Sequence
+-- ================================================================================================
+
+---@class EnclosureSequenceManipulators
+---@field radius number
+---@field gap_size number
+---@field starting_angle number
+---@field move_angle_modifier number
+
+EnclosureSequenceManipulators = {
+    radius = "radius", -- (number) [Default: 0] Increases the radius for each Enclosure.
+    gap_size = "gap_size", -- (number) [Default: 0] Increases the gap size for each Enclosure.
+    starting_angle = "starting_angle", -- (number) [Default: 0] Increases the starting angle for each Enclosure.
+    move_angle_modifier = "move_angle_modifier", -- (number) [Default: 0] Increases the move angle modifier for each Enclosure.
+}
+
+---@class EnclosureSequenceProperties
+---@field enclosure_properties EnclosureProperties
+---@field enclosure_manipulators EnclosureSequenceManipulators
+
+EnclosureSequenceProperties = {
+    enclosure_properties = "enclosure_properties", -- (EnclosureProperties) [Default: nil] The base properties for the Enclosure.
+    enclosure_manipulators = "enclosure_manipulators", -- (EnclosureProperties) [Default: nil] Manipulates the Enclosure Properties for each Enclosure.
+}
+
+---comment
+---@param properties EnclosureSequenceManipulators
+---@return EnclosureSequenceManipulators
+local function InitializeEnclosureManipulatorProperties(properties)
+    local new_properties = {}
+    new_properties.radius = properties.radius or 0
+    new_properties.gap_size = properties.gap_size or 0
+    new_properties.starting_angle = properties.starting_angle or 0
+    new_properties.move_angle_modifier = properties.move_angle_modifier or 0
+
+    return new_properties
+end
+
+---comment
+---@param hostile_data HostileData
+---@param properties EnclosureSequenceProperties
+function SpawnDirector:SpawnEnclosureSequence(hostile_data, properties)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return
+    end
+
+    -- Setup Enclosure Properties
+    ---@type EnclosureProperties
+    local np = InitializeEnclosureProperties(properties.enclosure_properties or {})
+    local added_np = InitializeEnclosureManipulatorProperties(properties.enclosure_manipulators or {})
+
+    local count = self:GetStat(hostile_data, STAT.Count, { SKILL_TAG.Spawning })
+    local sequence_count = self:GetStat(hostile_data, STAT.SequenceCount) or 1
+    local sequence_frequency = self:GetStat(hostile_data, STAT.SequenceFrequency) or 1
+    local increased_count = self:GetStat(hostile_data, STAT.IncreasedCount) or 0
+
+    -- Director Reference
+    local spawn_director = self
+
+    local condition = function()
+        -- Validate Target
+        if np.target and not Help.ValidateUnit(np.target) then
+            return false
+        end
+
+        return true
+    end
+
+    local current_sequence_count = 0
+    local action = function()
+        current_sequence_count = current_sequence_count + 1
+
+        spawn_director:SpawnEnclosure(hostile_data, np, count)
+
+        -- Apply Manipulators
+        np.radius = np.radius + added_np.radius
+        np.gap_size = np.gap_size + added_np.gap_size
+        np.starting_angle = np.starting_angle + added_np.starting_angle
+        np.move_angle_modifier = np.move_angle_modifier + added_np.move_angle_modifier
+        count = count + increased_count
+    end
+
+    Help.PeriodicGameTimer(sequence_count, sequence_frequency, condition, action)
+end
+
+---============================================================================
+---!SECTION: Spawn Patterns
+---SECTION: Custom Data Driven Spawning
+---============================================================================
+
+---comment
+---@param properties table<string, any>
+---@param target Unit
+local function ReplaceDataPass(properties, target)
+    for key, value in pairs(properties) do
+        if type(value) == "table" then
+            ReplaceDataPass(value, target)
+        elseif value == "TargetPass" then
+            properties[key] = target
+        elseif value == "PositionPass" then
+            properties[key] = Vector2.UnitPosition(target)
+        elseif value == "RandomAnglePass" then
+            properties[key] = Core.Random.GetNumber(0, 360)
+        elseif value == "RandomCardinalPass" then
+            properties[key] = Vector2.Angle(CardinalToVector(Help.GetRandomCardinalDirection()))
+        elseif value == "HeatmapBalancing" then
+            properties[key] = Heatmap.Instance:GetDangerBalanceAngle()
+        end
+    end
+end
+
+---Converts Properties into usable Game Data.
+---@param formation_properties table<string, any>
+---@param target Unit
+local function ExtractFormationProperties(formation_properties, target)
+    local properties = Core.Table.DeepCopy(formation_properties)
+    ReplaceDataPass(properties, target)
+    return properties
+end
+
+---comment
+---@param data table<HostilePatternData> | HostilePatternData
+---@return HostilePatternData
+local function GetPattern(data)
+    if data.FormationType then
+        return data
+    else
+        return GetPattern(data[Help.RandomInteger(1, #data)])
+    end
+end
+
+---comment
+---@param data EventSpawnData
+---@param target Unit
+---@param passed_modifiers table<Modifier>
+function SpawnDirector:SpawnFromEventData(data, target, passed_modifiers)
+    local hostile_data = data.Hostile
+    local pattern = GetPattern(data.Pattern)
+
+    -- Need to apply Modifiers
+
+    -- Things to update:
+    -- Frequency for the Spawn Rate (Stream only)
+
+    -- Combine the Spawn Data Modifiers and the Game Event Manager Modifiers
+    ---@type table<Modifier>
+    local combined_modifiers = Core.Table.Combine(data.Modifiers, passed_modifiers)
+
+    -- Update Unit
+    self:RemoveUnit(hostile_data)
+    self:AddNewUnit(hostile_data, data.SimpleDropTable)
+    self:AddModifiers(hostile_data, combined_modifiers)
+
+    -- Extract Properties
+    local properties = ExtractFormationProperties(pattern.Properties, target)
+
+    -- Spawn based on Pattern Type
+    if pattern.FormationType == FORMATION_TYPE.Stream then
+        -- Check Frequency Stat for Stream
+        local frequency = self:GetStat(hostile_data, STAT.Frequency)
+
+        if not frequency or frequency <= 0 then
+            frequency = 1
+        end
+
+        properties.spawn_rate = frequency
+
+        self:SpawnStream(hostile_data, properties)
+    elseif pattern.FormationType == FORMATION_TYPE.StreamSequence then
+        self:SpawnStreamSequence(hostile_data, properties)
+    elseif pattern.FormationType == FORMATION_TYPE.Enclosure then
+        self:SpawnEnclosure(hostile_data, properties)
+    elseif pattern.FormationType == FORMATION_TYPE.EnclosureSequence then
+        self:SpawnEnclosureSequence(hostile_data, properties)
+    end
+end
+
+---comment
+---@param hostile_data HostileData
+---@param stat STAT
+---@param tags table<SKILL_TAG> | nil
+---@return number
+function SpawnDirector:GetStat(hostile_data, stat, tags)
+    local registered_simple_unit = self:_Validate(hostile_data)
+    if not registered_simple_unit then
+        return 0
+    end
+
+    return registered_simple_unit.Attributes:Get(stat, tags)
+end
+
+---============================================================================
+---!SECTION: Custom Data Driven Spawning
+---============================================================================
+
+return SpawnDirector

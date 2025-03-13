@@ -1,0 +1,85 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local PopupManager = require("UiMeta/Popup/PopupManager")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- VARIABLES
+local tags = {}
+
+-- MODULE
+local SkillTooltip = {}
+
+-- FUNCTIONS
+local function ClearTags()
+    -- Reset icons
+    for _, icon in ipairs(tags) do
+        icon:Destroy()
+    end
+    tags = {}
+end
+
+local function CreateTags(skill_tags)
+    for _, tag_icon in ipairs(skill_tags) do
+        local new_tag = GMUI.Layout.New({
+            name = "Meta/HeroCollection/Tooltip/Tag",
+            parent = SkillTooltip.layout.Tags,
+        })
+        new_tag.state.icon = tag_icon
+        table.insert(tags, new_tag)
+    end
+end
+
+-- METHODS
+function SkillTooltip.Create()
+    SkillTooltip.layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/Tooltip",
+        parent = ui.z3.Lower,
+    })
+end
+
+function SkillTooltip.Initialize()
+    SkillTooltip.Create()
+
+    -- Setup popup animations
+    local args = {
+        popup_frame = SkillTooltip.layout.Frame,
+        mask_layout = ui.camp.overlay.meta_mask,
+    }
+    PopupManager.ApplyPopupAnimations(SkillTooltip.layout, args)
+
+    DCEI.SetOnClickOutsideCallback(SkillTooltip.layout.Frame, SkillTooltip.Close)
+end
+
+function SkillTooltip.Open(skill_data)
+    local layout = SkillTooltip.layout
+
+    -- Clear layout
+    ClearTags()
+
+    -- Update states
+    local state = layout.state
+    state.title = skill_data.DisplayName or "Skill"
+    state.description = skill_data.ShortDescription or ""
+
+    -- Update stats
+    layout.damage_stat.state.value = skill_data.damage or 0
+    layout.attack_speed_stat.state.value = skill_data.attack_speed or 0
+
+    -- Create tags
+    CreateTags(skill_data.DisplayTagIcons or {})
+
+    -- Show popup
+    layout:Show()
+end
+
+function SkillTooltip.Close()
+    SkillTooltip.layout:Hide()
+end
+
+-- EXPORT
+return SkillTooltip

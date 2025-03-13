@@ -1,0 +1,221 @@
+--[[
+    About
+
+    Contains Data for Simple Drop Tables
+]]
+
+---@type table<string, Effect | string>
+local REF = {
+    Nothing = "",
+
+    -- Experience
+    SmallExperienceStationary = DCEI.Effect("Spawn - Loot - Small Experience - Stationary"),
+    MediumExperienceStationary = DCEI.Effect("Spawn - Loot - Medium Experience - Stationary"),
+    LargeExperienceStationary = DCEI.Effect("Spawn - Loot - Large Experience - Stationary"),
+
+    SmallExperienceNearby = DCEI.Effect("Spawn - Loot - Small Experience - Nearby"),
+    MediumExperienceNearby = DCEI.Effect("Spawn - Loot - Medium Experience - Nearby"),
+    LargeExperienceNearby = DCEI.Effect("Spawn - Loot - Large Experience - Nearby"),
+
+    -- Tomes
+    TomeLevel = DCEI.Effect("Spawn - Loot - Tome - Level Point"),
+    TomeHeroic = DCEI.Effect("Spawn - Loot - Tome - Heroic Point"),
+
+    -- Potions
+    Potion = DCEI.Effect("Spawn - Loot - Potion"),
+    SmallPotion = DCEI.Effect("Spawn - Loot - Small Potion"),
+
+    -- Special Pickups
+    Bomb = DCEI.Effect("Spawn - Loot - Bomb"),
+    Magnet = DCEI.Effect("Spawn - Loot - Magnet"),
+
+    -- Consumable
+    PotionCharge = DCEI.Effect("Spawn - Loot - Potion Charge"),
+
+    -- Meta
+    GoldNearby = DCEI.Effect("Spawn - Loot - Gold - Nearby"),
+
+    ---TODO: Configure what other types of Spawns you want to have.
+}
+
+---@class WeightedEffect
+---@field effect_name string
+---@field weight integer
+
+---@class SimpleDropTableData
+---@field key string
+---@field items table<WeightedEffect>
+
+---@type table<string, SimpleDropTableData>
+local SimpleDropTableData = {
+    -- Testing Data
+    TestData = {
+        key = "TestData",
+        items = {
+            {
+                effect_name = REF.SmallPotion,
+                weight = 100,
+            },
+        },
+    },
+
+    -- Hostile Drop Data
+    GuaranteedSmallExperience = {
+        key = "GuaranteedSmallExperience",
+        items = {
+            {
+                effect_name = REF.SmallExperienceNearby,
+                weight = 100,
+            },
+        },
+    },
+
+    LowSmallExperienceChance = {
+        key = "LowSmallExperienceChance",
+        items = {
+            {
+                effect_name = "",
+                weight = 70,
+            },
+            {
+                effect_name = REF.SmallExperienceNearby,
+                weight = 30,
+            },
+        },
+    },
+
+    SmallExperienceChance = {
+        key = "GuaranteedSmallExperience",
+        items = {
+            {
+                effect_name = "",
+                weight = 40,
+            },
+            {
+                effect_name = REF.SmallExperienceNearby,
+                weight = 60,
+            },
+        },
+    },
+
+    SmallChanceForMediumExperience = {
+        key = "SmallChanceForMediumExperience",
+        items = {
+            {
+                effect_name = "",
+                weight = 90,
+            },
+            {
+                effect_name = REF.MediumExperienceNearby,
+                weight = 10,
+            },
+        },
+    },
+
+    MediumExperienceChance = {
+        key = "MediumExperienceChance",
+        items = {
+            {
+                effect_name = "",
+                weight = 50,
+            },
+            {
+                effect_name = REF.SmallExperienceNearby,
+                weight = 40,
+            },
+            {
+                effect_name = REF.MediumExperienceNearby,
+                weight = 10,
+            },
+        },
+    },
+    LargeExperienceChance = {
+        key = "LargeExperienceChance",
+        items = {
+            {
+                effect_name = "",
+                weight = 50,
+            },
+            {
+                effect_name = REF.SmallExperienceNearby,
+                weight = 30,
+            },
+            {
+                effect_name = REF.MediumExperienceNearby,
+                weight = 15,
+            },
+            {
+                effect_name = REF.LargeExperienceNearby,
+                weight = 5,
+            },
+        },
+    },
+
+    GuaranteedSmallPotion = {
+        key = "GuaranteedSmallPotion",
+        items = {
+            {
+                effect_name = REF.SmallPotion,
+                weight = 100,
+            },
+        },
+    },
+
+    SmallPotionChance = {
+        key = "SmallPotionChance",
+        items = {
+            {
+                effect_name = REF.Nothing,
+                weight = 50,
+            },
+            {
+                effect_name = REF.SmallPotion,
+                weight = 10,
+            },
+        },
+    },
+
+    SmoothExperience = {
+        key = "SmoothExperience",
+        items = {
+            {
+                effect_name = REF.SmallExperienceNearby,
+                weight = 50,
+            },
+            {
+                effect_name = REF.MediumExperienceNearby,
+                weight = 30,
+            },
+            {
+                effect_name = REF.LargeExperienceNearby,
+                weight = 20,
+            },
+        },
+    },
+
+    Gold = {
+        key = "Gold",
+        items = {
+            {
+                effect_name = REF.GoldNearby,
+                weight = 20,
+            },
+        },
+    },
+
+    GoldChance = {
+        key = "GoldChance",
+        items = {
+            {
+                effect_name = REF.Nothing,
+                weight = 100,
+            },
+            {
+                effect_name = REF.GoldNearby,
+                weight = 20,
+            },
+        },
+    },
+}
+
+return SimpleDropTableData

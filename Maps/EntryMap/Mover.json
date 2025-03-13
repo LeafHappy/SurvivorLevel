@@ -1,0 +1,599 @@
+{
+    "movers": {
+        "Arcane Orb - Mover": {
+            "orbiting": {
+                "degreePerSecond": 80,
+                "bindToOwner": true,
+                "rotationAxis": {
+                    "y": 1
+                },
+                "radiusExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Arcane Orb - Distance"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "Boss - Alchemist - Blast - Mover": {
+            "ballistic": {
+                "speed": 0.01,
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Boss - Alchemist - Blast - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "Boss - Alchemist - Throw Vial - Mover": {
+            "ballistic": {
+                "flightTime": 1,
+                "gravity": 15
+            }
+        },
+        "Boss - Giant - Ground Pound - Projectile - Mover": {
+            "ballistic": {
+                "flightTime": 0.01,
+                "flightTimeExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Boss - Giant - Ground Pound - Projectile Time"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "gravity": 8
+            }
+        },
+        "Boss - Reaper - Dash - Mover": {
+            "guidance": {
+                "speed": 16,
+                "minSpeed": 1,
+                "maxSpeed": 100
+            }
+        },
+        "Boss - Shieldbearer - Leap - Mover": {
+            "ballistic": {
+                "flightTime": 0.01,
+                "flightTimeExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 1.2
+                                        }
+                                    }
+                                },
+                                {
+                                    "exponent": {
+                                        "base": {
+                                            "constant": {
+                                                "doubleValue": 0.995
+                                            }
+                                        },
+                                        "power": {
+                                            "behaviorStackCount": {
+                                                "behavior": "Stats - Move Speed"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "gravity": 1
+            },
+            "upright": true
+        },
+        "Chest - Item - Launch - Mover": {
+            "ballistic": {
+                "speed": 1.25,
+                "gravity": 20
+            }
+        },
+        "Complex Collector - Mover": {
+            "guidance": {
+                "acceleration": 30,
+                "speed": -10,
+                "minSpeed": -10,
+                "maxSpeed": 10
+            }
+        },
+        "Generic - Loot - Projectile - Launch - Mover": {
+            "ballistic": {
+                "speed": 5,
+                "gravity": 30
+            }
+        },
+        "Hybrid - Meat Grinder - Coin - Mover": {
+            "ballistic": {
+                "speed": 2,
+                "gravity": 12
+            }
+        },
+        "Hybrid - Meat Grinder - Meat - Mover": {
+            "ballistic": {
+                "flightTime": 0.5,
+                "gravity": 10
+            }
+        },
+        "Hydra - Mover": {
+            "ballistic": {
+                "speed": 12,
+                "gravity": 6
+            },
+            "upright": false
+        },
+        "Hydra Fall - Mover": {
+            "ballistic": {
+                "flightTime": 0.25
+            }
+        },
+        "Item - Launch - Mover": {
+            "guidance": {
+                "acceleration": 5,
+                "speed": 5,
+                "minSpeed": 1,
+                "maxSpeed": 15
+            }
+        },
+        "KeyItem - Pickup - Mover": {
+            "ballistic": {
+                "flightTime": 0.5,
+                "gravity": 20
+            }
+        },
+        "Loot - Mover": {
+            "ballistic": {
+                "speed": 3,
+                "gravity": 25
+            }
+        },
+        "Mystic Archer - Mover": {
+            "guidance": {
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "unit": 0,
+                                            "behavior": "Mystic Archer - Charged Shot - Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "minSpeed": 1,
+                "maxSpeed": 25
+            }
+        },
+        "Prop - Drop - Mover": {
+            "ballistic": {
+                "speed": 5,
+                "gravity": 30
+            }
+        },
+        "Salvo - Mover": {
+            "ballistic": {
+                "speed": 5,
+                "gravity": 8
+            },
+            "upright": true,
+            "noRotation": true
+        },
+        "Shot - Mover": {
+            "guidance": {
+                "speed": 16,
+                "minSpeed": 1,
+                "maxSpeed": 25
+            }
+        },
+        "Siphon - Mover": {
+            "guidance": {
+                "speed": 13,
+                "minSpeed": 1,
+                "maxSpeed": 25
+            }
+        },
+        "Skill - Archer - Mover": {
+            "ballistic": {
+                "speed": 0,
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "unit": 0,
+                                            "behavior": "Hybrid - Archer - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.03
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "gravity": 10
+            },
+            "stayOnNavMesh": false
+        },
+        "Skill - Bash - Mover": {
+            "guidance": {
+                "speed": 10,
+                "minSpeed": 1,
+                "maxSpeed": 1000
+            }
+        },
+        "Skill - Coin - Mover": {
+            "ballistic": {
+                "flightTime": 0.5,
+                "gravity": 20
+            },
+            "stayOnNavMesh": false
+        },
+        "Skill - Fireball - Mover": {
+            "guidance": {
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Skill - Fireball - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "maxSpeed": 100
+            }
+        },
+        "Skill - Ice Barrage - Mover": {
+            "guidance": {
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Skill - Ice Barrage - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "maxSpeed": 100
+            }
+        },
+        "Skill - Mighty Axe - Mover": {
+            "guidance": {
+                "speed": 0.01,
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Skill - Mighty Axe - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "minSpeed": 1,
+                "maxSpeed": 100
+            }
+        },
+        "Skill - Strafe - Mover": {
+            "guidance": {
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Skill - Strafe - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "maxSpeed": 100
+            }
+        },
+        "Solar Crest - Mover": {
+            "guidance": {
+                "speed": 10,
+                "minSpeed": 1,
+                "maxSpeed": 25
+            }
+        },
+        "Spawn Archer Mover": {
+            "ballistic": {
+                "flightTime": 1,
+                "gravity": 50
+            },
+            "upright": true,
+            "noRotation": true
+        },
+        "Spectral Arrow - Mover": {
+            "guidance": {
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "unit": 0,
+                                            "behavior": "Spectral Arrow - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "minSpeed": 1,
+                "maxSpeed": 25
+            }
+        },
+        "Throw Resource - Launch - Mover": {
+            "ballistic": {
+                "flightTime": 0.5,
+                "gravity": 60
+            }
+        },
+        "Viper Strike - Mover": {
+            "guidance": {
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Viper Strike - Missile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "minSpeed": 1,
+                "maxSpeed": 25
+            }
+        },
+        "Weapon - Salvo - Mover": {
+            "ballistic": {
+                "speed": 0.01,
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Weapon - Salvo - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "gravity": 20
+            },
+            "upright": true,
+            "noRotation": true
+        },
+        "Weapon - Scarlet Arrow - Mover": {
+            "guidance": {
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Weapon - Scarlet Arrow - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "minSpeed": 1,
+                "maxSpeed": 1000
+            }
+        },
+        "Weapon - Spitfire - Mover": {
+            "guidance": {
+                "accelerationExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Weapon - Spitfire - Projectile Deceleration Rate"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": -0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "speedExpressions": [
+                    {
+                        "multiply": {
+                            "expressions": [
+                                {
+                                    "value": {
+                                        "behaviorStackCount": {
+                                            "behavior": "Weapon - Spitfire - Projectile Speed"
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": {
+                                        "constant": {
+                                            "doubleValue": 0.01
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "maxSpeed": 100
+            }
+        }
+    }
+}

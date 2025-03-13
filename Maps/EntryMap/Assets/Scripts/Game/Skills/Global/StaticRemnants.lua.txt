@@ -1,0 +1,310 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Static Remnants"),
+
+    -- Behaviors
+
+    -- Effects
+    Detonate = DCEI.Effect("Skill - Static Remnants - Detonate Effects"),
+    Scan = DCEI.Effect("Skill - Static Remnants - Scan"),
+    Damage = DCEI.Effect("Skill - Static Remnants - Damage"),
+
+    -- Collision Effects
+
+    -- VFX
+    ImpactVFX = DCEI.Effect("Skill - Static Remnants - Impact VFX"),
+
+    -- Unit
+    Pylon = DCEI.Unit("Skill - Static Remnants - Pylon"),
+
+    -- Filter
+    ProjectileFilter = "",
+
+    -- Storm Serpent
+    StormSerpentEffects = DCEI.Effect("Skill - Static Remnants - Storm Serpent Effects"),
+    StormSerpentDamage = DCEI.Effect("Skill - Static Remnants - Storm Serpent - Damage"),
+
+    StormSerpentSizeStat = DCEI.Behavior("Skill - Static Remnants - Storm Serpent - Size"),
+    StormSerpentDamageStat = DCEI.Behavior("Skill - Static Remnants - Storm Serpent - Damage"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@class StaticRemnantsData
+---@field player_id integer
+---@field distance_traveled number
+---@field pylons table<integer, UnitInstance>
+
+---@type table<PLAYER, StaticRemnantsData>
+local _StaticRemnantsData = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function InitializeStaticRemnantsData(hero)
+    local player_id = hero.player_id
+
+    if not _StaticRemnantsData[player_id] then
+        _StaticRemnantsData[player_id] = {
+            player_id = player_id,
+            distance_traveled = 0,
+            pylons = {},
+        }
+    end
+end
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+end
+
+---comment
+---@param hero Hero
+local function SpawnStormSerpent(hero)
+    local is_storm_serpent_learned = hero:IsSkillLearned(SkillData.StormSerpent.Key)
+
+    if not is_storm_serpent_learned then
+        return
+    end
+
+    local static_remnants_data = _StaticRemnantsData[hero.player_id]
+
+    local active_count = #static_remnants_data.pylons
+
+    if active_count <= 0 then
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.StaticRemnants.Key)
+
+    -- Size
+    local base_size = hero:GetStat(STAT.SkillSize, { SkillData.StormSerpent.Key }, SCALING.Scaled)
+    local increased_size = hero:GetStat(STAT.SkillSize, { SkillData.StormSerpent.Key }, SCALING.Additive)
+
+    -- Damage
+    local damage = hero:GetStat(STAT.Damage, tags)
+    local increased_damage = hero:GetStat(STAT.DamageBoost, { SkillData.StormSerpent.Key }, SCALING.Additive)
+
+    local final_size_stacks = math.floor(base_size * (1 + increased_size * (active_count - 1)) * 100)
+    local final_damage_stacks = math.floor(damage * (1 + increased_damage * (active_count - 1)) * 100)
+
+    -- Help.Log("Final Size Stacks", final_size_stacks)
+    -- Help.Log("Final Damage Stacks", final_damage_stacks)
+
+    local position = Vector2.UnitPosition(hero.unit)
+    local forward = Vector2.UnitForward(hero.unit)
+
+    local instance = Help.CreateEffect(hero.player_id, REF.StormSerpentEffects, position, position + forward)
+    Core.Unit.SetBehaviorCount(instance, REF.StormSerpentSizeStat, final_size_stacks)
+    Core.Unit.SetBehaviorCount(instance, REF.StormSerpentDamageStat, final_damage_stacks)
+end
+
+---comment
+---@param hero Hero
+---@param index integer
+local function DetonatePylon(hero, index)
+    local static_remnants_data = _StaticRemnantsData[hero.player_id]
+
+    if not static_remnants_data then
+        Help.Warn("No Static Remnants Data found for Player", hero.player_id)
+        return
+    end
+
+    if not static_remnants_data.pylons[index] then
+        Help.Warn("No Pylon found at Index", index)
+        return
+    end
+
+    local pylon = static_remnants_data.pylons[index]
+    local position = Vector2.UnitPosition(pylon)
+    Help.CreateEffect(hero.player_id, REF.Detonate, position)
+    DCEI.RemoveUnit(pylon)
+
+    table.remove(static_remnants_data.pylons, index)
+end
+
+---@param hero Hero
+local function DetonateRemnant(hero)
+    local static_remnants_data = _StaticRemnantsData[hero.player_id]
+
+    if #static_remnants_data.pylons <= 0 then
+        return
+    end
+
+    for i = #static_remnants_data.pylons, 1, -1 do
+        DetonatePylon(hero, i)
+    end
+end
+
+---@param hero Hero
+local function SpawnRemnant(hero)
+    local static_remnants_data = _StaticRemnantsData[hero.player_id]
+
+    local tags = hero:GetInheritedTags(SkillData.StaticRemnants.Key)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+
+    local hero_position = hero:GetPosition()
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Pylon, hero_position.x, hero_position.y)
+
+    Help.SetModelScale(instance, skill_size, 0.25)
+
+    table.insert(static_remnants_data.pylons, instance)
+
+    -- Check for Summon Limit
+    local tags = hero:GetInheritedTags(SkillData.StaticRemnants.Key)
+    local summon_limit = hero:GetStat(STAT.SummonLimit, tags)
+    if #static_remnants_data.pylons > summon_limit then
+        DetonatePylon(hero, 1)
+    end
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    local static_remnants_data = _StaticRemnantsData[hero.player_id]
+
+    if not static_remnants_data then
+        Help.Warn("No Static Remnants Data found for Player", hero.player_id)
+        return
+    end
+
+    local distance_traveled = hero:GetTravelDistance()
+
+    if distance_traveled <= 0 then
+        SpawnStormSerpent(hero)
+        DetonateRemnant(hero)
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.StaticRemnants.Key)
+    local required_distance_traveled = hero:GetStat(STAT.RequiredTravelDistance, tags)
+
+    static_remnants_data.distance_traveled = static_remnants_data.distance_traveled + distance_traveled
+
+    if static_remnants_data.distance_traveled >= required_distance_traveled then
+        static_remnants_data.distance_traveled = static_remnants_data.distance_traveled - required_distance_traveled
+        SpawnRemnant(hero)
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+
+    -- Cleanup Pylons
+    local static_remnants_data = _StaticRemnantsData[hero.player_id]
+    for i = #static_remnants_data.pylons, 1, -1 do
+        DCEI.RemoveUnit(static_remnants_data.pylons[i])
+    end
+    -- Clear StaticRemnantsData
+    _StaticRemnantsData[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    -- [STAT.AttackSpeed] = {},
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+        -- EffectPath.New(REF.StormSerpentDamage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        InitializeStaticRemnantsData(hero)
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    -- local tags = hero:GetInheritedTags(SkillData.SkillName.Key)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

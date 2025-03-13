@@ -1,0 +1,50 @@
+local Ease = {}
+
+Ease.Linear = "Linear"
+
+Ease.InSine = "InSine"
+Ease.OutSine = "OutSine"
+Ease.InOutSine = "InOutSine"
+
+Ease.InQuad = "InQuad"
+Ease.OutQuad = "OutQuad"
+Ease.InOutQuad = "InOutQuad"
+
+Ease.InCubic = "InCubic"
+Ease.OutCubic = "OutCubic"
+Ease.InOutCubic = "InOutCubic"
+
+Ease.InQuart = "InQuart"
+Ease.OutQuart = "OutQuart"
+Ease.InOutQuart = "InOutQuart"
+
+Ease.InQuint = "InQuint"
+Ease.OutQuint = "OutQuint"
+Ease.InOutQuint = "InOutQuint"
+
+Ease.InExpo = "InExpo"
+Ease.OutExpo = "OutExpo"
+Ease.InOutExpo = "InOutExpo"
+
+Ease.InCirc = "InCirc"
+Ease.OutCirc = "OutCirc"
+Ease.InOutCirc = "InOutCirc"
+
+Ease.InElastic = "InElastic"
+Ease.OutElastic = "OutElastic"
+Ease.InOutElastic = "InOutElastic"
+
+Ease.InBack = "InBack"
+Ease.OutBack = "OutBack"
+Ease.InOutBack = "InOutBack"
+
+Ease.InBounce = "InBounce"
+Ease.OutBounce = "OutBounce"
+Ease.InOutBounce = "InOutBounce"
+
+Ease.Flash = "Flash"
+Ease.InFlash = "InFlash"
+Ease.OutFlash = "OutFlash"
+Ease.InOutFlash = "InOutFlash"
+
+return Ease

@@ -1,0 +1,304 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.Bash = {
+    Key = "Bash",
+
+    -- UI Information
+    DisplayName = "Bash",
+    ShortDescription = "Rapidly strikes nearby enemies.",
+    Icon = DCEI.Texture("cartoon_icon_skill_bash_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Bash,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Bash"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                -- Modifier.New(STAT.CastRange, 2.25, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.BaseAttackTime, 0.45, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.TargetCount, 1, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.Frequency, 0.125, SCALING.Scaled, { SKILL_TAG.Bash }),
+
+                -- Projectile
+                Modifier.New(STAT.SkillSize, 0.75, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.ProjectileSpeed, 30, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.SkillRange, 3.00, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.Bash }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 24, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.Bash }),
+
+                Modifier.New(STAT.Stagger, 1, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.SlowEffectiveness, 1, SCALING.Scaled, { SKILL_TAG.Bash }),
+                Modifier.New(STAT.SlowDuration, 0.2, SCALING.Scaled, { SKILL_TAG.Bash }),
+
+                -- Extras
+
+                -- Reset
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        Bash = {
+            SKILL_TAG.Global,
+            SKILL_TAG.Bash,
+
+            SKILL_TAG.Physical,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.DeadlyReach = {
+    Key = "DeadlyReach",
+
+    -- UI Information
+    DisplayName = "Deadly Reach",
+    ShortDescription = "Increase Critical Chance.",
+    Icon = DCEI.Texture("cartoon_icon_skill_bash_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_fireelemental_skill_incensed_blaze"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Global,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Bash,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Brawler = {
+    Key = "Brawler",
+
+    -- UI Information
+    DisplayName = "Brawler",
+    ShortDescription = "Increase Health.",
+    Icon = DCEI.Texture("cartoon_icon_skill_bash_survivor"),
+    -- Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    -- SecondaryIcon = DCEI.Texture("icon_merfolkfighter_skill_hookshot"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Bash,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Health, 0.20, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+-- Adds Pierce
+Data.HollowStrike = {
+    Key = "HollowStrike",
+
+    -- UI Information
+    DisplayName = "Hollow Strike",
+    ShortDescription = "Bash pierces through enemies.",
+    Icon = DCEI.Texture("cartoon_icon_skill_bash_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Bash,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Bash,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileHealth, 2, SCALING.Scaled, { SKILL_TAG.Bash }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Data.FlurryOfBlows = {
+--     Key = "FlurryOfBlows",
+
+--     -- UI Information
+--     DisplayName = "Flurry of Blows",
+--     ShortDescription = "Bash strikes 10 times in quick succession, but has a longer cooldown.",
+--     Icon = DCEI.Texture("cartoon_icon_skill_bash_survivor"),
+
+--     -- Skill Information
+--     MaxLevel = 1,
+--     Type = SKILL_TYPE.Unique,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.Bash,
+--     },
+--     Requirements = {
+--         {
+--             Tag = SKILL_TAG.Bash,
+--         },
+--     },
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {
+--                 Modifier.New(STAT.BaseAttackTime, 2, SCALING.Scaled, { SKILL_TAG.Bash }),
+--                 Modifier.New(STAT.Count, 9, SCALING.Scaled, { SKILL_TAG.Bash }),
+--             },
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {},
+--     RemoveStatInheritance = {},
+-- }
+
+Data.DoubleStrike = {
+    Key = "DoubleStrike",
+
+    -- UI Information
+    DisplayName = "Double Strike",
+    ShortDescription = "Bash strikes twice.",
+    Icon = DCEI.Texture("cartoon_icon_skill_bash_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Bash,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.Bash,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.TargetCount, 1, SCALING.Scaled, { SKILL_TAG.Bash }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

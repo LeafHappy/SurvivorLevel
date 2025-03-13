@@ -1,0 +1,305 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Magma Orb"),
+
+    -- Behaviors
+
+    -- Effects
+    Trigger = DCEI.Effect("Skill - Magma Orb - Trigger"),
+
+    -- Collision Effects
+    OnEnter = DCEI.Effect("Skill - Magma Orb - OnEnter"),
+    Damage = DCEI.Effect("Skill - Magma Orb - Damage"),
+    ImpactVFX = DCEI.Effect("Skill - Magma Orb - Impact VFX"),
+
+    -- Over Time
+    OnStay = DCEI.Effect("Skill - Magma Orb - OnStay"),
+    DamageOverTime = DCEI.Effect("Skill - Magma Orb - Damage Over Time"),
+
+    -- VFX
+
+    -- Unit
+    Projectile = DCEI.Unit("Skill - Magma Orb - Projectile"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Magma Orb - Projectile") }),
+
+    -- Upgrade
+    DamageAmp = DCEI.Effect("Skill - Magma Orb - Damage Amp"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@class MagmaOrbProjectileData
+---@field instance_id string
+---@field player_id PLAYER
+---@field instance Unit
+---@field duration number
+---@field velocity Vector2
+
+---@type table<PLAYER, MagmaOrbProjectileData>
+local _Projectiles = {}
+
+local MODEL_SCALE = 0.75
+local MODEL_SCALE_TIME = 0.25
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+end
+
+---@param data MagmaOrbProjectileData
+local function OnProjectileDeath(data)
+    _Projectiles[data.player_id][data.instance_id] = nil
+end
+
+---@param hero Hero
+local function SpawnProjectile(hero)
+    local hero_position = hero:GetPosition()
+    local hero_forward = Vector2.UnitForward(hero.unit)
+    local spawn_position = hero_position + hero_forward * 0.5
+
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, spawn_position.x, spawn_position.y)
+
+    local tags = hero:GetInheritedTags(SkillData.MagmaOrb.Key)
+
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    local duration = hero:GetStat(STAT.SkillDuration, tags)
+
+    -- local frequency = hero:GetStat(STAT.Frequency, tags)
+
+    -- Model Size
+    Help.SetModelScale(instance, size * MODEL_SCALE, MODEL_SCALE_TIME)
+
+    -- Collision
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 0),
+        -- SimpleUnit.GenerateCollisionEffect(REF.OnStay, CollisionTiming.Start | CollisionTiming.Continue, frequency),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Health
+    SimpleUnit.ModifyHealth(instance, 1)
+
+    -- Projectile Data
+    local instance_id = Core.Unit.GetId(instance)
+
+    _Projectiles[hero.player_id][instance_id] = {
+        instance_id = instance_id,
+        player_id = hero.player_id,
+        instance = instance,
+        duration = duration,
+        velocity = Vector2.Zero(),
+    }
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        OnProjectileDeath(_Projectiles[hero.player_id][instance_id])
+    end, true)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    SpawnProjectile(hero)
+end
+
+---comment
+---@param hero Hero
+---@param data MagmaOrbProjectileData
+local function UpdateProjectile(hero, data)
+    --
+    data.duration = data.duration - TICK_RATE
+
+    if data.duration <= 0 then
+        DCEI.KillUnit(data.instance)
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.MagmaOrb.Key)
+
+    local collision_size = hero:GetStat(STAT.CollisionSize)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local cast_range = hero:GetStat(STAT.SkillRange, tags)
+
+    local contact_distance = (collision_size * 2) + projectile_size
+    local leash_range = cast_range + projectile_size
+
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+
+    local position = Vector2.UnitPosition(data.instance)
+    local hero_position = hero:GetPosition()
+
+    local distance = Vector2.Distance(position, hero_position)
+
+    -- Check for Hero Contact
+    if distance < contact_distance then
+        local move_direction = Vector2.Normalized(position - hero_position)
+        data.velocity = move_direction * projectile_speed
+        DCEI.CreateEffectAtSelf(REF.DamageAmp, data.instance)
+        DCEI.PlaySound(DCEI.Sound("hercules_crushingblow_impact"))
+    end
+
+    local is_learned_returnal = hero:IsSkillLearned(SkillData.Returnal.Key)
+
+    if is_learned_returnal and distance > leash_range then
+        local move_direction = Vector2.Normalized(hero_position - position)
+        data.velocity = move_direction * projectile_speed
+    end
+
+    -- Move the Projectile
+    local move_delta = Vector2.Lerp(data.velocity, Vector2.Zero(), 0.90)
+    data.velocity = data.velocity - move_delta
+
+    local move_position = position + move_delta
+    DCEI.SetUnitPosition2DWithInterpolation(data.instance, move_position.x, move_position.y)
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    local is_alive = hero and Help.ValidateUnit(hero.unit)
+
+    -- Move all projectiles
+    local projectiles = _Projectiles[hero.player_id]
+
+    for _, projectile_data in pairs(projectiles) do
+        if not is_alive then
+            DCEI.KillUnit(projectile_data.instance)
+        else
+            UpdateProjectile(hero, projectile_data)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Cleanup Projectiles
+    local projectiles = _Projectiles[hero.player_id]
+    if projectiles then
+        for _, projectile_data in pairs(_Projectiles[hero.player_id]) do
+            DCEI.KillUnit(projectile_data.instance)
+        end
+    end
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _Projectiles[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.DamageBoost] = {
+        EffectPath.New(REF.DamageAmp, EJS.DamageOutput.Additive),
+    },
+    [STAT.SkillDuration] = {
+        EffectPath.New(REF.DamageAmp, EJS.DamageOutput.Duration),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        _Projectiles[hero.player_id] = {}
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    -- local tags = hero:GetInheritedTags(SkillData.MagmaOrb.Key)
+
+    -- local damage = hero:GetStat(STAT.Damage, tags)
+    -- local area_damage = hero:GetStat(STAT.AreaDamage, tags)
+
+    -- local area_damage_final = damage * area_damage
+    -- hero:SetEffectValue(REF.DamageOverTime, EJS.Damage.Value, area_damage_final)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

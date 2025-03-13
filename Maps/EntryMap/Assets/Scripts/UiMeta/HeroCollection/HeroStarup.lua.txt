@@ -1,0 +1,196 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local DataManager = require("UiMeta/DataManager")
+local HeroMeta = require("Meta/HeroMeta")
+local StarBarComponent = require("UiMeta/Components/StarBarComponent")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local MaterialInventory = require("Meta/MaterialInventory")
+
+-- CONSTANTS
+local TEMP_DESCRIPTION = "Unlocked when level reaches 10: Can be evolved to 5 stars"
+local AT_MAX_DESCRIPTION = "At max rank!"
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+---@class HeroTab
+local HeroTab = {}
+local rank_layouts = {}
+
+-- LOCAL FUNCTIONS
+local function OnHeroRankUp(hero_data)
+    HeroTab.Update(hero_data)
+end
+
+local function CreateRankInfoLayout(parent_tab, rank, rank_data, is_active)
+    local rank_layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/Tab/RankInfo/RankEntry",
+        parent = parent_tab.layout.rank_info.Content,
+    })
+
+    -- Update stars
+    StarBarComponent:Initialize(rank_layout.stars)
+    rank_layout.stars:Update(rank, not is_active)
+
+    -- Generic increase level description
+    local increase_level_cap = rank_data.increase_level_cap
+    if increase_level_cap then
+        local increase_level_description = "In game card max level increased by " .. tostring(increase_level_cap)
+        rank_layout.state.description = increase_level_description
+    end
+
+    -- Generic upgrade added
+    local add_upgrade = rank_data.add_upgrade
+    if add_upgrade then
+        -- TODO: This should change when we have which upgrades will be added
+        local add_upgrade_description = "The skill will be improved"
+        rank_layout.state.description = add_upgrade_description
+    end
+
+    -- Add to layout table
+    table.insert(rank_layouts, rank_layout)
+end
+
+local function ClearRankInfoEntries()
+    rank_layouts = rank_layouts or {}
+
+    for _, rank_layout in ipairs(rank_layouts) do
+        rank_layout:Destroy()
+    end
+    rank_layouts = {}
+end
+
+local function CreateRankInfoEntries(parent_tab, current_rank, hero_data)
+    local hero_rank_data = hero_data.RankData
+    for rank, rank_data in ipairs(hero_rank_data) do
+        local is_active = rank <= current_rank
+        CreateRankInfoLayout(parent_tab, rank, rank_data, is_active)
+    end
+end
+
+local function UpdateRankInfo(parent_tab, hero_data, hero_save_data)
+    ClearRankInfoEntries()
+    CreateRankInfoEntries(parent_tab, hero_save_data.rank, hero_data)
+end
+
+local function CreateMaterialLayout(tab, gear_material_data)
+    local new_material = GMUI.Layout.New({
+        name = "Meta/HeroCollection/MaterialButton",
+        parent = tab.layout.MaterialButtons,
+    })
+
+    local material_data = ResourceData[gear_material_data.id]
+    new_material.state.icon = material_data.icon
+    new_material.state.needed_amount = gear_material_data.amount
+
+    local material_save_data = MaterialInventory.GetMaterialData(gear_material_data.id)
+    local current_amount = material_save_data and material_save_data.amount or 0
+    new_material.state.current_amount = current_amount
+
+    new_material.state.can_upgrade = current_amount >= gear_material_data.amount
+
+    table.insert(tab.material_layouts, new_material)
+end
+
+local function CreateMaterialLayouts(tab, gear_data, gear_save_data)
+    local next_rank = gear_save_data.rank + 1
+    local gear_rank_data = gear_data.rank_data or gear_data.RankData
+    local materials = gear_rank_data[next_rank].cost
+    for _, material in pairs(materials) do
+        if material.id == "gold" then
+            tab.layout.state.rank_up_gold_cost = material.amount
+        else
+            CreateMaterialLayout(tab, material)
+        end
+    end
+end
+
+local function ClearMaterialLayouts(tab)
+    tab.material_layouts = tab.material_layouts or {}
+    for _, layout in ipairs(tab.material_layouts) do
+        layout:Destroy()
+    end
+    tab.material_layouts = {}
+end
+
+-- METHODS
+function HeroTab.Initialize(HeroCollection)
+    HeroTab.hero_collection = HeroCollection
+
+    HeroTab.layout = GMUI.Layout.New({
+        Frame = ui.hero_collection.star_popup.hero_tab.Frame,
+    })
+    HeroTab.material_layouts = {}
+
+    function HeroTab.layout:OnShow()
+        Animation.PopAndFadeIn(self.Frame)
+    end
+
+    HeroTab.layout.Update = HeroTab.Update
+
+    -- Setup stars
+    StarBarComponent:Initialize(HeroTab.layout.stars)
+end
+
+function HeroTab.Open(hero_data)
+    HeroTab.Update(hero_data)
+    HeroTab.layout:Show()
+end
+
+function HeroTab.Update(hero_data)
+    HeroTab.current_hero = hero_data.Name
+
+    -- Clear material layouts
+    ClearMaterialLayouts(HeroTab)
+
+    HeroTab.SetupUpgradeTab(hero_data)
+end
+
+function HeroTab.SetupUpgradeTab(hero_data)
+    -- Get hero save data
+    local hero_save_data = DataManager.save_data.heroes[HeroTab.hero_collection.selected_hero]
+
+    -- Get the next rank of hero to find cost to reach that rank
+    local next_rank = hero_save_data.rank + 1
+
+    -- Check if at max rank
+    local is_at_max_rank = #hero_data.RankData < next_rank
+    HeroTab.layout.state.at_max_rank = is_at_max_rank
+
+    -- Update stars at top of page
+    HeroTab.layout.stars:Update(hero_save_data.rank)
+
+    -- Show rank info
+    UpdateRankInfo(HeroTab, hero_data, hero_save_data)
+
+    -- Set description
+    local description = is_at_max_rank and AT_MAX_DESCRIPTION or TEMP_DESCRIPTION
+    DCEI.SetTextFrameText(HeroTab.layout.Description, description)
+
+    -- Setup material layouts if we aren't at max
+    if not is_at_max_rank then
+        CreateMaterialLayouts(HeroTab, hero_data, hero_save_data)
+    end
+
+    -- Update if we can rank up hero or not
+    HeroTab.layout.state.can_rank_up = HeroMeta.CanRankUpHero(hero_data, hero_save_data)
+
+    -- Update rank up button
+    DCEI.SetOnClickCallback(HeroTab.layout.rank_up_button.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        -- Spend materials and rank up hero (if able)
+        local current_hero = DataManager.save_data.player.hero
+        HeroTab.hero_collection.OnHeroRankUpPressed(current_hero)
+
+        -- Update ui and play animations
+        OnHeroRankUp(hero_data)
+    end)
+end
+
+-- EXPORT
+return HeroTab

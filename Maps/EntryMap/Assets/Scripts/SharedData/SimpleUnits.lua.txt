@@ -1,0 +1,706 @@
+---============================================================================
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Vector3 = require("Class/Vector3")
+local Vector2 = require("Class/Vector2")
+
+local Colors = require("Data/Colors")
+local EJS = require("Data/EJS")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Global
+---============================================================================
+
+---@alias HealthBar integer
+---| 'None' No Display
+---| 'Overhead' Displays above the unit
+---| 'Onscreen' Displays in the UI
+HealthBar = {
+    None = 0,
+    Overhead = 1,
+    Onscreen = 2,
+}
+
+---============================================================================
+-- !SECTION -- Global
+-- SECTION -- Initialization
+---============================================================================
+
+---@class SimpleUnits
+local SimpleUnits = {}
+
+---============================================================================
+-- !SECTION -- Initialization
+-- SECTION -- Hostiles
+---============================================================================
+
+SimpleUnits.Data = {}
+
+---@type HostileData
+SimpleUnits.Data.Witch = {
+    Name = "Witch",
+    Type = DCEI.SimpleUnit("Hostile - Witch"),
+
+    Stats = {
+        [STAT.Health] = 16,
+        [STAT.Thorns] = 9,
+        [STAT.CollisionSize] = 0.36,
+        [STAT.MoveSpeed] = 2.54,
+        [STAT.Mass] = 1.72,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Witch - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Witch - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Witch - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+}
+
+---@type HostileData
+SimpleUnits.Data.Gargoyle = {
+    Name = "Gargoyle",
+    Type = DCEI.SimpleUnit("Hostile - Gargoyle"),
+
+    Stats = {
+        [STAT.Health] = 30,
+        [STAT.Thorns] = 9,
+        [STAT.CollisionSize] = 0.36,
+        [STAT.MoveSpeed] = 1.89,
+        [STAT.Mass] = 5.3,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Gargoyle - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Gargoyle - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Gargoyle - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+}
+
+---============================================================================
+-- !SECTION -- Hostiles
+-- SECTION -- Special Hostiles
+---============================================================================
+
+--- Mad Scientist - Elite Minion - Skullicopter
+---@type HostileData
+SimpleUnits.Data.Skullicopter = {
+    Name = "Skullicopter",
+    Type = DCEI.SimpleUnit("Minion - Mad Scientist - Skullicopter"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.36,
+        [STAT.Mass] = 1.60,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Minion - Mad Scientist - Skullicopter - OnEnter"),
+    OnDeath = DCEI.Effect("Minion - Mad Scientist - Skullicopter - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Reaper
+---@type HostileData
+SimpleUnits.Data.FlyingSkull = {
+    Name = "Flying Skull",
+    Type = DCEI.SimpleUnit("Reaper - Minion - Flying Skull"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.20,
+        [STAT.Mass] = 1.60,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Reaper - Minion - Flying Skull - OnEnter"),
+    OnDeath = DCEI.Effect("Reaper - Minion - Flying Skull - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Knight
+---@type HostileData
+SimpleUnits.Data.PanDead = {
+    Name = "PanDead",
+    Type = DCEI.SimpleUnit("Minion - Knight - PanDead"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.32,
+        [STAT.Mass] = 3.60,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = false,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Minion - Knight - PanDead - OnEnter"),
+    OnDeath = DCEI.Effect("Minion - Knight - PanDead - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Ogre
+---@type HostileData
+SimpleUnits.Data.Ogre = {
+    Name = "Ogre",
+    Type = DCEI.SimpleUnit("Giant - Minion - Ogre"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.48,
+        [STAT.Mass] = 5.76,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = false,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Giant - Minion - Ogre - OnEnter"),
+    OnDeath = DCEI.Effect("Giant - Minion - Ogre - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Skeleton King
+---@type HostileData
+SimpleUnits.Data.SkeletonMinion = {
+    Name = "Skeleton",
+    Type = DCEI.SimpleUnit("Skeleton King - Minion - Skeleton"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.29,
+        [STAT.Mass] = 1.80,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Skeleton King - Minion - Skeleton - OnEnter"),
+    OnDeath = DCEI.Effect("Skeleton King - Minion - Skeleton - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Fulminyx
+---@type HostileData
+SimpleUnits.Data.FulminyxDrone = {
+    Name = "Fulminyx Drone",
+    Type = DCEI.SimpleUnit("Minion - Fulminyx - Drone"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.35,
+        [STAT.Mass] = 2.30,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Minion - Fulminyx - Drone - OnEnter"),
+    OnDeath = DCEI.Effect("Minion - Fulminyx - Drone - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Alchemist
+---@type HostileData
+SimpleUnits.Data.BearMinion = {
+    Name = "Bear",
+    Type = DCEI.SimpleUnit("Alchemist - Minion - Bear"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.76,
+        [STAT.Mass] = 7.03,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Alchemist - Minion - Bear - OnEnter"),
+    OnDeath = DCEI.Effect("Alchemist - Minion - Bear - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Shieldbearer
+---@type HostileData
+SimpleUnits.Data.MummyMinion = {
+    Name = "Mummy",
+    Type = DCEI.SimpleUnit("Shieldbearer - Minion - Mummy"),
+
+    Stats = {
+        [STAT.CollisionSize] = 0.34,
+        [STAT.Mass] = 3.20,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Shieldbearer - Minion - Mummy - OnEnter"),
+    OnDeath = DCEI.Effect("Shieldbearer - Minion - Mummy - OnDeath"),
+    Overrides = {},
+}
+
+---Minion Spawn for Bramble
+---@type HostileData
+SimpleUnits.Data.ThornsMinion = {
+    Name = "Thorns",
+    Type = DCEI.SimpleUnit("Bramble - Minion - Thorns"),
+
+    Stats = {
+        [STAT.CollisionSize] = 1.00,
+        [STAT.Mass] = 99999,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.None,
+
+    LocalAvoidance = false,
+    KillTime = nil,
+    RemoveTime = 10,
+
+    OnEnter = DCEI.Effect("Bramble - Minion - Thorns - OnEnter"),
+    -- OnDeath = DCEI.Effect("Shieldbearer - Minion - Mummy - OnDeath"),
+    Overrides = {},
+}
+
+---============================================================================
+-- !SECTION -- Special Hostiles
+-- SECTION -- Collection & Register
+---============================================================================
+
+---@class HealthData
+---@field Starting number
+---@field Max number
+
+---@class CollisionData
+---@field belongs_to_layer_mask CollisionLayers
+---@field collides_with_layer_mask CollisionLayers
+---@field radius number
+
+---@class CollisionEffectData
+---@field effect_name string
+---@field timing CollisionTiming | nil Default: Start | Continue
+---@field cooldown_seconds number | nil Default: 1
+---@field tag_mask_filter SIMPLE_TAG | integer | nil Default: SIMPLE_TAG.None
+
+---@class SimpleUnitData
+---@field UnitType string -- Unique Identifier
+---@field Health HealthData | nil
+---@field ArmorType ArmorType | nil
+---@field MovementSpeed number | nil
+---@field Mass number | nil
+---@field ShadowSize number | nil
+---@field Tag SIMPLE_TAG | integer | nil
+---@field LocalAvoidance boolean | nil
+---@field MoverEnabled boolean | nil
+---@field CollisionData CollisionData | nil
+---@field CollisionEffectData table<CollisionEffectData> | nil
+---@field DeathEffect string | nil
+
+-- A Dictionary of Registered Units
+-- Allows us to check if a Unit has already been Registered
+-- Can also modify the Unit and Re-Register it.
+local Collection = {}
+
+---comment
+---@param simple_unit_data SimpleUnitData
+---@param overwrite boolean | nil
+---@return SimpleUnit
+function SimpleUnits.Register(simple_unit_data, overwrite)
+    if not overwrite and Collection[simple_unit_data.UnitType] then
+        -- Skip Registration: Simple Unit is already Registered
+        return Collection[simple_unit_data.UnitType]
+    end
+
+    local simple_unit = SimpleUnit.New(simple_unit_data.UnitType)
+    simple_unit:SetUnitType(simple_unit_data.UnitType)
+
+    -- Set Health
+    if simple_unit_data.Health then
+        simple_unit:SetHealth(simple_unit_data.Health.Starting, simple_unit_data.Health.Max)
+    end
+
+    -- Armor
+    if simple_unit_data.ArmorType then
+        simple_unit:SetArmorType(simple_unit_data.ArmorType)
+    end
+
+    -- Speed
+    if simple_unit_data.MovementSpeed then
+        simple_unit:SetSpeed(simple_unit_data.MovementSpeed)
+    end
+
+    -- Mass
+    if simple_unit_data.Mass then
+        simple_unit:SetMass(simple_unit_data.Mass)
+    end
+
+    -- Shadow Size
+    if simple_unit_data.ShadowSize then
+        simple_unit:SetShadow(simple_unit_data.ShadowSize)
+    end
+
+    -- Tag
+    if simple_unit_data.Tag then
+        simple_unit:SetTag(simple_unit_data.Tag)
+    end
+
+    -- Local Avoidance
+    if simple_unit_data.LocalAvoidance then
+        simple_unit:SetLocalAvoidance(simple_unit_data.LocalAvoidance)
+    end
+
+    -- Mover Enabled
+    if simple_unit_data.MoverEnabled then
+        simple_unit:SetMover(simple_unit_data.MoverEnabled)
+    end
+
+    -- Collision
+    if simple_unit_data.CollisionData then
+        simple_unit:SetCollision(
+            simple_unit_data.CollisionData.belongs_to_layer_mask,
+            simple_unit_data.CollisionData.collides_with_layer_mask,
+            simple_unit_data.CollisionData.radius
+        )
+    end
+
+    -- Collision Effect
+    if simple_unit_data.CollisionEffectData then
+        for _, value in pairs(simple_unit_data.CollisionEffectData) do
+            simple_unit:AddCollisionEffect(
+                value.effect_name,
+                value.timing,
+                value.cooldown_seconds,
+                value.tag_mask_filter
+            )
+        end
+    end
+
+    -- Death Effect
+    if simple_unit_data.DeathEffect then
+        simple_unit:SetDeathEffect(simple_unit_data.DeathEffect)
+    end
+
+    ---TODO: Timer if needed
+
+    -- Register the Unit
+    simple_unit:Register()
+
+    -- Store the Unit in the Collection
+    Collection[simple_unit_data.UnitType] = simple_unit
+
+    -- Return the Registered Unit
+    return simple_unit
+end
+
+---Attempt to retrieve a Simple Unit from the Collection.
+---@param id string
+---@return nil | SimpleUnit
+function SimpleUnits.TryGetCollection(id)
+    return Collection[id]
+end
+
+---============================================================================
+-- !SECTION -- Collection & Register
+-- SECTION -- Props
+---============================================================================
+
+---@type table<SimpleUnitData>
+SimpleUnits.Props = {}
+
+-- SimpleUnits.Props.Tree = {
+--     Name = "Tree",
+--     Type = DCEI.SimpleUnit("Prop - Simple - Tree"),
+-- }
+
+---comment
+---@param simple_prop_data PropData
+---@return SimpleUnit
+function SimpleUnits.Props.Register(simple_prop_data)
+    local simple_prop = SimpleUnit.New(simple_prop_data.UnitType)
+    simple_prop:SetUnitType(simple_prop_data.UnitType)
+
+    if simple_prop_data.Stats then
+        simple_prop:SetHealth(simple_prop_data.Stats[STAT.Health])
+        simple_prop:SetMass(1000000)
+
+        local layer = simple_prop_data.IsDestructible and CollisionLayers.Hostile or CollisionLayers.None
+        simple_prop:SetCollision(layer, CollisionLayers.None, simple_prop_data.Stats[STAT.CollisionSize])
+    end
+
+    -- simple_prop:SetShadow(simple_prop_data.Stats[STAT.CollisionSize] * 2)
+
+    -- Not yet implemented
+    -- simple_prop:SetCollisionEffect(simple_prop_data.OnEnter)
+    if simple_prop_data.OnDeath then
+        simple_prop:SetDeathEffect(simple_prop_data.OnDeath)
+    end
+
+    if simple_prop_data.Collision then
+        simple_prop:SetCollision(
+            simple_prop_data.Collision.belongs_to_layer_mask,
+            simple_prop_data.Collision.collides_with_layer_mask,
+            simple_prop_data.Collision.radius
+        )
+    end
+
+    if simple_prop_data.OnCollision then
+        simple_prop:SetCollisionEffect(
+            simple_prop_data.OnCollision.effect_name,
+            simple_prop_data.OnCollision.timing,
+            simple_prop_data.OnCollision.cooldown_seconds,
+            simple_prop_data.OnCollision.tag_mask_filter
+        )
+    end
+
+    simple_prop:SetLocalAvoidance(false)
+
+    simple_prop:Register()
+    return simple_prop
+end
+
+---============================================================================
+-- !SECTION -- Props
+-- SECTION -- Helpers
+---============================================================================
+
+SimpleUnits.Helpers = {}
+
+local shadows = {
+    ["Hero - Annie"] = DCEI.SimpleUnit("Hero - Annie - Shadow"),
+    ["Hero - Jorian"] = DCEI.SimpleUnit("Hero - Jorian - Shadow"),
+    ["Hero - Erik"] = DCEI.SimpleUnit("Hero - Erik - Shadow"),
+    ["Hero - Ghost"] = DCEI.SimpleUnit("Hero - Ghost - Shadow"),
+    ["Hero - Amber"] = DCEI.SimpleUnit("Hero - Amber - Shadow"),
+    ["Elite - Training Dummy"] = DCEI.SimpleUnit("Elite - Training Dummy - Shadow"),
+    ["Elite - Mad Scientist"] = DCEI.SimpleUnit("Elite - Mad Scientist - Shadow"),
+    ["Elite - Golem"] = DCEI.SimpleUnit("Elite - Golem - Shadow"),
+    ["Elite - Skull"] = DCEI.SimpleUnit("Elite - Skull - Shadow"),
+    ["Elite - Necromancer"] = DCEI.SimpleUnit("Elite - Necromancer - Shadow"),
+    ["Elite - Bloodstone"] = DCEI.SimpleUnit("Elite - Bloodstone - Shadow"),
+    ["Elite - Bramble"] = DCEI.SimpleUnit("Elite - Bramble - Shadow"),
+    ["Elite - Nightshade"] = DCEI.SimpleUnit("Elite - Nightshade - Shadow"),
+    ["Boss - Reaper"] = DCEI.SimpleUnit("Boss - Reaper - Shadow"),
+    ["Boss - Knight"] = DCEI.SimpleUnit("Boss - Knight - Shadow"),
+    ["Boss - Giant"] = DCEI.SimpleUnit("Boss - Giant - Shadow"),
+    ["Boss - Skeleton King"] = DCEI.SimpleUnit("Boss - Skeleton King - Shadow"),
+    ["Boss - Fulminyx"] = DCEI.SimpleUnit("Boss - Fulminyx - Shadow"),
+    ["Boss - Alchemist"] = DCEI.SimpleUnit("Boss - Alchemist - Shadow"),
+    ["Boss - Shieldbearer"] = DCEI.SimpleUnit("Boss - Shieldbearer - Shadow"),
+
+    -- Hybrid
+    ["Elite - Skeleton Mage"] = DCEI.SimpleUnit("Elite - Skeleton Mage - Shadow"),
+}
+
+---Attaches a Complex Shadow to the Unit.
+---NOTE: Each one has to have a unique Actor Model.
+---@param parent Unit
+---@param size number
+---@return Unit
+function SimpleUnits.Helpers.AttachComplexShadow(parent, size)
+    if not Help.ValidateUnit(parent) then
+        Help.Error("Invalid Unit Passed")
+    end
+
+    local uid = DCEI.GetUnitType(parent)
+
+    -- If no Shadow, then Skip Shadow Attachment
+    if not shadows[uid] then
+        Help.Error("Failed to retrieve Shadow for", uid)
+        return
+    end
+
+    local complex_shadow = SimpleUnit.New(shadows[uid])
+    complex_shadow:SetUnitType(shadows[uid])
+    complex_shadow:SetShadow(size * 100 * 2.00) -- Adjusted for Model Scaling
+    complex_shadow:Register()
+
+    local spawn_position = Vector2.UnitPosition(parent)
+    local instance = complex_shadow:SpawnSyncStationary(PLAYER.Terrain, TEAM.Terrain, spawn_position)
+    DCEI.AttachUnit(instance, parent, {})
+    DCEI.TriggerAddUnitDiedEvent(parent, function()
+        DCEI.RemoveSimpleUnit(instance)
+    end)
+
+    DCEI.TriggerAddUnitRemovedEvent(parent, function()
+        DCEI.RemoveSimpleUnit(instance)
+    end)
+
+    return instance
+end
+
+local simple_collider = DCEI.SimpleUnit("Simple Collider")
+
+function SimpleUnits.Helpers.AttachBossCollider(unit, radius, effect)
+    local unit_type = DCEI.GetUnitType(unit)
+    local player_id = DCEI.GetUnitPlayerId(unit)
+    local team_id = DCEI.GetUnitTeamId(unit)
+    local position = Vector2.UnitPosition(unit)
+
+    local collider = SimpleUnit.New(unit_type .. " - Collider")
+    collider:SetUnitType(simple_collider)
+    collider:SetCollisionEffect(effect, CollisionTiming.Start | CollisionTiming.Continue, 1, SIMPLE_TAG.Hero)
+    collider:SetCollision(CollisionLayers.None, CollisionLayers.Friendly, radius)
+    collider:Register()
+
+    local instance = collider:SpawnSyncStationary(player_id, team_id, position)
+    DCEI.AttachUnit(instance, unit, {})
+    DCEI.TriggerAddUnitDiedEvent(unit, function()
+        DCEI.RemoveSimpleUnit(instance)
+    end)
+end
+
+local collector = SimpleUnit.New(DCEI.SimpleUnit("Simple Collector"))
+collector:SetCollision(CollisionLayers.None, CollisionLayers.Item, 0.01)
+collector:SetCollisionEffect(
+    DCEI.Effect("Simple Collector - OnEnter"),
+    CollisionTiming.Start,
+    0,
+    SIMPLE_TAG.Collectable
+)
+collector:Register()
+
+SimpleUnits.Helpers.Collector = collector
+
+function SimpleUnits.Helpers.CreateOffscreenIndicator(unit, background_image, background_color)
+    local data = { background_image = background_image, background_color = background_color }
+    data.unit_ref = GMUI.CreateUnitReference(unit)
+
+    -- generate new offscreen indicator
+    Core.Event.SendPresentationEvent("NewOffscreenIndicator", data)
+
+    local does_indicator_exist = true
+    local function AttemptDestroyIndicator()
+        if does_indicator_exist then
+            Core.Event.SendPresentationEvent("DestroyOffscreenIndictor", data.unit_ref)
+            does_indicator_exist = false
+        end
+    end
+
+    -- Remove the indicator if the unit dies or is removed
+    DCEI.TriggerAddUnitDiedEvent(unit, AttemptDestroyIndicator)
+    DCEI.TriggerAddUnitRemovedEvent(unit, AttemptDestroyIndicator)
+end
+
+---Quick Register only scales Health based on the provided Difficulty.
+---@param unit_data HostileData
+---@param attributes Attributes
+---@param added_tag SIMPLE_TAG | nil
+---@return SimpleUnit
+function SimpleUnits.Helpers.QuickRegister(unit_data, attributes, added_tag)
+    -- local health = unit_data.Stats[STAT.Health] * (1 + 0.10 * difficulty)
+    local health = attributes:Get(STAT.MinionHealth)
+    local speed = attributes:Get(STAT.MinionSpeed)
+
+    local mass = unit_data.Stats[STAT.Mass]
+    local size = unit_data.Stats[STAT.CollisionSize]
+
+    local simple_unit = SimpleUnit.New(unit_data.Type)
+    simple_unit:SetUnitType(unit_data.Type)
+    simple_unit:SetHealth(health)
+    simple_unit:SetMass(mass)
+    simple_unit:SetSpeed(speed)
+    simple_unit:SetCollision(CollisionLayers.Hostile, CollisionLayers.Friendly, size)
+    simple_unit:SetShadow(size * 2)
+
+    simple_unit:SetCollisionEffect(
+        unit_data.OnEnter,
+        CollisionTiming.Start | CollisionTiming.Continue,
+        1,
+        SIMPLE_TAG.Hero
+    )
+    simple_unit:SetDeathEffect(unit_data.OnDeath)
+
+    if unit_data.LocalAvoidance then
+        simple_unit:SetLocalAvoidance(unit_data.LocalAvoidance)
+    else
+        simple_unit:SetLocalAvoidance(true)
+    end
+
+    simple_unit:SetTransformAnimation(unit_data.TransformAnimation)
+
+    local tag = SIMPLE_TAG.None
+
+    if unit_data.Tag then
+        tag = tag | unit_data.Tag
+    end
+
+    if added_tag ~= nil then
+        tag = tag | added_tag
+    end
+
+    simple_unit:SetTag(tag)
+
+    for _, override in pairs(unit_data.Overrides) do
+        local value = unit_data.Stats[override.Stat]
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, override.Effect, override.Path, value)
+    end
+
+    simple_unit:Register()
+    return simple_unit
+end
+
+---comment
+---@param tile_type string
+---@return SimpleUnit
+function SimpleUnits.Helpers.RegisterTerrain(tile_type)
+    local simple_unit = SimpleUnit.New(tile_type)
+    simple_unit:SetUnitType(tile_type)
+    -- simple_unit:SetCollision(CollisionLayers.None, CollisionLayers.None, 0.001)
+    simple_unit:SetMass(1000000)
+    simple_unit:SetTag(SIMPLE_TAG.Terrain)
+    simple_unit:Register()
+    return simple_unit
+end
+
+---============================================================================
+-- !SECTION -- Helpers
+---============================================================================
+
+return SimpleUnits

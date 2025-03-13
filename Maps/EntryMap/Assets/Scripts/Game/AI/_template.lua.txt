@@ -1,0 +1,252 @@
+-- ============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Boss | Elite
+local Data = {}
+
+---@type BossData | EliteData
+Data.Data = {
+    Name = "Name",
+    Type = DCEI.Unit(""),
+    Stats = {
+        -- Core Stats
+        Modifier.New(STAT.Health, 1000, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 10, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 1.00, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 2.00, SCALING.Scaled),
+
+        -- Base Stagger Values
+        -- Boss
+        -- Modifier.New(STAT.StaggerResistance, 500, SCALING.Scaled),
+        -- Modifier.New(STAT.AddedStaggerResistance, 250, SCALING.Scaled),
+        -- Elite
+        -- Modifier.New(STAT.StaggerResistance, 100, SCALING.Scaled),
+        -- Modifier.New(STAT.AddedStaggerResistance, 50, SCALING.Scaled),
+
+        -- Skill Stats
+        -- Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled),
+        -- Modifier.New(STAT.SkillSize, 1, SCALING.Scaled),
+        -- Modifier.New(STAT.SkillDuration, 1, SCALING.Scaled),
+
+        -- Minion Stats
+        -- Modifier.New(STAT.MinionCount, 1, SCALING.Scaled),
+        -- Modifier.New(STAT.MinionHealth, 20, SCALING.Scaled),
+        -- Modifier.New(STAT.MinionDamage, 5, SCALING.Scaled),
+        -- Modifier.New(STAT.MinionSpeed, 2.00, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local PHASE_MODIFIERS = {
+    Modifier.New(STAT.AttackSpeed, 0.10, SCALING.Scaled),
+    Modifier.New(STAT.MoveSpeed, 0.05, SCALING.Additive),
+}
+
+local REF = {
+    -- Engine References (DCEI: Ability, Effect, Behavior, etc.)
+    -- Examples omit the DCEI part to prevent an engine-reference error.
+    OnEnter = "Boss - Name - OnEnter",
+    ContactDamage = "Boss - Name - Contact Damage",
+}
+
+local STATES = {
+    -- Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Custom
+    Move = "Move",
+}
+
+-- For Bosses, make additional ACTION_ORDERS for each phase (all bosses have 3 phases).
+local ACTION_ORDER = {
+    STATES.Move,
+}
+
+-- For Bosses, use use a different ACTION_RDER for each Phase.
+local ACTION_ORDER_01 = {
+    STATES.Move,
+}
+
+local ACTION_ORDER_02 = {
+    STATES.Move,
+}
+
+local ACTION_ORDER_03 = {
+    STATES.Move,
+}
+
+local SIMPLE_UNITS = {
+    -- [SimpleUnits.Data.SkeletonMinion] = SimpleUnit.New(SimpleUnits.Data.SkeletonMinion.Type),
+}
+
+local OVERRIDES = {
+    -- EffectPath.New(REF.ContactDamage, EJS.Damage.Value, STAT.Thorns, 1),
+}
+
+local MODEL_SCALE = 1.00
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+-- Quick way to register simple units.
+-- Some units require manual setup if they have unique behaviors.
+local function RegisterSimpleUnits(difficulty)
+    for unit_data, _ in pairs(SIMPLE_UNITS) do
+        SIMPLE_UNITS[unit_data] = SimpleUnits.Helpers.QuickRegister(unit_data, difficulty)
+    end
+end
+
+---comment
+---@param ai AIHandler
+local function OnPhaseIncreased(ai)
+    -- Reset the State Index
+    ai.Data.StateIndex = 0
+
+    for _, modifier in pairs(PHASE_MODIFIERS) do
+        local new_modifier = modifier:Copy() -- Copy the modifier so they stack (generates a new ID).
+        ai.attributes:Add(new_modifier)
+    end
+
+    -- Any other required updates
+    RegisterSimpleUnits(ai.attributes)
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---@param ai AIHandler
+local function CastMove(ai)
+    -- Validation
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    -- Move Logic
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    DCEI.Move(ai.unit, target_position.x, target_position.y)
+
+    -- Exit Timer
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Required to continue actions.
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    -- local unit_position = Vector2.UnitPosition(ai.unit)
+    -- local target_position = Vector2.UnitPosition(ai.Data.Target)
+    -- local distance = Vector2.Distance(unit_position, target_position)
+
+    -- Boss Phase Check
+    local phase = ai.phase
+    local action_order = phase == 1 and ACTION_ORDER_01 or phase == 2 and ACTION_ORDER_02 or ACTION_ORDER_03
+
+    -- Update State Index
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #action_order then
+        ai.Data.StateIndex = 1
+    end
+
+    local state = action_order[ai.Data.StateIndex]
+    local action_speed = ai.attributes:Get(STAT.AttackSpeed)
+    local action_speed_modifier = 1 / (1 + action_speed)
+
+    -- Assign State
+    if state == STATES.Move then
+        ai.Data.StateTime = Help.RandomNumber(1, 2) * action_speed_modifier
+        ai.Data.StateTimer = ai.Data.StateTime
+
+        ai:SetState(STATES.Move)
+    end
+
+    -- Wait and Validate
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Data.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, OVERRIDES, true, true) -- Make sure you configure this
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, REF.OnEnter)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    -- Core State
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+
+    -- Additional States
+    ai:AddState(STATES.Move, CastMove)
+
+    -- Register to the Boss Stagger Bar
+    -- AIHelper.RegisterBossStaggerUpdate(ai)
+
+    -- Phase Increase Callbacks
+    -- ai:AddPhaseIncreaseCallback(PhaseIncreaseCallback)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Data

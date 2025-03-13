@@ -1,0 +1,459 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+-- Core Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+-- Classes
+local Vector2 = require("Class/Vector2")
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Event = require("Class/Event")
+
+-- Data
+local Colors = require("Data/Colors")
+
+-- Simple Units
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local LootData = require("Data/SimpleUnits/LootData")
+
+-- Shared Data
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Game
+local Hero = require("Game/Hero")
+local Log = require("Game/Log")
+
+-- Helper
+local UiHelper = require("Game/UiHelper")
+local Help = require("Help")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local REF = {
+    MOVER_SMALL = DCEI.Effect("SMover - Random Circle - Small"),
+    MOVER_MEDIUM = DCEI.Effect("SMover - Random Circle - Medium"),
+    MOVER_LARGE = DCEI.Effect("SMover - Random Circle - Large"),
+}
+
+local _LastEventPosition = Vector2.Zero()
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function SetDroneMove(instance)
+    -- Validate instance.
+    if not Help.ValidateUnit(instance) then
+        return false
+    end
+
+    local target = Hero.GetRandomTarget()
+
+    -- Validate we got a target.
+    if not Help.ValidateUnit(target) then
+        return false
+    end
+
+    local target_position = Vector2.UnitPosition(target)
+    local random_nearby_position = target_position + Vector2.Random() * Core.Random.GetNumber(2.5, 5)
+    DCEI.Move(instance, random_nearby_position.x, random_nearby_position.y)
+
+    return true
+end
+
+local function StartDroneAI(instance)
+    -- Setup Movement Logic
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(2.50)
+
+    function timer:Action()
+        -- Set Move Position, recreate timer.
+        local valid_target = SetDroneMove(instance)
+
+        if valid_target then
+            StartDroneAI(instance)
+        end
+    end
+end
+
+---comment
+---@param settings EventData.SpawnSettings
+---@return Vector2
+local function GetSpawnPosition(settings)
+    local spawn_position = Vector2.Zero()
+
+    -- Check Base Spawn Position Type
+    if settings.BaseSpawnPositionType == EVENT_SPAWN_BASE.UsePlayerPosition then
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local hero_position = hero:GetPosition()
+        spawn_position = spawn_position + hero_position
+    elseif settings.BaseSpawnPositionType == EVENT_SPAWN_BASE.UseLastEventPosition then
+        spawn_position = _LastEventPosition
+    elseif settings.BaseSpawnPositionType == EVENT_SPAWN_BASE.UseMapCenter then
+        spawn_position = Vector2.Zero()
+    end
+
+    -- Add Fixed Offset
+    if settings.Offset then
+        spawn_position = spawn_position + settings.Offset
+    end
+
+    -- Add Distance Offset
+    if settings.Distance then
+        local offset = Vector2.Zero()
+
+        if type(settings.Distance) == "number" then
+            offset = Vector2.Random() * settings.Distance
+        elseif type(settings.Distance) == "table" then
+            offset = Vector2.Random() * Core.Random.GetNumber(settings.Distance.x, settings.Distance.y)
+            -- elseif spawn_settings.Distance:IsVector2() then
+            --     offset = Vector2.Random() * Core.Random.GetNumber(spawn_settings.Distance.x, spawn_settings.Distance.y)
+        end
+
+        spawn_position = spawn_position + offset
+    end
+
+    -- Set Last Event Position
+    _LastEventPosition = spawn_position
+
+    return spawn_position
+end
+
+---comment
+---@param unit_type string
+---@param position Vector2
+---@return unknown
+local function SpawnInstance(unit_type, position)
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, unit_type, position.x, position.y)
+    return instance
+end
+
+---comment
+---@param instance Unit
+---@param settings EventStructureData.CombatSettings
+local function ApplyCombatSettings(instance, settings)
+    -- Health Check
+    if settings.Health then
+        SimpleUnit.ModifyHealth(instance, settings.Health)
+        SimpleUnit.ModifyArmor(instance, settings.ArmorType)
+    end
+
+    -- Attackable Check
+    if settings.IsAttackable then
+        -- Change Owner
+        DCEI.SetUnitOwner(instance, PLAYER.Hostile)
+        DCEI.SetUnitTeamId(instance, TEAM.Hostile)
+    end
+
+    -- Tag
+    SimpleUnit.ModifyTag(instance, settings.SimpleTags)
+end
+
+---comment
+---@param instance Unit
+---@param settings EventStructureData.CollisionSettings
+local function ApplyCollisionSettings(instance, settings)
+    if not settings then
+        return
+    end
+
+    -- Collision
+    SimpleUnit.ModifyCollision(instance, settings.CollisionLayer, settings.CollisionLayerHit, settings.CollisionSize)
+
+    -- Check for Collision Effect Data
+    if settings.CollisionEffects then
+        -- Help.Log("Adding Collision Effects", nil, settings.CollisionEffects)
+
+        local collision_effects = {}
+
+        for _, collision_effect in ipairs(settings.CollisionEffects) do
+            local simple_collision_effect = SimpleUnit.GenerateCollisionEffect(
+                collision_effect.effect_name,
+                collision_effect.timing,
+                collision_effect.cooldown_seconds,
+                collision_effect.tag_mask_filter
+            )
+
+            table.insert(collision_effects, simple_collision_effect)
+        end
+
+        SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+    end
+end
+
+---comment
+---@param instance Unit
+---@param behaviors table<Behavior>
+local function ApplyBehaviors(instance, behaviors)
+    if not behaviors then
+        return
+    end
+
+    for _, behavior in ipairs(behaviors) do
+        DCEI.ApplyBehaviorToSelf(instance, behavior.behavior, behavior.count)
+    end
+end
+
+-- This may not work because the source unit is dead, causing an issue after a long delay.
+-- Maybe there needs to be 2 functions, one for caching, one for casting
+---@param instance Unit
+---@param settings EventData.DeathSettings
+local function ApplyDeathSettings(instance, settings)
+    -- Help.Log("Checking Death Settings", nil, settings)
+
+    -- Validate Death Settings
+    if not settings or not settings.DeathEffects then
+        return
+    end
+
+    -- Help.Log("Apply Death Settings", nil, death_settings)
+
+    -- Delay
+    local delay = settings.Delay or 0
+
+    -- Trigger Death Effects
+    ---@param position Vector2
+    ---@param target Unit | Vector2
+    ---@param effects table<Effect>
+    local function TriggerDeathEffects(position, target, effects)
+        -- Help.Log("Triggering Death Effects")
+        for _, effect in ipairs(effects) do
+            -- DCEI.CreateEffectAtUnit(effect, target, caster)
+            Help.CreateEffect(PLAYER.Hostile, effect, position, target)
+        end
+
+        -- Simple Drop Table
+        if settings.DropTable then
+            local drop_table_options = {
+                apply_mover_effect = REF.MOVER_MEDIUM,
+                spawn_over_time = true,
+            }
+
+            Help.SpawnDropTable(position, settings.DropTable, drop_table_options)
+        end
+    end
+
+    -- Either: Cast Death Effects Immediately or Cache for Delay
+    ---@param killing_unit Unit
+    local function OnUnitDeathEvent(killing_unit)
+        -- Help.Log("Unit Death Event Triggered", delay)
+
+        local position = Vector2.UnitPosition(DCEI.TriggeringUnit)
+        local target = killing_unit
+        local target_position = Vector2.UnitPosition(killing_unit)
+
+        -- Cast immediately
+        if not delay or delay <= 0 then
+            if not Help.ValidateUnit(target) then
+                target = target_position
+            end
+
+            TriggerDeathEffects(position, target, settings.DeathEffects)
+            return
+        end
+
+        -- Cast on a Delay
+        if delay > 0 then
+            local timer = Core.Timer.Game.New()
+            timer:SetDuration(delay)
+
+            function timer:Action()
+                if not Help.ValidateUnit(target) then
+                    target = target_position
+                end
+
+                TriggerDeathEffects(position, target, settings.DeathEffects)
+            end
+        end
+    end
+
+    -- Death Event
+    -- Help.Log("Registering Death Event")
+    DCEI.TriggerAddUnitDiedEvent(instance, OnUnitDeathEvent)
+end
+
+local DEFAULT_ICON = DCEI.Texture("icon_event_npe_point_big")
+
+---comment
+---@param instance Unit
+---@param settings EventData.DisplaySettings
+local function ApplyDisplaySettings(instance, settings)
+    if not settings then
+        return
+    end
+
+    if settings.ModelScale then
+        Help.SetModelScale(instance, settings.ModelScale)
+    end
+
+    if settings.ShowOffscreenIndicator then
+        local icon = settings.Icon or DEFAULT_ICON
+        SimpleUnits.Helpers.CreateOffscreenIndicator(instance, icon)
+    end
+
+    -- Status Bar
+    if settings.ShowHealth then
+        local unit_ref = GMUI.CreateUnitReference(instance)
+        Core.Event.SendPresentationEvent("StatusBarManager.NewEventStatus", unit_ref)
+    end
+end
+
+local _RegisteredEvents = {}
+
+---Registers the Instance
+---@param instance Unit
+local function RegisterEventInstance(instance)
+    _RegisteredEvents[instance] = instance
+
+    DCEI.TriggerAddUnitRemovedEvent(instance, function()
+        _RegisteredEvents[instance] = nil
+    end)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Library
+---============================================================================
+
+local StageEvents = {}
+
+---comment
+---@param stage_event_data HuntData.Event | table<HuntData.Event>
+---@return Unit
+function StageEvents.SpawnEvent(stage_event_data)
+    -- Help.Log("Stage Event Data", type(stage_event_data), stage_event_data)
+
+    -- Check if we were sent a table of events.
+    if type(stage_event_data) == "table" and #stage_event_data > 0 then
+        -- Randomly select an event from the table.
+        local instance = StageEvents.SpawnEvent(stage_event_data[Help.RandomInteger(1, #stage_event_data)])
+        return instance
+    end
+
+    -- Help.Log("Stage Event Data", nil, stage_event_data)
+
+    -- Select a random event from the available Options
+    local options = stage_event_data.Options
+    local event_type = options[Help.RandomInteger(1, #options)]
+
+    -- Handle Spawn Settings
+    local spawn_settings = stage_event_data.SpawnSettings or event_type.SpawnSettings
+    local spawn_position = GetSpawnPosition(spawn_settings)
+
+    -- Spawn Instance
+    local instance = SpawnInstance(event_type.UnitType, spawn_position)
+
+    -- Apply Combat Settings
+    ApplyCombatSettings(instance, event_type.CombatSettings)
+
+    -- Apply Collision Settings
+    ApplyCollisionSettings(instance, event_type.CollisionSettings)
+
+    -- Apply Behaviors
+    ApplyBehaviors(instance, event_type.AppliedBehaviors)
+
+    -- Apply Death Settings
+    ApplyDeathSettings(instance, event_type.DeathSettings)
+
+    -- Apply Display Settings
+    ApplyDisplaySettings(instance, event_type.DisplaySettings)
+
+    RegisterEventInstance(instance)
+
+    return instance
+end
+
+---comment
+---@return table<Unit>
+function StageEvents.GetEventInstances()
+    local instances = {}
+
+    for _, instance in pairs(_RegisteredEvents) do
+        table.insert(instances, instance)
+    end
+
+    return instances
+end
+
+-- ---Spawns a Drone at the given position.
+-- ---OnDeath, drop items from their LootTable.
+-- ---@param position Vector2
+-- ---@param drop_table DropTable
+-- ---@return Unit
+-- function StageEvents.SpawnDrone(position, drop_table)
+--     -- Spawn Instance
+--     local instance = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Terrain, REF.Drone, position.x, position.y)
+
+--     -- Shadow
+--     -- The current shadow functionality is less than ideal.
+--     -- Requires high workload and excess unit instances.
+--     SimpleUnits.Helpers.AttachComplexShadow(instance, 0.35)
+
+--     -- Collision
+--     local collision_size = 0.5
+--     SimpleUnit.ModifyCollision(instance, CollisionLayers.Hostile, CollisionLayers.None, collision_size)
+
+--     -- Set Health
+--     SimpleUnit.ModifyHealth(instance, 3)
+--     SimpleUnit.ModifyArmor(instance, ARMOR_TYPES.Structure)
+
+--     -- Set Simple Tag
+--     DCEI.SetUnitSimpleTag(instance, { value = SIMPLE_TAG.Hostile })
+
+--     -- Setup Loot
+--     DCEI.TriggerAddUnitDiedEvent(instance, function()
+--         local death_position = Vector2.UnitPosition(instance)
+
+--         local timer = Core.Timer.Game.New()
+--         timer:SetDuration(0.75)
+
+--         function timer:Action()
+--             Help.SpawnDropTable(
+--                 death_position,
+--                 drop_table,
+--                 { apply_mover_effect = DCEI.Effect("SMover - Random Circle - Medium"), spawn_over_time = true }
+--             )
+--         end
+--     end, true)
+
+--     -- Set Initial Move Position
+--     SetDroneMove(instance)
+
+--     -- Start Simple Drone AI
+--     StartDroneAI(instance)
+
+--     return instance
+-- end
+
+---============================================================================
+---!SECTION: Library
+---SECTION: Registered Events
+---============================================================================
+
+StageEvents.RegisteredEvents = {
+    CrateDestroyed = Event.New(),
+}
+
+DCEI.TriggerAddEffectEvent(
+    DCEI.Effect("Trigger - Crate Destroyed"),
+    ---@param ctx EffectContext
+    function(ctx)
+        StageEvents.RegisteredEvents.CrateDestroyed(ctx)
+    end
+)
+
+---============================================================================
+---!SECTION: Registered Events
+---============================================================================
+
+return StageEvents

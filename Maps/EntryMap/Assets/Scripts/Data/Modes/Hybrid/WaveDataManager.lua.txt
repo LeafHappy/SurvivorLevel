@@ -1,0 +1,808 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local EJS = require("Data/EJS")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local HybridEventData = require("Game/HybridEvents/HybridEventData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Data
+---============================================================================
+
+---@class DefaultWaveModifiers
+---@field Base table<Modifier> -- Applied to this Wave and all subsequent Waves (when no other modifiers are present).
+---@field Increase table<Modifier> -- Subsequent Waves are increased by this amount. (Modifier Value * (WaveDiff - 1))
+
+---@type table<integer, DefaultWaveModifiers>
+local default_modifiers = {
+    [1] = {
+        Base = {
+            Modifier.New(STAT.Health, 1.00, SCALING.Multiplier),
+        },
+        Increase = {
+            Modifier.New(STAT.Health, 0.25, SCALING.Additive),
+            Modifier.New(STAT.Thorns, 0.10, SCALING.Additive),
+        },
+    },
+    [6] = {
+        Base = {
+            Modifier.New(STAT.Health, 2.50, SCALING.Multiplier),
+        },
+        Increase = {
+            Modifier.New(STAT.Health, 0.5, SCALING.Additive),
+            Modifier.New(STAT.Thorns, 0.10, SCALING.Additive),
+        },
+    },
+    [11] = {
+        Base = {
+            Modifier.New(STAT.Health, 5.00, SCALING.Multiplier),
+            Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Additive),
+        },
+        Increase = {
+            Modifier.New(STAT.Health, 1, SCALING.Additive),
+            Modifier.New(STAT.Thorns, 0.05, SCALING.Additive),
+        },
+    },
+}
+
+local overrides = {
+    [HostileData.Walker] = {
+        Count = DCEI.Effect("Hostile - Walker - Drop Count"),
+        Chance = DCEI.Effect("Hostile - Walker - Drop Chance"),
+    },
+    [HostileData.Runner] = {
+        Count = DCEI.Effect("Hostile - Runner - Drop Count"),
+        Chance = DCEI.Effect("Hostile - Runner - Drop Chance"),
+    },
+    [HostileData.Marauder] = {
+        Count = DCEI.Effect("Hostile - Marauder - Drop Count"),
+        Chance = DCEI.Effect("Hostile - Marauder - Drop Chance"),
+    },
+    [HostileData.Banshee] = {
+        Count = DCEI.Effect("Hostile - Banshee - Drop Count"),
+        Chance = DCEI.Effect("Hostile - Banshee - Drop Chance"),
+    },
+    [HostileData.Brute] = {
+        Count = DCEI.Effect("Hostile - Brute - Drop Count"),
+        Chance = DCEI.Effect("Hostile - Brute - Drop Chance"),
+    },
+    [HostileData.Boomer] = {
+        Count = DCEI.Effect("Hostile - Boomer - Drop Count"),
+        Chance = DCEI.Effect("Hostile - Boomer - Drop Chance"),
+    },
+    [Elites.Types.SkeletonMage] = {
+        Count = DCEI.Effect("Elite - Skeleton Mage - Drop Count"),
+        Chance = DCEI.Effect("Elite - Skeleton Mage - Drop Chance"),
+    },
+}
+
+---@type table<HostileData, integer>
+local weights = {
+    [HostileData.Banshee] = 1,
+    [HostileData.Runner] = 2,
+    [HostileData.Walker] = 3,
+    [HostileData.Marauder] = 5,
+    [HostileData.Boomer] = 8,
+    [HostileData.Brute] = 13,
+    [Elites.Types.SkeletonMage] = 20,
+}
+
+local meat_reward = {
+    Base = 30,
+    Scaled = 10,
+    Additive = 0.01,
+    Multiplier = 1.01,
+}
+
+---@class WaveData
+---@field Reward WaveData.Reward
+---@field Duration number
+---@field Register table<HostileData, table<SimpleDropTableData>>
+---@field Modifiers table<Modifier>
+---@field FixedSpawns table<Time, table<WaveData.FixedSpawnData>>
+---@field FixedElites table<Time, WaveData.FixedEliteData>
+---@field Boss Boss | nil
+-- -@field HybridEvents table<Time, table>
+
+---@class WaveData.Reward
+---@field Meat integer
+
+---@class WaveData.FixedSpawnData
+---@field SpawnSide CARDINAL
+---@field Type HostileData
+---@field Count integer
+---@field SpawnRate number
+---@field AllowedTargeting table<HOSTILE_TARGET>
+
+---@class WaveData.FixedEliteData
+---@field Type Elite
+---@field Count integer
+
+---@type table<integer, WaveData>
+local default_wave_data = {
+    [1] = {
+        Duration = 10,
+        FixedSpawns = {
+            [3] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Banshee,
+                    Count = 50,
+                    SpawnRate = 0.0625,
+                },
+            },
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Boomer,
+                    Count = 4,
+                    SpawnRate = 0.125,
+                },
+            },
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Banshee,
+                    Count = 50,
+                    SpawnRate = 0.0625,
+                },
+            },
+            [7] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Boomer,
+                    Count = 4,
+                    SpawnRate = 0.125,
+                },
+            },
+        },
+    },
+    [2] = {
+        Duration = 10,
+        FixedSpawns = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Brute,
+                    Count = 2,
+                    SpawnRate = 0.125,
+                },
+            },
+            [3] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 10,
+                    SpawnRate = 0.125,
+                },
+            },
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Brute,
+                    Count = 1,
+                    SpawnRate = 0.125,
+                },
+            },
+            [7] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 10,
+                    SpawnRate = 0.125,
+                },
+            },
+            [9] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 10,
+                    SpawnRate = 0.125,
+                },
+            },
+        },
+        FixedElites = {
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = Elites.Types.SkeletonMage,
+                    Count = 1,
+                },
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = Elites.Types.SkeletonMage,
+                    Count = 1,
+                },
+            },
+        },
+    },
+    [3] = {
+        Duration = 10,
+        FixedSpawns = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Walker,
+                    Count = 10,
+                    SpawnRate = 0.125,
+                },
+            },
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Walker,
+                    Count = 10,
+                    SpawnRate = 0.125,
+                },
+            },
+            [9] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Runner,
+                    Count = 40,
+                    SpawnRate = 0.03125,
+                },
+            },
+        },
+    },
+    [4] = {
+        Duration = 10,
+        FixedSpawns = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Runner,
+                    Count = 30,
+                    SpawnRate = 0.03125,
+                },
+            },
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 10,
+                    SpawnRate = 0.125,
+                },
+            },
+            [10] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Runner,
+                    Count = 30,
+                    SpawnRate = 0.03125,
+                },
+            },
+        },
+        FixedElites = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = Elites.Types.SkeletonMage,
+                    Count = 1,
+                },
+            },
+        },
+    },
+    [5] = {
+        Duration = 10,
+        FixedSpawns = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Marauder,
+                    Count = 6,
+                    SpawnRate = 0.50,
+                },
+            },
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 30,
+                    SpawnRate = 0.125,
+                },
+            },
+            [7] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Marauder,
+                    Count = 6,
+                    SpawnRate = 0.50,
+                },
+            },
+            [9] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Runner,
+                    Count = 100,
+                    SpawnRate = 0.03125,
+                },
+            },
+        },
+        FixedElites = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = Elites.Types.SkeletonMage,
+                    Count = 1,
+                },
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = Elites.Types.SkeletonMage,
+                    Count = 1,
+                },
+            },
+        },
+    },
+}
+
+---@type table<integer, WaveData>
+local override_wave_data = {
+    [1] = {
+        Duration = 10,
+        Reward = {
+            Meat = 30,
+        },
+        FixedSpawns = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 4,
+                    SpawnRate = 0.125,
+                },
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Runner,
+                    Count = 12,
+                    SpawnRate = 0.125,
+                },
+            },
+            [3] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 4,
+                    SpawnRate = 0.125,
+                },
+            },
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 4,
+                    SpawnRate = 0.125,
+                },
+            },
+            [2] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Runner,
+                    Count = 24,
+                    SpawnRate = 0.0625,
+                },
+            },
+        },
+    },
+    [2] = {
+        Duration = 10,
+        Reward = {
+            Meat = 40,
+        },
+        FixedSpawns = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Walker,
+                    Count = 12,
+                    SpawnRate = 0.125,
+                },
+            },
+            [3] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 6,
+                    SpawnRate = 0.125,
+                },
+            },
+            [5] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 6,
+                    SpawnRate = 0.125,
+                },
+            },
+            [7] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 6,
+                    SpawnRate = 0.125,
+                },
+            },
+        },
+    },
+    [10] = {
+        Duration = 10,
+        Reward = {
+            Meat = 100,
+        },
+        FixedSpawns = {
+            [1] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Brute,
+                    Count = 1,
+                    SpawnRate = 0.03125,
+                },
+            },
+            [3] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Walker,
+                    Count = 25,
+                    SpawnRate = 0.125,
+                },
+            },
+            [6] = {
+                {
+                    SpawnSide = CARDINAL.West,
+                    Type = HostileData.Banshee,
+                    Count = 3,
+                    SpawnRate = 0.03125,
+                },
+            },
+            [8] = {
+                {
+                    SpawnSide = CARDINAL.East,
+                    Type = HostileData.Banshee,
+                    Count = 3,
+                    SpawnRate = 0.03125,
+                },
+            },
+        },
+        Boss = Bosses.Types.Giant,
+    },
+}
+
+---@type table<HostileData, table<SimpleDropTableData>>
+local default_registry = {
+    [HostileData.Walker] = {
+        -- SimpleDropTableData.Gold,
+    },
+    [HostileData.Runner] = {
+        -- SimpleDropTableData.Gold,
+    },
+    [HostileData.Marauder] = {
+        -- SimpleDropTableData.Gold,
+    },
+    [HostileData.Banshee] = {
+        -- SimpleDropTableData.Gold,
+    },
+    [HostileData.Boomer] = {
+        -- SimpleDropTableData.Gold,
+    },
+    [HostileData.Brute] = {
+        -- SimpleDropTableData.Gold,
+    },
+}
+
+local targeting = {
+    [HostileData.Walker] = {
+        HOSTILE_TARGET.ClosestStructure,
+    },
+    [HostileData.Runner] = {
+        HOSTILE_TARGET.ClosestStructure,
+    },
+    [HostileData.Marauder] = {
+        HOSTILE_TARGET.ClosestStructure,
+    },
+    [HostileData.Banshee] = {
+        HOSTILE_TARGET.ClosestStructure,
+    },
+    [HostileData.Boomer] = {
+        HOSTILE_TARGET.ClosestStructure,
+    },
+    [HostileData.Brute] = {
+        HOSTILE_TARGET.ClosestStructure,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Local Data
+-- SECTION -- Initialize
+---============================================================================
+
+---@class WaveDataManager
+local WaveDatamanager = {}
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Local Functions
+---============================================================================
+
+---TODO: Compile Wave Data
+---TODO: Setup Registry to allow for Changes in Loot Drops
+
+local function GenerateMeatReward(rewards, stage_level)
+    ---
+    if rewards then
+        return rewards.Meat
+    end
+
+    -- Calculate Reward
+    local base = meat_reward.Base
+    local added = meat_reward.Scaled * stage_level
+    local additive = meat_reward.Additive * stage_level
+    local multiplier = meat_reward.Multiplier ^ stage_level
+
+    return (base + added) * (1 + additive) * multiplier
+end
+
+---comment
+---@param hostile_counts table<HostileData, integer>
+local function UpdateHostileDropOverrides(total_amount, hostile_counts, elite_counts)
+    -- Calculate Total Weight of used Hostile Types
+    local total_weight = 0
+    for hostile_type, count in pairs(hostile_counts) do
+        if not weights[hostile_type] then
+            Help.Warn("Unable to find Set Weight for Hostile Type", hostile_type.Name)
+        end
+
+        local weight = weights[hostile_type] or 1
+        total_weight = total_weight + weight * count
+    end
+
+    -- Calculate Total Weight of used Elite Types
+    for elite_type, count in pairs(elite_counts) do
+        if not weights[elite_type] then
+            Help.Warn("Unable to find Set Weight for Elite Type", elite_type.Name)
+        end
+
+        local weight = weights[elite_type] or 1
+        total_weight = total_weight + weight * count
+    end
+
+    -- Calculate and apply Drop Overrides (Hostiles)
+    for hostile_type, spawn_count in pairs(hostile_counts) do
+        local weight = weights[hostile_type] or 1
+        local weight_distribution = weight * spawn_count / total_weight
+        local distribution = total_amount * weight_distribution
+        local per_instance = distribution / spawn_count
+
+        local set_count = math.ceil(per_instance)
+        local set_chance = per_instance / set_count
+
+        local drop_data = overrides[hostile_type]
+        if drop_data then
+            DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, drop_data.Count, EJS.Persistent.Count, set_count)
+            DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, drop_data.Chance, EJS.Chance, set_chance)
+        end
+    end
+
+    -- Calculate and apply Drop Overrides (Elites)
+    for elite_type, spawn_count in pairs(elite_counts) do
+        local weight = weights[elite_type] or 1
+        local weight_distribution = weight * spawn_count / total_weight
+        local distribution = total_amount * weight_distribution
+        local per_instance = distribution / spawn_count
+
+        local set_count = math.ceil(per_instance)
+        local set_chance = per_instance / set_count
+
+        local drop_data = overrides[elite_type]
+        if drop_data then
+            DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, drop_data.Count, EJS.Persistent.Count, set_count)
+            DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, drop_data.Chance, EJS.Chance, set_chance)
+        end
+    end
+end
+
+-- Check Override Data
+-- If there is no Override Data, use the Default Data (i % #default_data + 1)
+-- Remember the difference between the target wave and the used wave (for modifier handling)
+---@param wave_index integer
+---@return WaveData
+---@return integer wave_index
+local function GetWaveData(wave_index)
+    local wave_data = override_wave_data[wave_index]
+
+    if not wave_data then
+        wave_index = ((wave_index - 1) % #default_wave_data) + 1
+        wave_data = default_wave_data[wave_index]
+    end
+
+    if not wave_data then
+        Help.Error("Miscalculated Wave Index")
+    end
+
+    return wave_data, wave_index
+end
+
+---comment
+---@param wave_data WaveData
+---@return table fixed_spawns
+---@return table<HostileData> hostile_types
+---@return table<HostileData, integer> hostile_counts
+---@return table<Time, WaveData.FixedEliteData> fixed_elites
+---@return table<EliteData, integer> elite_counts
+local function GenerateFixedSpawns(wave_data)
+    local fixed_spawns = {}
+    local hostile_types = {}
+    local hostile_counts = {}
+    local fixed_elites = {}
+    local elite_counts = {}
+
+    for spawn_time, spawn_set in pairs(wave_data.FixedSpawns) do -- Loop through Spawn Times
+        for index, spawn_data in ipairs(spawn_set) do -- Loop through Spawn Data
+            if not fixed_spawns[spawn_time] then
+                fixed_spawns[spawn_time] = {}
+            end
+
+            fixed_spawns[spawn_time][index] = Core.Table.DeepCopy(spawn_data)
+
+            local spawn_type = spawn_data.Type
+            hostile_types[spawn_type] = true -- Register Hostile Type
+
+            -- Copy Allowed Targeting
+            fixed_spawns[spawn_time][index].AllowedTargeting = Core.Table.DeepCopy(targeting[spawn_type])
+
+            -- Hostile Counts
+            if not hostile_counts[spawn_type] then
+                hostile_counts[spawn_type] = 0
+            end
+
+            hostile_counts[spawn_type] = hostile_counts[spawn_type] + spawn_data.Count
+        end
+    end
+
+    if wave_data.FixedElites then
+        for spawn_time, spawn_set in pairs(wave_data.FixedElites) do
+            for index, spawn_data in ipairs(spawn_set) do
+                if not fixed_elites[spawn_time] then
+                    fixed_elites[spawn_time] = {}
+                end
+
+                fixed_elites[spawn_time][index] = Core.Table.DeepCopy(spawn_data)
+
+                local elite_type = spawn_data.Type
+
+                if not elite_counts[elite_type] then
+                    elite_counts[elite_type] = 0
+                end
+
+                elite_counts[elite_type] = elite_counts[elite_type] + spawn_data.Count
+            end
+        end
+    end
+
+    return fixed_spawns, hostile_types, hostile_counts, fixed_elites, elite_counts
+end
+
+local function GenerateFixedElites()
+    --
+end
+
+---comment
+---@param wave_data WaveData
+---@param wave_index integer
+local function GenerateModifiers(wave_data, wave_index)
+    if wave_data.Modifiers and #wave_data.Modifiers > 0 then
+        -- Only use the Override Modifiers
+        return Core.Table.DeepCopy(wave_data.Modifiers)
+    end
+
+    -- Use the Default Wave Modifiers
+    local modifiers = {}
+
+    -- Search for the latest Default Modifiers
+    local index = wave_index
+    local default_mods = default_modifiers[index]
+
+    while not default_mods do
+        index = index - 1
+        default_mods = default_modifiers[index]
+    end
+
+    if not default_mods then
+        Help.Warn("Unable to find valid Modifiers", wave_index)
+        return {}
+    end
+
+    local wave_diff = wave_index - index
+
+    for _, modifier in ipairs(default_mods.Base) do
+        table.insert(modifiers, modifier)
+    end
+
+    for _, modifier in ipairs(default_mods.Increase) do
+        local new_modifier = Modifier.Copy(modifier)
+        local value = new_modifier.value * wave_diff
+        new_modifier.value = value
+        table.insert(modifiers, new_modifier)
+    end
+
+    return modifiers
+end
+
+---comment
+---@param hostile_types table<HostileData, boolean>
+local function GenerateRegistry(hostile_types)
+    local registry = {}
+
+    for key, value in pairs(hostile_types) do
+        local loot_data = default_registry[key]
+
+        if loot_data then
+            registry[key] = loot_data
+        end
+    end
+
+    return registry
+end
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Functions
+---============================================================================
+
+---Returns the Stage Level Data
+---@param stage_level integer
+---@return WaveData
+function WaveDatamanager.GetWaveData(stage_level)
+    local wave_data, wave_index = GetWaveData(stage_level)
+
+    local fixed_spawns, hostile_types, hostile_counts, fixed_elites, elite_counts = GenerateFixedSpawns(wave_data)
+    -- Help.Log("Fixed Spawns", nil, fixed_spawns)
+
+    local modifiers = GenerateModifiers(wave_data, stage_level)
+    -- Help.Log("Loaded Modifiers", nil, modifiers)
+
+    local registry = GenerateRegistry(hostile_types)
+    -- Help.Log("Loaded Registry", nil, registry)
+
+    local total_meat = GenerateMeatReward(wave_data.Reward, stage_level)
+    UpdateHostileDropOverrides(total_meat, hostile_counts, elite_counts)
+
+    return {
+        Duration = wave_data.Duration,
+        Register = registry,
+        Modifiers = modifiers,
+        FixedSpawns = fixed_spawns,
+        -- HybridEvents = wave_data.HybridEvents,
+        FixedElites = fixed_elites,
+        Boss = wave_data.Boss,
+    }
+end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return WaveDatamanager

@@ -1,0 +1,69 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.MineStone = {
+    Key = "MineStone",
+
+    -- UI Information
+    DisplayName = "MineStone",
+    ShortDescription = "Chop some trees down.",
+    Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.MineStone,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Mine Stone"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 1.00, SCALING.Scaled, { SKILL_TAG.MineStone }),
+                Modifier.New(STAT.SkillSize, 1.75, SCALING.Scaled, { SKILL_TAG.MineStone }),
+                Modifier.New(STAT.Spread, 120, SCALING.Scaled, { SKILL_TAG.MineStone }),
+
+                Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.MineStone }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.MineStone] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.MineStone,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+return Data

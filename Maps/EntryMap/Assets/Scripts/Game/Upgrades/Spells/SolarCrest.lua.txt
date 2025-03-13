@@ -1,0 +1,140 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local EJS = require("Data/EJS")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local id = "Solar Crest"
+
+local ability = DCEI.Ability("Solar Crest")
+
+local behaviors = {}
+
+local effects = {
+    on_enter = DCEI.Effect("Solar Crest - Collider - OnEnter"),
+
+    count = DCEI.Effect("Solar Crest - Count"),
+    damage = DCEI.Effect("Solar Crest - Damage"),
+    actor_size = DCEI.Effect("Solar Crest - Apply Actor Size"),
+
+    launch_left = DCEI.Effect("Solar Crest - Launch - Left"),
+    launch_right = DCEI.Effect("Solar Crest - Launch - Right"),
+}
+
+local units = {
+    simple_collider = DCEI.Unit("Simple Collider"),
+    projectile = DCEI.Unit("Solar Crest - Projectile"),
+}
+
+---@type table<SimpleUnit>
+local simple = {
+    ---@type SimpleUnit
+    collider = SimpleUnit.New(ability),
+}
+
+local filters = {
+    projectile = DCEI.CreateUnitFilter({ name = units.projectile }),
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Registers the Simple Unit that is used for Collision.
+---@param hero Hero
+local function RegisterSimpleUnit(hero)
+    local size = hero:GetStat(STAT.SkillSize, ability)
+
+    -- TODO: Assign some information here.
+    simple.collider:SetUnitType(units.simple_collider)
+    simple.collider:SetCollision(CollisionLayers.None, CollisionLayers.Hostile, size)
+    simple.collider:SetCollisionEffect(effects.on_enter, CollisionTiming.Start, 1, SIMPLE_TAG.AllEnemies)
+
+    simple.collider:Register()
+end
+
+---FIXME: For some reason, the Collider is causing Damage at the Player Location
+local function OnProjectileSpawn()
+    local spawned_unit = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(spawned_unit)
+
+    local position = Vector2.UnitPosition(spawned_unit)
+    local collider = simple.collider:SpawnSyncStationary(player_id, TEAM.Friendly, position)
+
+    -- Attach Collider to the Spawned Unit
+    DCEI.AttachUnit(collider, spawned_unit, {})
+
+    -- Callback Remove Collider when the Projectile is Removed.
+    DCEI.TriggerAddUnitRemovedEvent(spawned_unit, function()
+        DCEI.RemoveSimpleUnit(collider)
+    end)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = "Solar Crest",
+}
+
+Upgrade.Cache = {
+    -- [STAT.CastSpeed] placeholder required for Abilities with Cooldowns.
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(effects.launch_left, EJS.Launch.Launch.Distance),
+        EffectPath.New(effects.launch_left, EJS.Launch.Impact.Distance),
+        EffectPath.New(effects.launch_right, EJS.Launch.Launch.Distance),
+        EffectPath.New(effects.launch_right, EJS.Launch.Impact.Distance),
+    },
+    [STAT.ProjectileCount] = {
+        EffectPath.New(effects.count, EJS.Persistent.Count),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(effects.actor_size, EJS.ApplyBehavior.Count, nil, 80),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(effects.damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(effects.damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(effects.damage, EJS.Damage.CriticalMultiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    RegisterSimpleUnit(hero)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddUnitSpawnEvent(filters.projectile, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

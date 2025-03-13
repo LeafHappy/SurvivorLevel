@@ -1,0 +1,204 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Shovel"),
+
+    -- Cast Effects
+    Scan = DCEI.Effect("Skill - Shovel - Scan"),
+    Success = DCEI.Effect("Skill - Shovel - Success"),
+
+    -- Effects
+    Effects = DCEI.Effect("Skill - Shovel - Effects"),
+    Damage = DCEI.Effect("Skill - Shovel - Damage"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+-- The cast-point of the animation
+local ATTACK_ANIMATION_TIME = 1.00
+local ATTACK_CAST_POINT = 16 / 30
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ---comment
+-- ---@param hero Hero
+-- ---@param target_position Vector2
+-- local function LaunchProjectile(hero, target_position)
+--     DCEI.CreateEffectAtPosition(REF.Launch, hero.unit, target_position.x, target_position.y)
+-- end
+
+---comment
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.Shovel)
+
+    local attack_speed = hero:GetStat(STAT.AttackSpeed, tags)
+    local action_speed_modifier = 1 / (1 + attack_speed)
+    local cast_speed = ATTACK_ANIMATION_TIME * action_speed_modifier
+    local cast_point = cast_speed * ATTACK_CAST_POINT
+
+    Help.SendActorEvent(hero.top, "DigHole") -- Generates the model
+
+    hero:AttackTargetCallback(
+        ctx.target,
+        cast_speed,
+        ---@param target_location Vector2
+        function(target_location)
+            if not Help.ValidateUnit(hero.unit) then
+                return
+            end
+
+            DCEI.CreateEffectAtUnit(REF.Effects, ctx.target, ctx.caster, ctx.source)
+        end,
+        cast_point,
+        "action1"
+    )
+
+    local condition = function()
+        return Help.ValidateUnit(hero.unit)
+    end
+
+    local action = function()
+        -- Send Event to Remove Model
+        Help.SendActorEvent(hero.top, "DigHoleStop")
+    end
+
+    Help.GameTimer(cast_speed, condition, nil, action, action)
+end
+
+-- local function ReleaseTarget(ctx)
+--     local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+--     ---@type Hero
+--     local hero = _Heroes[player_id]
+
+--     hero:ReleaseTargetLock()
+-- end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+-- ---comment
+-- ---@param hero Hero
+-- function Upgrade.PreCache(hero)
+--     ---TESTING: Check what the total Projectile Speed is from all sources
+--     local total_projectile_speed = hero:GetStat(STAT.ProjectileSpeed)
+--     local multiplier = 0.01
+--     local value = total_projectile_speed * multiplier
+--     Help.Log("Projectile Speed Conversion Damage Bonus", value)
+
+--     ---TESTING: Get all Additive Projectile Speed Modifiers
+--     local increased_projectile_speed = hero.Attributes:GetStatScaling(STAT.ProjectileSpeed, SCALING.Additive)
+--     Help.Log("Increased Projectile Speed", increased_projectile_speed)
+
+--     local modifier_id = "Projectile Speed Conversion Modifier"
+--     local projectile_speed_conversion_modifier =
+--         Modifier.New(STAT.Damage, value, SCALING.Additive, { SKILL_TAG.Global }, modifier_id)
+
+--     -- Apply Modifier
+--     hero:ApplyModifier(projectile_speed_conversion_modifier, true)
+-- end
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius, nil, 0.95),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess)
+-- DCEI.TriggerAddEffectEvent(REF.Refresh, ReleaseTarget)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

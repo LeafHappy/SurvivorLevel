@@ -1,0 +1,1603 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+
+    3 Parts
+    
+    - Introduction -
+    Player is free to move around, needs to travel upwards to meet the "horde".
+
+    - Horde -
+    Player must retreat back down while killing enemies.
+
+    - Overrun -
+    Throns is overrun, player must "retreat".
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New(Help.GetStateName())
+
+-- Classes
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Joystick = require("Class/Joystick")
+local Camera = require("Class/Camera")
+local Experience = require("Class/Experience")
+local TileMap = require("Class/TileMap")
+local PerlinNoise = require("Class/PerlinNoise")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+local Event = require("Class/Event")
+local CampManager = require("Class/CampManager")
+
+-- Data
+local SimpleUnits = require("SharedData/SimpleUnits")
+-- local Biome = require("Data/Biomes/Forest")
+local PropData = require("Map/PropData")
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Heroes = require("SharedData/Heroes")
+
+-- Shared Data
+local MetaData = require("SharedData/MetaData")
+local LootData = require("Data/SimpleUnits/LootData")
+local Modifier = require("SharedData/Class/Modifier")
+local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local SkillData = require("SharedData/Skills/SkillData")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Bosses = require("Game/AI/Bosses")
+local Elites = require("Game/AI/Elites")
+local StageEvents = require("Game/Events/StageEvents")
+
+-- Directors
+local CreditDirector = require("Game/Directors/Credits")
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Managers
+local SaveDataManager = require("Class/SaveDataManager")
+local WaveDataManager = require("Data/Modes/Hybrid/WaveDataManager")
+local SequenceManager = require("Class/SequenceManager")
+local QuestActionManager = require("Meta/Quest/QuestActionManager")
+local QuestManager = require("Meta/Quest/QuestManager")
+
+-- Meta Manager
+local ReviewInviteManager = require("Meta/ReviewInviteManager")
+
+-- Shared Data
+local EquipmentGenerator = require("SharedData/Class/EquipmentGenerator")
+local DialogueData = require("SharedData/DialogueData")
+local CampData = require("SharedData/H_CampData")
+local WaveUnlockData = require("SharedData/WaveUnlockData")
+local MetaSkillSelector = require("SharedData/MetaSkillSelector")
+local TalentData = require("SharedData/Talents/TalentData")
+
+local GameEventManager = require("Game/Events/GameEventManager")
+local HybridEventManager = require("Game/HybridEvents/HybridEventManager")
+
+---NOTE: New, Reorganize later
+local DangerZoneManager = require("Data/Modes/Hybrid/DangerZoneManager")
+local DangerZoneData = require("Data/Modes/Hybrid/DangerZoneData")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+local SPAWN_POINT = Vector2.New(2.5, 1)
+
+-- Player Movement Constraints
+local HORIZONTAL_BOUNDS = Vector2.New(-6, 6)
+local VERTICAL_BOUNDS = Vector2.New(-25, 25)
+
+-- Camera Settings
+local CAMERA_STARTING_DISTANCE = 3
+local CAMERA_IDLE_DISTANCE = 10
+local CAMERA_COMBAT_DISTANCE = 10
+local CAMERA_TRANSITION_TIME = 3
+local CAMERA_COMBAT_OFFSET = Vector2.Up() * 3
+local CAMERA_VERTICAL_LIMIT = Vector2.New(-15, 10)
+
+-- Hostile Spawn Parameters
+local HOSTILE_SPAWN_DISTANCE = 24
+local HOSTILE_SPAWN_WIDTH = 6
+
+local ACTION_STATES = {
+    ResetHero = "ResetHero",
+    ResetStructures = "ResetStructures",
+    Idle = "Idle",
+    Wave = "Wave",
+    KillRemaining = "KillRemaining",
+    Reset = "Reset",
+    Victory = "Victory",
+    Defeat = "Defeat",
+}
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Variables
+---============================================================================
+
+---@type TileMap
+local _Map = nil
+
+local LoadedWaveData = nil
+
+local OnKeyStructureDestroyed = Event.New()
+local IsKeyStructureDestroyed = false
+
+-- State
+local ActionState = ""
+local Actions = {}
+
+-- Hostile Trackers
+local _Trackers = {}
+
+local _IsEditorActive = false
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Stage Generation
+---============================================================================
+
+---============================================================================
+---!SECTION: Stage Generation
+---SECTION: Local Functions - Library
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Library
+---SECTION: Local Functions - UI Callbacks
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - UI Callbacks
+---SECTION: Local Functions - Core
+---============================================================================
+
+local function KeyStructureDestroyed()
+    IsKeyStructureDestroyed = true
+end
+
+---comment
+---@param key string
+---@return Modifier
+local function CreateTalentModifier(key)
+    local talent_data = TalentData.GetTalent(key)
+
+    local saved_talents = SaveDataManager.GetReference(SAVE_KEY.Talents) or {}
+    local level = saved_talents[key] or 0
+
+    local modifier = talent_data.Modifier
+    local value = modifier.value * level
+    return Modifier.New(modifier.stat, value, modifier.scaling, modifier.tags, talent_data.Key)
+end
+
+local function SpawnHero()
+    local player_id = PLAYER.Player1
+
+    local hero = Hero.Fetch(player_id)
+    -- local spawn_position = hero:GetPosition() or SPAWN_POINT
+    local spawn_position = SPAWN_POINT
+    hero:Reset()
+
+    local saved_skills = SaveDataManager.GetReference(SAVE_KEY.Skills) or {}
+
+    local starting_skills = {
+        SkillData.ArcherTowerRank_01.Key,
+        SkillData.ArcherTowerRank_02.Key,
+    }
+
+    local loaded_skills = {}
+
+    -- Copy Starting Skills into loaded_skills
+    for _, skill in ipairs(starting_skills) do
+        table.insert(loaded_skills, skill)
+    end
+
+    -- Copy saved skills into loaded_skills
+    for _, skill in pairs(saved_skills) do
+        table.insert(loaded_skills, skill)
+    end
+
+    hero:SpawnHero(spawn_position, SURVIVOR.Annie, 0, loaded_skills, {}, {})
+
+    local talents = SaveDataManager.GetReference(SAVE_KEY.Talents) or {}
+
+    for key, level in pairs(talents) do
+        local talent_data = TalentData.GetTalent(key)
+
+        if talent_data.ModifierTarget == MODIFIER_TARGET.Hero then
+            local modifier = CreateTalentModifier(key)
+            hero:ApplyModifier(modifier, true, true)
+        end
+    end
+
+    -- Apply Key items
+    local key_items = SaveDataManager.GetReference(SAVE_KEY.KeyItems) or {}
+    for _, value in pairs(key_items) do
+        hero:LearnSkill(value)
+    end
+
+    -- Check if we should set is in combat
+    if ActionState == ACTION_STATES.Wave or ActionState == ACTION_STATES.KillRemaining then
+        hero:SetIsInCombat(true)
+    end
+
+    -- Camera Setup
+    local camera = Camera.Fetch(player_id)
+    camera:SetSize(CAMERA_IDLE_DISTANCE, CAMERA_TRANSITION_TIME)
+    camera:SetFollowUnit(hero.unit)
+    -- camera:SetHorizonalLimit(Vector2.Zero())
+
+    -- Set Joystick Active
+    local joystick = Joystick.Fetch(player_id)
+    joystick:SetActive(true)
+    -- joystick:SetUnitBounds(HORIZONTAL_BOUNDS.x, HORIZONTAL_BOUNDS.y, VERTICAL_BOUNDS.x, VERTICAL_BOUNDS.y)
+
+    -- Add 3 second delay to respawn the hero
+    DCEI.TriggerAddUnitDiedEvent(hero.unit, function()
+        Help.GameTimer(3, nil, nil, function()
+            SpawnHero()
+        end)
+    end)
+end
+
+local function HealHero()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local max_health = hero:GetStat(STAT.Health)
+    SimpleUnit.ModifyHealth(hero.unit, max_health)
+end
+
+---comment
+---@param spawn_data HuntData.FixedHostiles
+local function SpawnHostiles(spawn_data)
+    local hostile_data = spawn_data.Type
+    local count = spawn_data.Count
+    local target
+
+    if spawn_data.Target == "Hero" then
+        target = Hero.Fetch(PLAYER.Player1).unit
+    elseif spawn_data.Target == "Star" then
+        local star_obj = CampManager.Instance:FindObjectByUnitName("Star") ---TODO: Optimize this or cache it
+        if not star_obj or not Help.ValidateUnit(star_obj.instance) then
+            return
+        end
+
+        target = star_obj.instance
+    end
+
+    if not target then
+        Help.Warn("No valid Target for Spawning")
+        return
+    end
+
+    local spawns_per_tick = math.ceil(count / TICK_RATE)
+    local ticks = math.ceil(count / spawns_per_tick)
+
+    local condition = function(data)
+        if count <= 0 then
+            return false
+        end
+
+        -- Check that we are still in either the Wave or KillRemaining State
+        return ActionState == ACTION_STATES.Wave or ActionState == ACTION_STATES.KillRemaining
+    end
+
+    local action = function(data)
+        for _ = 1, spawns_per_tick do
+            if count <= 0 then
+                break
+            end
+
+            local position = Vector2.RandomRange(PLAYER_BOUNDS.x, PLAYER_BOUNDS.x + 1)
+            SpawnDirector.Instance:SpawnFollow(hostile_data, position, target)
+            count = count - 1
+        end
+    end
+
+    Help.PeriodicGameTimer(ticks, TICK_RATE, condition, action, true)
+
+    -- for _ = 1, count do
+    --     local position = Vector2.Random() * 15
+    --     SpawnDirector.Instance:SpawnFollow(hostile_data, position, target)
+    -- end
+end
+
+local function LinkStarHealthToUI()
+    local star = CampManager.Instance:FindObjectByUnitName("Star")
+    if not star then
+        Help.Warn("No Star Object Found")
+        return
+    end
+
+    local data_pass = {
+        unit_ref = GMUI.CreateUnitReference(star.instance),
+        display_name = "Star",
+    }
+    Core.Event.SendPresentationEvent("Camp.Overlay.LinkHealthStatus", data_pass)
+end
+
+local function ClearTrackers()
+    for _, tracker in ipairs(_Trackers) do
+        DCEI.RemoveUnit(tracker)
+    end
+    _Trackers = {}
+end
+
+---comment
+---@param position Vector2
+---@param allowed_targeting table<HOSTILE_TARGET>
+---@return Unit | nil, Vector2 | nil
+local function FindNearestTarget(position, allowed_targeting)
+    -- allowed_targeting = allowed_targeting or { HOSTILE_TARGET.ClosestStructure }
+
+    local closest_target = nil
+    local closest_distance = 9999
+    local target_position = nil
+
+    for _, target in ipairs(allowed_targeting) do
+        local target_unit = nil
+
+        -- Check each of the Targeting Types and get the respective unit
+        if target == HOSTILE_TARGET.Hero then
+            target_unit = Hero.Fetch(PLAYER.Player1).unit
+        elseif target == HOSTILE_TARGET.Star then
+            local star_obj = CampManager.Instance:FindObjectByUnitName("Star")
+            if star_obj and Help.ValidateUnit(star_obj.instance) then
+                target_unit = star_obj.instance
+            end
+        elseif target == HOSTILE_TARGET.ClosestStructure then
+            local structure = CampManager.Instance:FindClosestCampObject(position)
+            if structure and Help.ValidateUnit(structure.instance) then
+                target_unit = structure.instance
+            end
+        end
+
+        -- If we have a valid target, check if it's the closest
+        if target_unit then
+            local other_position = Vector2.UnitPosition(target_unit)
+            local distance = Vector2.Distance(position, other_position)
+            if distance < closest_distance then
+                closest_distance = distance
+                closest_target = target_unit
+                target_position = other_position
+            end
+        end
+    end
+
+    return closest_target, target_position
+end
+
+---Approximates the position of the cluster of hostiles and gives them a target to follow
+---@param position Vector2
+---@param allowed_targeting table<HOSTILE_TARGET>
+---@param speed number
+local function GenerateTracker(position, allowed_targeting, speed)
+    -- local cluster = Help.CreateDummyUnit(position)
+    local tracker = Help.CreateDummyUnit(position)
+    local cluster_position = position + Vector2.Down() * speed -- Offset to prevent stuttering
+
+    local TRACKER_UPDATE_FREQUENCY = TICK_RATE
+    local CLUSTER_AGGRO_RANGE = 4
+
+    local delay_move = 0
+    local current_target, current_target_position = FindNearestTarget(cluster_position, allowed_targeting)
+
+    local condition = function()
+        return Help.ValidateUnit(tracker)
+    end
+
+    local action = function()
+        if delay_move > 0 then
+            delay_move = delay_move - TRACKER_UPDATE_FREQUENCY
+            return
+        end
+
+        local closest_target, target_position = FindNearestTarget(cluster_position, allowed_targeting)
+
+        if current_target and current_target ~= closest_target then -- Change Target Delay
+            current_target = closest_target
+            current_target_position = target_position
+            delay_move = 1.5
+            return
+        end
+
+        if not current_target or not current_target_position then
+            -- Just move down
+            local next_position = cluster_position + Vector2.Down() * speed * TRACKER_UPDATE_FREQUENCY
+            DCEI.SetUnitPosition2D(tracker, next_position.x, next_position.y)
+            cluster_position = next_position
+            return
+        end
+
+        local distance = Vector2.Distance(cluster_position, current_target_position)
+
+        if distance > CLUSTER_AGGRO_RANGE then -- Move Down when out of range
+            local next_position = cluster_position + Vector2.Down() * speed * TRACKER_UPDATE_FREQUENCY
+            DCEI.SetUnitPosition2D(tracker, next_position.x, next_position.y)
+            cluster_position = next_position
+        else -- Move Towards Target when in range
+            local next_position =
+                Vector2.MoveTowards(cluster_position, current_target_position, speed * TRACKER_UPDATE_FREQUENCY)
+            DCEI.SetUnitPosition2D(tracker, next_position.x, next_position.y)
+            cluster_position = next_position
+        end
+    end
+
+    -- Frequency at which the tracker updates
+    Help.PeriodicGameTimer(9999, TRACKER_UPDATE_FREQUENCY, condition, action, true)
+
+    table.insert(_Trackers, tracker)
+
+    return tracker
+end
+
+---comment
+---@param hostile_data HostileData
+---@param count integer
+---@param spawn_rate number
+---@param allowed_targeting table<HOSTILE_TARGET>
+---@param position Vector2 | nil
+local function SpawnHostileCluster(hostile_data, count, spawn_rate, allowed_targeting, position)
+    if not position then
+        local base_position = Vector2.Up() * HOSTILE_SPAWN_DISTANCE
+        local horizontal_offset = Vector2.Right() * HOSTILE_SPAWN_WIDTH / 2 * Help.RandomSign()
+
+        position = base_position + horizontal_offset
+    end
+
+    -- Generate a Tracker for all of the hostiles to follow
+    -- Get the hostile data move speed as a basis for the tracker speed
+    local speed = hostile_data.Stats[STAT.MoveSpeed] or 1
+
+    -- If only Star or only Hero and only 1, then just spawn it directly
+    if
+        count == 1
+        and #allowed_targeting == 1
+        and (allowed_targeting[1] == HOSTILE_TARGET.Hero or allowed_targeting[1] == HOSTILE_TARGET.Star)
+    then
+        local target, target_position = FindNearestTarget(position, allowed_targeting)
+        if target and target_position then
+            SpawnDirector.Instance:SpawnFollow(hostile_data, position, target)
+        end
+        return
+    end
+
+    local tracker = GenerateTracker(position, allowed_targeting, speed)
+
+    local condition = function()
+        return Help.ValidateUnit(tracker)
+    end
+
+    local action = function()
+        local nearby_position = position + Vector2.RandomRange(0, 1)
+        SpawnDirector.Instance:SpawnFollow(hostile_data, nearby_position, tracker)
+    end
+
+    Help.PeriodicGameTimer(count, spawn_rate, condition, action, true)
+end
+
+---============================================================================
+---!SECTION: Local Functions - Core
+---SECTION: Local Functions - Pre-Meta Checks (Skip Camp)
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Pre-Meta Checks (Skip Camp)
+---SECTION: Local Functions - Meta Checks (Tutorials in Camp)
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Meta Checks (Tutorials in Camp)
+---SECTION: Local Functions - Action Sequence States
+---============================================================================
+
+-- ACTION ORDER
+-- Reset Hero --> Reset Structure --> Idle
+-- Wave
+-- Kill Remaining
+-- Victory || Defeat --> Reset Hero
+
+function Actions.SetIdle()
+    SequenceManager.Instance:Reset()
+    ClearTrackers()
+
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideGameTimer")
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideHealthStatus")
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideObjective")
+
+    SaveDataManager.CommitSaveData()
+    -- CampManager.Instance:CommitSaveData()
+
+    CampManager.Instance:SetWaveActive(false)
+    CampManager.Instance:SetButtonDisplayActive(true)
+
+    local camera = Camera.Fetch(PLAYER.Player1)
+    camera:SetSize(CAMERA_IDLE_DISTANCE, CAMERA_TRANSITION_TIME)
+    camera:SetOffset(Vector2.Zero())
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:SetIsInCombat(false)
+
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            ActionState = ACTION_STATES.Idle
+            Help.Log("Action State", ActionState)
+
+            -- -- Set Pickup Range
+            -- hero:SetCollectorRadius(50, true, 2)
+
+            -- Remove all Loot
+            -- StageHelper.ClearLoot()
+
+            -- Update UI
+            Core.Event.SendPresentationEvent("Camp.Overlay.Show")
+        end,
+        ContinuousAction = function(data)
+            -- CampManager.Instance:Update(TICK_RATE, hero)
+        end,
+        CompletionCondition = function(data)
+            -- We need a UI Callback to start a wave.
+            return false
+        end,
+        -- CancelCondition = function(data)
+        --     return not hero:GetUnitAlive()
+        -- end,
+        -- CancelAction = function(data)
+        --     -- Backup incase the Hero doesn't get spawned properly
+        --     Actions.SetHeroReset()
+        -- end,
+    })
+end
+
+function Actions.SetStructureReset()
+    SequenceManager.Instance:Reset()
+
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            data.timer = 0.25
+            ActionState = ACTION_STATES.ResetStructures
+            Help.Log("Action State", ActionState)
+
+            ---NOTE: Removing Units here to allow Dummies to be Respawned
+            StageHelper.RemoveSimpleHostiles()
+            StageHelper.RemoveHostiles()
+
+            -- CampManager.Instance:Reset()
+        end,
+        ContinuousAction = function(data)
+            data.timer = data.timer - TICK_RATE
+        end,
+        CompletionCondition = function(data)
+            return data.timer <= 0
+        end,
+        CompletionAction = function(data)
+            IsKeyStructureDestroyed = false
+            CampManager.Instance:Reload()
+            SaveDataManager.CommitSaveData()
+
+            Actions.SetIdle()
+        end,
+    })
+end
+
+-- function Actions.SetHeroReset()
+--     SequenceManager.Instance:Reset()
+
+--     SequenceManager.Instance:LoadAction({
+--         StartAction = function(data)
+--             ActionState = ACTION_STATES.ResetHero
+--             Help.Log("Action State", ActionState)
+
+--             StageHelper.RemoveSimpleHostiles()
+--             StageHelper.RemoveHostiles()
+--         end,
+--         ContinuousAction = function(data)
+--             SpawnHero()
+--         end,
+--         CompletionCondition = function(data)
+--             local hero = Hero.Fetch(PLAYER.Player1)
+--             return hero:GetUnitAlive()
+--         end,
+--         CompletionAction = function(data)
+--             HealHero()
+--             Actions.SetStructureReset()
+--         end,
+--     })
+-- end
+
+function Actions.SetVictory()
+    SequenceManager.Instance:Reset()
+    HybridEventManager.Instance:End()
+
+    Core.Event.SendPresentationEvent("Camp.Overlay.Victory")
+
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            ActionState = ACTION_STATES.Victory
+            Help.Log("Action State", ActionState)
+
+            data.Timer = 1
+
+            local wave_id = SaveDataManager.Get(SAVE_KEY.Wave)
+
+            -- Check for WaveUnlockData
+            local unlock_data = WaveUnlockData[wave_id]
+            local meta_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+            if unlock_data then
+                for _, unlock in ipairs(unlock_data) do
+                    meta_data[unlock] = 1
+                    -- MetaData.Modify(unlock, 1)
+                end
+                -- MetaData.Save()
+
+                SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+                SaveDataManager.CommitSaveData()
+            end
+
+            SaveDataManager.Modify(SAVE_KEY.Wave, 1)
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+        CompletionAction = function(data)
+            -- Actions.SetHeroReset()
+            Actions.SetStructureReset()
+        end,
+    })
+end
+
+function Actions.SetDefeat()
+    SequenceManager.Instance:Reset()
+    HybridEventManager.Instance:End()
+    Core.Event.SendPresentationEvent("Camp.Overlay.Fail")
+
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            ActionState = ACTION_STATES.Defeat
+            Help.Log("Action State", ActionState)
+
+            data.Timer = 1
+
+            local position = Vector2.Zero()
+            local dummy = Help.CreateDummyUnit(position)
+            DCEI.CreateEffectAtPosition(DCEI.Effect("Wave Defeat - VFX"), dummy, position.x, position.y)
+            StageHelper.RemoveSimpleHostiles()
+            StageHelper.RemoveHostiles()
+
+            data.dummy = dummy
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+        CompletionAction = function(data)
+            -- Actions.SetHeroReset()
+            Actions.SetStructureReset()
+            DCEI.KillUnit(data.dummy)
+        end,
+    })
+end
+
+function Actions.SetWaveSpawnTime()
+    -- Clear Remaining: Spawns Completed
+    -- Defeat: Player or Main Camp is Destroyed
+
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideObjective")
+
+    -- 30 Seconds of Spawning Enemies
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            ActionState = ACTION_STATES.Wave
+            Help.Log("Action State", ActionState)
+
+            data.Timer = LoadedWaveData.Duration
+            data.GameTime = 0
+
+            Core.Event.SendPresentationEvent("Camp.Overlay.SetGameTime", data.Timer)
+
+            -- Update UI
+            Core.Event.SendPresentationEvent("Camp.Overlay.Show")
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+            data.GameTime = data.GameTime + TICK_RATE
+
+            -- Set UI
+            Core.Event.SendPresentationEvent("Camp.Overlay.SetGameTime", data.Timer)
+
+            HybridEventManager.Instance:Update()
+
+            -- Spawn Units
+            if data.GameTime % 1 == 0 then
+                -- Check Fixed Spawns
+                local fixed_spawn_data_set = LoadedWaveData.FixedSpawns[data.GameTime]
+
+                if fixed_spawn_data_set then
+                    for _, fixed_spawn_data in ipairs(fixed_spawn_data_set) do
+                        if fixed_spawn_data then
+                            local hostile_data = fixed_spawn_data.Type
+                            local count = fixed_spawn_data.Count
+                            local spawn_rate = fixed_spawn_data.SpawnRate
+                            local allowed_targeting = fixed_spawn_data.AllowedTargeting
+                            local position = Vector2.Up() * HOSTILE_SPAWN_DISTANCE
+
+                            if fixed_spawn_data.SpawnSide == CARDINAL.East then
+                                position = position + Vector2.Right() * HOSTILE_SPAWN_WIDTH / 2
+                            elseif fixed_spawn_data.SpawnSide == CARDINAL.West then
+                                position = position + Vector2.Left() * HOSTILE_SPAWN_WIDTH / 2
+                            else
+                                position = position + Vector2.Right() * HOSTILE_SPAWN_DISTANCE / 2 * Help.RandomSign()
+                            end
+
+                            SpawnHostileCluster(hostile_data, count, spawn_rate, allowed_targeting, position)
+                        end
+                    end
+                end
+
+                local elite_spawn_data_set = LoadedWaveData.FixedElites[data.GameTime]
+
+                if elite_spawn_data_set then
+                    for _, elite_spawn_data in ipairs(elite_spawn_data_set) do
+                        local count = elite_spawn_data.Count or 1
+                        for i = 1, count do
+                            local position = Vector2.Up() * HOSTILE_SPAWN_DISTANCE
+
+                            if elite_spawn_data.SpawnSide == CARDINAL.East then
+                                position = position + Vector2.Right() * HOSTILE_SPAWN_WIDTH / 2
+                            elseif elite_spawn_data.SpawnSide == CARDINAL.West then
+                                position = position + Vector2.Left() * HOSTILE_SPAWN_WIDTH / 2
+                            else
+                                position = position + Vector2.Right() * HOSTILE_SPAWN_DISTANCE / 2 * Help.RandomSign()
+                            end
+
+                            Elites.Spawn(elite_spawn_data.Type, position, LoadedWaveData.Modifiers)
+                        end
+                    end
+                end
+            end
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+        CompletionAction = function(data)
+            Actions.SetClearRemaining()
+        end,
+        CancelCondition = function(data)
+            -- local hero = Hero.Fetch(PLAYER.Player1)
+
+            -- if not Help.ValidateUnit(hero.unit) then -- Hero is Dead
+            --     return true
+            -- end
+
+            if IsKeyStructureDestroyed then -- Key Structure Destroyed
+                return true
+            end
+
+            return false
+        end,
+        CancelAction = function(data)
+            Actions.SetDefeat()
+        end,
+    })
+end
+
+function Actions.SetClearRemaining()
+    -- Victory: Clear Remaining Hostiles
+    -- Defeat: Player or Main Camp is Destroyed
+
+    -- Hide Timer
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideGameTimer")
+
+    ---TODO: Set Objective to "Clear Remaining Enemies"
+    Core.Event.SendPresentationEvent("Camp.Overlay.ShowObjective", "Clear Remaining Enemies")
+
+    -- Kill the Remaining Enemies
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            ActionState = ACTION_STATES.KillRemaining
+            Help.Log("Action State", ActionState)
+        end,
+        ContinuousAction = function(data)
+            HybridEventManager.Instance:Update()
+        end,
+        CompletionCondition = function(data)
+            local hostiles = StageHelper.GetHostileCount()
+            -- Set UI
+
+            return hostiles <= 0
+        end,
+        CompletionAction = function(data)
+            -- Check if there's a Boss
+            if LoadedWaveData.Boss then
+                Actions.SetBossApproaching()
+            else
+                Actions.SetVictory()
+            end
+        end,
+        CancelCondition = function(data)
+            -- Hero or Main Camp is Destroyed
+            ---TODO: Add Camp Destroyed Condition
+            -- local hero = Hero.Fetch(PLAYER.Player1)
+            -- if not Help.ValidateUnit(hero.unit) then
+            --     return true
+            -- end
+
+            if IsKeyStructureDestroyed then
+                return true
+            end
+
+            return false
+        end,
+        CancelAction = function(data)
+            Actions.SetDefeat()
+        end,
+    })
+end
+
+function Actions.SetBossApproaching()
+    local boss_data = LoadedWaveData.Boss
+    local boss_name = boss_data.Data.Name
+    local label = string.format("%s Approaching", boss_name)
+
+    local data_pass = {
+        text = label,
+        duration = 2.5,
+    }
+
+    Core.Event.SendPresentationEvent("Camp.Overlay.EventWarning", data_pass)
+
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            data.Timer = 2.5
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+        CompletionAction = function(data)
+            Actions.SetBossFight()
+        end,
+    })
+end
+
+function Actions.SetBossFight()
+    -- Spawn a Boss
+
+    local boss_data = LoadedWaveData.Boss
+    local spawn_position = Vector2.Up() * HOSTILE_SPAWN_DISTANCE
+    local boss = Bosses.Spawn(boss_data, spawn_position, LoadedWaveData.Modifiers)
+
+    Bosses.ApplyOverheadHealthbar(boss)
+
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            --
+        end,
+        ContinuousAction = function(data)
+            --
+        end,
+        CompletionCondition = function(data)
+            return not Help.ValidateUnit(boss)
+        end,
+        CompletionAction = function(data)
+            Actions.SetVictory()
+        end,
+        CancelCondition = function(data)
+            -- local hero = Hero.Fetch(PLAYER.Player1)
+            -- if not Help.ValidateUnit(hero.unit) then -- Hero is Dead
+            --     return true
+            -- end
+
+            if IsKeyStructureDestroyed then -- Key Structure Destroyed
+                return true
+            end
+
+            return false
+        end,
+        CancelAction = function(data)
+            Actions.SetDefeat()
+        end,
+    })
+end
+
+---============================================================================
+---!SECTION: Local Functions - Action Sequence States
+---SECTION: Local Functions - Registered Event Callbacks
+---============================================================================
+
+local function OnWaveStartButtonPressed()
+    -- Check if is wave ready
+    local is_ready, message = CampManager.Instance:IsWaveReady()
+
+    if not is_ready then
+        Help.Log(message)
+        return
+    end
+
+    -- Save Data
+    SaveDataManager.CommitSaveData()
+    -- CampManager.Instance:CommitSaveData()
+
+    -- Load Wave Data
+    local wave_id = SaveDataManager.Get(SAVE_KEY.Wave)
+    LoadedWaveData = WaveDataManager.GetWaveData(wave_id)
+    Help.Log("Loaded Wave Data", wave_id, LoadedWaveData)
+
+    -- Update Registry
+    for hostile_data, drop_table in pairs(LoadedWaveData.Register) do
+        SpawnDirector.Instance:AddNewUnit(hostile_data, drop_table, LoadedWaveData.Modifiers)
+    end
+
+    -- Force Player-Owned Structures to Cache Update
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:SetIsInCombat(true)
+    hero.is_dirty = true
+
+    ---TODO: Setup Hybrid Events
+    -- Hybrid Event Manager
+    HybridEventManager.Instance:Reset()
+    HybridEventManager.Instance:SetSpawner(SpawnDirector.Instance)
+
+    -- if LoadedWaveData.HybridEvents then
+    --     HybridEventManager.Instance:LoadNewEvent(LoadedWaveData.HybridEvents)
+    -- end
+
+    -- Key Structures (Star)
+    OnKeyStructureDestroyed:Subscribe(KeyStructureDestroyed)
+    CampManager.Instance:SubscribeOnKeyStructureDestroyed(OnKeyStructureDestroyed)
+
+    -- Update UI
+    -- LinkStarHealthToUI()
+    CampManager.Instance:SetWaveActive(true)
+    CampManager.Instance:SetButtonDisplayActive(false)
+    CampManager.Instance:ShowStatusBars()
+
+    local label = string.format("Wave %d Incoming!", wave_id)
+    local data_pass = {
+        text = label,
+        duration = 2.5,
+    }
+
+    Core.Event.SendPresentationEvent("Camp.Overlay.EventWarning", data_pass)
+
+    -- Adjust Camera
+    local camera = Camera.Fetch(PLAYER.Player1)
+    camera:SetSize(CAMERA_COMBAT_DISTANCE, CAMERA_TRANSITION_TIME)
+    camera:SetOffset(CAMERA_COMBAT_OFFSET)
+
+    -- Start Next Sequence
+    SequenceManager.Instance:Reset() -- Clear Actions
+    Actions.SetWaveSpawnTime()
+end
+
+local function PerkSelection()
+    SaveDataManager.Spend(SAVE_KEY.Gold, 100)
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:GainLevel(HERO_POINT.Heroic)
+    hero:TriggerPerkSelection()
+
+    -- Prevent Shrine from triggering Perk Selection too quickly
+    CampManager.Instance:ReloadCampObject("Shrine")
+end
+
+local function TalentMenu()
+    local talents = SaveDataManager.GetReference(SAVE_KEY.Talents) or {}
+    local available_points = SaveDataManager.Get(SAVE_KEY.SkillPoints) or 0
+
+    local data_pass = {
+        available_points = available_points,
+        talents = talents,
+    }
+
+    Core.Event.SendPresentationEvent("Camp.TalentMenu", data_pass)
+end
+
+local function Shop()
+    Core.Event.SendPresentationEvent("Camp.OpenShop")
+end
+
+---comment
+---@param talent_id string key
+local function TalentSelected(talent_id)
+    local talent = TalentData.GetTalent(talent_id)
+
+    -- Add to Save Data
+    local saved_talents = SaveDataManager.GetReference(SAVE_KEY.Talents) or {}
+
+    if not saved_talents[talent_id] then
+        saved_talents[talent_id] = 0
+    end
+
+    saved_talents[talent_id] = saved_talents[talent_id] + 1
+
+    SaveDataManager.Modify(SAVE_KEY.SkillPoints, -1)
+    SaveDataManager.Set(SAVE_KEY.Talents, saved_talents)
+    SaveDataManager.CommitSaveData()
+
+    -- Apply Talent Modifiers
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local modifier = CreateTalentModifier(talent_id)
+
+    if talent.ModifierTarget == MODIFIER_TARGET.Camp then
+        CampManager.Instance:AddModifier(modifier)
+    elseif talent.ModifierTarget == MODIFIER_TARGET.Hero then
+        hero:ApplyModifier(modifier, true, true)
+    end
+end
+
+local function ResetTalents(talent_points)
+    Help.Log("Resetting Talents")
+    SaveDataManager.Set(SAVE_KEY.SkillPoints, talent_points)
+    SaveDataManager.Set(SAVE_KEY.Talents, {})
+    SaveDataManager.CommitSaveData()
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local talent_data = TalentData.Talents
+
+    for _, talent in ipairs(talent_data) do
+        local modifier = CreateTalentModifier(talent.Key)
+        if talent.ModifierTarget == MODIFIER_TARGET.Hero then
+            hero:ApplyModifier(modifier, true, true)
+        end
+    end
+end
+
+Core.Event.RegisterSimulationEvent("Hybrid.StartWave", OnWaveStartButtonPressed)
+Core.Event.RegisterSimulationEvent("Hybrid.PerkSelection", PerkSelection)
+Core.Event.RegisterSimulationEvent("Hybrid.TalentMenu", TalentMenu)
+Core.Event.RegisterSimulationEvent("Hybrid.Shop", Shop)
+Core.Event.RegisterSimulationEvent("Hybrid.TalentSelected", TalentSelected)
+Core.Event.RegisterSimulationEvent("Hybrid.ResetTalents", ResetTalents)
+
+---============================================================================
+---!SECTION: Local Functions - Registered Event Callbacks
+---SECTION: Local Functions - Setup
+---============================================================================
+
+local function Reset()
+    DCEI.UnloadPropLayer("Default")
+
+    if _Map then
+        _Map:Reset()
+    end
+    _Map = nil
+end
+
+---Initialize Game Mode
+local function Initialize()
+    StageHelper.SetupPlayerCount(1)
+
+    -- Set Camera Size
+    local camera = Camera.Fetch(PLAYER.Player1)
+    camera:SetSize(CAMERA_STARTING_DISTANCE)
+    -- camera:SetVerticalLimit(CAMERA_VERTICAL_LIMIT)
+
+    -- Reset Player Stats
+    StageHelper.InitializeTrackedStats()
+
+    -- Clear Cached Data
+    CommonDataAccess.Clear()
+
+    -- Initialize Camp Manager Save Data
+    CampManager.Instance:Reset()
+    -- CampManager.Instance:LoadSaveData()
+    CampManager.Instance:LoadCampData(CampData)
+    SaveDataManager.SendPresentationEvents()
+
+    -- Setup Tiles
+    -- local tile_data = Biome.TILE_DATA
+    -- local tile_data = Core.Table.DeepCopy(Biome.TILE_DATA)
+    -- tile_data.LoadDistance = 6
+    -- _Map = TileMap.New(tile_data)
+
+    -- Player Setup
+    StageHelper.SetupPlayerCount(1)
+
+    -- Experience
+    StageHelper.SetupGlobalExperience()
+    local level = SaveDataManager.Get(SAVE_KEY.Level)
+    local experience = SaveDataManager.Get(SAVE_KEY.Experience) or 0
+    local global_experience = Experience.Fetch(PLAYER.Player1)
+    global_experience:SetLevel(level)
+    global_experience:SetExperience(experience)
+
+    local fill_amount = global_experience:GetFill()
+    Core.Event.SendPresentationEvent("Camp.Overlay.SetExperienceFillAmount", fill_amount)
+    Core.Event.SendPresentationEvent("Camp.Overlay.SetPlayerLevel", level)
+
+    function global_experience:OnLevelIncreased()
+        ---TODO: Level VFX
+        SaveDataManager.Modify(SAVE_KEY.Level, 1)
+        SaveDataManager.Modify(SAVE_KEY.SkillPoints, 1)
+    end
+
+    function global_experience:OnExperienceIncreased()
+        local current_experience = global_experience.xp_current
+        SaveDataManager.Set(SAVE_KEY.Experience, current_experience)
+        local fill_amount = global_experience:GetFill()
+        Core.Event.SendPresentationEvent("Camp.Overlay.SetExperienceFillAmount", fill_amount)
+    end
+
+    -- UI
+    StageHelper.ResetUI()
+    UiHelper.SetGameTimerActive(false)
+    UiHelper.SetPauseButtonActive(false)
+    UiHelper.SetGameUIActive(false)
+
+    -- Initialize DangerZoneManager
+    DangerZoneManager.Instance:LoadDangerZoneDataSet(DangerZoneData)
+end
+
+-- Start Quests
+local function StartQuests()
+    if _Dev and _Dev.Game.disable_quests then
+        return
+    end
+
+    local quest_save_data = SaveDataManager.GetReference(SAVE_KEY.Quest) or {}
+    QuestManager.LoadQuestSaveData(quest_save_data)
+
+    -- Check to start intro quest
+    local load_time = 1
+    DCEI.TriggerAddTimerEventElapsed(function()
+        local intro_key = "intro"
+        QuestManager.StartQuest(intro_key)
+    end, load_time)
+end
+
+---============================================================================
+---!SECTION: Local Functions - Setup
+---SECTION: Local Functions - Dev
+---============================================================================
+
+local function AutoVictory()
+    -- Clear everything
+    CampManager.Instance:Clear()
+    DangerZoneManager.Instance:Reset()
+
+    FSM:Transition(FSM.States.Test)
+    -- -- Check if we're in the Wave Sequence and automatically complete it.
+    -- if ActionState == ACTION_STATES.Idle then
+    --     OnWaveStartButtonPressed()
+    -- elseif ActionState == ACTION_STATES.Wave then
+    --     SequenceManager.Instance:CompleteCurrentAction()
+    -- elseif ActionState == ACTION_STATES.KillRemaining then
+    --     -- Kill Units so we can gain loot
+    --     StageHelper.KillHostiles()
+    --     StageHelper.KillSimpleUnits(PLAYER.Hostile)
+
+    --     SequenceManager.Instance:CompleteCurrentAction()
+    -- end
+end
+
+local function AutoDefeat()
+    if ActionState == ACTION_STATES.Wave or ActionState == ACTION_STATES.KillRemaining then
+        local hero = Hero.Fetch(PLAYER.Player1)
+        DCEI.KillUnit(hero.unit)
+    end
+end
+
+local function TestMode()
+    -- FSM:Transition(FSM.States.Test, {})
+end
+
+local function IncreaseGold()
+    SaveDataManager.Modify(SAVE_KEY.Gold, 100)
+end
+
+local function ToggleEditor()
+    _IsEditorActive = not _IsEditorActive
+
+    -- Toggle Editor UI
+    Core.Event.SendPresentationEvent("Editor.ToggleActive")
+
+    -- Toggle Editor Mode
+    DangerZoneManager.Instance:__ToggleEditorModeActive()
+end
+
+---============================================================================
+---!SECTION: Local Functions - Dev
+---SECTION: Local Functions - Tick Rates
+---============================================================================
+
+local function OnHeroUpdate()
+    if _IsEditorActive then
+        return
+    end
+
+    local player_id = PLAYER.Player1
+    local hero = Hero.Fetch(player_id)
+
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    hero:Update()
+
+    local joystick = Joystick.Fetch(player_id)
+    joystick:MoveUnit(hero.unit, true)
+
+    local camera = Camera.Fetch(player_id)
+    camera:Update()
+end
+
+local function RunSequenceManager()
+    SequenceManager.Instance:Update()
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    CampManager.Instance:Update(TICK_RATE, hero)
+end
+
+local function ProcessGameEvents()
+    GameEventManager.Instance:Update(TICK_RATE)
+end
+
+local function UpdateWood(amount)
+    if amount <= 0 then
+        return
+    end
+
+    SaveDataManager.Modify(SAVE_KEY.Wood, amount)
+    QuestManager.CheckResourceObjective({
+        id = SAVE_KEY.Wood,
+        amount = amount,
+    })
+
+    StageHelper.SetTrackedStat(TRACKED_STATS.Wood, 0) -- Reset Wood so we don't keep increasing it.
+end
+
+local function UpdateStone(amount)
+    if amount <= 0 then
+        return
+    end
+
+    SaveDataManager.Modify(SAVE_KEY.Stone, amount)
+    QuestManager.CheckResourceObjective({
+        id = SAVE_KEY.Stone,
+        amount = amount,
+    })
+
+    StageHelper.SetTrackedStat(TRACKED_STATS.Stone, 0) -- Reset Stone so we don't keep increasing it.
+end
+
+local function UpdatePumpkin(amount)
+    if amount <= 0 then
+        return
+    end
+
+    SaveDataManager.Modify(SAVE_KEY.Pumpkin, amount)
+    QuestManager.CheckResourceObjective({
+        id = SAVE_KEY.Pumpkin,
+        amount = amount,
+    })
+
+    StageHelper.SetTrackedStat(TRACKED_STATS.Pumpkin, 0) -- Reset Pumpkin so we don't keep increasing it.
+end
+
+local function UpdateGold(amount)
+    if amount <= 0 then
+        return
+    end
+
+    local amount, overflow = SaveDataManager.Modify(SAVE_KEY.Gold, amount)
+    QuestManager.CheckResourceObjective({
+        id = SAVE_KEY.Gold,
+        amount = amount,
+    })
+
+    if overflow > 0 then
+        local hero = Hero.Fetch(PLAYER.Player1)
+
+        Help.PeriodicGameTimer(overflow, 0.125, nil, function()
+            DCEI.CreateEffectAtSelf(DCEI.Effect("Hybrid - Meat Grinder - Spawn Coin"), hero.unit)
+        end, true)
+    end
+
+    StageHelper.SetTrackedStat(TRACKED_STATS.Gold, 0) -- Reset Gold so we don't keep increasing it.
+end
+
+local function UpdateMeat(amount)
+    if amount <= 0 then
+        return
+    end
+
+    SaveDataManager.Modify(SAVE_KEY.Meat, amount)
+    QuestManager.CheckResourceObjective({
+        id = SAVE_KEY.Meat,
+        amount = amount,
+    })
+
+    StageHelper.SetTrackedStat(TRACKED_STATS.Meat, 0) -- Reset Meat so we don't keep increasing it.
+end
+
+local function UpdatePlayerStats()
+    StageHelper.UpdatePlayerStats()
+
+    -- Update Displayed Stats
+    local passed_stats = {}
+    for key, _ in pairs(DisplayedGameStats) do
+        local value = StageHelper.GetTrackedStat(key)
+        if value and value > 0 then
+            passed_stats[key] = StageHelper.GetTrackedStat(key)
+        end
+    end
+
+    UpdateWood(passed_stats[TRACKED_STATS.Wood] or 0)
+    UpdateStone(passed_stats[TRACKED_STATS.Stone] or 0)
+    UpdatePumpkin(passed_stats[TRACKED_STATS.Pumpkin] or 0)
+    UpdateMeat(passed_stats[TRACKED_STATS.Meat] or 0)
+    UpdateGold(passed_stats[TRACKED_STATS.Gold] or 0)
+end
+
+---Updates the Map Tiles based on the hero's position.
+---@param delta Time
+local function UpdateMap(delta)
+    local tile_index = Vector2.Zero()
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if hero:IsUnitAlive() then
+        local camera = Camera.Fetch(PLAYER.Player1)
+        local camera_position = camera:GetPosition()
+        -- tile_index = _Map:GetTileIndexFromWorldPosition(camera_position)
+
+        -- local hero_position = hero:GetPosition()
+        -- tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+    end
+
+    -- _Map:Update(tile_index)
+end
+
+local function UpdateDangerZones(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local camera = Camera.Fetch(PLAYER.Player1)
+
+    DangerZoneManager.Instance:Update(delta, hero, camera.position)
+end
+
+---============================================================================
+---!SECTION: Local Functions - Tick Rates
+---SECTION: Registered Functions
+---============================================================================
+
+local _TickRateUpdates = {
+    {
+        Interval = 1,
+        Function = OnHeroUpdate,
+    },
+    {
+        Interval = 1,
+        Function = UpdateMap,
+    },
+    {
+        Interval = 1,
+        Function = RunSequenceManager,
+    },
+    {
+        Interval = 1,
+        Function = UpdatePlayerStats,
+    },
+    {
+        Interval = 1,
+        Function = UpdateDangerZones,
+    },
+    -- {
+    --     Interval = 1 / TICK_RATE,
+    --     Function = ProcessGameEvents,
+    -- },
+}
+
+---Un/Register Tick Rate Dependent Functions
+---@param unsubscribe boolean | nil
+local function SubscribeTickRates(unsubscribe)
+    if not unsubscribe then
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Subscribe(entry.Interval, entry.Function)
+        end
+    else
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Unsubscribe(entry.Interval, entry.Function)
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Registered Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    Reset()
+    Initialize()
+
+    -- FadeIn
+    if _Dev and _Dev.Extra and _Dev.Extra.instant_transitions then
+        UiHelper.FadeIn(0)
+        return
+    end
+
+    UiHelper.FadeIn()
+
+    StartQuests()
+
+    -- if _Dev and _Dev.Game.disable_quests then
+    --     return
+    -- end
+
+    -- local quest_save_data = SaveDataManager.GetReference(SAVE_KEY.Quest) or {}
+    -- QuestManager.LoadQuestSaveData(quest_save_data)
+
+    -- -- Check to start intro quest
+    -- local load_time = 1
+    -- DCEI.TriggerAddTimerEventElapsed(function()
+    --     local intro_key = "intro"
+    --     QuestManager.StartQuest(intro_key)
+    -- end, load_time)
+end
+
+function State:OnEnter()
+    -- Subscribe to Tick Rates
+    TickRate:ResetTick()
+    SubscribeTickRates()
+
+    -- Actions.SetHeroReset()
+    -- Actions.SetStructureReset()
+
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideGameTimer")
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideHealthStatus")
+    Core.Event.SendPresentationEvent("Camp.Overlay.HideObjective")
+
+    SpawnHero()
+
+    -- Set quest objective started callback
+    QuestManager.on_start_objective_callback = function(current_quest)
+        if ActionState == ACTION_STATES.Wave or ActionState == ACTION_STATES.KillRemaining then
+            return
+        end
+
+        local quest_key = current_quest.key
+        local quest_step = current_quest.step
+        for _, data in pairs(CampData) do
+            local req = data.quest_requirement
+            if
+                req
+                and req.key == quest_key
+                and (quest_step >= req.objective or QuestManager.IsQuestFinished(quest_key))
+            then
+                CampManager.Instance:LoadNewCampObjectByName(data.Name, false, false)
+                return
+            end
+        end
+    end
+
+    if _Dev then
+        _Dev.Events.Register("Victory", AutoVictory)
+        _Dev.Events.Register("Defeat", AutoDefeat)
+        _Dev.Events.Register("Test", TestMode)
+        _Dev.Events.Register("Time Skip", IncreaseGold)
+        _Dev.Events.Register("Editor Toggle", ToggleEditor)
+    end
+end
+
+function State:OnGameUpdate(delta)
+    if _Dev then
+        local hero = Hero.Fetch(PLAYER.Player1)
+        if hero:IsUnitAlive() then
+            local key = "Hero Position"
+            local position = hero:GetPosition()
+            local label = string.format("Position: (%.2f, %.2f)", position.x, position.y)
+            UiHelper.SetDeveloperText(key, label)
+        end
+    end
+end
+
+function State:OnTransitionExit()
+    SubscribeTickRates(true)
+    SequenceManager:Reset()
+end
+
+function State:OnExit()
+    -- Clear Camp Manager
+    CampManager.Instance:Reset()
+
+    -- Clear Dev Text
+    UiHelper.ResetDeveloperText()
+
+    -- Hide UI
+    Core.Event.SendPresentationEvent("Camp.Overlay.Hide")
+
+    if _Dev then
+        _Dev.Events.Unregister("Victory", AutoVictory)
+        _Dev.Events.Unregister("Defeat", AutoDefeat)
+        _Dev.Events.Unregister("Test", TestMode)
+        _Dev.Events.Unregister("Time Skip", IncreaseGold)
+        _Dev.Events.Unregister("Editor Toggle", ToggleEditor)
+    end
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: Effect Callbacks
+---============================================================================
+
+local KEY_ITEMS = {
+    Axe = {
+        Effect = DCEI.Effect("KeyItem - Axe - Picked Up"),
+        Key = SkillData.ChopTree.Key,
+    },
+    Bow = {
+        Effect = DCEI.Effect("KeyItem - Bow - Picked Up"),
+        Key = SkillData.Strafe.Key,
+    },
+    Pickaxe = {
+        Effect = DCEI.Effect("KeyItem - Pickaxe - Picked Up"),
+        Key = SkillData.MineStone.Key,
+    },
+    Shovel = {
+        Effect = DCEI.Effect("KeyItem - Shovel - Picked Up"),
+        Key = SkillData.Shovel.Key,
+    },
+}
+
+DCEI.TriggerAddEffectEvent(DCEI.Effect("KeyItem - Pickup Effects"), function(ctx)
+    QuestActionManager.ClearIndicators()
+end)
+
+for _, KeyItem in pairs(KEY_ITEMS) do
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    local effect = KeyItem.Effect
+    local key = KeyItem.Key
+
+    DCEI.TriggerAddEffectEvent(effect, function(ctx)
+        Help.Log("Picked Up Key Item", key)
+
+        hero:LearnSkill(key)
+
+        SaveDataManager.AddKey(SAVE_KEY.KeyItems, key)
+        SaveDataManager.CommitSaveData()
+
+        QuestManager.CheckPickUpKeyItemObjective(key)
+    end, true)
+end
+
+---============================================================================
+---!SECTION: Effect Callbacks
+---SECTION: Developer
+---============================================================================
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

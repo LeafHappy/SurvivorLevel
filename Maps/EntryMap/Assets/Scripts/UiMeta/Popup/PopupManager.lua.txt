@@ -1,0 +1,104 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local ui = GMUI.ui
+
+-- MODULE
+local PopupManager = {}
+
+-- CONSTANTS
+local ANIM_IN_DURATION = 0.33
+local ANIM_OUT_DURATION = 0.2
+
+-- VARIABLES
+local are_mask_transitions_enabled = true
+
+-- LOCAL FUNCTIONS
+-- Mask Handling
+local function HandleMaskIn(args)
+    if not args.skip_show_mask then
+        local mask = args.mask_layout and args.mask_layout.Frame or ui.shared_popup_mask.Frame
+        DCEI.SetFrameActive(mask, true)
+
+        -- fade in mask, if mask transitions are enabled
+        if are_mask_transitions_enabled then
+            local duration = ANIM_IN_DURATION / 2 -- feels better if fade happens faster/first
+            Animation.FadeIn(mask, duration)
+        end
+    end
+end
+
+local function HandleMaskOut(args)
+    if are_mask_transitions_enabled and not args.skip_hide_mask then
+        local mask = args.mask_layout and args.mask_layout.Frame or ui.shared_popup_mask.Frame
+        local duration = ANIM_OUT_DURATION / 2
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            Animation.FadeOut(mask, duration)
+        end, duration)
+
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            DCEI.SetFrameActive(mask, false)
+        end, ANIM_OUT_DURATION)
+    end
+end
+
+-- MODULE FUNCTIONS
+function PopupManager.SetMaskTransitionsEnabled(flag)
+    are_mask_transitions_enabled = flag
+end
+
+function PopupManager.ApplyPopupAnimations(layout, args)
+    args = args or {}
+
+    local popup_frame = args.popup_frame
+
+    -- define show animation
+    layout.OnShowActual = layout.OnShow
+    function layout:OnShow()
+        -- Handle how to show the mask
+        HandleMaskIn(args)
+
+        -- scale-in popup
+        local animation_args = { duration = ANIM_IN_DURATION }
+        Animation.PopIn(popup_frame, animation_args)
+
+        -- run original show
+        self:OnShowActual()
+    end
+
+    -- define hide animation
+    layout.HideActual = layout.Hide
+    function layout:Hide()
+        -- block input during popup animations
+        local input_key = "popup_animation_out"
+        GMUI.InputState.BlockUserInput(input_key)
+
+        -- scale-out popup
+        local animation_args =  { duration = ANIM_OUT_DURATION }
+        Animation.PopOut(popup_frame, animation_args)
+
+        -- fade out mask after a short delay, if mask transitions are enabled
+        HandleMaskOut(args)
+
+        -- Wait for animations to unblock input and hide popup
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            GMUI.InputState.UnblockUserInput(input_key)
+            self:HideActual()
+        end, ANIM_OUT_DURATION)
+    end
+end
+
+-- Creating shared popup mask
+ui.shared_popup_mask = GMUI.Layout.New({
+    name = "Common/MaskBlocking", parent = ui.z2.Upper,
+})
+ui.shared_popup_mask:Hide()
+
+-- EVENTS
+Core.Event.RegisterPresentationEvent("PopupManager.SetMaskTransitionsEnabled", PopupManager.SetMaskTransitionsEnabled)
+
+-- EXPORT
+return PopupManager

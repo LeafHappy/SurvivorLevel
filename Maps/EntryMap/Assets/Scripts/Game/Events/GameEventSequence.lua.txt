@@ -1,0 +1,220 @@
+---============================================================================
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+
+local GameEvent = require("Game/Events/GameEvent")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+---============================================================================
+
+---============================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+---============================================================================
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class
+---============================================================================
+
+---@class GameEventSequenceData
+---@field Sequence table<GameEventData>
+---@field Options GameEventSequence.Options
+---@field Settings GameEventSequence.Settings
+
+---@class GameEventSequence.Options
+---@field Repeating boolean
+
+---@class GameEventSequence.Settings
+---@field EliteModifiers GameEventSequence.EliteModifiers
+
+---@class GameEventSequence.EliteModifiers
+---@field PerLoop table<Modifier>
+---@field PerElite table<Modifier>
+
+---@class GameEventSequence
+---@field EventManager GameEventManager
+---@field SequenceIndex integer
+---@field ActiveGameEvent GameEvent | nil
+---@field Sequence table<GameEventData>
+---@field Options GameEventSequence.Options
+---@field Settings GameEventSequence.Settings
+---@field Data table<string, any>
+---@field LastSpawnPosition Vector2
+local GameEventSequence = {}
+GameEventSequence.__index = GameEventSequence
+
+---comment
+---@param event_sequence GameEventSequenceData
+---@param game_event_manager GameEventManager
+---@return GameEventSequence
+function GameEventSequence.New(event_sequence, game_event_manager)
+    local self = setmetatable({}, GameEventSequence)
+
+    self.EventManager = game_event_manager
+
+    self.SequenceIndex = 1
+    self.ActiveGameEvent = nil
+
+    self.Sequence = event_sequence.Sequence
+    self.Options = event_sequence.Options
+    self.Settings = event_sequence.Settings
+
+    self.LastSpawnPosition = Vector2.Zero()
+
+    self.Data = {
+        -- EliteCounter = 0,
+        -- LoopCounter = 0,
+    }
+
+    -- Help.Log("Options", nil, self.Options)
+
+    self:Reset()
+
+    return self
+end
+
+function GameEventSequence:Reset()
+    --
+end
+
+---============================================================================
+-- !SECTION -- Class
+-- SECTION -- Class Functions
+---============================================================================
+
+---comment
+---@param event_data GameEventData
+---@param settings GameEventSequence.Settings
+---@return table
+function GameEventSequence:_GenerateGameEventData(event_data, settings)
+    local new_event_data = Core.Table.DeepCopy(event_data)
+
+    -- Nothing to Modify, just return the event_data
+    if not settings then
+        return new_event_data
+    end
+
+    -- Check to see if an Elite is spawned
+    ---@type GameEventData
+    local stage_event_data = Core.Table.DeepCopy(event_data.EventTypeOptions)
+
+    if stage_event_data.EliteType then
+        if settings.EliteModifiers then
+            -- Help.Log("Original Elite Modifiers", nil, stage_event_data.EliteModifiers)
+
+            local final_modifiers = stage_event_data.EliteModifiers
+                    and Core.Table.DeepCopy(stage_event_data.EliteModifiers)
+                or {}
+
+            -- Check Per Loop
+            if settings.EliteModifiers.PerLoop then
+                if not self.Data.LoopCounter then
+                    self.Data.LoopCounter = 0
+                end
+
+                -- Applies 0 on the first loop, 1 on the second loop, etc.
+                local multiplier = self.Data.LoopCounter
+
+                if multiplier > 0 then
+                    for _, modifier in ipairs(settings.EliteModifiers.PerLoop) do
+                        table.insert(
+                            final_modifiers,
+                            Modifier.New(modifier.stat, modifier.value * multiplier, modifier.scaling, modifier.tags)
+                        )
+                    end
+                end
+            end
+
+            -- Check Per Elite
+            if settings.EliteModifiers.PerElite then
+                if not self.Data.EliteCounter then
+                    self.Data.EliteCounter = 0
+                end
+
+                local multiplier = self.Data.EliteCounter
+
+                if multiplier > 0 then
+                    for _, modifier in ipairs(settings.EliteModifiers.PerElite) do
+                        table.insert(
+                            final_modifiers,
+                            Modifier.New(modifier.stat, modifier.value * multiplier, modifier.scaling, modifier.tags)
+                        )
+                    end
+                end
+            end
+
+            stage_event_data.EliteModifiers = final_modifiers
+        end
+
+        -- Since there is an Elite spawn, go ahead and increase the Elite Counter in Data
+        self.Data.EliteCounter = (self.Data.EliteCounter or 0) + 1
+    end
+
+    new_event_data.EventTypeOptions = stage_event_data
+
+    return new_event_data
+end
+
+---comment
+---@param delta Time
+function GameEventSequence:Update(delta)
+    -- No Active Event
+    if self.ActiveGameEvent == nil and self.Sequence[self.SequenceIndex] then
+        local event_data = self:_GenerateGameEventData(self.Sequence[self.SequenceIndex], self.Settings)
+        -- Help.Log("Generated New Game Event", nil, self.Sequence[self.SequenceIndex])
+        self.ActiveGameEvent = GameEvent.New(event_data, self.EventManager, self)
+
+        local function OnEventCompleted()
+            -- Clear Active Event
+            self.ActiveGameEvent:Destroy()
+            self.ActiveGameEvent = nil
+
+            -- Move to the next event in the sequence
+            self.SequenceIndex = self.SequenceIndex + 1
+
+            if self.SequenceIndex > #self.Sequence and self.Options.Repeating then
+                self.SequenceIndex = 1
+
+                -- Since we are looping the sequence, increase the Loop Counter in Data
+                self.Data.LoopCounter = (self.Data.LoopCounter or 0) + 1
+            end
+        end
+
+        self.ActiveGameEvent.OnEventCompleted:Subscribe(OnEventCompleted)
+    end
+
+    -- Update Active Event
+    if self.ActiveGameEvent then
+        self.ActiveGameEvent:Update(delta)
+    end
+end
+
+---comment
+---@param position Vector2
+function GameEventSequence:UpdateLatestSpawnPosition(position)
+    Help.Log("Setting Lastest Spawn Position", position)
+    self.LastSpawnPosition = position
+end
+
+---comment
+---@return Vector2
+function GameEventSequence:GetLastPosition()
+    return self.LastSpawnPosition
+end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return GameEventSequence

@@ -1,0 +1,249 @@
+---============================================================================
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Vector3 = require("Class/Vector3")
+local Vector2 = require("Class/Vector2")
+
+local Colors = require("Data/Colors")
+local EJS = require("Data/EJS")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Global
+---============================================================================
+
+---@class HostileData
+---@field Key string
+---@field Type string
+---@field Tag SIMPLE_TAG | integer | nil
+---@field Stats table<STAT, number>
+---@field ArmorType ArmorType | nil
+---@field LocalAvoidance boolean | nil
+---@field KillTime number | nil
+---@field RemoveTime number | nil
+---@field OnEnter Effect | string | nil
+---@field OnDeath Effect | string | nil
+---@field Overrides table
+---@field TransformAnimation TransformAnimationOptions
+
+---============================================================================
+-- !SECTION -- Global
+-- SECTION -- Initialization
+---============================================================================
+
+---@type table<string, HostileData>
+local HostileData = {}
+
+---============================================================================
+-- !SECTION -- Initialization
+-- SECTION -- Standard Hostiles
+---============================================================================
+
+---@type HostileData
+HostileData.Banshee = {
+    Key = "Banshee",
+    Type = DCEI.SimpleUnit("Hostile - Banshee"),
+
+    Stats = {
+        [STAT.Health] = 1,
+        [STAT.Thorns] = 10,
+        [STAT.CollisionSize] = 0.33,
+        [STAT.MoveSpeed] = 5.00,
+        [STAT.Mass] = 2.40,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Banshee - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Banshee - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Banshee - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+}
+
+HostileData.Runner = {
+    Key = "Runner",
+    Type = DCEI.SimpleUnit("Hostile - Runner"),
+
+    Stats = {
+        [STAT.Health] = 10,
+        [STAT.Thorns] = 5,
+        [STAT.CollisionSize] = 0.297,
+        [STAT.MoveSpeed] = 4.00,
+        [STAT.Mass] = 2.60,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile | SIMPLE_TAG.Disposable,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Runner - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Runner - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Runner - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+    -- TransformAnimation = {
+    --     end_seconds = 0,
+    --     end_scale = Vector3.New(5, 5, 5),
+    --     end_position = Vector3.New(0, 0, -5),
+    -- },
+}
+
+---@type HostileData
+HostileData.Walker = {
+    Key = "Walker",
+    Type = DCEI.SimpleUnit("Hostile - Walker"),
+
+    Stats = {
+        [STAT.Health] = 25,
+        [STAT.Thorns] = 5,
+        [STAT.CollisionSize] = 0.360,
+        [STAT.MoveSpeed] = 1.50,
+        [STAT.Mass] = 3.00,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Walker - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Walker - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Walker - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+
+    ---TESTING: Transform Animation - Need to configure on Engine Side.
+    -- TransformAnimation = {
+    --     start_scale = Vector3.New(10, 10, 10),
+    --     end_scale = Vector3.New(10, 10, 10),
+    --     end_position = Vector3.New(0, 10, 0),
+    --     pivot = Vector3.New(0, 10, 0),
+    --     rotation_axis = Vector3.New(0, 1, 0),
+    --     end_degree = 45,
+    -- },
+}
+
+---@type HostileData
+HostileData.Marauder = {
+    Key = "Marauder",
+    Type = DCEI.SimpleUnit("Hostile - Marauder"),
+
+    Stats = {
+        [STAT.Health] = 75,
+        [STAT.Thorns] = 20,
+        [STAT.CollisionSize] = 0.395,
+        [STAT.MoveSpeed] = 1,
+        [STAT.Mass] = 3.60,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Marauder - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Marauder - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Marauder - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+}
+
+---@type HostileData
+HostileData.Boomer = {
+    Key = "Boomer",
+    Type = DCEI.SimpleUnit("Hostile - Boomer"),
+
+    Stats = {
+        [STAT.Health] = 150,
+        [STAT.Thorns] = 30,
+        [STAT.CollisionSize] = 0.463,
+        [STAT.MoveSpeed] = 0.9,
+        [STAT.Mass] = 3.30,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Boomer - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Boomer - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Boomer - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+}
+
+---@type HostileData
+HostileData.Brute = {
+    Key = "Brute",
+    Type = DCEI.SimpleUnit("Hostile - Brute"),
+
+    Stats = {
+        [STAT.Health] = 550,
+        [STAT.Thorns] = 50,
+        [STAT.CollisionSize] = 0.55,
+        [STAT.MoveSpeed] = 0.750,
+        [STAT.Mass] = 4.00,
+    },
+    ArmorType = ARMOR_TYPES.Basic,
+    Tag = SIMPLE_TAG.Hostile,
+
+    LocalAvoidance = true,
+    KillTime = nil,
+    RemoveTime = nil,
+
+    OnEnter = DCEI.Effect("Hostile - Brute - OnEnter"),
+    OnDeath = DCEI.Effect("Hostile - Brute - OnDeath"),
+    Overrides = {
+        {
+            Effect = DCEI.Effect("Hostile - Brute - Damage"),
+            Path = EJS.Damage.Value,
+            Stat = STAT.Thorns,
+        },
+    },
+}
+
+---============================================================================
+-- !SECTION -- Standard Hostiles
+---============================================================================
+
+return HostileData

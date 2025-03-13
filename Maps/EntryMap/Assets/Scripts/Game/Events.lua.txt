@@ -1,0 +1,615 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+-- Core Libraries
+local Core = require("Core")
+
+-- Classes
+local Vector2 = require("Class/Vector2")
+local CommonDataAccess = require("Class/CommonDataAccess")
+
+-- Data
+local Colors = require("Data/Colors")
+
+-- Simple Units
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local LootData = require("Data/SimpleUnits/LootData")
+
+-- Shared Data
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Game
+local Hero = require("Game/Hero")
+local Log = require("Game/Log")
+
+-- Helper
+local UiHelper = require("Game/UiHelper")
+local Help = require("Help")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function ShowOverheadMessage(unit, message)
+    local duration = 2.25
+    local animation_type = 0
+    local animation_duration = 0.75
+    local label_options = { center_at_unit_top = true, offset = { up = 1 } }
+    DCEI.ShowFloatingTextAtUnit(unit, message, duration, animation_type, animation_duration, label_options)
+end
+
+---Spawn the unit type at the given position.
+---@param unit_type string
+---@param position Vector2
+---@param is_hostile boolean | nil
+---@return Unit
+local function Spawn(unit_type, position, is_hostile)
+    is_hostile = is_hostile or false
+
+    local team = is_hostile and TEAM.Hostile or TEAM.Friendly
+    local player = is_hostile and PLAYER.Hostile or PLAYER.Terrain
+
+    return DCEI.CreateUnit(team, player, unit_type, position.x, position.y, -1, -1)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Event Handling
+---============================================================================
+local Events = {}
+
+---@enum EventsGroup
+EventsGroup = {
+    Nexus = "Nexus",
+    ShadowFall = "ShadowFall",
+    Chest = "Chest",
+    Consumable = "Consumable",
+    Shrine = "Shrine",
+}
+
+---@class EventGroupData
+---@field Count integer
+---@field Instances table<Unit>
+
+---Generates a New Event Group.
+---@return EventGroupData
+local function NewEventGroupData()
+    return {
+        Count = 0,
+        Instances = {},
+    }
+end
+
+---@type table<EventGroupData>
+local _events = {
+    -- [EventsGroup.Nexus] = {
+    --     Count = 0,
+    --     Instances = {
+    --         [Instance] = Instance,
+    --     }
+    -- }
+}
+
+---Registers the Instance so that it can be recalled at a later time.
+---@param group EventsGroup
+---@param instance Unit
+local function RegisterInstance(instance, group)
+    -- Check for Group
+    if not _events[group] then
+        _events[group] = NewEventGroupData()
+
+        -- _events[group] = {
+        --     Count = 0,
+        --     Instances = {},
+        -- }
+    end
+
+    -- Add the Instance
+    _events[group].Instances[instance] = instance
+    _events[group].Count = _events[group].Count + 1
+
+    -- Destroyed Callback
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        ---LOG: Event Completed
+        Log.Game.EventCompleted({
+            event_type = group,
+            game_mode = CommonDataAccess.Get("game_mode"),
+            attempts = CommonDataAccess.Get("attempts"),
+        })
+    end)
+
+    -- Removed Callback
+    DCEI.TriggerAddUnitRemovedEvent(instance, function()
+        _events[group].Instances[instance] = nil
+        _events[group].Count = _events[group].Count - 1
+    end)
+end
+
+---Remove all events in the provided group.
+---When no group is provided, remove all events.
+---@param group EventsGroup | nil
+function Events.RemoveEvents(group)
+    -- No group provided, remove all Events
+    if not group then
+        for _, group in pairs(_events) do
+            for _, instance in pairs(group.Instances) do
+                DCEI.RemoveUnit(instance)
+            end
+        end
+    elseif _events[group] then -- Group Exists
+        for _, instance in pairs(_events[group].Instances) do
+            DCEI.RemoveUnit(instance)
+        end
+    end
+end
+
+---Returns the number of active events.
+---@param group EventsGroup | nil Group Filter
+---@return integer
+function Events.GetEventCount(group)
+    local count = 0
+    -- No group provided
+    if not group then
+        for _, group in pairs(_events) do
+            count = count + group.Count
+        end
+    elseif _events[group] then
+        count = count + _events[group].Count
+    end
+
+    return count
+end
+
+---comment
+---@param group EventsGroup
+---@return table
+function Events.GetEventInstances(group)
+    local instances = {}
+
+    -- No group provided
+    if not group then
+        for _, group in pairs(_events) do
+            for _, instance in ipairs(group) do
+                table.insert(instances, instance)
+            end
+        end
+    elseif _events[group] then
+        instances = _events[group].Instances
+    end
+
+    return instances
+end
+
+-- Set the Event Instance Health.
+---@param instance Unit
+---@param amount number
+local function SetInstanceHealth(instance, amount)
+    DCEI.SetMaxHealth(instance, amount)
+    DCEI.SetHealth(instance, amount)
+end
+
+local _IndicatorRadius = DCEI.Behavior("Indicator Radius")
+
+---Set the Event Instance Indicator Radius.
+---@param instance Unit
+---@param amount number
+local function SetIndicatorRadius(instance, amount)
+    local target_stacks = math.floor(amount * 100)
+    Core.Unit.SetBehaviorCount(instance, _IndicatorRadius, target_stacks)
+end
+
+---============================================================================
+---!SECTION: Event Handling
+---SECTION: Hero Leveling
+---============================================================================
+
+-- local _HeroSkillPointData = {
+--     --
+--     Icon = DCEI.Texture("cartoon_icon_star_rank3_wildsurvivor"),
+-- }
+
+-- function Events.SpawnHeroSkillPoint(position)
+--     --
+
+--     local instance = Spawn(_HeroSkillPointData.UnitType, position)
+--     SetInstanceHealth(instance, 0.0625)
+--     SetIndicatorRadius(instance, 0.75)
+
+--     SimpleUnits.Helpers.CreateOffscreenIndicator(instance, _HeroSkillPointData.Icon)
+
+--     -- Learn the Upgrade
+--     DCEI.TriggerAddUnitDiedEvent(instance, function()
+--         DCEI.Wait(0.35)
+
+--         ---NOTE: Only works for Player 1
+--         local hero = Hero.Fetch(1)
+--         hero:ModifyUpgradePoints(HERO_POINT.Level, 1)
+--         -- hero:GainArtifactPoint(true)
+--     end)
+
+--     return instance
+-- end
+
+---============================================================================
+---!SECTION: Hero Leveling
+---SECTION: Nexus
+---============================================================================
+
+local _NexusData = {
+    Tiers = {
+        DCEI.Unit("Nexus - 1"),
+        DCEI.Unit("Nexus - 2"),
+        DCEI.Unit("Nexus - 3"),
+    },
+    Icon = DCEI.Texture("mine_dungeon_floor_hero_btn_wildsurvivor"),
+    Duration = 5,
+    Radius = 5,
+}
+
+---Spawns a Nexus Event
+---@param position Vector2
+---@param tier integer | nil
+---@return Unit
+function Events.SpawnNexus(position, tier)
+    -- Default Tier Value & Clamp
+    tier = tier or 1
+    tier = Help.Clamp(tier, 1, #_NexusData.Tiers)
+
+    -- Create the Unit Instance
+    local instance = Spawn(_NexusData.Tiers[tier], position)
+    SetInstanceHealth(instance, _NexusData.Duration)
+    SetIndicatorRadius(instance, _NexusData.Radius)
+
+    -- Store Nexus instance
+    RegisterInstance(instance, EventsGroup.Nexus)
+
+    -- Generate Offscreen Indicator
+    SimpleUnits.Helpers.CreateOffscreenIndicator(instance, _NexusData.Icon)
+
+    return instance
+end
+
+---============================================================================
+---!SECTION: Nexus
+---SECTION: Shadow Fall
+---============================================================================
+
+local _InhibitorData = {
+    Type = DCEI.Unit("Occupy - Inhibitor"),
+    Icon = DCEI.Texture("shard_spell_darksummons_wildsurvivor"),
+    Duration = 2,
+    Radius = 2,
+}
+
+function Events.SpawnInhibitor(position)
+    local instance = Spawn(_InhibitorData.Type, position)
+
+    SetInstanceHealth(instance, _InhibitorData.Duration)
+    SetIndicatorRadius(instance, _InhibitorData.Radius)
+
+    RegisterInstance(instance, EventsGroup.ShadowFall)
+
+    -- Generate Offscreen Indicator
+    SimpleUnits.Helpers.CreateOffscreenIndicator(instance, _InhibitorData.Icon)
+
+    return instance
+end
+
+local _RelicData = {
+    Type = DCEI.Unit("Occupy - Relic"),
+    Duration = 5,
+    Radius = 3,
+    Icon = DCEI.Texture("shard_tower_draconichatchery_wildsurvivor"),
+}
+
+function Events.SpawnRelic(position)
+    local instance = Spawn(_RelicData.Type, position)
+
+    SetInstanceHealth(instance, _RelicData.Duration)
+    SetIndicatorRadius(instance, _RelicData.Radius)
+
+    RegisterInstance(instance, EventsGroup.Shrine)
+
+    -- Generate Offscreen Indicator
+    SimpleUnits.Helpers.CreateOffscreenIndicator(instance, _RelicData.Icon)
+
+    -- Learn the Upgrade
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        DCEI.Wait(0.5)
+
+        ---NOTE: Only works for Player 1
+        local hero = Hero.Fetch(1)
+        hero:ModifyUpgradePoints(HERO_POINT.Heroic, 1)
+        -- hero:GainArtifactPoint(true)
+    end)
+
+    return instance
+end
+
+---============================================================================
+---!SECTION: Shadow Fall
+---SECTION: Shrines
+---============================================================================
+
+---@class ShrineData
+---@field Name string
+---@field UnitType Unit | string
+---@field Icon string
+---@field Health number
+---@field Radius number
+---@field Message string | nil
+---@field PointReward HERO_POINT | nil
+---@field Applications table | nil
+
+---@type table<ShrineData>
+local _Shrines = {
+    {
+        Name = "Meditation Fountain",
+        UnitType = DCEI.Unit("Shrine - Meditation Fountain"),
+        Icon = DCEI.Texture("shard_tower_meditationfountain_wildsurvivor"),
+        Health = 5,
+        Radius = 3,
+        Message = "+1 Health Regeneration",
+        Modifiers = {
+            Modifier.New(STAT.HealthRegeneration, 1, SCALING.Scaled),
+            -- Modifier.New(STAT.HealthRegeneration, 1, SCALING.Scaled),
+        },
+    },
+    {
+        Name = "Hall of Life",
+        UnitType = DCEI.Unit("Shrine - Hall of Life"),
+        Icon = DCEI.Texture("shard_tower_halloflife_wildsurvivor"),
+        Health = 5,
+        Radius = 3,
+        Message = "+12% Health",
+        Modifiers = {
+            Modifier.New(STAT.Health, 0.12, SCALING.Additive),
+            -- Modifier.New(STAT.Health, 0.12, SCALING.Additive),
+        },
+    },
+    {
+        Name = "Stoneguard",
+        UnitType = DCEI.Unit("Shrine - Stoneguard"),
+        Icon = DCEI.Texture("shard_tower_stoneguard_wildsurvivor"),
+        Health = 5,
+        Radius = 3,
+        Message = "+10 Thorns",
+        Modifiers = {
+            Modifier.New(STAT.Thorns, 10, SCALING.Scaled),
+            -- Modifier.New(STAT.Thorns, 10, SCALING.Scaled),
+        },
+    },
+    {
+        Name = "Fallen Star",
+        UnitType = DCEI.Unit("Shrine - Fallen Star"),
+        Icon = DCEI.Texture("shard_tower_fallenstar_wildsurvivor"),
+        Health = 5,
+        Radius = 3,
+        Message = "+15% Pickup Range",
+        Modifiers = {
+            Modifier.New(STAT.PickupRange, 0.15, SCALING.Additive),
+            -- Modifier.New(STAT.PickupRange, 0.15, SCALING.Additive),
+        },
+    },
+    {
+        Name = "Tavern",
+        UnitType = DCEI.Unit("Shrine - Tavern"),
+        Icon = DCEI.Texture("shard_tower_saloon_wildsurvivor"),
+        Health = 5,
+        Radius = 3,
+        Message = "+12% Skill Duration",
+        Modifiers = {
+            Modifier.New(STAT.SkillDuration, 0.12, SCALING.Additive),
+            -- Modifier.New(STAT.SkillDuration, 0.12, SCALING.Additive),
+        },
+    },
+    {
+        Name = "Sprouting Oak",
+        UnitType = DCEI.Unit("Shrine - Sprouting Oak"),
+        Icon = DCEI.Texture("shard_tower_sproutingoak_wildsurvivor"),
+        Health = 5,
+        Radius = 3,
+        Message = "+9% Skill Size",
+        Modifiers = {
+            Modifier.New(STAT.SkillSize, 0.09, SCALING.Additive),
+            -- Modifier.New(STAT.SkillSize, 0.09, SCALING.Additive),
+        },
+    },
+}
+
+---@enum SHRINE
+SHRINE = {
+    MeditationFountain = "Meditation Fountain",
+    HallOfLife = "Hall of Life",
+    Stoneguard = "Stoneguard",
+    FallenStar = "Fallen Star",
+    Tavern = "Tavern",
+    SproutingOak = "Sprouting Oak",
+}
+
+---Get a Shrine by its Name
+---@param name SHRINE | string
+---@return ShrineData | nil
+function Events.GetShrineByName(name)
+    for i = 1, #_Shrines do
+        if _Shrines[i].Name == name then
+            return _Shrines[i]
+        end
+    end
+
+    Help.Warn("Shrine does not exist", name)
+end
+
+---comment
+---@param position any
+---@param shrine ShrineData | string | nil
+function Events.SpawnShrine(position, shrine)
+    if type(shrine) == "string" then -- Search for the requested shrine by name.
+        shrine = Events.GetShrineByName(shrine)
+    end
+
+    if shrine == nil then -- No Shrine provided, get a random shrine option.
+        shrine = _Shrines[Core.Random.GetInteger(1, #_Shrines)]
+    end
+
+    local instance = Spawn(shrine.UnitType, position, false)
+    SetInstanceHealth(instance, shrine.Health)
+    SetIndicatorRadius(instance, shrine.Radius)
+    RegisterInstance(instance, EventsGroup.Shrine)
+
+    SimpleUnits.Helpers.CreateOffscreenIndicator(instance, shrine.Icon)
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        DCEI.Wait(0.5) -- Short Delay for animations.
+
+        local hero = Hero.Fetch(PLAYER.Player1)
+        if not Help.ValidateUnit(hero.unit) then
+            return
+        end
+
+        -- Show Feedback Message if provided.
+        if shrine.Message then
+            ShowOverheadMessage(hero.unit, shrine.Message)
+        end
+
+        -- Apply Hero Modifier Applications if provided.
+        if shrine.Modifiers then
+            hero:ApplyModifiers(shrine.Modifiers)
+        end
+
+        if shrine.PointReward then
+            hero:ModifyUpgradePoints(shrine.PointReward)
+        end
+    end)
+
+    return instance
+end
+
+---============================================================================
+---!SECTION: Shrines
+-- SECTION -- Occupy
+---============================================================================
+
+local _ConsumableData = {
+    Variation = {
+        Potion = {
+            Unit = DCEI.Unit("Occupy - Potion"),
+            Icon = DCEI.Texture("wildsurvivor_icon_rune_potion_healingelixir"),
+        },
+        Magnet = {
+            Unit = DCEI.Unit("Occupy - Magnet"),
+            Icon = DCEI.Texture("icon_ingame_compass"),
+        },
+    },
+    -- Default Icon
+    Icon = DCEI.Texture("fantasy_icon_questionmark_wildsurvivor"),
+    Duration = 3,
+    Radius = 1.75,
+}
+
+local function SpawnConsumable(position, variation)
+    local instance = Spawn(variation.Unit, position)
+
+    SetInstanceHealth(instance, _ConsumableData.Duration)
+    SetIndicatorRadius(instance, _ConsumableData.Radius)
+
+    -- Register
+    RegisterInstance(instance, EventsGroup.Consumable)
+
+    -- Offscreen Indicator
+    SimpleUnits.Helpers.CreateOffscreenIndicator(instance, variation.Icon or _ConsumableData.Icon)
+
+    return instance
+end
+
+function Events.SpawnPotion(position)
+    return SpawnConsumable(position, _ConsumableData.Variation.Potion)
+end
+
+function Events.SpawnMagnet(position)
+    return SpawnConsumable(position, _ConsumableData.Variation.Magnet)
+end
+
+---ANCHOR: Event Callbacks
+
+-- Magnet
+local MAGNET_PICKUP_RANGE = 100
+local MAGNET_DURATION = 3
+local function ModifyPickupRange()
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    hero:SetCollectorRadius(MAGNET_PICKUP_RANGE, true, MAGNET_DURATION)
+
+    -- Apply a Temporary Stat Buff
+    -- local id = "Magnet - Added Pickup Range"
+    -- local modifier = Modifier.New(STAT.PickupRange, MAGNET_PICKUP_RANGE, SCALING.Unscaled, nil, id)
+    -- hero:ModifyStat(modifier, MAGNET_DURATION)
+end
+
+DCEI.TriggerAddEffectEvent(DCEI.Effect("Occupy - Magnet - Trigger"), function(ctx)
+    ModifyPickupRange()
+end, true)
+
+---============================================================================
+---!SECTION: Occupy
+-- SECTION: Loot
+---============================================================================
+
+-- local CRATE_SPAWN = DCEI.Unit("Event - Crate")
+-- local CRATE_DESTRUCTIBLE = DCEI.Unit("Event - Crate")
+
+-- local _LootOptions = {
+--     -- LootData.Potion,
+--     -- LootData.Bomb,
+--     -- LootData.Magnet,
+--     -- LootData.Tome,
+-- }
+
+-- ---Spawn a Crate at the given position.
+-- ---Contains a random Loot drop.
+-- ---@param position Vector2
+-- function Events.SpawnCrate(position)
+--     local crate_spawn = Spawn(CRATE_SPAWN, position, true)
+
+--     DCEI.TriggerAddUnitDiedEvent(crate_spawn, function()
+--         local crate = Spawn(CRATE_DESTRUCTIBLE, position, true)
+--         SimpleUnit.ModifyCollision(crate, CollisionLayers.Hostile, CollisionLayers.None, 0.5)
+--         SimpleUnit.ModifyHealth(crate, 1)
+--     end, true)
+-- end
+
+-- Whenever a Crate is Destroyed, it spawns a Loot projectile that triggers this.
+DCEI.TriggerAddEffectEvent(DCEI.Effect("Trigger - Spawn Loot"), function(ctx)
+    local selection = _LootOptions[Core.Random.GetInteger(1, #_LootOptions)]
+
+    selection:SpawnSync(PLAYER.Player1, TEAM.Friendly, ctx.target_location)
+end, true)
+
+DCEI.TriggerAddEffectEvent(DCEI.Effect("Magnet - Trigger"), function(ctx)
+    ModifyPickupRange()
+end, true)
+
+---============================================================================
+---!SECTION: Loot
+-- SECTION: Developer
+---============================================================================
+
+if _Dev then
+end
+
+---============================================================================
+-- !SECTION: Developer
+---============================================================================
+
+return Events

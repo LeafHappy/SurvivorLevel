@@ -1,0 +1,215 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Bash"),
+
+    -- Behaviors
+    PierceStack = DCEI.Behavior("Missile - Pierce"),
+    ProjectileSpeed = DCEI.Behavior("Skill - Bash - Projectile Speed"),
+
+    -- Effects
+    Count = DCEI.Effect("Skill - Bash - Count"),
+    Launch = DCEI.Effect("Skill - Bash - Launch"),
+
+    -- Target Acquisition
+    ScanClosest = DCEI.Effect("Skill - Bash - Scan - All - Closest"),
+    ScanRandom = DCEI.Effect("Skill - Bash - Scan - All - Random"),
+    Missing = DCEI.Effect("Skill - Bash - Missing"),
+
+    -- Impact Effects
+    OnEnter = DCEI.Effect("Skill - Bash - OnEnter"),
+    Damage = DCEI.Effect("Skill - Bash - Damage"),
+    Stagger = DCEI.Effect("Skill - Bash - Stagger"),
+    Slow = DCEI.Effect("Skill - Bash - Slow"),
+    DamageReduction = DCEI.Effect("Skill - Bash - Damage Reduction"),
+
+    -- VFX
+    ImpactVFX = DCEI.Effect("Skill - Bash - Impact VFX"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Skill - Bash - Projectile"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Bash - Projectile") }),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+local PROJECTILE_MODEL_SCALE = 0.75
+local IMPACT_VFX_SCALE = 0.35
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.Bash)
+
+    -- Collision
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, TICK_RATE),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Model Scale
+    Help.SetModelScale(instance, size * PROJECTILE_MODEL_SCALE, 0.10, Ease.OutCubic)
+
+    -- Health
+    local health = hero:GetStat(STAT.ProjectileHealth, tags)
+    DCEI.ApplyBehaviorToSelf(instance, REF.PierceStack, health)
+    SimpleUnit.ModifyHealth(instance, 99)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero) end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    -- hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    -- hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.ScanClosest, EJS.AreaSearch.Radius, nil, 1.10),
+        EffectPath.New(REF.ScanRandom, EJS.AreaSearch.Radius, nil, 1.20),
+        EffectPath.New(REF.Missing, EJS.Persistent.Start.Offset.Distance),
+    },
+    [STAT.TargetCount] = {
+        EffectPath.New(REF.ScanClosest, EJS.AreaSearch.Count),
+    },
+    [STAT.Count] = {
+        EffectPath.New(REF.Count, EJS.Persistent.Count),
+    },
+    [STAT.Frequency] = {
+        EffectPath.New(REF.Count, EJS.Persistent.Duration),
+    },
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Launch, EJS.Launch.Impact.Distance),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Unified, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+    [STAT.PierceDamage] = {
+        EffectPath.New(REF.DamageReduction, EJS.DamageOutput.Multiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Update Loop
+        -- hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        -- hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.Bash.Key)
+
+    local count = hero:GetStat(STAT.Count, tags)
+    count = count - 1 -- Starting Effect targets closest unit
+
+    hero:SetEffectValue(REF.Count, EJS.Persistent.Count, count)
+    hero:SetEffectValue(REF.ImpactVFX, EJS.Actor.Scale, IMPACT_VFX_SCALE)
+
+    -- Apply Projectile Speed Behavior
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_speed_stacks = math.floor(projectile_speed * 100)
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileSpeed, projectile_speed_stacks)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

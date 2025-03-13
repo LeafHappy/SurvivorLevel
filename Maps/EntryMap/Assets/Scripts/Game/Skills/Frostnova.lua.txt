@@ -1,0 +1,146 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+local MODEL_SCALE = 0.25
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Frostnova"),
+
+    -- Effects
+    CastEffects = DCEI.Effect("Weapon - Frostnova - Cast Effects"),
+    SpawnVFX = DCEI.Effect("Weapon - Frostnova - Spawn VFX"),
+    Scan = DCEI.Effect("Weapon - Frostnova - Scan"),
+    Damage = DCEI.Effect("Weapon - Frostnova - Damage"),
+    KnockbackChance = DCEI.Effect("Weapon - Frostnova - Knockback - Chance"),
+    KnockbackScan = DCEI.Effect("Weapon - Frostnova - Knockback - Scan"),
+    Knockback = DCEI.Effect("Weapon - Frostnova - Knockback"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+---@type table<PLAYER, integer>
+local _MightyAxeAttackInstances = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---@param hero Hero
+local function CastFrostnova(hero)
+    DCEI.CreateEffectAtSelf(REF.CastEffects, hero.unit)
+end
+
+---Frostnova Hero Update Loop Hookup
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    -- Inject New Instance Stacks into Instance Table
+    Help.InjectGameStats(hero, GAME_STATS.MightyAxeAttackInstance, _MightyAxeAttackInstances)
+
+    -- Get Required Stacks
+    local tags = hero:GetInheritedTags(SkillData.Frostnova.Key)
+    local required_stacks = hero:GetStat(STAT.RequiredStacks, tags)
+
+    -- Compare Current Stacks to Required Stacks
+    if _MightyAxeAttackInstances[hero.player_id] >= required_stacks then
+        -- Cast Effect
+        CastFrostnova(hero)
+
+        -- Use Stacks
+        _MightyAxeAttackInstances[hero.player_id] = _MightyAxeAttackInstances[hero.player_id] - required_stacks
+    end
+end
+
+---Reset Variables and Unsubscribe from Hero Events
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    --Reset Variables
+    _MightyAxeAttackInstances[hero.player_id] = nil
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.SpawnVFX, EJS.Actor.Scale, nil, MODEL_SCALE),
+
+        EffectPath.New(REF.KnockbackScan, EJS.AreaSearch.Radius),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.Chance] = {
+        EffectPath.New(REF.KnockbackChance, EJS.Chance),
+    },
+    [STAT.Force] = {
+        EffectPath.New(REF.Knockback),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

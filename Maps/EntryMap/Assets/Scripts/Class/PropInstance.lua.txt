@@ -1,0 +1,240 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    ---TODO: Destroy Handling
+    -- -- Needs to propogate back to PropZone, allowing us to free up this Instance (Destroy).
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local PropData = require("Map/PropData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+-- Keep a list of Simple Units?
+
+-- ================================================================================================
+-- !SECTION -- Local Va riables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class PropInstance
+---@field PropData PropData
+---@field Position Vector2
+---@field protected _Initialized boolean
+---@field protected _IsAlive boolean
+---@field protected _Instance SimpleUnit | Unit | nil
+local PropInstance = {}
+PropInstance.__index = PropInstance
+
+---Generates a New PropInstance based on the given properties.
+---@param prop_data PropData
+---@param position Vector2
+---@param spawn boolean | nil
+---@return PropInstance
+function PropInstance.New(prop_data, position, spawn)
+    ---@type PropInstance
+    local self = setmetatable({}, PropInstance)
+    self._Initialized = false
+    self._IsAlive = true
+    self._Instance = nil
+
+    self.PropData = prop_data
+    self.Position = position
+
+    if spawn then
+        self:_Spawn()
+    end
+
+    return self
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+---REVIEW: Do we need to save the Instance Options?
+---Applies the Transform Animation Options to the Simple Unit.
+---@param instance SimpleUnit
+---@param data PropData
+local function CheckTransformAnimationOptions(instance, data)
+    if not data.TransformAnimation then
+        return
+    end
+
+    -- Copy over a New Table to prevent modifying the original
+    local options = {}
+    for key, value in pairs(data.TransformAnimation) do
+        options[key] = value
+    end
+
+    if data.RandomizeScale then ---FIXME: Currently affects the Collider position
+        if not options.end_scale then
+            options.end_scale = Vector3.One()
+        end
+
+        options.end_scale = options.end_scale * Help.RandomNumber(1 - data.RandomizeScale, 1 + data.RandomizeScale)
+    end
+
+    DCEI.ApplyTransformAnimationToSimpleUnit(instance, options)
+end
+
+function PropInstance:_Spawn()
+    -- Prevent Double Instancing
+    if self._Instance ~= nil then
+        return
+    end
+
+    local data = self.PropData
+    local player_id = data.IsDestructible and PLAYER.Destructible or PLAYER.Terrain
+    local team_id = data.IsDestructible and TEAM.Hostile or TEAM.Terrain
+
+    -- Spawn based on UnitType being Simple or Standard
+    if data.IsSimple then
+        ---TODO: Create a PropCollection so we don't have to Register the Prop multiple Times.
+        -- Help.Log("Generating Prop with Data", nil, data)
+        local simple_unit = SimpleUnits.Register(data)
+
+        -- Register the Simple Unit
+        -- local simple_unit = SimpleUnits.Props.Register(data)
+        self._Instance = simple_unit:SpawnSync(player_id, team_id, self.Position)
+
+        -- Check for Transform Animation Options
+        CheckTransformAnimationOptions(self._Instance, data)
+    else
+        self._Instance = DCEI.CreateUnit(team_id, player_id, data.UnitType, self.Position.x, self.Position.y)
+
+        if data.Stats then
+            if data.Stats[STAT.CollisionSize] then
+                local layer = data.IsDestructible and CollisionLayers.Hostile or CollisionLayers.Terrain
+                SimpleUnit.ModifyCollision(self._Instance, layer, CollisionLayers.None, data.Stats[STAT.CollisionSize])
+            end
+
+            if data.Stats[STAT.Health] then
+                SimpleUnit.ModifyHealth(self._Instance, data.Stats[STAT.Health])
+            end
+        end
+
+        if data.OffscreenIndicatorIcon then
+            SimpleUnits.Helpers.CreateOffscreenIndicator(self._Instance, data.OffscreenIndicatorIcon)
+        end
+    end
+end
+
+---comment
+function PropInstance:_CheckDestroyed()
+    -- Cancel if Non-Destructible
+    if not self.PropData.IsDestructible then
+        return
+    end
+
+    -- Check based on Simple vs Standard Type
+    if self.PropData.IsSimple then
+        local exists = self._Instance and DCEI.SimpleUnitExists(self._Instance)
+        if not exists then
+            -- Help.Log(string.format("%s has been Destroyed", self.PropData.UnitType))
+            self._IsAlive = false
+        end
+    else
+        local exists = self._Instance and DCEI.UnitExists(self._Instance) and DCEI.UnitIsAlive(self._Instance)
+        if not exists then
+            -- Help.Log(string.format("%s has been Destroyed", self.PropData.UnitType))
+            self._IsAlive = false
+        end
+    end
+end
+
+function PropInstance:_Destroy()
+    self._Instance = nil
+    self:OnRemovedCallback()
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+function PropInstance:Load()
+    -- Check if the PropInstance is Active and the Instance is not created
+    if self._IsAlive and self._Instance == nil then
+        self:_Spawn()
+    end
+end
+
+function PropInstance:Unload()
+    -- Need to Verify if Alive/Exists
+    -- We only check here in case the Instance Type has Changed from an OnDeath Conversion.
+    self:_CheckDestroyed()
+
+    if not self._IsAlive then
+        self:_Destroy()
+        return
+    end
+
+    -- Verify the Instance
+    if self._Instance == nil then
+        return
+    end
+
+    -- Remove the Instance
+    if self.PropData.IsSimple then
+        if DCEI.SimpleUnitExists(self._Instance) then
+            DCEI.RemoveSimpleUnit(self._Instance)
+        end
+    else
+        if DCEI.UnitExists(self._Instance) then
+            DCEI.RemoveUnit(self._Instance)
+        end
+    end
+
+    self._Instance = nil
+end
+
+function PropInstance:Destroy()
+    self:_Destroy()
+end
+
+---Override this function to handle any additional logic when the PropInstance is Removed.
+function PropInstance:OnRemovedCallback() end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Library
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Library
+-- ================================================================================================
+
+return PropInstance

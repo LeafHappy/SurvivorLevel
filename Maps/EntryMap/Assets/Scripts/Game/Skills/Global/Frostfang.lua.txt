@@ -1,0 +1,483 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Frostfang"),
+
+    -- Behaviors
+
+    -- Effects
+    OnEnter = DCEI.Effect("Skill - Frostfang - OnEnter"),
+
+    -- Collision Effects
+    Damage = DCEI.Effect("Skill - Frostfang - Damage"),
+    ImpactVFX = DCEI.Effect("Skill - Frostfang - Impact VFX"),
+
+    -- VFX
+
+    -- Units
+    IdleBlade = DCEI.Unit("Skill - Frostfang - Idle Blade"),
+    TouchIndicator = DCEI.Unit("Skill - Frostfang - Touch Indicator"),
+    HibernateAreaGround = DCEI.Unit("Skill - Frostfang - Hibernate Area Ground"),
+    HibernateAreaTop = DCEI.Unit("Skill - Frostfang - Hibernate Area Top"),
+    Projectile = DCEI.Unit("Skill - Frostfang - Projectile"),
+
+    -- Hibernation
+    HibernationBehavior = DCEI.Behavior("Skill - Frostfang - Hibernation"),
+    HibernationScan = DCEI.Effect("Skill - Frostfang - Hibernation - Scan"),
+    HibernationDamage = DCEI.Effect("Skill - Frostfang - Hibernation - Damage"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@class FrostfangProjectileData
+---@field instance UnitInstance
+---@field position Vector2
+---@field target_position Vector2
+---@field count integer
+
+---@class FrostfangHibernateData
+---@field instance UnitInstance
+---@field position Vector2
+---@field cooldown number
+
+---@class FrostfangData
+---@field player_id PLAYER
+---@field hero Hero
+---@field projectiles table<UnitId, FrostfangProjectileData>
+---@field hibernates table<UnitId, FrostfangHibernateData>
+
+---@type table<PLAYER, FrostfangData>
+local _FrostfangData = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param hero Hero
+---@param projectile_position Vector2
+---@return Vector2
+local function GetFrostfangTargetPosition(hero, projectile_position)
+    local hero_position = hero:GetPosition()
+
+    local angle_towards_hero = Vector2.Angle(hero_position - projectile_position)
+
+    local angle_range = 90
+
+    local angle = angle_towards_hero + Help.RandomNumber(-angle_range / 2, angle_range / 2)
+
+    local direction = Vector2.NewFromAngle(angle)
+
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+    local skill_size = hero:GetStat(STAT.SkillRange, tags)
+
+    local new_position = hero_position + direction * skill_size
+
+    return new_position
+end
+
+---Gets the size midpoint of the hero for this skill
+---@param hero Hero
+---@return Vector2
+local function GetFrostfangMidpointSpawn(hero)
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+    local skill_size = hero:GetStat(STAT.SkillRange, tags)
+
+    local distance = skill_size / 2
+    return hero:GetPosition() + Vector2.Random() * distance
+end
+
+---@param hero Hero
+---@param position Vector2
+---@param SpawnHibernate function
+local function SpawnProjectile(hero, position, SpawnHibernate)
+    -- Help.Log("Spawning Projectile")
+    position = position or GetFrostfangMidpointSpawn(hero)
+
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, position.x, position.y)
+
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+
+    Help.SetModelScale(instance, projectile_size)
+
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, projectile_size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 0),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Health
+    SimpleUnit.ModifyHealth(instance, 1)
+
+    local instance_id = Core.Unit.GetId(instance)
+
+    local count = hero:GetStat(STAT.Count, tags)
+
+    _FrostfangData[hero.player_id].projectiles[instance_id] = {
+        instance = instance,
+        position = position,
+        target_position = GetFrostfangTargetPosition(hero, position),
+        count = count,
+    }
+
+    -- Death Callbacks
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        -- Spawn Hibernate
+        local position = Vector2.UnitPosition(instance)
+        SpawnHibernate(hero, position)
+    end, true)
+
+    -- Removed Callbacks
+    DCEI.TriggerAddUnitRemovedEvent(instance, function()
+        _FrostfangData[hero.player_id].projectiles[instance_id] = nil
+    end)
+end
+
+---comment
+---@param hero Hero
+---@param position Vector2
+local function SpawnIdleUnit(hero, position)
+    local blade = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.IdleBlade, position.x, position.y)
+    local area = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.TouchIndicator, position.x, position.y)
+
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+
+    Help.SetModelScale(blade, projectile_size)
+    Help.SetModelScale(area, skill_size)
+
+    -- Link the Removal of the Area to the Blade
+    DCEI.TriggerAddUnitDiedEvent(blade, function()
+        DCEI.RemoveUnit(area)
+    end, true)
+
+    return blade
+end
+
+---comment
+---@param hero Hero
+---@param position Vector2
+---@return Unit
+local function SpawnHibernateUnit(hero, position)
+    local blade = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.IdleBlade, position.x, position.y)
+    local area = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.HibernateAreaGround, position.x, position.y)
+    local area_top = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.HibernateAreaTop, position.x, position.y)
+
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+
+    Help.SetModelScale(blade, projectile_size)
+    Help.SetModelScale(area, skill_size)
+    Help.SetModelScale(area_top, skill_size)
+
+    Core.Unit.SetBehaviorCount(area, REF.HibernationBehavior, 1)
+
+    -- Link the Removal of the Area to the Blade
+    DCEI.TriggerAddUnitDiedEvent(blade, function()
+        DCEI.RemoveUnit(area)
+        DCEI.RemoveUnit(area_top)
+    end, true)
+
+    return blade
+end
+
+---@param hero Hero
+---@param position Vector2 | nil
+local function SetIdleState(hero, position)
+    -- Help.Log("Spawning Hibernate")
+    position = position or GetFrostfangMidpointSpawn(hero)
+
+    -- Apply Hibernation Upgrade
+    local is_learned_hibernation = hero:IsSkillLearned(SkillData.Hibernation.Key)
+    local instance = is_learned_hibernation and SpawnHibernateUnit(hero, position) or SpawnIdleUnit(hero, position)
+
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+    local cooldown = hero:GetStat(STAT.Cooldown, tags)
+
+    local instance_id = Core.Unit.GetId(instance)
+
+    _FrostfangData[hero.player_id].hibernates[instance_id] = {
+        instance = instance,
+        position = position,
+        cooldown = cooldown,
+    }
+
+    -- Death Callbacks
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        SpawnProjectile(hero, position, SetIdleState) -- Spawn Projectile
+    end, true)
+
+    -- Removed Callbacks
+    DCEI.TriggerAddUnitRemovedEvent(instance, function()
+        _FrostfangData[hero.player_id].hibernates[instance_id] = nil
+    end)
+end
+
+---comment
+---@param hero Hero
+---@param data FrostfangProjectileData
+local function UpdateProjectile(hero, data)
+    local distance = Vector2.Distance(data.position, data.target_position)
+
+    if distance < 1 then
+        data.count = data.count - 1
+
+        if data.count <= 0 then
+            DCEI.KillUnit(data.instance)
+        else
+            data.target_position = GetFrostfangTargetPosition(hero, data.position)
+
+            DCEI.PlaySound(DCEI.Sound("ice_mage_missile_launch"))
+        end
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+
+    local next_position = Vector2.MoveTowards(data.position, data.target_position, projectile_speed * TICK_RATE)
+
+    data.position = next_position
+
+    DCEI.SetUnitPosition2DWithInterpolation(data.instance, next_position.x, next_position.y)
+end
+
+---comment
+---@param hero Hero
+---@param data FrostfangHibernateData
+local function UpdateHibernate(hero, data)
+    data.cooldown = data.cooldown - TICK_RATE
+
+    local hero_position = hero:GetPosition()
+    local distance = Vector2.Distance(hero_position, data.position)
+
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+
+    local collision_size = hero:GetStat(STAT.CollisionSize)
+    -- Help.Log("Collision Size", collision_size)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+
+    local is_learned_hibernation = hero:IsSkillLearned(SkillData.Hibernation.Key)
+
+    -- TouchIndicator (no Hibernation)
+    if not is_learned_hibernation and distance < (skill_size + collision_size) then
+        data.cooldown = 0
+    end
+
+    if data.cooldown <= 0 then
+        DCEI.KillUnit(data.instance)
+    end
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    local is_alive = hero and Help.ValidateUnit(hero.unit)
+
+    -- Update Projectiles
+    for _, projectiles in pairs(_FrostfangData[hero.player_id].projectiles) do
+        if not is_alive then
+            DCEI.RemoveUnit(projectiles.instance)
+        else
+            UpdateProjectile(hero, projectiles)
+        end
+    end
+
+    -- Update Hibernates
+    for _, hibernates in pairs(_FrostfangData[hero.player_id].hibernates) do
+        if not is_alive then
+            DCEI.RemoveUnit(hibernates.instance)
+        else
+            UpdateHibernate(hero, hibernates)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Cleanup Projectiles
+    local projectiles = _FrostfangData[hero.player_id].projectiles
+    if projectiles then
+        for _, projectile_data in pairs(projectiles) do
+            DCEI.RemoveUnit(projectile_data.instance)
+        end
+    end
+
+    -- Cleanup Hibernates
+    local hibernates = _FrostfangData[hero.player_id].hibernates
+    if hibernates then
+        for _, hibernate_data in pairs(hibernates) do
+            DCEI.RemoveUnit(hibernate_data.instance)
+        end
+    end
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _FrostfangData[hero.player_id] = nil
+end
+
+---comment
+---@param hero Hero
+local function InitializeFrostfangData(hero)
+    --
+    _FrostfangData[hero.player_id] = {
+        player_id = hero.player_id,
+        hero = hero,
+        projectiles = {},
+        hibernates = {},
+    }
+
+    -- Spawn 1 Hibernate
+    -- SpawnHibernate(hero)
+end
+
+---@param hero Hero
+local function UpdateCount(hero)
+    --
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+    local projectile_count = hero:GetStat(STAT.ProjectileCount, tags)
+
+    -- Help.Log("Target Projectile Count", projectile_count)
+
+    local current_count = 0
+
+    -- Count Projectiles
+    for _, projectile_data in pairs(_FrostfangData[hero.player_id].projectiles) do
+        if Help.ValidateUnit(projectile_data.instance) and DCEI.UnitIsAlive(projectile_data.instance) then
+            current_count = current_count + 1
+        end
+    end
+
+    -- Count Hibernates
+    for _, hibernate_data in pairs(_FrostfangData[hero.player_id].hibernates) do
+        if Help.ValidateUnit(hibernate_data.instance) and DCEI.UnitIsAlive(hibernate_data.instance) then
+            current_count = current_count + 1
+        end
+    end
+
+    -- Help.Log("Current Count", current_count)
+
+    if current_count < projectile_count then
+        local difference = projectile_count - current_count
+
+        for _ = 1, difference do
+            SetIdleState(hero)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function UpdateHibernation(hero)
+    --
+    local tags = hero:GetInheritedTags(SkillData.Frostfang.Key)
+
+    local base_projectile_size = hero:GetStat(STAT.SkillSize, tags)
+    local hibernation_projectile_size = hero:GetStat(STAT.SkillSize, { SkillData.Hibernation.Key }, SCALING.Additive)
+    local final_projectile_size = base_projectile_size * (1 + hibernation_projectile_size)
+
+    local base_damage = hero:GetStat(STAT.Damage, tags)
+    local area_damage = hero:GetStat(STAT.AreaDamage, tags)
+    local final_damage = base_damage * area_damage
+
+    hero:SetEffectValue(REF.HibernationScan, EJS.AreaSearch.Radius, final_projectile_size)
+    hero:SetEffectValue(REF.HibernationDamage, EJS.Damage.Value, final_damage)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        InitializeFrostfangData(hero)
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    UpdateCount(hero)
+    UpdateHibernation(hero)
+    -- local tags = hero:GetInheritedTags(SkillData.SkillName.Key)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

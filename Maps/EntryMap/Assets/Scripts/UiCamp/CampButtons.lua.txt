@@ -1,0 +1,393 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local Vector2 = require("Class/Vector2")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local CampData = require("SharedData/H_CampData")
+local Animation = require("Presentation/Animation")
+local Help = require("UiHelp")
+local PresentationTimer = require("Presentation/PresentationTimer")
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local CampButtons = {}
+local current_labels = {}
+
+local perk_offer = nil
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@class CampButtons.OverheadDisplayData
+---@field key string
+---@field uid string
+---@field is_enabled boolean
+---@field remaining_cost number
+
+---@class CampButtons.DataStorage
+---@field uid string
+---@field unit_reference string
+---@field camp_data HybridCampData
+---@field layout Layout
+
+---@class CampButtonData
+---@field uid string
+---@field unit_reference string
+---@field label_text string
+---@field offset Vector2
+---@field scale number
+---@field callback_id string
+
+---@class ResourcePass
+---@field uid string
+---@field remaining_resource number
+
+---@type CampButtons.DataStorage
+local active_storage = {} -- Stores new/active displays
+
+---@type CampButtons.DataStorage
+local temp_storage = {} -- Stores displays that are being removed
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+local function MoveFrameToUnit(frame, unit, scale, offset_y)
+    offset_y = offset_y or 0
+    local down_offset = scale + 0.65 + offset_y
+    local offset = { up = -down_offset }
+    DCEI.AttachFrameToUnit(frame, unit, { offset = offset })
+end
+
+---@param data ResourcePass
+function CampButtons.UpdateDisplayValue(data)
+    if not active_storage[data.uid] then
+        return
+    end
+
+    if data.remaining_resource then
+        active_storage[data.uid].layout.state.label = tostring(data.remaining_resource)
+
+        Animation.Impact(active_storage[data.uid].layout.Frame)
+    end
+
+    if data.max_cost then
+        active_storage[data.uid].layout.state.fill_amount = 1 - data.remaining_resource / data.max_cost
+    end
+end
+
+---@param data ResourcePass
+function CampButtons.UpdateChanneling(data)
+    if not active_storage[data.uid] then
+        return
+    end
+    if active_storage[data.uid].layout.state.triggered then
+        return
+    end
+
+    if data.time_in_spending_range then
+        if data.time_in_spending_range < 1 then
+            if data.time_in_spending_range == 0 then
+                -- gradually drop to 0
+                if active_storage[data.uid].layout.state.fill_amount > 0 then
+                    PresentationTimer.CreateUpdateTimerWithCondition(function(delta)
+                        if active_storage[data.uid] then
+                            active_storage[data.uid].layout.state.fill_amount = active_storage[data.uid].layout.state.fill_amount
+                                - 5 * delta
+                        end
+                    end, function()
+                        return (active_storage[data.uid].layout.state.fill_amount <= 0)
+                    end)
+                end
+            else
+                active_storage[data.uid].layout.state.fill_amount = data.time_in_spending_range
+            end
+        else
+            -- play impactful animation for clicking
+
+            active_storage[data.uid].layout.state.fill_amount = 1
+
+            active_storage[data.uid].layout.state.triggered = true
+            Animation.Impact(active_storage[data.uid].layout.Frame)
+
+            PresentationTimer.Create(function()
+                if active_storage[data.uid].camp_data.overhead_display.callback_id then
+                    Core.Event.SendSimulationEvent(active_storage[data.uid].camp_data.overhead_display.callback_id)
+                    Core.Event.SendSimulationEvent(
+                        "QuestManager.CheckTriggerBuildingObjective",
+                        active_storage[data.uid].camp_data.overhead_display.callback_id
+                    )
+                end
+
+                if active_storage[data.uid].camp_data.overhead_display.UiCallback then
+                    local callback_data = active_storage[data.uid].camp_data.overhead_display.UiCallback
+                    local talent_menu = ui.camp[callback_data.layout_id]
+                    talent_menu[callback_data.callback_id]()
+                end
+                active_storage[data.uid].layout.state.triggered = false
+                CampButtons.RemoveOverheadDisplayNoAnimation(data.uid)
+            end, 0.25)
+        end
+    end
+end
+
+function CampButtons.SpawnPopoutAnimation(data)
+    local uid = data.uid
+    if temp_storage[uid] then -- Replace the previous animation if one exists.
+        temp_storage[uid].layout:Destroy()
+    end
+
+    temp_storage[uid] = data
+
+    Animation.PopOut(data.layout.Frame)
+    local temp_layout_ref = temp_storage[uid].layout
+
+    PresentationTimer.Create(function()
+        if temp_layout_ref then
+            temp_layout_ref:Destroy()
+            temp_storage[uid] = nil
+        end
+    end, 0.375)
+end
+
+---@param data CampButtons.OverheadDisplayData
+function CampButtons.CreateOverheadDisplay(data)
+    if not data.is_enabled then
+        if active_storage[data.uid] then
+            CampButtons.RemoveOverheadDisplay(data.uid)
+        end
+        return
+    end
+    if active_storage[data.uid] then
+        return
+    end
+
+    local camp_data = CampData[data.key]
+
+    if not camp_data then
+        Help.Warn("Invalid Key Provided", data.key)
+        return
+    end
+
+    local layout = GMUI.Layout.New({
+        name = camp_data.overhead_display.layout_name,
+        parent = ui.root,
+    })
+
+    Animation.PopIn(layout.Frame)
+
+    local label_text
+    if camp_data.required_resource and camp_data.required_resource.amount then
+        label_text = camp_data.required_resource.amount
+        if data.max_cost then
+            layout.state.fill_amount = 1 - data.remaining_cost / data.max_cost
+        end
+    else
+        label_text = camp_data.overhead_display.label or "N/A"
+    end
+
+    layout.state.label = label_text
+
+    if camp_data.overhead_display.upgrade_type then
+        layout.state.upgrade_type = camp_data.overhead_display.upgrade_type
+    end
+
+    layout.offset_y = 0
+    if camp_data.overhead_display.offset then
+        layout.offset_y = camp_data.overhead_display.offset.y
+    end
+
+    if data.remaining_cost and data.remaining_cost then
+        local resource = data.remaining_cost
+        layout.state.label = tostring(resource)
+    end
+
+    active_storage[data.uid] = {
+        uid = data.uid,
+        camp_data = camp_data,
+        layout = layout,
+    }
+    local unit = GMUI.GetUnitFromUnitReference(data.unit_reference)
+    MoveFrameToUnit(layout.Frame, unit, -2.6, layout.offset_y)
+end
+
+---@param uid string
+function CampButtons.RemoveOverheadDisplayNoAnimation(uid)
+    local data = active_storage[uid]
+
+    if not data then
+        return
+    end
+
+    active_storage[uid] = nil
+
+    if temp_storage[uid] then -- Replace the previous animation if one exists.
+        temp_storage[uid].layout:Destroy()
+    end
+
+    data.layout:Destroy()
+
+    temp_storage[uid] = nil
+end
+
+---@param uid string
+function CampButtons.RemoveOverheadDisplay(uid)
+    local data = active_storage[uid]
+
+    if not data then
+        return
+    end
+
+    active_storage[uid] = nil
+    CampButtons.SpawnPopoutAnimation(data)
+end
+
+function CampButtons.UpdatePerkOffer(offer_key)
+    if not perk_offer then
+        perk_offer = GMUI.Layout.New({
+            name = "Hybrid/PerkOffer",
+            parent = ui.root,
+        })
+    end
+
+    perk_offer:Show()
+
+    local skill_data = SkillData[offer_key]
+
+    if not skill_data then
+        Help.Warn("Invalid Key Provided", offer_key)
+        return
+    end
+
+    -- Help.Log("Skill Data", nil, skill_data)
+
+    -- Update State Information
+    perk_offer.state.icon = skill_data.Icon
+    perk_offer.state.name = skill_data.DisplayName
+    perk_offer.state.description = skill_data.ShortDescription
+
+    -- Set Perk Offer Information
+    -- Help.Log("Offer", offer_key, offer_key)
+end
+
+function CampButtons.HidePerkOffer()
+    if perk_offer then
+        perk_offer:Hide()
+        perk_offer = nil
+    end
+end
+
+local repair_layouts = {}
+
+function CampButtons.UpdateRepairDisplay(data)
+    local layout = repair_layouts[data.uid]
+
+    if not layout then
+        layout = GMUI.Layout.New({
+            name = "Hybrid/Repair",
+            parent = ui.root,
+        })
+
+        repair_layouts[data.uid] = layout
+    end
+
+    layout.state.fill_amount = data.fill_amount
+
+    local unit = GMUI.GetUnitFromUnitReference(data.unit_reference)
+    MoveFrameToUnit(layout.Frame, unit, -2.6, layout.offset_y)
+end
+
+function CampButtons.RemoveRepairDisplay(data)
+    local layout = repair_layouts[data.uid]
+
+    if layout then
+        layout:Destroy()
+        repair_layouts[data.uid] = nil
+    end
+end
+
+local progress_layouts = {}
+
+function CampButtons.UpdateProgressDisplay(data)
+    local layout = progress_layouts[data.uid]
+    if not layout then
+        -- Setup the layout based on the Camp Data provided
+        local camp_data = CampData[data.camp_data_key]
+        if not camp_data then
+            Help.Warn("Invalid Camp Data Key Provided", data.camp_data_key)
+            return
+        end
+
+        local ui_info = camp_data.ui_info
+        if not ui_info then
+            Help.Warn("No UI Info Provided", nil, camp_data)
+            return
+        end
+
+        -- Generate the layout
+        layout = GMUI.Layout.New({
+            name = ui_info.layout_name,
+            parent = ui.root,
+        })
+
+        -- Assign the layout to the progress_layouts table
+        progress_layouts[data.uid] = layout
+
+        -- Initialize Layout States
+        if ui_info.banner_icon then
+            layout.state.has_banner = true
+            layout.state.banner_icon = ui_info.banner_icon
+        end
+
+        if ui_info.progress_prefix_icon then
+            layout.state.has_prefix_icon = true
+            layout.state.prefix_icon = ui_info.progress_prefix_icon
+        end
+    end
+
+    layout.state.banner_amount = data.banner_amount
+    layout.state.fill_amount = data.fill_amount
+
+    -- Update Display Position
+    local unit = GMUI.GetUnitFromUnitReference(data.unit_reference)
+    MoveFrameToUnit(layout.Frame, unit, -2.6, layout.offset_y)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.CreateOverheadDisplay", CampButtons.CreateOverheadDisplay)
+Core.Event.RegisterPresentationEvent("Camp.UpdateDisplayValue", CampButtons.UpdateDisplayValue)
+Core.Event.RegisterPresentationEvent("Camp.UpdateChanneling", CampButtons.UpdateChanneling)
+Core.Event.RegisterPresentationEvent("Camp.RemoveOverheadDisplay", CampButtons.RemoveOverheadDisplay)
+
+Core.Event.RegisterPresentationEvent("Camp.UpdatePerkOffer", CampButtons.UpdatePerkOffer)
+Core.Event.RegisterPresentationEvent("Camp.HidePerkOffer", CampButtons.HidePerkOffer)
+
+Core.Event.RegisterPresentationEvent("Camp.Repair.Update", CampButtons.UpdateRepairDisplay)
+Core.Event.RegisterPresentationEvent("Camp.Repair.Remove", CampButtons.RemoveRepairDisplay)
+
+Core.Event.RegisterPresentationEvent("Camp.Progress.Update", CampButtons.UpdateProgressDisplay)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return CampButtons

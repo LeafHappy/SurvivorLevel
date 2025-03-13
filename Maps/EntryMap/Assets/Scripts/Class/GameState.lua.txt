@@ -1,0 +1,57 @@
+--[[
+    About
+        Allows you to easily control game-state flow.
+        Each State can be transitioned to/from.
+        Use Overrides to add custom actions to Events.
+]]
+
+---@class GameState
+---@field name string
+---@field machine StateMachine
+---@field data table
+local GameState = {}
+GameState.__index = GameState
+
+---comment
+---@param state_name string
+---@return table
+function GameState.New(state_name)
+    local self = setmetatable({}, GameState)
+    self.name = state_name
+    self.machine = nil
+    self.data = {}
+
+    return self
+end
+
+---Callback when Entering
+---@param callback function
+function GameState:TransitionEnter(callback)
+    self:OnTransitionEnter()
+    self:OnEnter()
+
+    if callback then
+        callback()
+    end
+end
+
+---Callback when Exiting
+---@param callback function
+function GameState:TransitionExit(callback)
+    self:OnTransitionExit()
+    self:OnExit()
+
+    if callback then
+        callback()
+    end
+end
+
+-- Overrides
+function GameState:OnEnter() end
+function GameState:OnGameUpdate() end
+function GameState:OnRealUpdate() end
+function GameState:OnTransitionEnter() end
+function GameState:OnTransitionExit() end
+function GameState:OnExit() end
+
+return GameState

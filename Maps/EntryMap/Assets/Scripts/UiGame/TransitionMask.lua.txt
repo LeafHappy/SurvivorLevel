@@ -1,0 +1,30 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Mask/Transition",
+    parent = ui.z2.Upper,
+})
+
+-- LAYOUT METHODS
+function layout:FadeIn(time)
+    local k1, k2 = 1, 0
+    local duration = time or 3
+    local ease = "InSine"
+    DCEI.AnimateFrameAlpha(self.Frame, k1, k2, duration, ease)
+end
+
+function layout:FadeOut(time)
+    local k1, k2 = 0, 1
+    local duration = time or 3
+    local ease = "OutSine"
+    DCEI.AnimateFrameAlpha(self.Frame, k1, k2, duration, ease)
+end
+
+-- EXPORT
+return layout

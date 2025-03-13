@@ -1,0 +1,289 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local LOG_STATUS = false
+
+-- ================================================================================================
+-- !SECTION -- Local Va riables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---@param message string
+local function Log(message)
+    if not LOG_STATUS then
+        return
+    end
+
+    local display = "SequenceManager: " .. message
+    DCEI.LogMessage(display)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@alias SequenceManager.ActionFunction fun(data:table)
+---@alias SequenceManager.ConditionFunction fun(data:table):boolean
+
+---@class SequenceManager.Action
+---@field StartAction SequenceManager.ActionFunction | nil
+---@field ContinuousAction SequenceManager.ActionFunction | nil
+---@field CompletionCondition SequenceManager.ConditionFunction | nil
+---@field CompletionAction SequenceManager.ActionFunction | nil
+---@field CancelCondition SequenceManager.ConditionFunction | nil
+---@field CancelAction SequenceManager.ActionFunction | nil
+
+---@class SequenceManager
+---@field Sequence table<SequenceManager.Action>
+---@field CurrentAction SequenceManager.Action
+---@field Data table
+local SequenceManager = {}
+SequenceManager.__index = SequenceManager
+
+---@enum SequenceManager.ReturnStatus
+SequenceManager.ReturnStatus = {
+    None = 0,
+    Start = 1,
+    Continue = 2,
+    Complete = 3,
+    Cancel = 4,
+}
+
+---comment
+---@return SequenceManager
+local function New()
+    local self = setmetatable({}, SequenceManager)
+    self:Reset()
+    return self
+end
+
+function SequenceManager:Reset()
+    self.Sequence = {}
+    self.CurrentAction = nil
+    self.Data = {}
+end
+
+local Instance = New()
+SequenceManager.Instance = Instance
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+---comment
+---@param action SequenceManager.Action
+function SequenceManager:LoadAction(action, data)
+    table.insert(self.Sequence, action)
+end
+
+---comment
+---@param actions table<SequenceManager.Action>
+function SequenceManager:LoadActions(actions)
+    for _, action in ipairs(actions) do
+        self:LoadAction(action)
+    end
+end
+
+---comment
+---@return SequenceManager.ReturnStatus
+function SequenceManager:Update()
+    -- if not self.Sequence or #self.Sequence == 0 then
+    --     Log("Sequence Manger has no Loaded Actions")
+    --     return SequenceManager.ReturnStatus.None
+    -- end
+
+    -- Check if there is no current action
+    if not self.CurrentAction then
+        -- Attempt to Load the Next Action
+        local success = self:LoadNextAction()
+
+        if success then
+            Log("Starting Sequence")
+            return SequenceManager.ReturnStatus.Start
+        end
+
+        return SequenceManager.ReturnStatus.None
+    end
+
+    -- Check if the action has been completed
+    local status = self:ProcessCurrentAction()
+
+    if status == SequenceManager.ReturnStatus.Cancel then
+        self.CurrentAction = nil
+    end
+
+    return status
+end
+
+---comment
+---@return SequenceManager.ReturnStatus
+function SequenceManager:ProcessCurrentAction()
+    if not self.CurrentAction then
+        return SequenceManager.ReturnStatus.None
+    end
+
+    local action = self.CurrentAction
+
+    -- Check for Completion Condition
+    if action.CompletionCondition then
+        -- See if the Condition passed
+        if action.CompletionCondition(self.Data) then
+            -- Process the Completion Action and then Load the Next Action
+            if action.CompletionAction then
+                action.CompletionAction(self.Data)
+            end
+
+            self:LoadNextAction()
+
+            Log("Action Completed")
+            return SequenceManager.ReturnStatus.Complete
+        end
+    end
+
+    -- Check for Cancel Condition
+    if action.CancelCondition then
+        -- See if the Condition passed
+        if action.CancelCondition(self.Data) then
+            -- Process the Cancel Action
+            if action.CancelAction then
+                action.CancelAction(self.Data)
+            end
+
+            Log("Action Cancelled")
+            return SequenceManager.ReturnStatus.Cancel
+        end
+    end
+
+    -- Check for Continuous Action
+    if action.ContinuousAction then
+        action.ContinuousAction(self.Data)
+
+        -- Log("Continuing Action")
+        return SequenceManager.ReturnStatus.Continue
+    end
+
+    return SequenceManager.ReturnStatus.None
+end
+
+---Load and Start the next Action in the Sequence
+---@return boolean success
+function SequenceManager:LoadNextAction()
+    self.CurrentAction = nil
+
+    if not self.Sequence or #self.Sequence == 0 then
+        return false
+    end
+
+    self.CurrentAction = table.remove(self.Sequence, 1)
+
+    if self.CurrentAction.StartAction then
+        self.CurrentAction.StartAction(self.Data)
+    end
+
+    return true
+end
+
+---Triggers the Cancel Action and Removes the Current Action
+function SequenceManager:CancelCurrentAction()
+    if not self.CurrentAction then
+        return
+    end
+
+    if self.CurrentAction.CancelAction then
+        self.CurrentAction.CancelAction(self.Data)
+    end
+
+    self.CurrentAction = nil
+end
+
+---Removes the Current Action without triggering the Cancel Action
+function SequenceManager:RemoveCurrentAction()
+    if not self.CurrentAction then
+        return
+    end
+
+    self.CurrentAction = nil
+end
+
+-- Complete the Current Action and Load the Next Action
+function SequenceManager:CompleteCurrentAction()
+    if not self.CurrentAction then
+        return
+    end
+
+    if self.CurrentAction.CompletionAction then
+        self.CurrentAction.CompletionAction(self.Data)
+    end
+
+    self.CurrentAction = nil
+end
+
+function SequenceManager:InsertActionInFront(action)
+    table.insert(self.Sequence, 1, action)
+end
+
+function SequenceManager:InsertActionsInFront(actions, data)
+    self:LoadAction(self.CurrentAction)
+
+    for i = #actions, 1, -1 do
+        self:InsertActionInFront(actions[i])
+    end
+
+    self.CurrentAction = nil
+
+    if data then
+        self.Data = data
+    end
+end
+
+function SequenceManager:IsPlaying()
+    return #self.Sequence > 0
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Library
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Library
+-- ================================================================================================
+
+return SequenceManager
+
+---SECTION: Singleton
+---============================================================================
+
+---============================================================================
+---!SECTION: Singleton
+---============================================================================

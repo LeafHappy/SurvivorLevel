@@ -1,0 +1,219 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Lightning Strike"),
+
+    -- Behaviors
+
+    -- Effects
+    Count = DCEI.Effect("Skill - Lightning Strike - Count"),
+    ScanHostile = DCEI.Effect("Skill - Lightning Strike - Scan - Hostile"),
+    ScanAll = DCEI.Effect("Skill - Lightning Strike - Scan - All"),
+    MissingOffset = DCEI.Effect("Skill - Lightning Strike - Missing Offset"),
+    Effects = DCEI.Effect("Skill - Lightning Strike - Effects"),
+
+    -- Collision Effects
+    CriticalChance = DCEI.Effect("Skill - Lightning Strike - Critical Chance"),
+    Damage = DCEI.Effect("Skill - Lightning Strike - Damage"),
+    CriticalDamage = DCEI.Effect("Skill - Lightning Strike - Critical Damage"),
+    Stagger = DCEI.Effect("Skill - Lightning Strike - Stagger"),
+
+    -- VFX
+    SpawnVFX = DCEI.Effect("Skill - Lightning Strike - Spawn VFX"),
+    CriticalSpawnVFX = DCEI.Effect("Skill - Lightning Strike - Critical - Spawn VFX"),
+
+    -- Unit
+    Projectile = "",
+
+    -- Filter
+    ProjectileFilter = "",
+
+    -- Lightning Splash
+    LightningSplashScan = DCEI.Effect("Skill - Lightning Strike - Lightning Splash - Scan"),
+    LightningSplashImpactVFX = DCEI.Effect("Skill - Lightning Strike - Lightning Splash - Impact VFX"),
+    LightningSplashDamage = DCEI.Effect("Skill - Lightning Strike - Lightning Splash - Damage"),
+
+    -- Critical Differences
+    CriticalLightningImpactVFX = DCEI.Effect("Skill - Lightning Strike - Critical - Lightning Splash - Impact VFX"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+-- local SPAWN_MODEL_SCALE = 1.50
+local IMPACT_MODEL_SCALE = 0.45
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+end
+
+---comment
+---@param ctx EffectContext
+local function OnMissingOffset(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    -- Validate Hero
+    if not hero or not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.LightningStrike.Key)
+
+    -- Cast Effects at a random location in range
+    local range = hero:GetStat(STAT.SkillRange, tags)
+
+    local offset = Vector2.RandomRange(0.5, range)
+    local hero_position = hero:GetPosition()
+    local target_cast_position = hero_position + offset
+
+    DCEI.CreateEffectAtPosition(REF.Effects, ctx.caster, target_cast_position.x, target_cast_position.y)
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero) end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.ScanHostile, EJS.AreaSearch.Radius, nil, 1.00),
+        EffectPath.New(REF.ScanAll, EJS.AreaSearch.Radius, nil, 0.80),
+    },
+    [STAT.Frequency] = {
+        EffectPath.New(REF.Count, EJS.Persistent.Duration),
+    },
+    [STAT.Count] = {
+        EffectPath.New(REF.Count, EJS.Persistent.Count),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+        EffectPath.New(REF.CriticalDamage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.CriticalChance, EJS.Chance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.CriticalDamage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.LightningSplashScan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.LightningSplashImpactVFX, EJS.Actor.Scale, nil, IMPACT_MODEL_SCALE),
+        EffectPath.New(REF.CriticalLightningImpactVFX, EJS.Actor.Scale, nil, IMPACT_MODEL_SCALE),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.LightningStrike.Key)
+
+    local damage = hero:GetStat(STAT.Damage, tags)
+    local area_damage_multiplier = hero:GetStat(STAT.AreaDamage, tags)
+    local area_damage = damage * area_damage_multiplier
+
+    hero:SetEffectValue(REF.LightningSplashDamage, EJS.Damage.Value, area_damage)
+
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+    Help.Log("Frequency", frequency)
+
+    local count = hero:GetStat(STAT.Count, tags)
+    Help.Log("Count", count)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.MissingOffset, OnMissingOffset)
+
+-- DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

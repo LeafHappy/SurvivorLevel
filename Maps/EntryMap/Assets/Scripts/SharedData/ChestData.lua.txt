@@ -1,0 +1,924 @@
+---@class RarityDisplay
+---@field closed_icon string
+---@field open_icon string
+
+-- Each chest reward will be rolled individually
+---@class ChestReward
+---@field key string
+---@field minValue number
+---@field maxValue number
+---@field chance number between 1 and 100
+
+-- All rewards will be rolled based on the reward's chance field
+-- NOTE: If no reward is rolled, will default to top reward
+---@class ChestConfig
+---@field key string
+---@field rarity string
+---@field rewards table<ChestReward>
+
+---@type table<RarityDisplay>
+local rarity_display_data = {
+    common = {
+        closed_icon = DCEI.Texture("wood_chest_wildsurvivor"),
+        opened_icon = DCEI.Texture("wood_chest_open_wildsurvivor"),
+    },
+    rare = {
+        closed_icon = DCEI.Texture("gold_chest_wildsurvivor"),
+        opened_icon = DCEI.Texture("gold_chest_open_wildsurvivor"),
+    },
+    legendary = {
+        closed_icon = DCEI.Texture("dark_chest_wildsurvivor"),
+        opened_icon = DCEI.Texture("dark_chest_open_wildsurvivor"),
+    },
+}
+
+---@type table<ChestConfig>
+local configs = {
+	{
+		key = "default_crate",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 10,
+				maxValue = 10,
+				chance = 100
+			},
+		},
+	},
+	{
+		key = "default_elite",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 100,
+				maxValue = 100,
+				chance = 100
+			},
+		},
+	},
+	{
+		key = "default_boss",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gems",
+				minValue = 100,
+				maxValue = 100,
+				chance = 100
+			},
+		},
+	},
+	{
+		key = "c_common",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 100,
+				maxValue = 300,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "c_rare", --also in the daily chest
+		rarity = "rare",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 100,
+				maxValue = 300,
+				chance = 80,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 15,
+				chance = 20,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 5,
+				chance = 5,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 5,
+				chance = 1,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 5,
+				chance = 2,
+			},
+		},
+	},
+	{
+		key = "c_legendary",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "s_annie",	--only legendary chest can drop shards
+				minValue = 3,
+				maxValue = 6,
+				chance = 5,
+			},
+			{
+				key = "s_jorian",
+				minValue = 3,
+				maxValue = 6,
+				chance = 5,
+			},
+			-- {
+			-- 	key = "s_erik",
+			-- 	minValue = 3,
+			-- 	maxValue = 6,
+			-- 	chance = 4,
+			-- },
+			-- {
+			-- 	key = "s_ghost",
+			-- 	minValue = 3,
+			-- 	maxValue = 6,
+			-- 	chance = 4,
+			-- },
+			-- {
+			-- 	key = "s_amber",
+			-- 	minValue = 3,
+			-- 	maxValue = 6,
+			-- 	chance = 3,
+			-- },
+			{
+				key = "gold",
+				minValue = 150,
+				maxValue = 500,
+				chance = 70,
+			},
+			{
+				key = "gems",
+				minValue = 5,
+				maxValue = 15,
+				chance = 5,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 5,
+				chance = 5,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 5,
+				chance = 1,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 5,
+				chance = 2,
+			},
+		},
+	},
+	-- start to configure drops in-game
+	-- Update for new drops, unrelated to in-game events.
+	{
+		key = "Normal_chest101",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest101",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest101",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 4,
+				maxValue = 6,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 2,
+				maxValue = 3,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest201",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest201",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest201",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 4,
+				maxValue = 6,
+				chance = 25,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 3,
+				maxValue = 5,
+				chance = 5,
+			},
+		},
+	},
+	{
+		key = "Normal_chest301",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest301",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest301",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 4,
+				maxValue = 6,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 3,
+				maxValue = 5,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest401",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest401",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest401",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 9,
+				maxValue = 12,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 5,
+				maxValue = 8,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 4,
+				maxValue = 6,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 2,
+				maxValue = 3,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest501",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest501",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest501",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 12,
+				maxValue = 16,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 6,
+				maxValue = 10,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 6,
+				maxValue = 8,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 3,
+				maxValue = 4,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest601",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest601",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest601",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 12,
+				maxValue = 16,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 6,
+				maxValue = 10,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 6,
+				maxValue = 8,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 3,
+				maxValue = 4,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest701",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest701",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest701",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 12,
+				maxValue = 16,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 6,
+				maxValue = 10,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 6,
+				maxValue = 8,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 3,
+				maxValue = 4,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest801",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest801",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest801",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 12,
+				maxValue = 16,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 6,
+				maxValue = 10,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 6,
+				maxValue = 8,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 3,
+				maxValue = 4,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest901",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest901",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest901",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 12,
+				maxValue = 16,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 6,
+				maxValue = 10,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 6,
+				maxValue = 8,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 3,
+				maxValue = 4,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Normal_chest1001",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 90,
+			},
+			{
+				key = "gems",
+				minValue = 1,
+				maxValue = 3,
+				chance = 10,
+			},
+		},
+	},
+	{
+		key = "Elite_chest1001",
+		rarity = "rare",
+		rewards = {
+			{
+				key = "meta_alpha_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+		},
+	},
+	{
+		key = "Boss_chest1001",
+		rarity = "legendary",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 12,
+				maxValue = 16,
+				chance = 100,
+			},
+			{
+				key = "gems",
+				minValue = 6,
+				maxValue = 10,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_1",
+				minValue = 6,
+				maxValue = 8,
+				chance = 100,
+			},
+			{
+				key = "meta_alpha_2",
+				minValue = 1,
+				maxValue = 2,
+				chance = 100,
+			},
+			{
+				key = "meta_beta_1",
+				minValue = 3,
+				maxValue = 4,
+				chance = 100,
+			},
+		},
+	},
+
+	-- The following chests have not been applied in the game.
+	{
+		key = "Drone_chest101",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 800,
+			},
+			{
+				key = "gems",
+				minValue = 2,
+				maxValue = 2,
+				chance = 20,
+			},
+		},
+	},	
+	{
+		key = "Drone_chest201",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 800,
+			},
+			{
+				key = "gems",
+				minValue = 2,
+				maxValue = 2,
+				chance = 20,
+			},
+		},
+	},
+	{
+		key = "Drone_chest301",
+		rarity = "common",
+		rewards = {
+			{
+				key = "gold",
+				minValue = 4,
+				maxValue = 6,
+				chance = 800,
+			},
+			{
+				key = "gems",
+				minValue = 2,
+				maxValue = 2,
+				chance = 20,
+			},
+		},
+	},
+}
+
+local ChestData = {
+	configs = configs,
+	rarity_display_data = rarity_display_data,
+}
+
+return  ChestData

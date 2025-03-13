@@ -1,0 +1,22 @@
+---@class Behavior
+---@field behavior string
+---@field count integer
+---@field application_type APPLICATION_TYPE
+local Behavior = {}
+Behavior.__index = Behavior
+
+---Generates a new Behavior.
+---@param behavior string
+---@param count integer
+---@param application_type APPLICATION_TYPE | nil
+---@return Behavior
+function Behavior.New(behavior, count, application_type)
+    local self = setmetatable({}, Behavior)
+    self.behavior = behavior
+    self.count = count
+    self.application_type = application_type or APPLICATION_TYPE.Add
+
+    return self
+end
+
+return Behavior

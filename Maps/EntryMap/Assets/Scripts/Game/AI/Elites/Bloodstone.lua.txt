@@ -1,0 +1,340 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Golem
+
+    Moves towards the Player.
+    Only Updates position every 1-3 seconds.
+
+    ---TODO: Increase Speed and Travel Distance over time.
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local SimpleDropTableManager = require("Class/Simple/SimpleDropTableManager")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+
+local Hero = require("Game/Hero")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Elite
+local Elite = {}
+
+---@type EliteData
+Elite.Data = {
+    Name = "Bloodstone",
+    Type = DCEI.Unit("Elite - Bloodstone"),
+    Stats = {
+        Modifier.New(STAT.Health, 600, SCALING.Scaled),
+        -- Modifier.New(STAT.Thorns, 10, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 1.00, SCALING.Scaled),
+        -- Modifier.New(STAT.MoveSpeed, 1.31, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 1000, SCALING.Scaled),
+
+        Modifier.New(STAT.MinionCount, 3, SCALING.Scaled),
+
+        ---NOTE: Copy from HostileData
+        Modifier.New(STAT.MinionHealth, 5, SCALING.Scaled),
+        Modifier.New(STAT.MinionDamage, 2, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 5, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+-- Game Data References
+local REF = {}
+
+local MODEL_SCALE = 1.00
+
+local STATES = {
+    -- Elite Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    Idle = "Idle",
+    Summon = "Summon",
+}
+
+local ACTION_ORDER = {
+    STATES.Idle,
+    STATES.Summon,
+}
+
+local effects = {}
+
+local overrides = {}
+
+local SIMPLE_UNITS = {
+    [HostileData.Banshee] = SimpleUnit.New(HostileData.Banshee.Type),
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+---comment
+---@param attributes Attributes
+local function RegisterSimpleUnits(attributes)
+    for unit_data, _ in pairs(SIMPLE_UNITS) do
+        SIMPLE_UNITS[unit_data] = SimpleUnits.Helpers.QuickRegister(unit_data, attributes)
+    end
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Patterns
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Local Casters
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+local function SpawnBanshee(ai, position)
+    -- Validate Elite Unit
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    -- Validate Target Unit
+    if not Help.ValidateUnit(ai.Data.Target) then
+        return
+    end
+
+    local instance = SIMPLE_UNITS[HostileData.Banshee]:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, ai.Data.Target)
+    -- SimpleDropTableManager.ApplyDropTableToUnit(instance, SimpleDropTableData.SmallExperienceChance)
+end
+
+local function SpawnBansheeWithMarker(ai, position)
+    AIHelper.SpawnMarker(ai.unit, position, function()
+        SpawnBanshee(ai, position)
+    end)
+end
+
+local function Summon(ai, count)
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    count = count or ai.attributes:Get(STAT.MinionCount)
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+
+    local condition = function()
+        return Help.ValidateUnit(ai.unit) and Help.ValidateUnit(ai.Data.Target)
+    end
+
+    local action = function()
+        -- Check distance to target
+        local distance = Vector2.Distance(unit_position, Vector2.UnitPosition(ai.Data.Target))
+
+        if distance <= 20 then
+            -- Spawn around the Bloodstone
+            local spawn_position = unit_position + Vector2.Random() * Help.RandomNumber(1.5, 3)
+            SpawnBansheeWithMarker(ai, spawn_position) -- Reduce VFX Overhead
+        else
+            -- Spawn in direction of Bloodstone from the Player
+            local target_position = Vector2.UnitPosition(ai.Data.Target)
+            local direction = Vector2.Normalized(unit_position - target_position)
+            local spawn_position = target_position + direction * 20 + Vector2.Random() * Help.RandomNumber(1, 3)
+            SpawnBanshee(ai, spawn_position)
+        end
+    end
+
+    Help.PeriodicGameTimer(count, 0.125, condition, action)
+end
+
+---@param ai AIHandler
+local function CastSummon(ai, count)
+    -- Check if Boss Active
+    local units = DCEI.FindUnitsByPlayerId(PLAYER.Hostile)
+
+    for _, unit in pairs(units) do
+        local is_boss = DCEI.GetUnitTagCount(unit, "Boss")
+
+        if is_boss then
+            return
+        end
+    end
+
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    Summon(ai, count)
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function Idle(ai)
+    -- Validate Unit
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(unit_position, target_position)
+
+    -- Update State
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #ACTION_ORDER then
+        ai.Data.StateIndex = 1
+    end
+
+    local state = ACTION_ORDER[ai.Data.StateIndex]
+    if state == STATES.Idle then
+        ai.Data.StateTime = 10
+        ai.Data.StateTimer = ai.Data.StateTime
+
+        ai:SetState(STATES.Idle)
+    elseif state == STATES.Summon then
+        ai:SetState(STATES.Summon)
+    end
+
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+local _ActiveBloodstones = {
+    -- [uid] = AIHandler
+}
+
+---comment
+---@param ai AIHandler
+local function ActivateBloodRush(ai)
+    -- Validattion
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local base_count = ai.attributes:Get(STAT.MinionCount)
+    local multiplier = 50
+    local total_count = base_count * multiplier
+
+    Summon(ai, total_count)
+end
+
+local function OnBloodstoneRushTrigger()
+    local count = 0
+    for uid, ai in pairs(_ActiveBloodstones) do
+        count = count + 1
+        ActivateBloodRush(ai)
+    end
+end
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Elite.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, overrides, false, true)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, effects.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    -- Register Simple Unit Spawns
+    RegisterSimpleUnits(attributes)
+
+    -- Core States
+    ai:AddState(STATES.Idle, Idle)
+    ai:AddState(STATES.Summon, CastSummon)
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+
+    -- Stagger
+    AIHelper.RegisterOverheadStaggerUpdate(ai)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+
+    -- Add to Active Bloodstones
+    local uid = Core.Unit.GetId(unit)
+    _ActiveBloodstones[uid] = ai
+
+    DCEI.TriggerAddUnitDiedEvent(unit, function()
+        local target_position = Vector2.UnitPosition(ai.Data.Target)
+        local base_distance = 20
+        for i = 1, 50 do
+            local offset = Vector2.Random() * (base_distance + i * 0.25)
+            SpawnBanshee(ai, target_position + offset)
+        end
+    end, true)
+
+    DCEI.TriggerAddUnitRemovedEvent(unit, function()
+        _ActiveBloodstones[uid] = nil
+    end, true)
+end
+
+DCEI.TriggerAddEffectEvent(DCEI.Effect("Event - Bloodstone - Rush Trigger"), DCEI.Coroutine(OnBloodstoneRushTrigger))
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Elite

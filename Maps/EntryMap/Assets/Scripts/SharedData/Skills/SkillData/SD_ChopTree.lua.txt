@@ -1,0 +1,69 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.ChopTree = {
+    Key = "ChopTree",
+
+    -- UI Information
+    DisplayName = "ChopTree",
+    ShortDescription = "Chop some trees down.",
+    Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ChopTree,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Chop Tree"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 1.00, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+                Modifier.New(STAT.SkillSize, 1.75, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+                Modifier.New(STAT.Spread, 120, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+
+                Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.ChopTree] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.ChopTree,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+return Data

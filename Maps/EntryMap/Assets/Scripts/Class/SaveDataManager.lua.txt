@@ -1,0 +1,406 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Joystick = require("Class/Joystick")
+
+local Attributes = require("Class/Attributes")
+local Event = require("Class/Event")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local PropData = require("Map/PropData")
+
+local Modifier = require("SharedData/Class/Modifier")
+local MetaData = require("SharedData/MetaData")
+local TalentData = require("SharedData/Talents/TalentData")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local PRIME_COMMIT_MAX_FREQUENCY = 3
+
+local UI_UPDATES = {
+    [SAVE_KEY.Wood] = "Camp.Overlay.SetWood",
+    [SAVE_KEY.Stone] = "Camp.Overlay.SetStone",
+    [SAVE_KEY.Pumpkin] = "Camp.Overlay.SetPumpkin",
+    [SAVE_KEY.Meat] = "Camp.Overlay.SetMeat",
+    [SAVE_KEY.Gems] = "Camp.Overlay.SetGems",
+    [SAVE_KEY.Gold] = "Camp.Overlay.SetGold",
+    [SAVE_KEY.SkillPoints] = "Camp.Overlay.SetSkillPoints",
+    [SAVE_KEY.Level] = "Camp.Overlay.SetPlayerLevel",
+}
+
+local DEFAULT_VALUES = {
+    [SAVE_KEY.ActiveDangerZone] = 1,
+    [SAVE_KEY.Level] = 1,
+    [SAVE_KEY.Wave] = 1,
+}
+
+local _SaveData = {
+    -- quest_data = {
+    --     intro_tutorial = {
+    --         step = -1,
+    --         amount = 6,
+    --     },
+    -- },
+    -- camp_data = {
+    --     archer_slot_1 = nil,
+    --     archer_slot_2 = nil,
+    -- },
+    -- currency = {
+    --     gems = 0,
+    --     gold = 0,
+    --     gold_reserve = 0,
+    -- },
+    -- progress = {
+    --     wave = 1,
+    --     level = 1,
+    --     experience = 0,
+    -- },
+    -- meta_data = {
+    --     version = 1,
+    -- },
+}
+
+local _CurrencyLimits = {}
+local _CommitTimer = nil
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param key SAVE_KEY
+---@param data any
+local function CheckPresentationEvent(key, data)
+    if UI_UPDATES[key] then
+        Core.Event.SendPresentationEvent(UI_UPDATES[key], data)
+    end
+end
+
+local function CommitSaveData()
+    Help.Log("Committing Save Data", nil, _SaveData, true)
+    DCEI.Save.Set("save_data", Json.encode(_SaveData))
+    DCEI.Save.Commit()
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class SaveDataManager
+local SaveDataManager = {}
+SaveDataManager.__index = SaveDataManager
+
+function SaveDataManager.Load()
+    local save_data = DCEI.Save.Get("save_data")
+
+    if not save_data then
+        _SaveData = {}
+        return
+    else
+        save_data = Json.decode(save_data)
+    end
+
+    _SaveData = save_data
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+---comment
+---@param t_key SAVE_KEY
+---@param amount number
+---@return number amount Clamped amount
+---@return number overflow Overflow amount
+function SaveDataManager.CheckCurrencyLimit(t_key, amount)
+    local overflow = 0
+    if _CurrencyLimits[t_key] then
+        if amount > _CurrencyLimits[t_key] then
+            overflow = amount - _CurrencyLimits[t_key]
+            return _CurrencyLimits[t_key], overflow
+        end
+    end
+
+    return amount, 0
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+---Set a currency limit.
+---@param t_key SAVE_KEY
+---@param limit number
+function SaveDataManager.SetCurrencyLimit(t_key, limit)
+    _CurrencyLimits[t_key] = limit
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+-- Shorthand to send all presentation events with currently loaded data.
+function SaveDataManager.SendPresentationEvents()
+    for key, value in pairs(UI_UPDATES) do
+        CheckPresentationEvent(key, SaveDataManager.Get(key))
+    end
+end
+
+-- Generic getter that will initialize the value if available.
+---@param t_key table<string>
+---@return any
+function SaveDataManager.Get(t_key)
+    local data = _SaveData
+
+    for i = 1, #t_key - 1 do
+        if data[t_key[i]] == nil then
+            data[t_key[i]] = {}
+        end
+        data = data[t_key[i]]
+    end
+
+    data[t_key[#t_key]] = data[t_key[#t_key]] or DEFAULT_VALUES[t_key] or 0
+
+    return data[t_key[#t_key]]
+end
+
+---Returns the table.
+---@param t_key table<string>
+function SaveDataManager.GetReference(t_key)
+    local data = _SaveData
+
+    for i = 1, #t_key - 1 do
+        if data[t_key[i]] == nil then
+            data[t_key[i]] = {}
+        end
+        data = data[t_key[i]]
+    end
+
+    return data[t_key[#t_key]]
+end
+
+---@param t_key table<string>
+---@param value any
+function SaveDataManager.Set(t_key, value)
+    local data = _SaveData
+
+    for index, key in ipairs(t_key) do
+        if index == #t_key then
+            data[key] = value
+            goto continue
+        end
+
+        if not data[key] then
+            data[key] = {}
+        end
+
+        data = data[key]
+    end
+
+    ::continue::
+
+    -- Check Limit
+    data[t_key[#t_key]] = SaveDataManager.CheckCurrencyLimit(t_key, value)
+
+    -- Check for Presentation Update
+    CheckPresentationEvent(t_key, data[t_key[#t_key]])
+
+    -- Prime Commit
+    SaveDataManager.CommitSaveData()
+end
+
+---@param t_key table<string>
+---@param amount number
+---@return number amount
+---@return number overflow
+function SaveDataManager.Modify(t_key, amount)
+    local data = _SaveData
+
+    for i = 1, #t_key - 1 do
+        if data[t_key[i]] == nil then
+            data[t_key[i]] = {}
+        end
+
+        data = data[t_key[i]]
+    end
+
+    if not data[t_key[#t_key]] then
+        data[t_key[#t_key]] = amount
+    else
+        data[t_key[#t_key]] = data[t_key[#t_key]] + amount
+    end
+
+    -- Check Limit
+    local final_amount, overflow = SaveDataManager.CheckCurrencyLimit(t_key, data[t_key[#t_key]])
+    data[t_key[#t_key]] = final_amount
+
+    -- Check for Presentation Update
+    CheckPresentationEvent(t_key, data[t_key[#t_key]])
+
+    -- Prime Commit
+    SaveDataManager.CommitSaveData()
+
+    return final_amount, overflow
+end
+
+function SaveDataManager.Spend(t_key, amount)
+    local data = SaveDataManager.Get(t_key)
+
+    if data < amount then
+        return false
+    end
+
+    SaveDataManager.Modify(t_key, -amount)
+
+    -- Prime Commit
+    SaveDataManager.CommitSaveData()
+
+    return true
+end
+
+---@param entry EquipmentEntry
+function SaveDataManager.AddEquipmentToInventory(entry)
+    SaveDataManager.ValidateKey(SAVE_KEY.Equipment, {})
+
+    local inventory = SaveDataManager.GetReference(SAVE_KEY.Equipment)
+    for _, item in ipairs(inventory) do
+        if item.key == entry.key then
+            item.stack = item.stack + 1
+            return
+        end
+    end
+
+    ---@type EquipmentSaveData
+    local equipment_save_data = {
+        key = entry.key,
+        stack = 1,
+        level = 1,
+    }
+    SaveDataManager.AddKey(SAVE_KEY.Equipment, equipment_save_data)
+
+    -- Commit
+    SaveDataManager.CommitSaveData(true)
+end
+
+---@param entry EquipmentEntry
+---@param cost integer
+function SaveDataManager.LevelUpEquipment(entry, cost)
+    SaveDataManager.ValidateKey(SAVE_KEY.Equipment, {})
+
+    local inventory = SaveDataManager.GetReference(SAVE_KEY.Equipment)
+    for _, item in ipairs(inventory) do
+        if item.key == entry.key then
+            item.stack = item.stack - cost
+            item.level = item.level + 1
+            return
+        end
+    end
+
+    -- Commit
+    SaveDataManager.CommitSaveData(true)
+end
+
+---@param slot_type EQUIPMENT_SLOT
+---@param entry_key string | nil
+function SaveDataManager.EquipEquipment(slot_type, entry_key)
+    SaveDataManager.ValidateKey(SAVE_KEY.Equipped, {})
+    local equipped = SaveDataManager.GetReference(SAVE_KEY.Equipped)
+    equipped[slot_type] = entry_key
+
+    -- Prime Commit
+    SaveDataManager.CommitSaveData()
+end
+
+---comment
+---@param t_key table<string>
+---@param value any
+function SaveDataManager.AddKey(t_key, value)
+    local data = _SaveData
+
+    for i = 1, #t_key - 1 do
+        local key = t_key[i]
+        if i == #t_key then
+            data[key] = value
+            return
+        end
+
+        if not data[key] then
+            data[key] = {}
+        end
+
+        data = data[key]
+    end
+
+    if not data[t_key[#t_key]] then
+        data[t_key[#t_key]] = {}
+    end
+
+    table.insert(data[t_key[#t_key]], value)
+
+    -- Prime Commit
+    SaveDataManager.CommitSaveData()
+end
+
+---Prime the save data to commit.
+---@param immediately boolean | nil If true, will commit immediately.
+function SaveDataManager.CommitSaveData(immediately)
+    if immediately then
+        CommitSaveData()
+        _CommitTimer = nil
+        return
+    end
+
+    if _CommitTimer then
+        return
+    end
+
+    local condition = function()
+        return _CommitTimer ~= nil
+    end
+
+    local action = function()
+        _CommitTimer = nil
+        CommitSaveData()
+    end
+
+    _CommitTimer = Help.GameTimer(PRIME_COMMIT_MAX_FREQUENCY, condition, nil, action)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- ================================================================================================
+
+return SaveDataManager

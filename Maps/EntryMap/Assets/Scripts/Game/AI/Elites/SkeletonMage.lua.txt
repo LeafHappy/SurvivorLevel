@@ -1,0 +1,328 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Golem
+
+    Moves towards the Player.
+    Only Updates position every 1-3 seconds.
+
+    ---TODO: Increase Speed and Travel Distance over time.
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Elite
+local Elite = {}
+
+---@type EliteData
+Elite.Data = {
+    Name = "Skeleton Mage",
+    Type = DCEI.Unit("Elite - Skeleton Mage"),
+    Stats = {
+        Modifier.New(STAT.Health, 50, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 50, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.85, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 1.05, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 100, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 50, SCALING.Scaled),
+
+        Modifier.New(STAT.CastRange, 9, SCALING.Scaled),
+        Modifier.New(STAT.ProjectileDistance, 10, SCALING.Scaled),
+        Modifier.New(STAT.ProjectileSpeed, 15, SCALING.Scaled),
+        Modifier.New(STAT.SkillSize, 0.60, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 2.50
+
+local REF = {
+    Stagger = DCEI.Behavior("Stagger"),
+
+    OnEnter = DCEI.Effect("Elite - Skeleton Mage - OnEnter"),
+    ContactDamage = DCEI.Effect("Elite - Skeleton Mage - Contact Damage"),
+
+    -- Projectile
+    Projectile = DCEI.Unit("Elite - Skeleton Mage - Projectile"),
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = "Elite - Skeleton Mage - Projectile" }),
+    ProjectileOnEnter = DCEI.Effect("Elite - Skeleton Mage - Projectile - OnEnter"),
+    ProjectileDamage = DCEI.Effect("Elite - Skeleton Mage - Projectile - Damage"),
+}
+
+local OVERRIDES = {
+    EffectPath.New(REF.ContactDamage, EJS.Damage.Value, STAT.Thorns, 1),
+    EffectPath.New(REF.ProjectileDamage, EJS.Damage.Value, STAT.Thorns, 1),
+}
+
+local STATES = {
+    -- Elite Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+    Scan = "Scan",
+
+    -- Custom
+    AcquireTarget = "AcquireTarget",
+    Move = "Move",
+    Attack = "Attack",
+}
+
+local ACTION_ORDER = {
+    STATES.AcquireTarget,
+    STATES.Move,
+    STATES.Attack,
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Patterns
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Local Casters
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+local function CastAcquireTarget(ai)
+    ai.Data.Target = nil
+    ai:RunState(STATES.BaseDecision)
+end
+
+---@param ai AIHandler
+local function CastMove(ai)
+    if not ai:ValidateSelf() then -- Validate Self
+        return
+    end
+
+    if not ai:ValidateTarget() then -- Validate Target
+        -- Reset State
+        ai.Data.StateIndex = 1
+        ai:RunState(STATES.BaseDecision)
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local cast_range = ai.attributes:Get(STAT.CastRange)
+
+    local move_position = Vector2.MoveTowards(target_position, position, cast_range)
+
+    DCEI.Move(ai.unit, move_position.x, move_position.y)
+
+    local distance = Vector2.Distance(position, move_position)
+    if distance <= 0.1 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+---@param position Vector2
+---@param target_position Vector2
+local function SpawnProjectile(ai, position, target_position)
+    --
+    local instance = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.Projectile, position.x, position.y)
+
+    local size = ai:GetEliteStat(STAT.SkillSize)
+    local projectile_speed = ai:GetEliteStat(STAT.ProjectileSpeed) * TICK_RATE
+    local projectile_distance = ai:GetEliteStat(STAT.ProjectileDistance)
+
+    target_position = position + Vector2.Normalized(target_position - position) * projectile_distance
+
+    Help.SetModelScale(instance, size)
+
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Friendly, size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(
+            REF.ProjectileOnEnter,
+            CollisionTiming.Start,
+            TICK_RATE,
+            SIMPLE_TAG.Friendly
+        ),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    local condition = function()
+        local distance = Vector2.Distance(position, target_position)
+        return Help.ValidateUnit(instance) and distance > 0.1
+    end
+
+    local recurring_action = function()
+        local next_position = Vector2.MoveTowards(position, target_position, projectile_speed)
+        DCEI.SetUnitPosition2DWithInterpolation(instance, next_position.x, next_position.y)
+
+        position = next_position
+    end
+
+    local callback_action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    local cancel_action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    Help.GameTimer(999, condition, recurring_action, callback_action, cancel_action)
+
+    return instance
+end
+
+---comment
+---@param ai AIHandler
+local function CastAttack(ai)
+    if not ai:ValidateSelf() then -- Validate Self
+        return
+    end
+
+    if not ai:ValidateTarget() then -- Validate Target
+        -- Reset State
+        ai.Data.StateIndex = 1
+        ai:RunState(STATES.BaseDecision)
+        return
+    end
+
+    local BASE_CAST_TIME = 1.00
+    local IMPACT_RATIO = 11 / 28
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+    local projectile_spawn_time = cast_time * IMPACT_RATIO
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    Help.PlayAnimationWithDuration(ai.unit, "attack", cast_time)
+
+    local turn_direction = Vector2.Normalized(target_position - position)
+    DCEI.TurnUnitTowards(ai.unit, turn_direction.x, turn_direction.y, projectile_spawn_time)
+
+    local condition = function()
+        return ai:ValidateSelf()
+    end
+
+    local recurring_action = function()
+        if ai:ValidateTarget() then
+            target_position = Vector2.UnitPosition(ai.Data.Target)
+        end
+    end
+
+    local action = function()
+        -- Spawn Projectile
+        SpawnProjectile(ai, position, target_position)
+    end
+
+    Help.GameTimer(projectile_spawn_time, condition, recurring_action, action, nil)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return
+    end
+
+    ai:RunState(STATES.BaseDecision)
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Update State Index
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #ACTION_ORDER then
+        ai.Data.StateIndex = 1
+    end
+
+    local state = ACTION_ORDER[ai.Data.StateIndex]
+    ai:SetState(state)
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local think_time = 0.25 * action_speed_modifier
+    if not Help.WaitAndValidateUnit(think_time, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Elite.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, OVERRIDES)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, REF.OnEnter)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    -- Core States
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+    ai:AddState(STATES.AcquireTarget, CastAcquireTarget)
+    ai:AddState(STATES.Move, CastMove)
+    ai:AddState(STATES.Attack, CastAttack)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+    ai.Data.TargetingPriority = "Structure"
+
+    -- Stagger
+    AIHelper.RegisterOverheadStaggerUpdate(ai)
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Elite

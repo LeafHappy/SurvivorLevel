@@ -1,0 +1,148 @@
+---============================================================================
+---SECTION: Scripts
+---============================================================================
+
+local CampData = require("SharedData/H_CampData")
+local KeyItemData = require("SharedData/KeyItemData")
+local Vector2 = require("Class/Vector2")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---@class QuestReward
+---@field key string
+---@field type string
+---@field amount number
+
+---@class QuestObjective
+---@field hint string
+---@field type QUEST_OBJECTIVE_TYPES
+---@field pause_on_done boolean
+---@field values table -- Will include any values specific to objective
+---@field indicator_values table -- Where to show indicator
+---@field rewards table<QuestReward>
+
+---@class QuestLine
+---@field key string
+---@field display_name string
+---@field objectives table<QuestObjective>
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Data
+---============================================================================
+
+---@class QuestData
+local QuestData = {}
+
+-- When to review invite for player
+QuestData.review_invite_wave = 5
+
+---@type table<QuestLine>
+QuestData.data = {
+    {
+        key = "intro",
+        display_name = "Chop Chop",
+        icon = DCEI.Texture("cartoon_icon_skill_frozen_axe_survivor"),
+        objectives = {
+            {
+                hint = "Pickup the Axe",
+                type = QUEST_OBJECTIVE_TYPES.PickUpKeyItem,
+                pause_on_done = true,
+                values = {
+                    item_key = KeyItemData.ChopTree.Key,
+                },
+                indicator_values = {
+                    position = KeyItemData.ChopTree.Position,
+                    unit_type = KeyItemData.ChopTree.Type,
+                },
+                rewards = {
+                    {
+                        key = SAVE_KEY.Gems,
+                        type = TRACKED_STATS.Gems,
+                        amount = 10,
+                    },
+                },
+            },
+            {
+                hint = "Collect Wood",
+                type = QUEST_OBJECTIVE_TYPES.CollectResource,
+                pause_on_done = true,
+                values = {
+                    resource = SAVE_KEY.Wood,
+                    amount = 5,
+                },
+                indicator_values = {
+                    position = Vector2.New(-1, 6),
+                },
+                rewards = {
+                    {
+                        key = SAVE_KEY.Gems,
+                        type = TRACKED_STATS.Gems,
+                        amount = 10,
+                    },
+                },
+            },
+            {
+                hint = "Unlock next zone",
+                type = QUEST_OBJECTIVE_TYPES.UnlockZone,
+                pause_on_done = true,
+                values = {
+                    status_key = "Zone - 1",
+                },
+                indicator_values = {
+                    position = Vector2.New(2.5, 9.5),
+                },
+                rewards = {
+                    {
+                        key = SAVE_KEY.Gems,
+                        type = TRACKED_STATS.Gems,
+                        amount = 10,
+                    },
+                },
+            },
+            {
+                hint = "Pickup the Bow",
+                type = QUEST_OBJECTIVE_TYPES.PickUpKeyItem,
+                pause_on_done = true,
+                values = {
+                    item_key = KeyItemData.Strafe.Key,
+                },
+                indicator_values = {
+                    position = Vector2.New(2.5, 9.5),
+                    unit_type = KeyItemData.Strafe.Type,
+                },
+                rewards = {
+                    {
+                        key = SAVE_KEY.Gems,
+                        type = TRACKED_STATS.Gems,
+                        amount = 10,
+                    },
+                },
+            },
+        },
+    },
+}
+
+---============================================================================
+---!SECTION: Data
+---SECTION: Functions
+---============================================================================
+
+---@param key string
+---@return QuestLine | nil
+function QuestData.GetQuestData(key)
+    for _, quest_line in ipairs(QuestData.data) do
+        if quest_line.key == key then
+            return quest_line
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Functions
+---============================================================================
+
+return QuestData

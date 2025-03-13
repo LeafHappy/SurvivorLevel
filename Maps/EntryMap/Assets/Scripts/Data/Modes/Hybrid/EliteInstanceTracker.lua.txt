@@ -1,0 +1,176 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local EJS = require("Data/EJS")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local DropTables = require("Data/DropTables")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local SpawnDirector = require("Game/Directors/Spawn")
+
+local Event = require("Class/Event")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Data
+---============================================================================
+
+local REF = {
+    MOVER_MEDIUM = DCEI.Effect("SMover - Random Circle - Medium"),
+}
+
+---============================================================================
+-- !SECTION -- Local Data
+-- SECTION -- Initialize
+---============================================================================
+
+---@class EliteInstanceTracker
+---@field Data DangerZoneData.EliteSpawnData
+---@field ZonePosition Vector2
+---@field IsBoss boolean | nil
+local EliteInstanceTracker = {}
+EliteInstanceTracker.__index = EliteInstanceTracker
+
+---comment
+---@param spawn_data DangerZoneData.EliteSpawnData
+---@param zone_position Vector2
+---@param spawn_immediately boolean
+---@param is_boss boolean | nil
+---@return EliteInstanceTracker
+function EliteInstanceTracker.New(spawn_data, zone_position, spawn_immediately, is_boss)
+    ---@type EliteInstanceTracker
+    local self = setmetatable({}, EliteInstanceTracker)
+
+    self:Reset()
+    self.Data = spawn_data
+    self.ZonePosition = zone_position
+    self.IsBoss = is_boss
+
+    -- Since there is no Respawn Time, spawn the instance immediately
+    if not self.Data.RespawnTime or spawn_immediately then
+        self:_SpawnInstance()
+    end
+
+    return self
+end
+
+function EliteInstanceTracker:Reset()
+    self.Instance = nil
+
+    self.Timer = 0
+end
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Local Functions
+---============================================================================
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Internal Functions
+---============================================================================
+
+function EliteInstanceTracker:_SpawnInstance()
+    Help.Log("Is Boss", self.IsBoss)
+
+    local unit_type = self.Data.SpawnType
+    local position = self.ZonePosition
+    local modifiers = self.Data.Modifiers or {}
+
+    local instance
+
+    if self.IsBoss then
+        instance = Bosses.Spawn(unit_type, position, modifiers)
+        Bosses.ApplyOverheadHealthbar(instance)
+    else
+        instance = Elites.Spawn(unit_type, position, modifiers)
+    end
+
+    self.Instance = instance
+
+    -- Setup Drops
+    if self.Data.DropTable and DropTables[self.Data.DropTable] then
+        DCEI.TriggerAddUnitDiedEvent(self.Instance, function()
+            local position = Vector2.UnitPosition(self.Instance)
+            local drop_table_options = {
+                apply_mover_effect = REF.MOVER_MEDIUM,
+                spawn_over_time = true,
+            }
+            local drop_table_data = DropTables[self.Data.DropTable]
+
+            Help.SpawnDropTable(position, drop_table_data.Drops, drop_table_options)
+        end, true)
+    end
+end
+
+function EliteInstanceTracker:_CheckRespawn()
+    if Help.ValidateUnit(self.Instance) then
+        return
+    end
+
+    if not self.Data.RespawnTime then
+        return
+    end
+
+    if self.Timer < self.Data.RespawnTime then
+        self.Timer = self.Timer + TICK_RATE
+        return
+    end
+    self.Timer = 0
+
+    self:_SpawnInstance()
+end
+
+---============================================================================
+-- !SECTION -- Internal Functions
+-- SECTION -- Getters & Setters
+---============================================================================
+
+function EliteInstanceTracker:IsAlive()
+    return Help.ValidateUnit(self.Instance)
+end
+
+---============================================================================
+-- !SECTION -- Getters & Setters
+-- SECTION -- Class Functions
+---============================================================================
+
+function EliteInstanceTracker:Update(hero)
+    self:_CheckRespawn()
+end
+
+function EliteInstanceTracker:Clear()
+    if Help.ValidateUnit(self.Instance) then
+        DCEI.RemoveUnit(self.Instance)
+    end
+end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return EliteInstanceTracker

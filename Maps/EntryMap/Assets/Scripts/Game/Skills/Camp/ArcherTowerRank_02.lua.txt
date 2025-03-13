@@ -1,0 +1,152 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    ArcherSkill = DCEI.Ability("Skill - Archer - Rank 02"),
+
+    -- Behavior
+    ProjectileSpeed = DCEI.Behavior("Hybrid - Archer - Projectile Speed"),
+
+    -- Effects
+    Scan = DCEI.Effect("Skill - Archer - Rank 02 - Scan"),
+    OnEnter = DCEI.Effect("Skill - Archer - Rank 02 - Projectile - OnEnter"),
+    Damage = DCEI.Effect("Skill - Archer - Rank 02 - Damage"),
+
+    -- Units
+    ArcherTowerUnit = DCEI.Unit("Hybrid - Archer - Rank 02"),
+    Projectile = DCEI.Unit("Skill - Archer - Rank 02 - Projectile"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Archer - Rank 02 - Projectile") }),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param ctx EffectContext
+local function OnProjectileSpawn(ctx)
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+
+    if not hero or not Help.ValidateUnit(hero.unit) then
+        DCEI.RemoveUnit(instance)
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.ArcherTowerRank_02.Key)
+
+    -- Set the Projectile Size
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    Help.SetModelScale(instance, size, 0.375, Ease.OutCubic)
+
+    -- Set the Projectile Collision Properties
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, TICK_RATE),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Health
+    SimpleUnit.ModifyHealth(instance, 99)
+
+    return instance
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = "ArcherTowerRank_02",
+}
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+    end
+
+    -- Find all Archer Tower Rank 1's
+    local archer_towers = DCEI.FindUnits(REF.ArcherTowerUnit)
+
+    local tags = hero:GetInheritedTags(SkillData.ArcherTowerRank_02.Key)
+
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_speed_stacks = math.floor(projectile_speed * 100)
+
+    local base_attack_time = hero:GetStat(STAT.BaseAttackTime, tags)
+    local attack_speed_increase = hero:GetStat(STAT.AttackSpeed, tags)
+    local final_cooldown = base_attack_time / (1 + attack_speed_increase)
+
+    for _, archer_tower in ipairs(archer_towers) do
+        Core.Unit.SetBehaviorCount(archer_tower, REF.ProjectileSpeed, projectile_speed_stacks)
+        DCEI.SetUnitAbilityMaxCooldown(archer_tower, REF.ArcherSkill, final_cooldown)
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

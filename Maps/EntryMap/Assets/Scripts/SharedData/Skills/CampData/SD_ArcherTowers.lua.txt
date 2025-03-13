@@ -1,0 +1,118 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.ArcherTowerRank_01 = {
+    Key = "ArcherTowerRank_01",
+
+    -- UI Information
+    DisplayName = "Archer Tower",
+    ShortDescription = "",
+    Icon = DCEI.Texture("icon_enhance_arrowtower_extraarcher"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 1.00, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_01 }),
+                Modifier.New(STAT.SkillRange, 15, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_01 }),
+
+                -- Projectile
+                Modifier.New(STAT.ProjectileSpeed, 10, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_01 }),
+                Modifier.New(STAT.SkillSize, 1, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_01 }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_01 }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.ArcherTowerRank_01] = {
+            SKILL_TAG.Archer,
+            SKILL_TAG.ArcherTowerRank_01,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+Data.ArcherTowerRank_02 = {
+    Key = "ArcherTowerRank_02",
+
+    -- UI Information
+    DisplayName = "Archer Tower",
+    ShortDescription = "",
+    Icon = DCEI.Texture("icon_enhance_arrowtower_extraarcher"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 0.90, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_02 }),
+                Modifier.New(STAT.SkillRange, 11, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_02 }),
+
+                -- Projectile
+                Modifier.New(STAT.ProjectileSpeed, 12, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_02 }),
+                Modifier.New(STAT.SkillSize, 1, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_02 }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 20, SCALING.Scaled, { SKILL_TAG.ArcherTowerRank_02 }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.ArcherTowerRank_02] = {
+            SKILL_TAG.Archer,
+            SKILL_TAG.ArcherTowerRank_02,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+return Data

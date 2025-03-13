@@ -1,0 +1,9 @@
+return {
+    ["Shieldbearer"] = 1,
+    ["Alchemist"] = 2,
+    ["Skeleton King"] = 3,
+    ["Knight"] = 4,
+    ["Giant"] = 5,
+    ["Fulminyx"] = 6,
+    -- ["Reaper"] = 7,
+}

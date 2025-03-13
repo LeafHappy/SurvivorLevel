@@ -1,0 +1,73 @@
+-- LIBRARIES
+local Shop = require("DFShop:Presentation")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local DataManager = require("UiMeta/DataManager")
+local DailyShopItemsData = require("UiMeta/Shop/DailyShopItemsData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local FlyingRewards = require("UiMeta/FlyingRewards")
+
+local ItemCustomCallbacks = {}
+
+function ItemCustomCallbacks.SetItemDisplayState(item_data, layout)
+    local state = layout.state
+
+    if item_data.state then
+        state.background_color = item_data.state.background_color
+        state.piping_color = item_data.state.piping_color
+    end
+
+    -- Animate glow
+    Animation.RotationLoop(layout.Glow)
+end
+
+function ItemCustomCallbacks.UpdateDailyShopItem(item_data, layout)
+    -- get item data
+    local index = item_data.custom.index
+    local saved_item = DataManager.GetDailyShopItem(index)
+
+    if saved_item == nil then
+        return
+    end
+
+    local item_type = saved_item.type
+    local lookup_type = item_type:sub(1, 2) == "s_" and "shards" or item_type
+    local item_level = saved_item.level
+    local shop_item_data = DailyShopItemsData[lookup_type][item_level]
+    local item_amount = shop_item_data.amount
+    local cost_type = shop_item_data.cost_type
+    local cost_amount = shop_item_data.cost_amount
+
+    -- update ui
+    local state = layout.state
+    if item_data.state then
+        local product_id = item_data.product_id
+        local stock_remaining = Shop.GetItemStockAvailable(product_id)
+        state.background_color = item_data.state.background_color
+        state.piping_color = item_data.state.piping_color
+        state.item_image = shop_item_data.display or ResourceData[item_type].icon
+        state.title_label = item_amount
+        state.cost_icon = shop_item_data.cost_icon or ResourceData[cost_type].icon
+
+        state.cost_label = stock_remaining > 0 and cost_amount or "OUT OF STOCK"
+
+        -- Animate glow
+        Animation.RotationLoop(layout.Glow)
+    end
+end
+
+function ItemCustomCallbacks.FlyingItemRewardOnPurchase(item_data, layout)
+    local items = item_data:GetItemsData()
+    local type
+    local value
+    for item_type, item_value in pairs(items) do
+        type = item_type
+        value = item_value
+    end
+
+    local location = DCEI.GetFrameCanvasPosition3D(layout.Frame)
+    FlyingRewards.SpawnRewards(type, value, 50, location)
+end
+
+return ItemCustomCallbacks

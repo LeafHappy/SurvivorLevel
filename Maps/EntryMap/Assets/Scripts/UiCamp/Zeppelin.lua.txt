@@ -1,0 +1,119 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local Json = require("json")
+
+local Help = require("UiHelp")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+local MetaSkillSelector = require("SharedData/MetaSkillSelector")
+
+local DataManager = require("UiMeta/DataManager")
+local EquipmentData = require("SharedData/GearData/EquipmentData")
+
+local MaterialInventory = require("Meta/MaterialInventory")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Data
+---============================================================================
+
+-- LAYOUT
+---@class LazyLayout
+local Layout = GMUI.LazyLayout.New({
+    name = "Camp/Popup",
+    parent = ui.z1.Upper,
+})
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+local function ForceGameStart()
+    local save = DataManager.save_data
+
+    -- Generate what upgrades the player has access to.
+    local hero_name = save.player.hero
+    local hero_rank = save.heroes[save.player.hero].rank
+    local hero_equipment = DataManager.GetHeroEquipment(hero_name)
+    local consumable_save_data = DataManager.GetHeroEquippedConsumable(hero_name)
+
+    local stage = DataManager.GetSelectedStage()
+    local difficulty = DataManager.GetSelectedDifficulty(stage)
+
+    local starting_upgrades, optional_upgrades, featured_skills, eq_modifiers =
+        MetaSkillSelector.Get(hero_name, hero_rank, hero_equipment, stage, difficulty)
+
+    ---FIXME: Consumable will come from the equipment
+    local consumable_active = consumable_save_data and true or false
+
+    Core.Event.SendSimulationEvent("Camp.StartGame", {
+        -- Game Mode Information
+        game_mode_id = save.player.mode,
+        stage = stage,
+        difficulty = difficulty,
+
+        -- Hero Information
+        hero_name = save.player.hero,
+        hero_level = save.heroes[save.player.hero].level,
+        consumables_active = consumable_active,
+        starting_upgrades = starting_upgrades,
+        optional_upgrades = optional_upgrades,
+        featured_skills = featured_skills,
+
+        -- Meta Equipment Modifiers
+        meta_equipment_modifiers = eq_modifiers,
+    })
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Layout Functions
+---SECTION: Layout Overrides
+---============================================================================
+
+-- LAYOUT METHODS
+function Layout:Initialize()
+    self:Hide()
+end
+
+---comment
+function Layout:Update() end
+
+function Layout:OnHide() end
+
+---============================================================================
+---!SECTION: Layout Overrides
+---SECTION: Event Functions
+---============================================================================
+
+---comment
+---@param callback function
+local function GiveAuthority(data, callback)
+    ForceGameStart()
+end
+
+---============================================================================
+---!SECTION: Event Functions
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.Zeppelin", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+-- EXPORT
+return Layout

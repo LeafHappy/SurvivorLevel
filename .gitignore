@@ -1,0 +1,8 @@
+
+**/.playsettings
+.luarc.json
+tlconfig.lua
+/Maps/EntryMap/Assets/Scripts/Data/Modes/Hybrid/output.lua.txt
+/Maps/EntryMap/Assets/Scripts/UserSettings.lua.txt
+**Built-in/
+**.vscode/**

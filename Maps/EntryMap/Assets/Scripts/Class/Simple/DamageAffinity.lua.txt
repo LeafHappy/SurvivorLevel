@@ -1,0 +1,357 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local EJS = require("Data/EJS")
+
+local Help = require("Help")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+-- Default Values (when not declared)
+-- [DAMAGE_TYPES.Default] = {
+--     [ARMOR_TYPES.Default] = {
+--         [MODIFIER_TYPE.Scaled] = 0,
+--         [MODIFIER_TYPE.Unscaled] = 0,
+--         [MODIFIER_TYPE.Additive] = 0,
+--         [MODIFIER_TYPE.UnifiedPositive] = 0,
+--         [MODIFIER_TYPE.UnifiedNegative] = 0,
+--         [MODIFIER_TYPE.Multiplier] = 1.0,
+--     },
+-- },
+
+local DefaultValues = {
+    [DAMAGE_TYPES.Physical] = {
+        -- [ARMOR_TYPES.Flesh] = { [MODIFIER_TYPE.Multiplier] = 1.0 },
+        -- [ARMOR_TYPES.Armored] = { [MODIFIER_TYPE.Multiplier] = 0.6 },
+        -- [ARMOR_TYPES.Ethereal] = { [MODIFIER_TYPE.Multiplier] = 0.3 },
+        [ARMOR_TYPES.Structure] = {
+            [MODIFIER_TYPE.Unscaled] = 1,
+            [MODIFIER_TYPE.UnifiedNegative] = -1,
+        },
+        [ARMOR_TYPES.Invulnerable] = {
+            [MODIFIER_TYPE.Multiplier] = -1,
+        }
+    },
+    [DAMAGE_TYPES.Fire] = {
+        -- [ARMOR_TYPES.Flesh] = { [MODIFIER_TYPE.Multiplier] = 1.5 },
+        -- [ARMOR_TYPES.Armored] = { [MODIFIER_TYPE.Multiplier] = 0.4 },
+        -- [ARMOR_TYPES.Ethereal] = { [MODIFIER_TYPE.Multiplier] = 0.6 },
+        [ARMOR_TYPES.Structure] = {
+            [MODIFIER_TYPE.Unscaled] = 1,
+            [MODIFIER_TYPE.UnifiedNegative] = -1,
+        },
+        [ARMOR_TYPES.Invulnerable] = {
+            [MODIFIER_TYPE.Multiplier] = -1,
+        }
+    },
+    [DAMAGE_TYPES.Cold] = {
+        -- [ARMOR_TYPES.Flesh] = { [MODIFIER_TYPE.Multiplier] = 0.6 },
+        -- [ARMOR_TYPES.Armored] = { [MODIFIER_TYPE.Multiplier] = 0.4 },
+        -- [ARMOR_TYPES.Ethereal] = { [MODIFIER_TYPE.Multiplier] = 1.5 },
+        [ARMOR_TYPES.Structure] = {
+            [MODIFIER_TYPE.Unscaled] = 1,
+            [MODIFIER_TYPE.UnifiedNegative] = -1,
+        },
+        [ARMOR_TYPES.Invulnerable] = {
+            [MODIFIER_TYPE.Multiplier] = -1,
+        }
+    },
+    [DAMAGE_TYPES.Shock] = {
+        -- [ARMOR_TYPES.Flesh] = { [MODIFIER_TYPE.Multiplier] = 1.2 },
+        -- [ARMOR_TYPES.Armored] = { [MODIFIER_TYPE.Multiplier] = 0.9 },
+        -- [ARMOR_TYPES.Ethereal] = { [MODIFIER_TYPE.Multiplier] = 0.4 },
+        [ARMOR_TYPES.Structure] = {
+            [MODIFIER_TYPE.Unscaled] = 1,
+            [MODIFIER_TYPE.UnifiedNegative] = -1,
+        },
+        [ARMOR_TYPES.Invulnerable] = {
+            [MODIFIER_TYPE.Multiplier] = -1,
+        }
+    },
+    [DAMAGE_TYPES.Toxic] = {
+        -- [ARMOR_TYPES.Flesh] = { [MODIFIER_TYPE.Multiplier] = 0.9 },
+        -- [ARMOR_TYPES.Armored] = { [MODIFIER_TYPE.Multiplier] = 1.5 },
+        -- [ARMOR_TYPES.Ethereal] = { [MODIFIER_TYPE.Multiplier] = 0.3 },
+        [ARMOR_TYPES.Structure] = {
+            [MODIFIER_TYPE.Unscaled] = 1,
+            [MODIFIER_TYPE.UnifiedNegative] = -1,
+        },
+        [ARMOR_TYPES.Invulnerable] = {
+            [MODIFIER_TYPE.Multiplier] = -1,
+        }
+    },
+    [DAMAGE_TYPES.Void] = {
+        -- [ARMOR_TYPES.Flesh] = { [MODIFIER_TYPE.Multiplier] = 0.8 },
+        -- [ARMOR_TYPES.Armored] = { [MODIFIER_TYPE.Multiplier] = 1.2 },
+        -- [ARMOR_TYPES.Ethereal] = { [MODIFIER_TYPE.Multiplier] = 0.9 },
+        [ARMOR_TYPES.Structure] = {
+            [MODIFIER_TYPE.Unscaled] = 1,
+            [MODIFIER_TYPE.UnifiedNegative] = -1,
+        },
+        [ARMOR_TYPES.Invulnerable] = {
+            [MODIFIER_TYPE.Multiplier] = -1,
+        }
+    },
+    [DAMAGE_TYPES.Hostile] = {
+        [ARMOR_TYPES.Invulnerable] = {
+            [MODIFIER_TYPE.Multiplier] = -1,
+        }
+    }
+}
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Functions
+---============================================================================
+
+local function InitializeTable(t, key)
+    if not t[key] then
+        t[key] = {}
+    end
+end
+
+local function GetKey(t, v)
+    for key, value in pairs(t) do
+        if value == v then
+            return key
+        end
+    end
+end
+
+local function GetArmorKey(key)
+    return GetKey(ARMOR_TYPES, key)
+end
+
+local function GetDamageKey(key)
+    return GetKey(DAMAGE_TYPES, key)
+end
+
+local function GetModifierKey(key)
+    return GetKey(MODIFIER_TYPE, key)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Class
+---============================================================================
+
+---@class DamageAffinity
+---@field FinalValues table<string, table<string, table<string, number>>>
+---@field is_dirty boolean
+local DamageAffinity = {}
+DamageAffinity.__index = DamageAffinity
+
+---@return DamageAffinity
+function DamageAffinity.New()
+    DCEI.LogMessage("Initializing Damage Affinity")
+    local self = setmetatable({}, DamageAffinity)
+    self.is_dirty = true
+
+    self:Reset()
+    return self
+end
+
+---Reset all Values back to Default
+function DamageAffinity:Reset()
+    self.is_dirty = true
+
+    self.FinalValues = {}
+    for _, damage_type in pairs(DAMAGE_TYPES) do
+        InitializeTable(self.FinalValues, damage_type)
+        for _, armor_type in pairs(ARMOR_TYPES) do
+            InitializeTable(self.FinalValues[damage_type], armor_type)
+            for _, modifier_type in pairs(MODIFIER_TYPE) do
+                InitializeTable(self.FinalValues[damage_type][armor_type], modifier_type)
+
+                local default_value = DefaultValues[damage_type]
+                        and DefaultValues[damage_type][armor_type]
+                        and DefaultValues[damage_type][armor_type][modifier_type]
+                    or 0
+
+                -- Default Value for Multiplier is 1.0
+                if modifier_type == MODIFIER_TYPE.Multiplier and default_value == 0 then
+                    default_value = default_value + 1
+                end
+
+                self.FinalValues[damage_type][armor_type][modifier_type] = default_value
+            end
+        end
+    end
+end
+
+---comment
+---@param modifier_type ModifierType
+---@param initial_value number
+---@param modifier_value number
+---@return number
+local function CalculateValue(modifier_type, initial_value, modifier_value)
+    if modifier_type == MODIFIER_TYPE.Multiplier then
+        initial_value = initial_value * modifier_value
+        -- initial_value = (initial_value + 1) * modifier_value - 1
+    else
+        initial_value = initial_value + modifier_value
+    end
+
+    return initial_value
+end
+
+---comment
+---@param modifier_type ModifierType
+---@param damage_type DamageType
+---@param amount number
+---@param armor_type ArmorType
+function DamageAffinity:ModifyDamage(modifier_type, damage_type, amount, armor_type)
+    self.is_dirty = true
+
+    -- Recursively Modify the Damage Affinity
+    if not armor_type then
+        for _, armor_type in pairs(ARMOR_TYPES) do
+            if armor_type == ARMOR_TYPES.Default or armor_type == ARMOR_TYPES.Hero then
+                goto continue
+            end
+
+            self:ModifyDamage(modifier_type, damage_type, amount, armor_type)
+            ::continue::
+        end
+
+        return
+    end
+
+    local target_value = self.FinalValues[damage_type][armor_type][modifier_type]
+
+    self.FinalValues[damage_type][armor_type][modifier_type] =
+        CalculateValue(modifier_type, target_value, amount)
+end
+
+function DamageAffinity:Set(damage_type, armor_type, modifier_type, amount)
+    self.is_dirty = true
+    self.FinalValues[damage_type][armor_type][modifier_type] = amount
+end
+
+
+---comment
+---@param damage_type DamageType
+---@param armor_type ArmorType
+---@param attributes Attributes
+function DamageAffinity:SetArmorFromAttributes(damage_type, armor_type, attributes)
+    local scaled = attributes:GetStatScaling(STAT.Armor, SCALING.Scaled)
+    local additive = attributes:GetStatScaling(STAT.Armor, SCALING.Additive)
+    local multiplier = attributes:GetStatScaling(STAT.Armor, SCALING.Multiplier)
+    local unscaled = attributes:GetStatScaling(STAT.Armor, SCALING.Unscaled)
+
+    ---TODO: Verify Additve, Multiplier, and Unscaled work as intended (negative check negative)
+    self:Set(damage_type, armor_type, MODIFIER_TYPE.Scaled, -scaled)
+    self:Set(damage_type, armor_type, MODIFIER_TYPE.Additive, -additive)
+    self:Set(damage_type, armor_type, MODIFIER_TYPE.Multiplier, multiplier)
+    self:Set(damage_type, armor_type, MODIFIER_TYPE.Unscaled, unscaled)
+end
+
+---Modifies the Scaled, Additive, and Unscaled values for the Damage Intake Effect based on the provided Attributes.
+---NOTE: Multiplier does not work here.
+---@param player PlayerId
+---@param effect Effect
+---@param attributes Attributes
+function DamageAffinity:SetEffectValues(player, effect, attributes)
+    local scaled = attributes:GetStatScaling(STAT.Armor, SCALING.Scaled)
+    local additive = attributes:GetStatScaling(STAT.Armor, SCALING.Additive)
+    local unscaled = attributes:GetStatScaling(STAT.Armor, SCALING.Unscaled)
+
+    Help.Log("Scaled", scaled)
+    Help.Log("Additive", additive)
+    Help.Log("Unscaled", unscaled)
+
+    DCEI.SetEffectFieldValueForPlayer(player, effect, EJS.DamageIntake.Scaled, -scaled)
+    DCEI.SetEffectFieldValueForPlayer(player, effect, EJS.DamageIntake.Additive, -additive)
+    DCEI.SetEffectFieldValueForPlayer(player, effect, EJS.DamageIntake.Unscaled, -unscaled)
+
+    DCEI.SetEffectFieldValueForPlayer(player, effect, EJS.DamageIntake.Multiplier, 0)
+end
+
+function DamageAffinity:Update()
+    if not self.is_dirty then
+        return
+    end
+
+    -- Convert Final Values into Entries
+    local entries = {}
+    for damage_type, _ in pairs(self.FinalValues) do
+        for armor_type, _ in pairs(self.FinalValues[damage_type]) do
+            local damage_modifiers = {}
+
+            -- We have to translate/shift the Multiplier Factor
+            for modifier_type, amount in pairs(self.FinalValues[damage_type][armor_type]) do
+                if modifier_type == MODIFIER_TYPE.Multiplier then
+                    amount = amount - 1
+                end
+
+                damage_modifiers[modifier_type] = amount
+            end
+
+            table.insert(entries, {
+                damage_type = damage_type,
+                armor_type = armor_type,
+                damage_modifier = damage_modifiers,
+            })
+        end
+    end
+
+    DCEI.RegisterSimpleDamageAffinity({ entries = entries })
+    -- self:Print()
+    self.is_dirty = false
+end
+
+-- Return the Damage Affinity Table
+function DamageAffinity:GetFinalValues(hide_default_values)
+    -- Convert each key into a string
+    local display_values = {}
+    for damage_type, _ in pairs(self.FinalValues) do
+        local damage_type_name = GetDamageKey(damage_type)
+        for armor_type, _ in pairs(self.FinalValues[damage_type]) do
+            local armor_type_name = GetArmorKey(armor_type)
+
+            for modifier_type, _ in pairs(self.FinalValues[damage_type][armor_type]) do
+                local modifier_type_name = GetModifierKey(modifier_type)
+
+                local amount = self.FinalValues[damage_type][armor_type][modifier_type]
+
+                if (hide_default_values and (modifier_type == MODIFIER_TYPE.Multiplier and amount == 1))
+                or (hide_default_values and (modifier_type ~= MODIFIER_TYPE.Multiplier and amount == 0)) then
+                    goto continue
+                end
+
+                InitializeTable(display_values, damage_type_name)
+                InitializeTable(display_values[damage_type_name], armor_type_name)
+
+                display_values[damage_type_name][armor_type_name][modifier_type_name] = amount
+                ::continue::
+            end
+        end
+    end
+
+    return display_values
+end
+
+function DamageAffinity:Print()
+    local final_values = self:GetFinalValues(true)
+    Help.Log("Damage Affinity Values", nil, final_values)
+end
+
+---============================================================================
+---!SECTION: Class
+---SECTION: Singleton
+---============================================================================
+
+local instance = DamageAffinity.New()
+
+---@return DamageAffinity
+DamageAffinity.Instance = instance
+
+---============================================================================
+---!SECTION: Singleton
+---============================================================================
+
+return DamageAffinity

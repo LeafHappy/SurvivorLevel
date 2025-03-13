@@ -1,0 +1,568 @@
+{
+    "abilities": {
+        "AI - Scan for Hero": {
+            "effect": "AI - Scan for Hero",
+            "stats": {
+                "prepTime": 0.25
+            }
+        },
+        "AI - Scan for Structure": {
+            "effect": "AI - Scan for Structure",
+            "stats": {
+                "prepTime": 0.25
+            }
+        },
+        "AI - Scan for Target": {
+            "effect": "AI - Scan for Target",
+            "stats": {
+                "prepTime": 0.25
+            }
+        },
+        "Arcane Orb": {
+            "parent": "_Autocast",
+            "effect": "Arcane Orb - Cast Effects",
+            "dependentEffects": [
+                "Arcane Orb - Collision - OnEnter"
+            ],
+            "dependentBehaviors": [
+                "Arcane Orb - Distance"
+            ]
+        },
+        "Artifact - Whirlwind": {
+            "parent": "_Autocast",
+            "effect": "Artifact - Whirlwind - Effects",
+            "dependentUnits": [
+                "Artifact - Whirlwind - Projectile"
+            ]
+        },
+        "Boss - Reaper - Dash": {
+            "effect": "Boss - Reaper - Dash - Launch",
+            "stats": {
+                "prepTime": 0.8
+            }
+        },
+        "Boss - Reaper - Summon End": {
+            "effect": "AI - State Trigger",
+            "stats": {
+                "prepTime": 1
+            }
+        },
+        "Boss - Reaper - Summon Start": {
+            "effect": "Boss - Reaper - Summon Start - Issue Order",
+            "stats": {
+                "prepTime": 1
+            }
+        },
+        "Boss - Shieldbearer - Leap": {
+            "effect": "Boss - Shieldbearer - Leap - Launch",
+            "stats": {
+                "prepTime": 0.15,
+                "finishTime": 0.35
+            }
+        },
+        "Boss - Shieldbearer - Summon - Channel": {
+            "effect": "Boss - Shieldbearer - Summon - Effects",
+            "stats": {
+                "finishTime": 0.5
+            }
+        },
+        "Boss - Shieldbearer - Summon - End": {
+            "effect": "AI - State Trigger",
+            "stats": {
+                "prepTime": 0.25,
+                "finishTime": 0.25
+            }
+        },
+        "Boss - Shieldbearer - Summon - Start": {
+            "effect": "Boss - Shieldbearer - Summon - Issue Channel",
+            "stats": {
+                "prepTime": 0.25,
+                "finishTime": 0.25
+            }
+        },
+        "Boss - Stagger": {
+            "effect": "Boss - Stagger Effects"
+        },
+        "Boss - Taunt": {
+            "effect": "Boss - Taunt Effects",
+            "stats": {
+                "prepTime": 3
+            }
+        },
+        "Chilling Presence": {
+            "parent": "_Autocast",
+            "effect": "Chilling Presence - Apply",
+            "stats": {
+                "useCooldownOnEnable": false
+            }
+        },
+        "Clawstorm": {
+            "parent": "_Autocast",
+            "effect": "Clawstorm - Cast Effects"
+        },
+        "Disposable Remover - Autocast": {
+            "parent": "_Autocast",
+            "effect": "Disposable Remover - Scan",
+            "stats": {
+                "period": 0.03125
+            }
+        },
+        "Double Swing": {
+            "parent": "_Autocast",
+            "effect": "Double Swing - Cast Effects",
+            "dependentBehaviors": [
+                "Double Swing - Critical Chance - Stacks"
+            ]
+        },
+        "Dummy Spell": {
+            "parent": "_Autocast",
+            "effect": "On Spell Trigger",
+            "stats": {
+                "period": 0.5
+            }
+        },
+        "Elite - Necromancer - Speed Boost": {
+            "effect": "Elite - Necromancer - Speed Boost - Effects",
+            "stats": {
+                "prepTime": 2,
+                "finishTime": 2
+            }
+        },
+        "Elite - Necromancer - Summon": {
+            "effect": "Elite - Necromancer - Summon - Effects",
+            "stats": {
+                "prepTime": 2,
+                "finishTime": 2
+            }
+        },
+        "Flamebreak": {
+            "parent": "_Autocast",
+            "effect": "Flamebreak - Cast Effects"
+        },
+        "Hero Top - Turn": {
+            "parent": "_Autocast",
+            "effect": "Hero Top - Scan - Hostile",
+            "stats": {
+                "period": 0.125
+            }
+        },
+        "Hydra": {
+            "parent": "_Autocast",
+            "effect": "Hydra - Spawn"
+        },
+        "Hydra - Attack": {
+            "effect": "Hydra - Attack Scan",
+            "stats": {
+                "prepTime": 0.2,
+                "range": 10
+            }
+        },
+        "Hydra - Scan": {
+            "parent": "_Autocast",
+            "effect": "Hydra - Scan",
+            "stats": {
+                "period": 0.6,
+                "useInitialCooldown": true
+            }
+        },
+        "Hydra Fall": {
+            "parent": "_Autocast",
+            "effect": "Hydra Fall - Scan",
+            "stats": {
+                "period": 2
+            }
+        },
+        "KeyItem - Pickup": {
+            "parent": "_Autocast",
+            "effect": "KeyItem - Pickup",
+            "stats": {
+                "period": 0.125
+            }
+        },
+        "Mystic Archer": {
+            "parent": "_Autocast",
+            "effect": "Mystic Archer - Cast Effects"
+        },
+        "Mystic Archer - Charged Shot": {
+            "parent": "_Autocast",
+            "effect": "Mystic Archer - Charged Shot - Effects",
+            "stats": {
+                "prepTime": 0.9,
+                "period": 0.4,
+                "useInitialCooldown": true
+            }
+        },
+        "Pyroclasm": {
+            "parent": "_Autocast",
+            "effect": "Pyroclasm - OnTrigger",
+            "dependentUnits": [
+                "Pyroclasm - Projectile"
+            ]
+        },
+        "Salvo": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Salvo - Scan",
+            "dependentEffects": [
+                "Salvo - Cast Effects"
+            ],
+            "dependentBehaviors": [
+                "Salvo - Bonus Bomb Chance"
+            ]
+        },
+        "Shot": {
+            "parent": "_Autocast",
+            "effect": "Shot - Precast",
+            "dependentBehaviors": [
+                "Shot - Learned - Double Shot"
+            ]
+        },
+        "Siphon": {
+            "parent": "_Autocast",
+            "effect": "Siphon - Scan"
+        },
+        "Skill - Archer - Rank 01": {
+            "parent": "_Autocast",
+            "effect": "Skill - Archer - Rank 01 - Scan",
+            "canCastWhileMoving": false
+        },
+        "Skill - Archer - Rank 02": {
+            "parent": "_Autocast",
+            "effect": "Skill - Archer - Rank 02 - Scan",
+            "stats": {
+                "period": 0.8
+            },
+            "canCastWhileMoving": false
+        },
+        "Skill - Bash": {
+            "parent": "_Autocast",
+            "effect": "Skill - Bash - Count",
+            "dependentEffects": [
+                "Skill - Bash - OnEnter"
+            ],
+            "dependentBehaviors": [
+                "Skill - Bash - Projectile Speed"
+            ]
+        },
+        "Skill - Blade Trap": {
+            "parent": "_Autocast",
+            "effect": "Skill - Blade Trap - Trigger",
+            "dependentUnits": [
+                "Skill - Blade Trap - Projectile"
+            ],
+            "dependentBehaviors": [
+                "Skill - Blade Trap - Learned - Maim",
+                "Skill - Blade Trap - Learned - Seeking Blades"
+            ]
+        },
+        "Skill - Boomerang": {
+            "parent": "_Autocast",
+            "effect": "Skill - Boomerang - Count",
+            "dependentUnits": [
+                "Skill - Boomerang - Projectile"
+            ]
+        },
+        "Skill - Chakram": {
+            "parent": "_Autocast",
+            "effect": "Skill - Chakram - Trigger",
+            "dependentUnits": [
+                "Skill - Chakram - Projectile"
+            ]
+        },
+        "Skill - Chop Tree": {
+            "parent": "_Autocast",
+            "effect": "Skill - Chop Tree - Scan",
+            "dependentEffects": [
+                "Skill - Chop Tree - Effects"
+            ]
+        },
+        "Skill - Fireball": {
+            "parent": "_Autocast",
+            "effect": "Skill - Fireball - Scan - Hostile",
+            "dependentEffects": [
+                "Skill - Fireball - Launch"
+            ],
+            "dependentBehaviors": [
+                "Skill - Fireball - Projectile Speed"
+            ]
+        },
+        "Skill - Frost Blast": {
+            "parent": "_Autocast",
+            "effect": "Skill - Frost Blast - Scan - Hostile"
+        },
+        "Skill - Frost Guard": {
+            "parent": "_Autocast",
+            "effect": "Skill - Frost Guard - Scan - Hostile",
+            "dependentUnits": [
+                "Skill - Frost Guard - Projectile"
+            ]
+        },
+        "Skill - Frostfang": {
+            "parent": "_Autocast",
+            "dependentUnits": [
+                "Skill - Frostfang - Projectile",
+                "Skill - Frostfang - Hibernate Area Ground"
+            ]
+        },
+        "Skill - Guardian Shield": {
+            "parent": "_Autocast",
+            "effect": "Skill - Guardian Shield - ForceCast",
+            "dependentUnits": [
+                "Skill - Guardian Shield - Projectile"
+            ]
+        },
+        "Skill - Heatwave": {
+            "parent": "_Autocast",
+            "dependentUnits": [
+                "Skill - Heatwave - Telegraph"
+            ],
+            "dependentEffects": [
+                "Skill - Heatwave - Explosion Effects",
+                "Skill - Heatwave - Scan"
+            ]
+        },
+        "Skill - Ice Barrage": {
+            "parent": "_Autocast",
+            "effect": "Skill - Ice Barrage - Cast Effects",
+            "dependentEffects": [
+                "Skill - Ice Barrage - Launch"
+            ],
+            "dependentBehaviors": [
+                "Skill - Ice Barrage - Projectile Speed"
+            ]
+        },
+        "Skill - Ice Rupture": {
+            "parent": "_Autocast",
+            "effect": "Skill - Ice Rupture - Cast Type",
+            "dependentEffects": [
+                "Skill - Ice Rupture - Cast Effects",
+                "Skill - Ice Rupture - Damage Boost"
+            ],
+            "dependentBehaviors": [
+                "Skill - Ice Rupture - Skill Size",
+                "Skill - Ice Rupture - Learned - Ice Locked"
+            ]
+        },
+        "Skill - Lightning Strike": {
+            "parent": "_Autocast",
+            "effect": "Skill - Lightning Strike - Count",
+            "dependentBehaviors": [
+                "Skill - Lightning Splash - Learned"
+            ]
+        },
+        "Skill - Magma Orb": {
+            "parent": "_Autocast",
+            "effect": "Skill - Magma Orb - Trigger",
+            "dependentUnits": [
+                "Skill - Magma Orb - Projectile"
+            ],
+            "dependentEffects": [
+                "Skill - Magma Orb - OnEnter",
+                "Skill - Magma Orb - OnStay",
+                "Skill - Magma Orb - Damage Amp"
+            ]
+        },
+        "Skill - Marked for Death": {
+            "parent": "_Autocast",
+            "effect": "Skill - Marked for Death - Scan",
+            "dependentUnits": [
+                "Skill - Marked for Death - Overhead"
+            ],
+            "dependentEffects": [
+                "Skill - Marked for Death - OnDeath - Effects",
+                "Skill - Unstable Marker - Effects",
+                "Skill - Marked for Death - Exposed"
+            ]
+        },
+        "Skill - Mighty Axe": {
+            "parent": "_Autocast",
+            "effect": "Skill - Mighty Axe - Scan - Hostile",
+            "dependentEffects": [
+                "Skill - Mighty Axe - Launch"
+            ],
+            "dependentBehaviors": [
+                "Skill - Mighty Axe - Projectile Speed"
+            ]
+        },
+        "Skill - Mine Stone": {
+            "parent": "_Autocast",
+            "effect": "Skill - Mine Stone - Scan",
+            "dependentEffects": [
+                "Skill - Mine Stone - Effects"
+            ]
+        },
+        "Skill - Shovel": {
+            "parent": "_Autocast",
+            "effect": "Skill - Shovel - Scan",
+            "dependentEffects": [
+                "Skill - Shovel - Effects"
+            ]
+        },
+        "Skill - Static Remnants": {
+            "parent": "_Autocast",
+            "dependentUnits": [
+                "Skill - Static Remnants - Pylon"
+            ],
+            "dependentEffects": [
+                "Skill - Static Remnants - Detonate Effects",
+                "Skill - Static Remnants - Storm Serpent Effects"
+            ],
+            "dependentBehaviors": [
+                "Skill - Static Remnants - Storm Serpent - Size",
+                "Skill - Static Remnants - Storm Serpent - Damage"
+            ]
+        },
+        "Skill - Strafe": {
+            "parent": "_Autocast",
+            "effect": "Skill - Strafe - Scan - Hostile",
+            "dependentEffects": [
+                "Skill - Strafe - Launch",
+                "Skill - Strafe - Trickshot - Scan - Hostile",
+                "Skill - Spectral Arrow - Scan",
+                "Skill - Strafe - Death VFX"
+            ],
+            "dependentBehaviors": [
+                "Skill - Strafe - Projectile Speed",
+                "Skill - Strafe - Learned - Trickshot",
+                "Skill - Strafe - Learned - Quick Draw"
+            ]
+        },
+        "Skill - Tesla Field": {
+            "parent": "_Autocast",
+            "effect": "Skill - Tesla Field - Cast Effects",
+            "dependentUnits": [
+                "Skill - Tesla Field - Aura"
+            ],
+            "dependentBehaviors": [
+                "Skill - Tesla Field - Learned - Static Discharge"
+            ]
+        },
+        "Snap": {
+            "parent": "_Autocast",
+            "effect": "Snap - Scan"
+        },
+        "Solar Crest": {
+            "parent": "_Autocast",
+            "effect": "Solar Crest - Cast Effects",
+            "dependentEffects": [
+                "Solar Crest - Collider - OnEnter"
+            ]
+        },
+        "Spectral Arrow": {
+            "parent": "_Autocast",
+            "effect": "Spectral Arrow - Cast Effects",
+            "stats": {
+                "period": 3
+            },
+            "dependentUnits": [
+                "Spectral Arrow - Actor"
+            ],
+            "dependentEffects": [
+                "Spectral Arrow - Collision - OnEnter"
+            ],
+            "dependentBehaviors": [
+                "Spectral Arrow - Projectile Speed"
+            ]
+        },
+        "Starblast": {
+            "parent": "_Autocast",
+            "effect": "Starblast - Cast Effects"
+        },
+        "Triple Strike": {
+            "parent": "_Autocast",
+            "effect": "Triple Strike - Series",
+            "dependentEffects": [
+                "Triple Strike - Scan"
+            ]
+        },
+        "Viper Strike": {
+            "parent": "_Autocast",
+            "effect": "Viper Strike - Cast Effects",
+            "dependentBehaviors": [
+                "Viper Strike - Missile Speed"
+            ]
+        },
+        "Weapon - Frost Pillar": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Frost Pillar - Scan",
+            "dependentEffects": [
+                "Weapon - Frost Pillar - Cooldown Reduction"
+            ]
+        },
+        "Weapon - Frostnova": {
+            "parent": "_Autocast",
+            "dependentEffects": [
+                "Weapon - Frostnova - Cast Effects"
+            ]
+        },
+        "Weapon - Homerun Bat": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Homerun Bat - Scan",
+            "dependentEffects": [
+                "Weapon - Homerun Bat - Cast"
+            ]
+        },
+        "Weapon - Orbital Shield": {
+            "parent": "_Autocast",
+            "dependentUnits": [
+                "Weapon - Orbital Shield - Projectile"
+            ]
+        },
+        "Weapon - Revenant": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Revenant - Scan",
+            "dependentUnits": [
+                "Weapon - Revenant - Projectile"
+            ]
+        },
+        "Weapon - Salvo": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Salvo - Scan",
+            "dependentEffects": [
+                "Weapon - Salvo - Launch"
+            ],
+            "dependentBehaviors": [
+                "Weapon - Salvo - Projectile Speed"
+            ]
+        },
+        "Weapon - Scarlet Arrow": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Scarlet Arrow - Scan",
+            "stats": {
+                "period": 0.65
+            },
+            "dependentEffects": [
+                "Weapon - Scarlet Arrow - Launch"
+            ],
+            "dependentBehaviors": [
+                "Weapon - Scarlet Arrow - Projectile Speed"
+            ]
+        },
+        "Weapon - Spitfire": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Spitfire - Count",
+            "dependentBehaviors": [
+                "Weapon - Spitfire - Projectile Speed",
+                "Weapon - Spitfire - Projectile Deceleration Rate",
+                "Weapon - Spitfire - Projectile Spread"
+            ]
+        },
+        "Weapon - Starblast": {
+            "parent": "_Autocast",
+            "effect": "Weapon - Starblast - Scan",
+            "dependentUnits": [
+                "Weapon - Starblast - Projectile"
+            ]
+        },
+        "_Autocast": {
+            "template": true,
+            "castType": 2,
+            "effect": "DoNothing",
+            "stats": {
+                "period": 1,
+                "useInitialCooldown": true,
+                "useCooldownOnEnable": true
+            },
+            "canCastWhileMoving": true
+        }
+    }
+}

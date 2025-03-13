@@ -1,0 +1,278 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local EJS = require("Data/EJS")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local SpawnDirector = require("Game/Directors/Spawn")
+
+local PropData = require("Map/PropData")
+local ZonePropData = require("Editor/ZonePropData")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Data
+---============================================================================
+
+local REF = {}
+
+---@type table<string, SimpleUnit>
+local REGISTERED_UNITS = {}
+
+---============================================================================
+-- !SECTION -- Local Data
+-- SECTION -- Initialize
+---============================================================================
+
+---@class PropInstanceTracker
+---@field Data DangerZoneData.PropData
+---@field PropData ZonePropData
+---@field IsEnabled boolean
+---@field ZonePosition Vector2
+local PropInstanceTracker = {}
+PropInstanceTracker.__index = PropInstanceTracker
+
+---comment
+---@param prop_data DangerZoneData.PropData
+---@param zone_position Vector2 | table
+---@return PropInstanceTracker
+function PropInstanceTracker.New(prop_data, zone_position)
+    ---@type PropInstanceTracker
+    local self = setmetatable({}, PropInstanceTracker)
+
+    self:Reset()
+    self.Data = prop_data
+    self.PropData = ZonePropData[prop_data.Key]
+    self.IsEnabled = true
+    self.ZonePosition = Vector2.NewFromTable(zone_position)
+    self.PropSeriesIndex = 0
+
+    if self.PropData.Settings.SpawnImmediately then
+        self:_SpawnInstance()
+    elseif self.PropData.Settings.DestroyedPlaceholder then
+        self:_SpawnPlaceholder()
+    end
+
+    return self
+end
+
+function PropInstanceTracker:Reset()
+    ---TODO: Remove Instance if one exists
+    self.Instance = nil
+    self.Timer = 0
+
+    self.DestroyedInstance = nil
+end
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Local Functions
+---============================================================================
+
+---@param instance SimpleUnit
+---@param key string
+local function CheckTransformAnimationOptions(instance, key)
+    local data = PropData[key]
+    if not data or not data.TransformAnimation then
+        return
+    end
+
+    DCEI.ApplyTransformAnimationToSimpleUnit(instance, data.TransformAnimation)
+end
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Internal Functions
+---============================================================================
+
+---comment
+---@return Vector2
+function PropInstanceTracker:_GetSpawnPosition()
+    return self.ZonePosition + Vector2.NewFromTable(self.Data.Position)
+end
+
+function PropInstanceTracker:_ValidateInstance()
+    if self.Instance == nil then
+        return
+    end
+
+    local unit_exists = DCEI.SimpleUnitExists(self.Instance)
+
+    if not unit_exists then
+        self.Instance = nil
+    end
+end
+
+---comment
+---@param prop_key string
+function PropInstanceTracker:_CheckRegisterUnit(prop_key)
+    local simple_unit = REGISTERED_UNITS[prop_key]
+
+    if simple_unit then
+        return
+    end
+
+    local prop_data = PropData[prop_key]
+
+    if not prop_data then
+        Help.Log("Failed to find PropData for key", prop_key, prop_key)
+        return
+    end
+
+    local unit = SimpleUnits.Register(prop_data)
+    REGISTERED_UNITS[prop_key] = unit
+end
+
+function PropInstanceTracker:_SpawnInstance()
+    local prop_key
+
+    if self.PropData.Settings.PropSeries then
+        self.PropSeriesIndex = self.PropSeriesIndex + 1
+        prop_key = self.PropData.Settings.PropSeries[self.PropSeriesIndex]
+    else
+        prop_key = self.PropData.Settings.PropData
+    end
+
+    if not prop_key then
+        return
+    end
+
+    self:_CheckRegisterUnit(prop_key)
+
+    local player_id = PLAYER.Destructible
+    local team_id = TEAM.Hostile
+    local position = self:_GetSpawnPosition()
+
+    local simple_unit = REGISTERED_UNITS[prop_key]
+
+    local instance = simple_unit:SpawnSync(player_id, team_id, position)
+
+    CheckTransformAnimationOptions(instance, prop_key)
+
+    self.Instance = instance
+end
+
+function PropInstanceTracker:_SpawnPlaceholder()
+    if Help.ValidateSimpleUnit(self.DestroyedInstance) then
+        return
+    end
+
+    local prop_key = self.PropData.Settings.DestroyedPlaceholder
+
+    self:_CheckRegisterUnit(prop_key)
+
+    local player_id = PLAYER.Terrain
+    local team_id = TEAM.Terrain
+    local position = self:_GetSpawnPosition()
+
+    local simple_unit = REGISTERED_UNITS[prop_key]
+
+    local instance = simple_unit:SpawnSync(player_id, team_id, position)
+
+    CheckTransformAnimationOptions(instance, prop_key)
+
+    self.DestroyedInstance = instance
+end
+
+function PropInstanceTracker:_CheckPlaceholder()
+    if not self.PropData.Settings.DestroyedPlaceholder then
+        return
+    end
+
+    if Help.ValidateSimpleUnit(self.Instance) then
+        if Help.ValidateSimpleUnit(self.DestroyedInstance) then
+            DCEI.RemoveSimpleUnit(self.DestroyedInstance)
+            self.DestroyedInstance = nil
+        end
+        return
+    else
+        self:_SpawnPlaceholder()
+    end
+end
+
+function PropInstanceTracker:_CheckSpawnInstance()
+    if Help.ValidateSimpleUnit(self.Instance) then -- Already Spawned
+        return
+    end
+
+    -- Check Prop Series
+    if self.PropData.Settings.PropSeries then
+        -- Check if we've reached the end of our prop series
+        if self.PropSeriesIndex < #self.PropData.Settings.PropSeries then
+            self:_SpawnInstance()
+            return
+        end
+    end
+
+    -- Timer Check
+    local respawn_time = self.PropData.Settings.RespawnTime or 0
+    if self.Timer < respawn_time then
+        self.Timer = self.Timer + TICK_RATE
+        return
+    end
+    self.Timer = 0
+    self.PropSeriesIndex = 0
+
+    self:_SpawnInstance()
+end
+
+---============================================================================
+-- !SECTION -- Internal Functions
+-- SECTION -- Class Functions
+---============================================================================
+
+---comment
+---@param hero Hero
+function PropInstanceTracker:Update(hero)
+    if not self.IsEnabled then
+        return
+    end
+
+    self:_ValidateInstance()
+    self:_CheckSpawnInstance()
+    self:_CheckPlaceholder()
+end
+
+function PropInstanceTracker:Clear()
+    self.IsEnabled = false
+
+    if Help.ValidateSimpleUnit(self.Instance) then
+        DCEI.RemoveSimpleUnit(self.Instance)
+    end
+
+    if Help.ValidateSimpleUnit(self.DestroyedInstance) then
+        DCEI.RemoveSimpleUnit(self.DestroyedInstance)
+    end
+end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return PropInstanceTracker

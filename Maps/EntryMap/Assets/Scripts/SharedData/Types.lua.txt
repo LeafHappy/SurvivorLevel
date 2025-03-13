@@ -1,0 +1,901 @@
+---@enum OperationType
+---@readonly
+OPERATION_TYPE = {
+    Add = "Add",
+    Subtract = "Subtract",
+    Multiply = "Multiply",
+    Divide = "Divide",
+    Set = "Set",
+}
+
+---@enum COMPARISON_TYPE
+---@readonly
+COMPARISON_TYPE = {
+    EqualTo = "EqualTo",
+    GreaterThan = "GreaterThan",
+    GreaterThanOrEqualTo = "GreaterThanOrEqualTo",
+    LessThan = "LessThan",
+    LessThanOrEqualTo = "LessThanOrEqualTo",
+    Modulo = "Modulo",
+    NotEqualTo = "NotEqualTo",
+}
+
+---@enum PLAYER
+PLAYER = {
+    Terrain = 0,
+    Player1 = 1,
+    Player2 = 2,
+    Player3 = 3,
+    Player4 = 4,
+    Hostile = 5,
+    Destructible = 6,
+}
+
+---@enum TEAM
+TEAM = {
+    Terrain = 0,
+    Friendly = 1,
+    Hostile = 2,
+}
+
+---@enum CARDINAL
+CARDINAL = {
+    North = "North",
+    East = "East",
+    South = "South",
+    West = "West",
+}
+
+---@enum SURVIVOR
+SURVIVOR = {
+    Annie = "Annie",
+    Jorian = "Jorian",
+}
+
+---@enum HERO_POINT
+HERO_POINT = {
+    Level = "Level", -- Grants Passives Options
+    Heroic = "Heroic", -- Grants Active or Unique Options
+    Skill = "Skill", -- Grants Active Options
+}
+
+---The Upgrade Type.
+--TODO: Setup types, likely just Active / Passive
+---@enum SKILL_TYPE
+SKILL_TYPE = {
+    Active = "Active",
+    Passive = "Passive",
+    Unique = "Unique",
+}
+
+---The Upgrade's Upgrade Options Type.
+---@enum UPGRADE_OPTIONS_TYPE
+UPGRADE_OPTIONS_TYPE = {
+    Learn = "Learn",
+    Standard = "Standard",
+    Talent = "Talent",
+}
+
+-- The different types of hero challenge
+---@enum HeroChallengeType
+---@readonly
+HERO_CHALLENGE_TYPE = {
+    Kills = 1,
+    AbilityDamage = 2,
+    AbilityUses = 3,
+}
+
+---@enum DamageType
+---@readonly
+DAMAGE_TYPES = {
+    Default = 0,
+    Hostile = 1,
+    Physical = 2,
+    Fire = 3,
+    Cold = 4,
+    Shock = 5,
+    Toxic = 6,
+    Void = 7,
+}
+
+---@enum ArmorType
+---@readonly
+ARMOR_TYPES = {
+    Default = 0,
+    Hero = 1,
+    Basic = 2,
+    Elite = 3,
+    Boss = 4,
+    Structure = 5,
+    Invulnerable = 6,
+}
+
+---@enum ModifierType
+---@readonly
+MODIFIER_TYPE = {
+    Scaled = "scaled",
+    Unscaled = "unscaled",
+    Additive = "additive_factor",
+    UnifiedPositive = "positive_unified_factor",
+    UnifiedNegative = "negative_unified_factor",
+    Multiplier = "multiplier_factor",
+}
+
+---@enum SCALING
+SCALING = {
+    ---Total = Sum(**Scaled**) * (1 + Sum(Additive)) * Product(Multiplier) + Unscaled
+    Scaled = 1,
+    ---Total = Sum(Scaled) * (1 + Sum(**Additive**)) * Product(Multiplier) + Unscaled
+    Additive = 2,
+    ---Total = Sum(Scaled) * (1 + Sum(Additive)) * Product(**Multiplier**) + Unscaled
+    Multiplier = 3,
+    ---Total = Sum(Scaled) * (1 + Sum(Additive)) * Product(Multiplier) + **Unscaled**
+    Unscaled = 4,
+}
+
+---@enum NUMBER_FORMAT
+NUMBER_FORMAT = {
+    Decimal = "Decimal",
+    Integer = "Integer",
+    Percent = "Percent",
+    PercentBaseOne = "PercentBaseOne",
+}
+
+-- Resource Types
+---@enum RESOURCE_TYPE
+RESOURCE_TYPE = {
+    Currency = 1,
+    Material = 2,
+    Shard = 3,
+    Chest = 4,
+    Trophy = 5,
+    Upgrade = 6,
+    Passive = 7,
+}
+
+---@enum SKILL_TAG
+SKILL_TAG = {
+    -- Core
+    HeroLevel = "HeroLevel", -- Condition Filter
+    Global = "Global", -- Applies to all Skills
+
+    ---ANCHOR: Delivery Types (Type 1)
+    Attack = "Attack",
+    Aura = "Aura",
+    Cooldown = "Cooldown",
+    Summon = "Summon",
+    Trigger = "Trigger",
+
+    ---ANCHOR: Damage Types (Type 2)
+    Physical = "Physical",
+    Fire = "Fire",
+    Cold = "Cold",
+    Shock = "Shock",
+    Toxic = "Toxic",
+    Void = "Void",
+
+    ---ANCHOR: Generic --> Tools
+    ChopTree = "ChopTree",
+    MineStone = "MineStone",
+    Shovel = "Shovel",
+
+    ---ANCHOR: Annnie
+    MarkedForDeath = "MarkedForDeath",
+    Strafe = "Strafe",
+
+    ---ANCHOR: Jorian
+    FrostGuard = "FrostGuard",
+    FrostboundFrenzy = "FrostboundFrenzy",
+    IceSplash = "IceSplash",
+
+    ---ANCHOR: Stage 1
+    Bash = "Bash",
+    Boomerang = "Boomerang",
+    GuardianShield = "GuardianShield",
+
+    ---ANCHOR: Stage 2
+    Fireball = "Fireball",
+    FireballExplosion = "FireballExplosion",
+    Heatwave = "Heatwave",
+
+    ---ANCHOR: Stage 3
+    TeslaField = "TeslaField",
+    LightningStrike = "LightningStrike",
+
+    ---ANCHOR: Stage 4
+    IceBarrage = "IceBarrage",
+    IceRupture = "IceRupture",
+    GlacialExpansion = "GlacialExpansion",
+
+    ---ANCHOR: Stage 5
+    MagmaOrb = "MagmaOrb",
+    StaticRemnants = "StaticRemnants",
+    StormSerpent = "StormSerpent",
+
+    ---ANCHOR: Stage 6
+    Frostfang = "Frostfang",
+    Hibernation = "Hibernation",
+    Chakram = "Chakram",
+
+    ---ANCHOR: Others
+
+    BladeTrap = "BladeTrap",
+    FrostBlast = "FrostBlast",
+
+    ---ANCHOR: Unique
+    SpeedForce = "SpeedForce",
+
+    ---ANCHOR: New Mechanic / Thematic
+    Area = "Area",
+
+    ---ANCHOR: Mechanic / Thematic (Type 4)
+    Precision = "Precision", -- [Annie] High Accuracy and Damage.
+    Trap = "Trap", -- [Annie] Skills with a duration.
+    Fury = "Fury", -- [Jorian] High attack speed.
+    Resolve = "Resolve", -- [Jorian] Defense related.
+    Explosive = "Explosive", -- [Stage 2] Skills that explode.
+    Travel = "Travel",
+
+    ---ANCHOR: Archer Camps
+    Camp = "Camp",
+    Archer = "Archer",
+    ArcherTowerRank_01 = "ArcherTowerRank_01",
+    ArcherTowerRank_02 = "ArcherTowerRank_02",
+
+    ---============================================================================
+    ---TODO: Remove Below
+    ---============================================================================
+
+    -- Survivors
+    Annie = "Annie",
+
+    -- Scarlet Arrow
+    ScarletArrow = "ScarletArrow",
+    ScarletArrowMultishot = "ScarletArrowMultishot",
+    ScarletArrowPierce = "ScarletArrowPierce",
+    ScarletArrowExplosion = "ScarletArrowExplosion",
+
+    -- Orbital Shield
+    OrbitalShield = "OrbitalShield",
+    OrbitalShieldExplosion = "OrbitalShieldExplosion",
+
+    -- Frostnova
+    Frostnova = "Frostnova",
+
+    -- Pyroclasm
+    Pyroclasm = "Pyroclasm",
+
+    -- Mighty Axe
+    MightyAxe = "MightyAxe",
+    MightyAxeFrostAxe = "MightyAxeFrostAxe",
+
+    -- Frost Pillar
+    FrostPillar = "FrostPillar",
+
+    -- Damage Types (Remove)
+    Impact = "Impact", ---TODO: Remove
+    Corrosive = "Corrosive", ---TODO: Remove
+
+    -- Object
+    Projectile = "Projectile",
+    Pillar = "Pillar",
+    -- Trap = "Trap",
+    Spell = "Spell",
+    Totem = "Totem",
+
+    -- Settlement
+    DirectDamage = "DirectDamage",
+    DamageOverTime = "DamageOverTime",
+    Control = "Control",
+    Enhancement = "Enhancement",
+    Healing = "Healing",
+    Shield = "Shield",
+
+    -- Status
+    Burning = "Burning",
+    Poison = "Poison",
+    Slow = "Slow",
+    Frozen = "Frozen",
+    Paralyzed = "Paralyzed",
+    Stun = "Stun",
+
+    -- ?
+    Ice = "Ice",
+    Freezing = "Freezing",
+    Range = "Range",
+    Speed = "Speed",
+
+    -- New Set
+
+    -- Skills that have a Cooldown. Typically with multiple instances on separate Cooldowns.
+    Recharge = "Recharge",
+
+    -- Skills that release multiple projectiles at once.
+    Burst = "Burst",
+
+    ---ANCHOR: Hostile Skill Tags
+    Spawning = "Spawning", -- Used for Spawn Behaviors
+    Basic = "Basic",
+    Elite = "Elite",
+    Boss = "Boss",
+}
+
+---Hero Stats
+---@enum STAT
+STAT = {
+    -- ================================================================================================
+    -- ANCHOR -- Hero
+    -- ================================================================================================
+
+    GoldStorageLimit = "GoldStorageLimit", -- The maximum amount of Gold the player can hold.
+
+    -- ================================================================================================
+    -- ANCHOR -- Hero
+    -- ================================================================================================
+
+    -- Hero Top
+    DetectionRange = "Detection Range", -- Top Detection Range
+
+    -- Player
+    CameraDistance = "CameraDistance", -- Invisible
+
+    -- Vitals
+    Health = "Health",
+    HealthRegeneration = "HealthRegeneration",
+    Healing = "Healing",
+    Armor = "Armor", -- Placeholder
+
+    -- Hero Stats
+    CollisionSize = "CollisionSize", -- Invisible (shadow may inherit)
+    MoveSpeed = "MoveSpeed",
+    Thorns = "Thorns",
+    Knockback = "Knockback", -- Invisible
+    Mass = "Mass", -- Invisible (currently only implemented on Hostile Units)
+    PickupRange = "PickupRange",
+    ExperienceMultiplier = "ExperienceMultiplier",
+    GoldIncome = "GoldIncome",
+
+    -- Special
+    WaveEndHeal = "WaveEndHeal", ---TODO: Change to Heal on Level?
+    PotionHeal = "PotionHeal", -- The base amount of Health a Potion will heal.
+    BombDamage = "BombDamage", -- The amounf of Damage a Bomb deals (100 x Level).
+
+    -- Stagger
+    StaggerDuration = "StaggerDuration", -- The duration of Stagger applied to Elites/Bosses.
+    StaggerDamageMultiplier = "StaggerDamageMultiplier", -- The amount of Increased Damage Elites/Bosses take when Staggered.
+
+    -- ================================================================================================
+    -- ANCHOR -- Skills
+    -- ================================================================================================
+
+    CastRange = "CastRange", -- [Hidden] Accumulation of SkillRange and SkillSize.
+    SkillRange = "SkillRange", -- The range a Skill can be activated, also affects how far projectiles travel.
+    SkillSize = "SkillSize", -- Size of the Skill's Area of Effect, also affects the size of projectiles.
+
+    -- Cast
+    BaseAttackTime = "BaseAttackTime", -- The Base time between Skill Activations.
+    AttackSpeed = "AttackSpeed", -- The Increased/Decreased time between Skill Activations.
+    Cooldown = "Cooldown", -- A custom timer for Special (Non-Skill) Activations.
+    Frequency = "Frequency", -- The rate at which Damage over Time effects are applied.
+    TargetCount = "TargetCount", -- The number of targets a Skill will select when activated.
+    Spread = "Spread", -- The angle of spread for Skills that release multiple projectiles.
+
+    -- Durations
+    SkillDuration = "SkillDuration", -- The duration of a Skill's effect.
+    DebuffDuration = "DebuffDuration", -- The duration of a Debuff effect.
+
+    -- Projectile
+    ProjectileCount = "ProjectileCount",
+    ProjectileSpeed = "ProjectileSpeed",
+    ProjectileHealth = "ProjectileHealth",
+
+    -- Impact
+    Damage = "Damage", -- The amount of Damage a Skill will deal.
+    CriticalChance = "CriticalChance", -- The chance a Skill will deal Critical Damage.
+    CriticalMultiplier = "CriticalMultiplier", -- The amount of increased Damage when a Skill inflicts a Critical Strike.
+    AreaDamage = "AreaDamage", -- The percentage of Area Damage a Skill will deal.
+
+    -- Debuffs
+    SlowDuration = "SlowDuration", -- The duration of Slow applied to simple enemies.
+    SlowEffectiveness = "SlowEffectiveness", -- The amount of Slow applied to simple enemies.
+
+    -- Knockback
+    Force = "Force", -- The amount of Knockback applied to simple enemies.
+
+    -- Others
+    Count = "Count", -- The number of instances a Skill will create (when TargetCount and ProjectileCount do not apply).
+    Chance = "Chance", -- Affects different Propagation Effects.
+    PierceDamage = "PierceDamage", -- The amount of Damage Lost with each Pierce.
+    Break = "Break", -- The amount of Added Damage applied to enemies (scaled).
+    Exposed = "Exposed", -- The amount of Damage Amplification applied to enemies (additive).
+    DamageBoost = "DamageBoost", -- The amount of Damage Increased to Ability (conditionally).
+    RequiredStacks = "RequiredStacks", -- Affects Instance Stacking Requirements.
+    RequiredTravelDistance = "RequiredTravelDistance", -- Distance Required to activate effect.
+    ConversionRate = "ConversionRate", -- A percentage of a Stat that is converted to another Stat.
+
+    -- Stagger Stats
+    Stagger = "Stagger", -- The number of Stagger Stacks applied to Elites/Bosses.
+
+    -- ================================================================================================
+    -- ANCHOR -- Conversions
+    -- ================================================================================================
+
+    Luck = "Luck", -- Increases Critical Chance (add more)
+    ProjectileSpeedToDamage = "ProjectileSpeedToDamage", -- Converts Projectile Speed to Damage.
+
+    -- ================================================================================================
+    -- ANCHOR -- Summon / Hostiles
+    -- ================================================================================================
+
+    ---TEMP: Need these Stats to keep bosses the same
+    ProjectileSize = "ProjectileSize",
+    ProjectileDistance = "ProjectileDistance",
+
+    StageDensity = "StageDensity", -- A limiter for the number of Hostiles that can be spawned in a Stage.
+
+    SequenceCount = "SequenceCount", -- The number of Spawn Groups in a Sequence.
+    SequenceFrequency = "SequenceFrequency", -- The time between Spawn Groups in a Sequence.
+    IncreasedCount = "IncreasedCount", -- The amount of Increased Hostiles in a Sequence.
+
+    SummonLimit = "SummonLimit",
+
+    -- Minion/Boss
+    MinionCount = "MinionCount",
+    MinionHealth = "MinionHealth",
+    MinionDamage = "MinionDamage",
+    MinionSpeed = "MinionSpeed",
+
+    StaggerResistance = "StaggerResistance", -- [Elite/Boss] The amount of Stagger that has to be applied to Stagger the Unit.
+    AddedStaggerResistance = "AddedStaggerResistance", -- [Elite/Boss] The amount of Stagger Resistance added to the Unit after being Staggered.
+
+    -- Structure Stats
+    StructureHealth = "StructureHealth",
+}
+
+---@enum APPLICATION_TYPE
+APPLICATION_TYPE = {
+    Modify = "Modify",
+    Set = "Set",
+}
+
+---@enum SKILL_SELECTION_TYPE
+SKILL_SELECTION_TYPE = {
+    FirstLevel = "FirstLevel",
+    NonFirstLevel = "NonFirstLevel",
+}
+
+---@enum SIMPLE_TAG
+SIMPLE_TAG = {
+    None = 0,
+    Terrain = 1 << 0, -- 1
+    Collectable = 1 << 1, -- 2
+    Prop = 1 << 2, -- 4
+    Structure = 1 << 3, -- 8
+    Hero = 1 << 4, -- 16
+    Hostile = 1 << 5, -- 32
+    Tree = 1 << 6, -- 64
+    Stone = 1 << 7, -- 128
+    Disposable = 1 << 8, -- 256
+    DigSpot = 1 << 9, -- 512
+}
+
+SIMPLE_TAG.AllEnemies = SIMPLE_TAG.Hostile
+SIMPLE_TAG.Friendly = SIMPLE_TAG.Structure | SIMPLE_TAG.Hero
+
+-- Used in-game to track stats for Upgrades
+---@enum GAME_STATS
+GAME_STATS = {
+    PotionCharge = DCEI.Stats("Potion Charge"),
+    DamageTakenInstance = DCEI.Stats("Damage Taken Instance"),
+    MightyAxeAttackInstance = DCEI.Stats("Mighty Axe Attack Instance"),
+}
+
+---@enum TRACKED_STATS
+TRACKED_STATS = {
+    ---ANCHOR: Meta Resources
+    ---TODO: Figure out why we can't just have this in ResourceData
+
+    -- Currency
+    Wood = DCEI.Stats("Wood"),
+    Stone = DCEI.Stats("Stone"),
+    Pumpkin = DCEI.Stats("Pumpkin"),
+    Meat = DCEI.Stats("Meat"),
+    Gold = DCEI.Stats("Gold"),
+    Gems = DCEI.Stats("Gems"),
+
+    -- Chests
+    NormalChest = DCEI.Stats("Normal Chest"),
+    EliteChest = DCEI.Stats("Elite Chest"),
+    BossChest = DCEI.Stats("Boss Chest"),
+
+    -- Other Tracked Stats
+    Crate = DCEI.Stats("Crate"), -- Used to track how many Crates the player has broken.
+    Drone = DCEI.Stats("Drone"), -- Used to track how many Drones the player has destroyed.
+
+    -- Experience
+    Experience = DCEI.Stats("Experience"),
+    LevelPoint = DCEI.Stats("Level Point"),
+    HeroicPoint = DCEI.Stats("Heroic Point"),
+
+    ---ANCHOR: Annie Skills
+    MarkedForDeath = DCEI.Stats("MarkedForDeath"),
+    Strafe = DCEI.Stats("Strafe"),
+
+    ---ANCHOR: Stage 1 Skills
+    Bash = DCEI.Stats("Bash"),
+    Boomerang = DCEI.Stats("Boomerang"),
+    GuardianShield = DCEI.Stats("GuardianShield"),
+
+    ---ANCHOR: Stage 2 Skills
+    Fireball = DCEI.Stats("Fireball"),
+    Heatwave = DCEI.Stats("Heatwave"),
+
+    ---ANCHOR: Stage 3 Skills
+    TeslaField = DCEI.Stats("TeslaField"),
+    LightningStrike = DCEI.Stats("LightningStrike"),
+
+    ---ANCHOR: Stage 4 Skills
+    IceBarrage = DCEI.Stats("IceBarrage"),
+    IceRupture = DCEI.Stats("IceRupture"),
+
+    ---ANCHOR: Stage 5 Skills
+    MagmaOrb = DCEI.Stats("MagmaOrb"),
+    StaticRemnants = DCEI.Stats("StaticRemnants"),
+
+    ---ANCHOR: Stage 6 Skills
+    Frostfang = DCEI.Stats("Frostfang"),
+    Chakram = DCEI.Stats("Chakram"),
+
+    -- Old
+
+    BladeTrap = DCEI.Stats("BladeTrap"),
+
+    ScarletArrowDamage = DCEI.Stats("ScarletArrow"),
+    PyroclasmDamage = DCEI.Stats("Pyroclasm"),
+    OrbitalShieldDamage = DCEI.Stats("OrbitalShield"),
+    BoomerangDamage = DCEI.Stats("Boomerang"),
+
+    MightyAxeDamage = DCEI.Stats("MightyAxe"),
+    FrostnovaDamage = DCEI.Stats("Frostnova"),
+    FrostPillarDamage = DCEI.Stats("FrostPillar"),
+    TeslaFieldDamage = DCEI.Stats("TeslaField"),
+
+    ---ANCHOR: OLD:
+    -- Weapons
+
+    HomerunBatDamage = DCEI.Stats("Weapon - Homerun Bat"),
+    RevenantDamage = DCEI.Stats("Weapon - Revenant"),
+    SalvoDamage = DCEI.Stats("Weapon - Salvo"),
+    -- Universal
+    SpitfireDamage = DCEI.Stats("Weapon - Spitfire"),
+    StarblastDamage = DCEI.Stats("Weapon - Starblast"),
+    -- Artifact
+    WhirlwindDamage = DCEI.Stats("Artifact - Whirlwind"),
+
+    ---ANCHOR: Kills
+    -- Type Kills
+    BasicKills = DCEI.Stats("Basic Kills"),
+    EliteKills = DCEI.Stats("Elite Kills"),
+    BossKills = DCEI.Stats("Boss Kills"),
+
+    -- Basic Specific Enemy Kills
+    DCEI.Stats("Runner"),
+    DCEI.Stats("Banshee"),
+    DCEI.Stats("Walker"),
+    DCEI.Stats("Marauder"),
+    DCEI.Stats("Boomer"),
+    DCEI.Stats("Brute"),
+
+    -- Elite Specific Enemy Kills
+    DCEI.Stats("Golem"),
+    DCEI.Stats("Skull"),
+
+    -- Boss Specific Enemy Kills
+    Reaper = DCEI.Stats("Reaper"),
+    Knight = DCEI.Stats("Knight"),
+    Giant = DCEI.Stats("Giant"),
+    SkeletonKing = DCEI.Stats("Skeleton King"),
+    Fulminyx = DCEI.Stats("Fulminyx"),
+    Alchemist = DCEI.Stats("Alchemist"),
+    Shieldbearer = DCEI.Stats("Shieldbearer"),
+
+    ---ANCHOR: Events
+    DCEI.Stats("Event"),
+
+    -- Shrine Events
+    DCEI.Stats("Shrine"),
+
+    -- Specific Shrine Events
+    DCEI.Stats("Fallen Star"),
+    DCEI.Stats("Hall of Life"),
+    DCEI.Stats("Meditation Fountain"),
+    DCEI.Stats("Sprouting Oak"),
+    DCEI.Stats("Stoneguard"),
+    EventTavern = DCEI.Stats("Tavern"),
+
+    -- Nexus Game Mode
+    DCEI.Stats("Nexus"),
+
+    -- Shadowfall Game Mode
+    DCEI.Stats("Inhibitor"),
+}
+
+ACHIEVEMENT_TYPES = {
+    TimeSurvived = "Time Survived",
+    NormalEnemies = "Normal Enemies",
+    EliteEnemies = "Elite Enemies",
+    BossEnemies = "Boss Enemies",
+    Damage = "Weapon Damage",
+    UniversalDamage = "Universal Damage",
+    ArtifactDamage = "Artifact Damage",
+}
+
+---@enum EVENT_SPAWN_BASE
+EVENT_SPAWN_BASE = {
+    UseMapCenter = "UseMapCenter",
+    UsePlayerPosition = "UsePlayerPosition",
+    UseLastEventPosition = "UseLastEventPosition",
+    UseLastEventPositionFromSequence = "UseLastEventPositionFromSequence",
+}
+
+---@alias CollisionLayers integer
+CollisionLayers = {
+    None = 0,
+    Friendly = 1 << 0,
+    Hostile = 1 << 1,
+    Item = 1 << 2,
+    Collector = 1 << 3,
+}
+
+---@alias CollisionTiming integer
+---| '1' Start
+---| '2' Continue
+---| '3' Stop
+CollisionTiming = {
+    Start = 1 << 0, -- 1
+    Continue = 1 << 1, -- 2
+    Stop = 1 << 2, -- 4
+}
+
+---Automatically tracked stats during a run.
+---@enum GAME_TRACKED_STAT
+GAME_TRACKED_STAT = {
+    GameTime = "GameTime",
+    PlayerHealthPercentage = "PlayerHealthPercentage",
+    BasicHostileCount = "BasicHostileCount",
+    EliteCount = "EliteCount",
+    BossCount = "BossCount",
+}
+
+---Stats that are Tracked based on the specific event.
+---@enum EVENT_TRACKED_STAT
+EVENT_TRACKED_STAT = {
+    TimeSinceLastCompleted = "TimeSinceLastCompleted",
+    TimeSinceLastSpawned = "TimeSinceLastSpawned",
+    DistanceTraveled = "DistanceTraveled", -- Distance the player has traveled since the last event spawn.
+    ActiveCount = "ActiveCount",
+}
+
+---Stats based on the instance information.
+---@enum EVENT_INSTANCE_STAT
+EVENT_INSTANCE_STAT = {
+    Distance = "Distance",
+}
+
+--- ANCHOR Quest
+---@enum QUEST_OBJECTIVE_TYPES
+QUEST_OBJECTIVE_TYPES = {
+    MoveToPos = 1,
+    TriggerBuilding = 2,
+    ClickUiButton = 3,
+    CollectResource = 4,
+    Build = 5,
+    Recruit = 6,
+    SpendResource = 7,
+    UnlockZone = 8,
+    PickUpKeyItem = 9,
+}
+
+---ANCHOR: Meta Equipment
+
+---@enum EQUIPMENT_SLOT
+EQUIPMENT_SLOT = {
+    Weapon = "weapon",
+    Consumable = "consumable",
+    Ring = "ring",
+    Head = "head",
+    Chest = "chest",
+    Boot = "boot",
+}
+
+---@enum EQUIPMENT_TAG
+EQUIPMENT_TAG = {
+    Offensive = 1,
+    Defensive = 2,
+    Utility = 3,
+}
+
+---@enum EQUIPMENT_QUALITY
+EQUIPMENT_QUALITY = {
+    Common = 1,
+    Magic = 2,
+    Rare = 3,
+    Epic = 4,
+}
+
+---@enum SORTING_TYPES
+EQUIPMENT_SORTING_TYPES = {
+    SlotType = 1,
+    Quality = 2,
+}
+
+---@enum SAVE_KEY
+---@enum CampManager.SaveKey
+SAVE_KEY = {
+    -- Currencies
+    Wood = { "currency", "wood" },
+    Stone = { "currency", "stone" },
+    Pumpkin = { "currency", "pumpkin" },
+    Meat = { "currency", "meat" },
+    Gems = { "currency", "gems" },
+    Gold = { "currency", "gold" },
+    GoldReserve = { "currency", "gold_reserve" }, -- This value is the sum of all gold reserved in buildings.
+    SkillPoints = { "currency", "skill_points" },
+
+    -- Progress
+    ActiveDangerZone = { "progress", "zone" },
+    KeyItems = { "progress", "key_items" },
+    Level = { "progress", "level" },
+    Experience = { "progress", "experience" },
+    TalentPoints = { "progress", "talent_points" },
+    Wave = { "progress", "wave" },
+    Miner = { "progress", "miner" },
+    ArcherCount = { "progress", "archer" },
+    Masonry = { "progress", "masonry" },
+    Time = { "progress", "time" },
+    TalentExchange = { "progress", "talent" },
+
+    -- Perk Offers
+    PerkStrafe = { "perk", "strafe" },
+    PerkBash = { "perk", "bash" },
+    PerkMagmaOrb = { "perk", "magma_orb" },
+    PerkBoomerang = { "perk", "boomerang" },
+    PerkHeatwave = { "perk", "perk_heatwave" },
+    PerkGuardianShield = { "perk", "guardian_shield" },
+
+    -- Skill Keys
+    Skills = { "skills" },
+    Talents = { "talents" },
+
+    -- Quests
+    Quest = { "quests" },
+    Meta = { "meta" },
+
+    -- Flags
+    ReviewInvite = { "flags", "shown_review_invite" },
+    -- Structure Status
+    StarStatus = { "status", "star" },
+    BarricadeSlot1Status = { "status", "barricade_slot_1" },
+    BarricadeSlot2Status = { "status", "barricade_slot_2" },
+    BarricadeSlot3Status = { "status", "barricade_slot_3" },
+    BarricadeSlot4Status = { "status", "barricade_slot_4" },
+    ArcherStatus = { "status", "archer" },
+    MasonryStatus = { "status", "masonry" },
+    FirstTalentOffer = { "status", "first_talent" },
+    SecondTalentOffer = { "status", "second_talent" },
+    TalentOffer_GuardianShield = { "status", "guardian_shield" },
+    MineStatus = { "status", "mine" },
+    TreasuryStatus = { "status", "treasury" },
+    MeatGrinderStatus = { "status", "meat_grinder" },
+
+    -- Danger Zone Keys
+    ZoneStatus = { "zone_status" },
+}
+
+---@enum META_DATA
+META_DATA = {
+    -- Add Keys Here as needed
+    first_talent_offer = "first_talent_offer",
+    second_talent_offer = "second_talent_offer",
+
+    -- Wave 1 Complete
+    archer_tower_slot_1 = "archer_tower_slot_1",
+    archer_tower_slot_2 = "archer_tower_slot_2",
+    archer_tower_slot_3 = "archer_tower_slot_3",
+    archer_tower_slot_4 = "archer_tower_slot_4",
+
+    -- Treasury
+    treasury_slot = "treasury_slot",
+    treasury_rank_1 = "treasury_rank_1",
+    treasury_rank_2 = "treasury_rank_2",
+    treasury_rank_3 = "treasury_rank_3",
+
+    mine_slot = "mine_slot",
+
+    meat_grinder = "meat_grinder",
+
+    -- From Upgrade
+    archer_tower_rank_1 = "archer_tower_rank_1",
+    archer_tower_rank_2 = "archer_tower_rank_2",
+    archer_tower_rank_3 = "archer_tower_rank_3",
+    archer_tower_rank_4 = "archer_tower_rank_4",
+
+    archer_tower_slot_2_rank_1 = "archer_tower_slot_2_rank_1",
+    archer_tower_slot_2_rank_2 = "archer_tower_slot_2_rank_2",
+
+    archer_tower_slot_3_rank_1 = "archer_tower_slot_3_rank_1",
+    archer_tower_slot_3_rank_2 = "archer_tower_slot_3_rank_2",
+
+    archer_tower_slot_4_rank_1 = "archer_tower_slot_4_rank_1",
+    archer_tower_slot_4_rank_2 = "archer_tower_slot_4_rank_2",
+
+    mine = "mine",
+    talents = "talents",
+
+    -- Mason
+    masonry_unlocked = "masonry_unlocked",
+
+    -- Walls
+    wall_slot_1_rank_1 = "wall_slot_1_rank_1",
+
+    -- Barricades
+    barricade_slot_1_rank_1 = "barricade_slot_1_rank_1",
+    barricade_slot_1_rank_2 = "barricade_slot_1_rank_2",
+    barricade_slot_1_rank_3 = "barricade_slot_1_rank_3",
+
+    barricade_slot_2_rank_1 = "barricade_slot_2_rank_1",
+    barricade_slot_2_rank_2 = "barricade_slot_2_rank_2",
+    barricade_slot_2_rank_3 = "barricade_slot_2_rank_3",
+
+    barricade_slot_3_rank_1 = "barricade_slot_3_rank_1",
+    barricade_slot_3_rank_2 = "barricade_slot_3_rank_2",
+    barricade_slot_3_rank_3 = "barricade_slot_3_rank_3",
+
+    barricade_slot_4_rank_1 = "barricade_slot_4_rank_1",
+    barricade_slot_4_rank_2 = "barricade_slot_4_rank_2",
+    barricade_slot_4_rank_3 = "barricade_slot_4_rank_3",
+    shop_slot = "shop_slot",
+
+    -- Zone Link
+    zone_1 = "zone_1",
+    zone_2 = "zone_2",
+    zone_3 = "zone_3",
+}
+
+---@enum MODIFIER_TARGET
+MODIFIER_TARGET = {
+    Hero = "Hero",
+    Camp = "Camp",
+}
+
+---@enum HOSTILE_TARGET
+HOSTILE_TARGET = {
+    Hero = "Hero",
+    Star = "Star",
+    ClosestStructure = "ClosestStructure",
+}
+
+---@enum ZONE_STATE
+ZONE_STATE = {
+    Disabled = "Disabled", -- Functionality is completely disabled.
+    Simulation = "Simulation", -- Processes internal timers.
+    Presentation = "Presentation", -- Processes everything.
+}
+
+---TODO: Convert to Available, Occupied, Cleansed
+---@enum ZONE_STATUS
+ZONE_STATUS = {
+    Locked = "Locked", -- Cannot yet be accessed.
+    Available = "Available", -- Can be purchased.
+    Occupied = "Occupied", -- Hostiles currently control the Zone.
+    Cleansed = "Cleansed", -- The player has cleansed the Zone.
+}
+
+---ANCHOR: Editor
+---@enum SELECTION_TOOL
+SELECTION_TOOL = {
+    None = "None",
+    Tile = "Tile",
+    Prop = "Prop",
+    KeyItem = "KeyItem",
+}

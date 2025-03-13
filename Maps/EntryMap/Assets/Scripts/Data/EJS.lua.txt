@@ -1,0 +1,146 @@
+-- Effect JSON Paths
+local EJS = {}
+
+---ANCHOR: Damage
+EJS.Damage = {}
+EJS.Damage.Value = { "simpleDamage", "damageValue" }
+EJS.Damage.CriticalChance = { "simpleDamage", "criticalDamageChance" }
+EJS.Damage.CriticalMultiplier = { "simpleDamage", "criticalDamageMultiplier" }
+EJS.Damage.Duration = { "simpleDamage", "durationSeconds" }
+
+EJS.Damage.Style = { "simpleDamage", "styleIndex" }
+EJS.Damage.CriticalStyle = { "simpleDamage", "criticalDamageStyleIndex" }
+EJS.Damage.Tag = { "simpleDamage", "damageTag" }
+
+---ANCHOR: ApplyBehavior
+EJS.ApplyBehavior = {}
+EJS.ApplyBehavior.Count = { "applyBehavior", "stackCount" }
+EJS.ApplyBehavior.Duration = { "applyBehavior", "duration" }
+
+---ANCHOR: Persistent
+EJS.Persistent = {}
+EJS.Persistent.Count = { "persistent", "periodicCount" }
+EJS.Persistent.Duration = { "persistent", "periodicDurations", "0" }
+EJS.Persistent.Start = {}
+EJS.Persistent.Start.Offset = {}
+EJS.Persistent.Start.Offset.Forward = { "persistent", "startEffectOffset", "explicitOffset", "forward" }
+EJS.Persistent.Start.Offset.Right = { "persistent", "startEffectOffset", "explicitOffset", "right" }
+EJS.Persistent.Start.Offset.Up = { "persistent", "startEffectOffset", "explicitOffset", "up" }
+EJS.Persistent.Start.Offset.Yaw = { "persistent", "startEffectOffset", "polarOffset", "yaw" }
+EJS.Persistent.Start.Offset.Pitch = { "persistent", "startEffectOffset", "polarOffset", "pitch" }
+EJS.Persistent.Start.Offset.Distance = { "persistent", "startEffectOffset", "polarOffset", "distance" }
+EJS.Persistent.Final = {}
+EJS.Persistent.Final.Offset = {}
+EJS.Persistent.Final.Offset.Forward = { "persistent", "finalEffectOffset", "explicitOffset", "forward" }
+EJS.Persistent.Final.Offset.Right = { "persistent", "finalEffectOffset", "explicitOffset", "right" }
+EJS.Persistent.Final.Offset.Up = { "persistent", "finalEffectOffset", "explicitOffset", "up" }
+EJS.Persistent.Final.Offset.Yaw = { "persistent", "finalEffectOffset", "polarOffset", "yaw" }
+EJS.Persistent.Final.Offset.Pitch = { "persistent", "finalEffectOffset", "polarOffset", "pitch" }
+EJS.Persistent.Final.Offset.Distance = { "persistent", "finalEffectOffset", "polarOffset", "distance" }
+
+---ANCHOR: AreaSearch
+EJS.AreaSearch = {}
+EJS.AreaSearch.Count = { "simpleAreaSearch", "maxUnitCount" }
+-- Circle
+EJS.AreaSearch.Radius = { "simpleAreaSearch", "areaSearchType", "circle", "radius" }
+-- Rectangle
+EJS.AreaSearch.Width = { "simpleAreaSearch", "areaSearchType", "rectangle", "width" }
+EJS.AreaSearch.Length = { "simpleAreaSearch", "areaSearchType", "rectangle", "length" }
+-- Circle Sector
+EJS.AreaSearch.Angle = { "simpleAreaSearch", "areaSearchType", "circleSector", "angle" }
+EJS.AreaSearch.InnerRadius = { "simpleAreaSearch", "areaSearchType", "circleSector", "innerRadius" }
+EJS.AreaSearch.OuterRadius = { "simpleAreaSearch", "areaSearchType", "circleSector", "outerRadius" }
+
+---ANCHOR: StandardAreaSearch
+EJS.StandardAreaSearch = {}
+EJS.StandardAreaSearch.Radius = { "areaSearch", "areaSearchType", "circle", "radius" }
+
+---ANCHOR: Launch
+EJS.Launch = {}
+-- Launch Position
+EJS.Launch.Launch = {}
+EJS.Launch.Launch.Forward = { "launchMissile", "launchOffset", "explicitOffset", "forward" }
+EJS.Launch.Launch.Right = { "launchMissile", "launchOffset", "explicitOffset", "right" }
+EJS.Launch.Launch.Up = { "launchMissile", "launchOffset", "explicitOffset", "up" }
+EJS.Launch.Launch.Yaw = { "launchMissile", "launchOffset", "polarOffset", "yaw" }
+EJS.Launch.Launch.Pitch = { "launchMissile", "launchOffset", "polarOffset", "pitch" }
+EJS.Launch.Launch.Distance = { "launchMissile", "launchOffset", "polarOffset", "distance" }
+-- Impact Position
+EJS.Launch.Impact = {}
+EJS.Launch.Impact.Forward = { "launchMissile", "impactOffset", "explicitOffset", "forward" }
+EJS.Launch.Impact.Right = { "launchMissile", "impactOffset", "explicitOffset", "right" }
+EJS.Launch.Impact.Up = { "launchMissile", "impactOffset", "explicitOffset", "up" }
+EJS.Launch.Impact.Yaw = { "launchMissile", "impactOffset", "polarOffset", "yaw" }
+EJS.Launch.Impact.Pitch = { "launchMissile", "impactOffset", "polarOffset", "pitch" }
+EJS.Launch.Impact.Distance = { "launchMissile", "impactOffset", "polarOffset", "distance" }
+
+---ANCHOR: Slow
+EJS.Slow = {}
+EJS.Slow.Duration = { "simpleMovementSpeedModifier", "duration" }
+EJS.Slow.Scaled = { "simpleMovementSpeedModifier", "modifier", "scaled" }
+EJS.Slow.Unscaled = { "simpleMovementSpeedModifier", "modifier", "unscaled" }
+EJS.Slow.Additive = { "simpleMovementSpeedModifier", "modifier", "additiveFactor" }
+EJS.Slow.Unified = { "simpleMovementSpeedModifier", "modifier", "unifiedFactor" }
+EJS.Slow.Multiplier = { "simpleMovementSpeedModifier", "modifier", "multiplierFactor" }
+
+---ANCHOR: Force
+EJS.Force = {}
+EJS.Force.Horizontal = {}
+EJS.Force.Horizontal.Force = { "simpleForce", "horizontalForce" }
+EJS.Force.Horizontal.Friction = { "simpleForce", "horizontalFriction" }
+EJS.Force.Vertical = {}
+EJS.Force.Vertical.Force = { "simpleForce", "verticalForce" }
+EJS.Force.Vertical.Friction = { "simpleForce", "verticalFriction" }
+EJS.Force.Duration = { "simpleForce", "duration" }
+EJS.Force.OnKill = { "simpleForce", "onlyTriggerOnKill" }
+
+---ANCHOR: ModifyUnit
+EJS.Modify = {}
+-- Mana
+EJS.Modify.Mana = {}
+EJS.Modify.Mana.Amount = { "modifyUnit", "modifyMana", "amount" }
+EJS.Modify.Cooldown = { "modifyUnit", "modifyAbilityCooldown", "amount" }
+
+---ANCHOR: Apply Simple Mover
+EJS.Mover = {}
+EJS.Mover.Direction = {}
+EJS.Mover.Direction.Speed = { "applySimpleMover", "targetDirection", "initialSpeed" }
+EJS.Mover.Direction.Acceleration = { "applySimpleMover", "targetDirection", "accelerationMagnitude" }
+EJS.Mover.Direction.Delay = { "applySimpleMover", "targetDirection", "delaySeconds" }
+EJS.Mover.Direction.Duration = { "applySimpleMover", "targetDirection", "durationSeconds" }
+EJS.Mover.Target = {}
+EJS.Mover.Target.Speed = { "applySimpleMover", "targetUnit", "initialSpeed" }
+EJS.Mover.Target.Acceleration = { "applySimpleMover", "targetUnit", "accelerationMagnitude" }
+EJS.Mover.Target.Delay = { "applySimpleMover", "targetUnit", "delaySeconds" }
+EJS.Mover.Target.Duration = { "applySimpleMover", "targetUnit", "durationSeconds" }
+
+---ANCHOR: Damage Intake Modifier
+EJS.DamageIntake = {}
+EJS.DamageIntake.Scaled = { "applySimpleDamageIntakeModifier", "modifier", "scaled" }
+EJS.DamageIntake.Unscaled = { "applySimpleDamageIntakeModifier", "modifier", "unscaled" }
+EJS.DamageIntake.Additive = { "applySimpleDamageIntakeModifier", "modifier", "additiveFactor" }
+EJS.DamageIntake.Unified = { "applySimpleDamageIntakeModifier", "modifier", "unifiedFactor" }
+EJS.DamageIntake.Multiplier = { "applySimpleDamageIntakeModifier", "modifier", "multiplierFactor" }
+EJS.DamageIntake.Duration = { "applySimpleDamageIntakeModifier", "durationSeconds" }
+
+---ANCHOR: Damage Ooutput Modifier
+EJS.DamageOutput = {}
+EJS.DamageOutput.Scaled = { "applySimpleDamageOutputModifier", "modifier", "scaled" }
+EJS.DamageOutput.Unscaled = { "applySimpleDamageOutputModifier", "modifier", "unscaled" }
+EJS.DamageOutput.Additive = { "applySimpleDamageOutputModifier", "modifier", "additiveFactor" }
+EJS.DamageOutput.Unified = { "applySimpleDamageOutputModifier", "modifier", "unifiedFactor" }
+EJS.DamageOutput.Multiplier = { "applySimpleDamageOutputModifier", "modifier", "multiplierFactor" }
+EJS.DamageOutput.Duration = { "applySimpleDamageOutputModifier", "durationSeconds" }
+
+---ANCHOR: Heal
+EJS.Heal = {}
+EJS.Heal.Value = { "simpleHeal", "value" }
+
+---ANCHOR: Spawn Actor
+EJS.Actor = {}
+EJS.Actor.Scale = { "spawnActor", "scale" }
+
+---ANCHOR: Chance
+EJS.Chance = { "triggerByChance", "triggerChance" }
+
+return EJS

@@ -1,0 +1,117 @@
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local PerlinNoise = require("Class/PerlinNoise")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local PropData = require("Map/PropData")
+
+local Help = require("Help")
+
+local Biome = {}
+
+---@type TileData
+Biome.TILE_DATA = {
+    -- Size = 5.10,
+    Size = 4.6,
+    LoadDistance = 5,
+    TileOptions = {
+        DCEI.SimpleUnit("Forest - Tile - Standard"),
+    },
+}
+
+function Biome.TestNoise(seed)
+    local map_size = 100
+
+    local lowest = 10000000
+    local highest = 0
+
+    -- local z = 0.50
+    local zoom = 20
+    local z = 1 / zoom
+
+    for x = 1, map_size do
+        for y = 1, map_size do
+            local noise = PerlinNoise.Generate(seed + x / zoom, seed + y / zoom, z)
+
+            if noise < lowest then
+                lowest = noise
+            end
+
+            if noise > highest then
+                highest = noise
+            end
+        end
+    end
+
+    Help.Log("Lowest", lowest)
+    Help.Log("Highest", highest)
+
+    return lowest, highest
+end
+
+function Biome.TestNoiseOctaves(seed)
+    local map_size = 100
+
+    local lowest = 10000000
+    local highest = 0
+
+    local z = 0.50
+    local zoom = 20
+
+    local octaves = 3
+    local persistence = 0.5
+
+    for x = 1, map_size do
+        for y = 1, map_size do
+            local noise = PerlinNoise.GenerateOctave(seed + x / zoom, seed + y / zoom, z, octaves, persistence)
+
+            if noise < lowest then
+                lowest = noise
+            end
+
+            if noise > highest then
+                highest = noise
+            end
+        end
+    end
+
+    Help.Log("Lowest", lowest)
+    Help.Log("Highest", highest)
+
+    return lowest, highest
+end
+
+function Biome.GenerateNoise(seed, r, c)
+    local zoom = 20
+    local z = 0.50
+    local octaves = 3
+    local persistence = 0.50
+
+    local n1 = PerlinNoise.Generate(seed + r / zoom, seed + c / zoom, z)
+    local n2 = PerlinNoise.GenerateOctave(seed + r / zoom, seed + c / zoom, z, octaves, persistence)
+
+    return n1, n2
+end
+
+function Biome.GenerateCustomNoise(seed, r, c, zoom, octaves, persistence)
+    return PerlinNoise.GenerateOctave(seed + r / zoom, seed + c / zoom, 0.50, octaves, persistence)
+end
+
+---comment
+---@param seed integer
+---@param r integer
+---@param c integer
+---@return PropZoneOptions
+function Biome.PropInjection(seed, r, c)
+    local density = 0
+    local prop_options = {}
+    local forced_props = {}
+
+    return {
+        Density = density,
+        PropOptions = prop_options,
+        ForcedProps = forced_props,
+    }
+end
+
+return Biome

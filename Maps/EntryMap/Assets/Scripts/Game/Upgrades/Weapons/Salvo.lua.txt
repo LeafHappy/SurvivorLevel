@@ -1,0 +1,238 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Releases a Revenant that Haunts the Target for a duration.
+    The Revenant will follow the Target and deal Damage to it.
+    The Revenant will return to the Hero if the Target is Dead or the Duration ends.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Salvo"),
+
+    -- Tag
+    IsPrimaryWeapon = DCEI.Tag("Weapon - Salvo - IsPrimaryWeapon"),
+
+    -- Trigger
+    Success = DCEI.Effect("Weapon - Salvo - Success"),
+
+    -- Effects
+    Scan = DCEI.Effect("Weapon - Salvo - Scan"),
+    ScanFallback = DCEI.Effect("Weapon - Salvo - Scan - Fallback"),
+    Launch = DCEI.Effect("Weapon - Salvo - Launch"),
+    Impact = DCEI.Effect("Weapon - Salvo - Impact"),
+    ImpactArea = DCEI.Effect("Weapon - Salvo - Impact Area"),
+    Damage = DCEI.Effect("Weapon - Salvo - Damage"),
+
+    ImpactVFX = DCEI.Effect("Weapon - Salvo - Impact VFX"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Weapon - Salvo - Projectile"),
+
+    -- Behavior
+    ProjectileSpeed = DCEI.Behavior("Weapon - Salvo - Projectile Speed"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Weapon - Salvo - Projectile") }),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+local _ProjectileData = {}
+
+local BASE_PROJECTILE_MODEL_SCALE = 0.2
+local ADDED_PROJECTILE_MODEL_SCALE = 0.5 -- Size Scaling Influence
+local IMPACT_VFX_SCALE = 0.25
+
+local ARC_SPLINE = {
+    Help.NewSplinePoint(0.00, 0.0, 0, 0.5),
+    Help.NewSplinePoint(0.50, 1.0, 0.5, 1),
+    Help.NewSplinePoint(1.00, 0.0),
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local projectile = DCEI.TriggeringUnit
+
+    local player_id = DCEI.GetUnitPlayerId(projectile)
+    local hero = _Heroes[player_id]
+
+    local size = hero:GetStat(STAT.SkillSize, REF.Ability)
+    local projectile_size = BASE_PROJECTILE_MODEL_SCALE * (1 + size * ADDED_PROJECTILE_MODEL_SCALE)
+    Help.SetModelScale(projectile, projectile_size, 0.25, Ease.OutCubic)
+end
+
+---@param hero Hero
+---@param target_position Vector2
+local function LaunchProjectile(hero, target_position)
+    -- Validate Hero Unit
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    DCEI.CreateEffectAtPosition(REF.Launch, hero.unit, target_position.x, target_position.y)
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+---@param delay number
+local function DelayLaunch(hero, target_position, delay)
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(delay)
+
+    function timer:Action()
+        LaunchProjectile(hero, target_position)
+    end
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+local function Throw(hero, target_position)
+    local count = hero:GetStat(STAT.ProjectileCount, REF.Ability)
+
+    -- First projectile always Launches immediately and at the Target's position.
+    LaunchProjectile(hero, target_position)
+
+    if count <= 1 then
+        return
+    end
+
+    -- All other projectile Launches are delayed and in a spread.
+    -- Spread: Factors the Count and Size with Normal Distribution
+    local size = hero:GetStat(STAT.SkillSize, REF.Ability)
+    local max_spread = (count + size) ^ (1 / 3) - 1
+
+    for i = 1, count - 1 do
+        local random_spread = Vector2.Random() * math.sqrt(math.random()) * max_spread
+        local random_nearby_position = target_position + random_spread
+        local delay = i * 0.125
+
+        DelayLaunch(hero, random_nearby_position, delay)
+    end
+end
+
+---comment
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local caster = ctx.caster
+    local player_id = DCEI.GetUnitPlayerId(caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local target = ctx.target
+
+    local animation_delay = 0.15
+
+    -- Keep a record of the last known position of the Target in case it dies.
+    local target_position = Vector2.UnitPosition(target)
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(animation_delay)
+
+    function timer:Tick()
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+    end
+
+    function timer:Action()
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+
+        Throw(hero, target_position)
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ScanFallback, EJS.AreaSearch.Radius),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.Radius),
+
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, nil, IMPACT_VFX_SCALE),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    DCEI.ApplyTag(hero.unit, REF.IsPrimaryWeapon, -1, 1)
+
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, REF.Ability)
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileSpeed, Help.Stacks(projectile_speed))
+
+    local detection_range = hero:GetStat(STAT.SkillRange, Upgrade.Name)
+    hero:SetDetectionRange(detection_range)
+
+    DCEI.TriggerAddEffectEvent(REF.Success, function()
+        Help.SendActorEvent(hero.top, "Attack")
+    end, true)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess)
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

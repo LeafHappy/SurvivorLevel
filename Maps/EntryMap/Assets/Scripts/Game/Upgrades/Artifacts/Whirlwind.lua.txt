@@ -1,0 +1,159 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    Ability = DCEI.Ability("Artifact - Whirlwind"),
+
+    DamageScan = DCEI.Effect("Artifact - Whirlwind - Damage Scan"),
+    ProjectileScan = DCEI.Effect("Artifact - Whirlwind - Projectile Scan"),
+
+    SpawnVFX = DCEI.Effect("Artifact - Whirlwind - Spawn VFX"),
+
+    Trigger = DCEI.Effect("Artifact - Whirlwind - Trigger"),
+
+    Projectile = DCEI.Unit("Artifact - Whirlwind - Projectile"),
+
+    OnEnter = DCEI.Effect("Artifact - Whirlwind - OnEnter"),
+
+    Damage = DCEI.Effect("Artifact - Whirlwind - Damage"),
+    ProjectileDamage = DCEI.Effect("Artifact - Whirlwind - Projectile Damage"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+local PROJECTILE_SIZE_FACTOR = 0.10
+local PROJECTILE_MODEL_SCALE_FACTOR = 0.50
+local PROJECTILE_DAMAGE_SCALE = 0.20
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param hero Hero
+local function SpawnProjectile(hero, target_position)
+    -- Spawn projectile
+    local instance =
+        DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, target_position.x, target_position.y)
+
+    local size = hero:GetStat(STAT.SkillSize, REF.Ability) * PROJECTILE_SIZE_FACTOR
+    Help.SetModelScale(instance, size * PROJECTILE_MODEL_SCALE_FACTOR, 0.10, Ease.OutCubic)
+
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 1),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Create a timer to rotate the projectile around the hero
+    local timer = Core.Timer.Game.New()
+
+    local duration = hero:GetStat(STAT.SkillDuration, REF.Ability)
+    timer:SetDuration(duration)
+
+    -- Get the current angle between projectile and hero
+    local angle = Vector2.AngleBetween(hero:GetPosition(), target_position)
+    local distance = Vector2.Distance(hero:GetPosition(), target_position)
+
+    local direction = Help.Flip() and 1 or -1
+    local rotation_rate = TICK_RATE * 360 / (1 + distance)
+
+    function timer:Tick()
+        if not Help.ValidateUnit(hero.unit) then
+            timer:Destroy()
+            return
+        end
+
+        distance = distance + TICK_RATE
+        rotation_rate = rotation_rate * 0.99
+        angle = (angle + rotation_rate * direction) % 360
+
+        local new_position = hero:GetPosition() + Vector2.NewFromAngle(angle) * distance
+        DCEI.SetUnitPosition2DWithInterpolation(instance, new_position.x, new_position.y)
+    end
+
+    function timer:Action()
+        Help.SetModelScale(instance, 0.01, 0.10, Ease.OutCubic)
+        DCEI.KillUnit(instance)
+    end
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local caster = ctx.caster
+    local player_id = DCEI.GetUnitPlayerId(caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    -- Do things
+
+    local target_position = ctx.target_location
+    SpawnProjectile(hero, target_position)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.DamageScan, EJS.StandardAreaSearch.Radius),
+        EffectPath.New(REF.ProjectileScan, EJS.StandardAreaSearch.Radius, nil, 0),
+        EffectPath.New(REF.SpawnVFX, EJS.Actor.Scale, nil, 0.5),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+        EffectPath.New(REF.ProjectileDamage, EJS.Damage.Value, nil, PROJECTILE_DAMAGE_SCALE),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

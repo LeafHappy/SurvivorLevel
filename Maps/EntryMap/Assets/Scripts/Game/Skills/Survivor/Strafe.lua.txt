@@ -1,0 +1,497 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Strafe"),
+
+    -- Behavior
+    PierceStack = DCEI.Behavior("Missile - Pierce"),
+    ProjectileSpeed = DCEI.Behavior("Skill - Strafe - Projectile Speed"),
+    LearnedTrickshot = DCEI.Behavior("Skill - Strafe - Learned - Trickshot"),
+    LearnedQuickDraw = DCEI.Behavior("Skill - Strafe - Learned - Quick Draw"),
+
+    -- Activation Effects
+    ScanHostile = DCEI.Effect("Skill - Strafe - Scan - Hostile"),
+    ScanAll = DCEI.Effect("Skill - Strafe - Scan - All"),
+    Success = DCEI.Effect("Skill - Strafe - Success"),
+    TrickshotScan = DCEI.Effect("Skill - Strafe - Trickshot - Scan - Hostile"),
+    Refresh = DCEI.Effect("Skill - Strafe - Refresh"),
+
+    -- Cast Effects
+    Launch = DCEI.Effect("Skill - Strafe - Launch"),
+
+    -- Collision Effects
+    OnEnter = DCEI.Effect("Skill - Strafe - OnEnter"),
+    Damage = DCEI.Effect("Skill - Strafe - Damage"),
+    Stagger = DCEI.Effect("Skill - Strafe - Stagger"),
+    DamageReduction = DCEI.Effect("Skill - Strafe - Damage Reduction"),
+
+    -- VFX
+    ImpactVFX = DCEI.Effect("Skill - Strafe - Impact VFX"),
+    DeathVFX = DCEI.Effect("Skill - Strafe - Death VFX"),
+
+    -- Units
+    Projectile = DCEI.Unit("Skill - Strafe - Projectile"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Strafe - Projectile") }),
+
+    -- Spectral Arrow
+    SpectralArrowScan = DCEI.Effect("Skill - Spectral Arrow - Scan"),
+    SpectralArrowOnEnter = DCEI.Effect("Skill - Spectral Arrow - OnEnter"),
+    SpectralArrowLaunch = DCEI.Effect("Skill - Spectral Arrow - Launch"),
+    SpectralArrowDeathVFX = DCEI.Effect("Skill - Spectral Arrow - Death VFX"),
+    SpectralArrowProjectile = DCEI.Unit("Skill - Spectral Arrow - Projectile"),
+    SpectralArrowProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Skill - Spectral Arrow - Projectile") }),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@class QuickDrawData
+---@field Cooldown number
+---@field CooldownTimer number
+---@field IsReady boolean
+
+---@type table<number, QuickDrawData>
+local _QuickDrawData = {}
+
+---@class SpectralArrowData
+---@field DistanceTraveled number
+
+---@type table<PlayerId, SpectralArrowData>
+local _SpectralArrowData = {}
+
+-- The cast-point of the animation
+local ATTACK_ANIMATION_TIME = 1.00
+local ATTACK_CAST_POINT = 12 / 30
+
+-- The cast-point of the animation
+local ANIMATION_DELAY = 0.10
+local MODEL_SCALE = 0.75
+local MODEL_SCALE_TIME = 0.10
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param ctx EffectContext
+local function OnSpectralArrowProjectileSpawn(ctx)
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SkillData.Strafe.Key)
+
+    -- Set the Projectile Size
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    Help.SetModelScale(instance, size * MODEL_SCALE, MODEL_SCALE_TIME, Ease.OutCubic)
+
+    -- Set the Projectile Collision Properties
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.SpectralArrowOnEnter, CollisionTiming.Start, 0),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Health
+    SimpleUnit.ModifyHealth(instance, 99)
+
+    return instance
+end
+
+---comment
+---@param ctx EffectContext
+local function OnProjectileSpawn(ctx)
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+
+    if not hero or not Help.ValidateUnit(hero.unit) then
+        DCEI.RemoveUnit(instance)
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.Strafe.Key)
+
+    -- Set the Projectile Size
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    Help.SetModelScale(instance, size * MODEL_SCALE, MODEL_SCALE_TIME, Ease.OutCubic)
+
+    -- Set the Projectile Collision Properties
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, TICK_RATE),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Health
+    local health = hero:GetStat(STAT.ProjectileHealth, tags)
+    DCEI.ApplyBehaviorToSelf(instance, REF.PierceStack, health)
+    SimpleUnit.ModifyHealth(instance, 99)
+
+    return instance
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+local function LaunchProjectile(hero, target_position)
+    DCEI.CreateEffectAtPosition(REF.Launch, hero.unit, target_position.x, target_position.y)
+end
+
+---Attempt to Shoot an arrow at a random enemy (with +10% Range)
+---@param hero Hero
+local function AttemptTrickshot(hero)
+    -- Check if the Hero has the Trickshot Behavior
+    local learned_trickshot = Help.UnitHasBehavior(hero.unit, REF.LearnedTrickshot)
+    if learned_trickshot then
+        local timer = Core.Timer.Game.New()
+        timer:SetDuration(TICK_RATE)
+
+        function timer:Action()
+            -- Validate Hero
+            if not Help.ValidateUnit(hero.unit) then
+                return
+            end
+
+            local position = hero:GetPosition()
+            DCEI.CreateEffectAtPosition(REF.TrickshotScan, hero.unit, position.x, position.y)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function AttemptQuickDraw(hero)
+    local quick_draw_data = _QuickDrawData[hero.player_id]
+
+    if not quick_draw_data then
+        return
+    end
+
+    if not quick_draw_data.IsReady then
+        return
+    end
+
+    quick_draw_data.IsReady = false
+    quick_draw_data.CooldownTimer = quick_draw_data.Cooldown
+
+    -- Set Strafe Cooldown
+    DCEI.SetUnitAbilityCooldown(hero.unit, REF.Ability, 0.25)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.Strafe)
+    local count = hero:GetStat(STAT.ProjectileCount, tags)
+    local spread = hero:GetStat(STAT.Spread, tags)
+    local range = hero:GetStat(STAT.SkillRange, tags)
+
+    local attack_speed = hero:GetStat(STAT.AttackSpeed, tags)
+    local action_speed_modifier = 1 / (1 + attack_speed)
+    local cast_speed = ATTACK_ANIMATION_TIME * action_speed_modifier
+    local cast_point = cast_speed * ATTACK_CAST_POINT
+
+    hero:AttackTargetCallback(
+        ctx.target,
+        cast_speed,
+        ---@param target_location Vector2
+        function(target_location)
+            if not Help.ValidateUnit(hero.unit) then
+                return
+            end
+
+            local hero_position = hero:GetPosition()
+            local base_angle = Vector2.AngleBetween(hero_position, target_location)
+
+            local offset_angles = Help.CalculateSpread(base_angle, count, spread)
+
+            for i = 1, #offset_angles do
+                local offset = Vector2.NewFromAngle(offset_angles[i]) * range
+                local launch_position = hero_position + offset
+                LaunchProjectile(hero, launch_position)
+            end
+
+            AttemptTrickshot(hero)
+            AttemptQuickDraw(hero)
+        end,
+        cast_point
+    )
+end
+
+local function ReleaseTarget(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    hero:ReleaseTargetLock()
+end
+
+---comment
+---@param hero Hero
+local function AttemptQuickDraw(hero)
+    local quick_draw_data = _QuickDrawData[hero.player_id]
+
+    if not quick_draw_data then
+        return
+    end
+
+    if quick_draw_data.IsReady then
+        return
+    end
+
+    quick_draw_data.CooldownTimer = quick_draw_data.CooldownTimer - TICK_RATE
+    if quick_draw_data.CooldownTimer <= 0 then
+        quick_draw_data.IsReady = true
+    end
+end
+
+---comment
+---@param hero Hero
+local function AttemptSpectralArrow(hero)
+    local spectral_arrow_data = _SpectralArrowData[hero.player_id]
+
+    if not spectral_arrow_data then
+        return
+    end
+
+    local distance_traveled = hero:GetTravelDistance()
+    spectral_arrow_data.DistanceTraveled = spectral_arrow_data.DistanceTraveled + distance_traveled
+
+    local tags = hero:GetInheritedTags(SkillData.Strafe.Key)
+    local required_distance = hero:GetStat(STAT.RequiredTravelDistance, tags)
+
+    if spectral_arrow_data.DistanceTraveled >= required_distance then
+        spectral_arrow_data.DistanceTraveled = spectral_arrow_data.DistanceTraveled - required_distance
+
+        DCEI.CreateEffectAtSelf(REF.SpectralArrowScan, hero.unit)
+    end
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    AttemptQuickDraw(hero)
+    AttemptSpectralArrow(hero)
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _QuickDrawData[hero.player_id] = nil
+    _SpectralArrowData[hero.player_id] = nil
+end
+
+---comment
+---@param hero Hero
+local function InitializeQuickDrawData(hero)
+    -- Initialize Quick Draw Data
+    local player_id = hero.player_id
+
+    local learned_quickdraw = Help.UnitHasBehavior(hero.unit, REF.LearnedQuickDraw)
+
+    if not learned_quickdraw then
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.Strafe)
+    local cooldown = hero:GetStat(STAT.Cooldown, tags)
+
+    -- Setup Quick Draw Data
+    _QuickDrawData[player_id] = {
+        Cooldown = cooldown,
+        CooldownTimer = 0,
+        IsReady = true,
+    }
+end
+
+---comment
+---@param hero Hero
+local function InitializeSpectralArrowData(hero)
+    local player_id = hero.player_id
+
+    local learned_spectral_arrow = hero:IsSkillLearned(SkillData.SpectralArrow.Key)
+
+    if not learned_spectral_arrow then
+        return
+    end
+
+    _SpectralArrowData[player_id] = {
+        DistanceTraveled = 0,
+    }
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.Strafe)
+
+    local cast_range = hero:GetStat(STAT.SkillRange, tags)
+    local projectile_distance = hero:GetStat(STAT.SkillRange, tags)
+    local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+
+    hero:SetEffectValue(REF.SpectralArrowScan, EJS.AreaSearch.Radius, cast_range)
+    hero:SetEffectValue(REF.SpectralArrowLaunch, EJS.Launch.Impact.Distance, projectile_distance)
+    hero:SetEffectValue(REF.SpectralArrowDeathVFX, EJS.Actor.Scale, projectile_size * MODEL_SCALE)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+-- ---comment
+-- ---@param hero Hero
+-- function Upgrade.PreCache(hero)
+--     ---TESTING: Check what the total Projectile Speed is from all sources
+--     local total_projectile_speed = hero:GetStat(STAT.ProjectileSpeed)
+--     local multiplier = 0.01
+--     local value = total_projectile_speed * multiplier
+--     Help.Log("Projectile Speed Conversion Damage Bonus", value)
+
+--     ---TESTING: Get all Additive Projectile Speed Modifiers
+--     local increased_projectile_speed = hero.Attributes:GetStatScaling(STAT.ProjectileSpeed, SCALING.Additive)
+--     Help.Log("Increased Projectile Speed", increased_projectile_speed)
+
+--     local modifier_id = "Projectile Speed Conversion Modifier"
+--     local projectile_speed_conversion_modifier =
+--         Modifier.New(STAT.Damage, value, SCALING.Additive, { SKILL_TAG.Global }, modifier_id)
+
+--     -- Apply Modifier
+--     hero:ApplyModifier(projectile_speed_conversion_modifier, true)
+-- end
+
+Upgrade.Cache = {
+    -- [STAT.AttackSpeed] = {}, -- Now needs to be manually calculted in Override
+    [STAT.CastRange] = {
+        EffectPath.New(REF.ScanHostile, EJS.AreaSearch.Radius, nil, 1.00),
+        EffectPath.New(REF.ScanAll, EJS.AreaSearch.Radius, nil, 0.80),
+        EffectPath.New(REF.TrickshotScan, EJS.AreaSearch.Radius, nil, 1.10),
+    },
+    [STAT.SkillRange] = {
+        -- EffectPath.New(REF.ScanHostile, EJS.AreaSearch.Radius, nil), -- Cast Range
+        -- EffectPath.New(REF.ScanAll, EJS.AreaSearch.Radius, nil, 0.80), -- Cast Range
+        -- EffectPath.New(REF.TrickshotScan, EJS.AreaSearch.Radius, nil, 1.1),
+
+        EffectPath.New(REF.Launch, EJS.Launch.Impact.Distance),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, nil, MODEL_SCALE),
+        EffectPath.New(REF.DeathVFX, EJS.Actor.Scale, nil, MODEL_SCALE),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+    [STAT.PierceDamage] = {
+        EffectPath.New(REF.DamageReduction, EJS.DamageOutput.Multiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    -- Skill Tags
+    local tags = hero:GetInheritedTags(SkillData.Strafe.Key)
+
+    -- Set Detection Range for Hero Animation
+    local detection_range = hero:GetStat(STAT.SkillRange, tags)
+    hero:SetDetectionRange(detection_range)
+
+    -- Apply Projectile Speed Behavior
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_speed_stacks = math.floor(projectile_speed * 100)
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileSpeed, projectile_speed_stacks)
+
+    -- Check for Quick Draw
+    InitializeQuickDrawData(hero)
+
+    -- Initialize Spectral Arrow Data
+    InitializeSpectralArrowData(hero)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess)
+DCEI.TriggerAddEffectEvent(REF.Refresh, ReleaseTarget)
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+DCEI.TriggerAddUnitSpawnEvent(REF.SpectralArrowProjectileFilter, OnSpectralArrowProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

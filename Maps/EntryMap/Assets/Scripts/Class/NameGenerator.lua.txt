@@ -1,0 +1,137 @@
+local Core = require("Core")
+
+local NameGenerator = {}
+
+local prefixes = {
+    -- Colors --
+    "Blue",
+    "Green",
+    "Red",
+    "Yellow",
+    "Purple",
+
+    -- Temperaments --
+    "Clean",
+    "Brave",
+    "Gentle",
+    "Nice",
+    "Proud",
+    "Witty",
+    "Angry",
+    "Lazy",
+    "Spoiled",
+    "Shy",
+
+    -- Shape --
+    "Skinny",
+    "Slim",
+    "Fit",
+    "Fat",
+    "Tiny",
+    "Small",
+    "Big",
+    "Large",
+    "Short",
+    "Tall",
+    "Light",
+    "Heavy",
+
+    -- Descriptor --
+    "Fluffy",
+    "Scruffy",
+    "Spooky",
+    "Deadly",
+
+    -- Element/Status --
+    -- "Light",
+    "Toxic",
+    "Fire",
+    "Shock",
+    "Dark",
+    "Water",
+    "Earth",
+    "Wind",
+    "Energy",
+    "Ice",
+    "Shadow",
+    "Metal",
+    "Spirit",
+    "Poison",
+    "Arcane",
+}
+
+local suffixes = {
+    -- Animal --
+    "Cat",
+    "Dog",
+    "Fish",
+    "Monkey",
+    "Gorilla",
+    "Duck",
+    "Shark",
+    "Bird",
+    "Mouse",
+    "Goat",
+    "Wolf",
+    "Kitty",
+    "Aphid",
+
+    -- Fantasy --
+    "Dragon",
+    "Orc",
+    "Elf",
+    "Gnome",
+    "Goblin",
+    "Dwarf",
+    "Yeti",
+
+    -- Food --
+    "Banana",
+    "Frosty",
+    "Chips",
+    "Bacon",
+    "Bagel",
+    "Cake",
+    "Corn",
+    "Toast",
+    "Potato",
+    "Pepper",
+    "Nectar",
+
+    -- Others --
+    "Map",
+    "Book",
+    "Card",
+    "Key",
+    "Paper",
+    "Craft",
+    "Poster",
+    "Planet",
+    "Clock",
+    "Bell",
+    "House",
+}
+
+function NameGenerator.Generate()
+    local prefix = prefixes[Core.Random.GetInteger(1, #prefixes)]
+    local suffix = suffixes[Core.Random.GetInteger(1, #suffixes)]
+
+    -- Chance to remove matching connection (Dark + Kitty = Darkitty)
+    local matching_connection = string.sub(prefix, -1) == string.lower(string.sub(suffix, 0, 1))
+    if matching_connection and Core.Random.GetNumber(0, 1) < 0.3 then
+        suffix = string.sub(suffix, 2)
+    end
+
+    -- Generate up to 4 Random Numbers
+    local number = ""
+    while
+        string.len(number) < 4 -- Maximum of 4 Numbers
+        and Core.Random.GetNumber(0, 1) < (0.7 - string.len(number) * 0.1) -- Increased Break Chance/Length
+    do
+        number = number .. tostring(Core.Random.GetInteger(0, 9))
+    end
+
+    return prefix .. suffix .. number
+end
+
+return NameGenerator

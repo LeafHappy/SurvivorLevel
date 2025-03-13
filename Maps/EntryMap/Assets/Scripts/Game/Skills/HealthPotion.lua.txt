@@ -1,0 +1,144 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = "",
+
+    -- Effect
+    -- Chance = DCEI.Effect("Spawn - Loot - Potion Charge - Chance"),
+    Effects = DCEI.Effect("Consumable - Health Potion - Effects"),
+    Heal = DCEI.Effect("Consumable - Health Potion - Heal"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+---@type table<PLAYER, number>
+local _ConsumableStacks = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param hero Hero
+local function TriggerEffects(hero)
+    -- Trigger Effects
+    DCEI.CreateEffectAtSelf(REF.Effects, hero.unit)
+end
+
+---Frostnova Hero Update Loop Hookup
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    -- Help.Log("Potion Charge Update Loop", hero:GetRecordedStat(GAME_STATS.PotionCharge))
+
+    -- Inject New Instance Stacks into Instance Table
+    Help.InjectGameStats(hero, GAME_STATS.PotionCharge, _ConsumableStacks)
+
+    -- Get Required Stacks
+    local tags = hero:GetInheritedTags(SkillData.HealthPotion.Key)
+    local required_stacks = hero:GetStat(STAT.RequiredStacks, tags)
+
+    -- Compare Current Stacks to Required Stacks
+    if _ConsumableStacks[hero.player_id] >= required_stacks then
+        -- Cast Effect
+        TriggerEffects(hero)
+
+        -- Use Stacks
+        _ConsumableStacks[hero.player_id] = _ConsumableStacks[hero.player_id] - required_stacks
+    end
+
+    local fill_amount = _ConsumableStacks[hero.player_id] / required_stacks
+    Core.Event.SendPresentationEvent("Game.SetConsumableFillAmount", fill_amount)
+end
+
+---Reset Variables and Unsubscribe from Hero Events
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    --Reset Variables
+    _ConsumableStacks[hero.player_id] = nil
+    Core.Event.SendPresentationEvent("Game.SetConsumableActive", false)
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.Healing] = {
+        EffectPath.New(REF.Heal, EJS.Heal.Value),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    -- Provides a way to manipulate Hostile Drop Chance
+    -- local tags = hero:GetInheritedTags(SkillData.HealthPotion.Key)
+    -- local chance = hero:GetStat(STAT.Chance, tags)
+    -- DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, REF.Chance, EJS.Chance, chance)
+
+    ---TODO: Setup a better way to setup/pass the image texture from the Skill or Consumable Data
+    Core.Event.SendPresentationEvent("Game.SetConsumableActive", true)
+    Core.Event.SendPresentationEvent("Game.SetConsumableIcon", "wildsurvivor_icon_rune_potion_healingelixir")
+
+    hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

@@ -1,0 +1,883 @@
+-- ============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+-- Classes
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Game
+local Hero = require("Game/Hero")
+local AIHelper = require("Game/AI/AIHelper")
+local Log = require("Game/Log")
+
+-- Data
+local EJS = require("Data/EJS")
+
+-- Help
+local Help = require("Help")
+
+-- Dev
+local _Dev = require("_Dev")
+
+-- ============================================================================
+-- !SECTION: Libraries
+---SECTION: Variables
+---============================================================================
+
+local PHASE_FACTOR = 0.25
+local PHASE_MAX = 3
+local HEALTH_INCREASE_PER_PHASE = 0.15
+local HEAL_FACTOR = 0.50
+
+-- Causes the Boss to Teleport towards the Player when too far away.
+local TELEPORT_THRESHOLD = 50
+
+-- Causes the Boss's Movement Speed to be Increased by a Percentage every Minute.
+local AVOIDANCE_SPEED_INCREASE = 0.10
+
+local default_states = {
+    IncreasePhase = "IncreasePhase",
+    Stagger = "Stagger",
+    Taunt = "Taunt",
+    TauntAvoidance = "TauntAvoidance",
+    ScanTarget = "ScanTarget",
+    ScanHero = "ScanHero",
+    ScanStructure = "ScanStructure",
+    Teleport = "Teleport",
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+}
+
+local _effects = {
+    ScanTrigger = DCEI.Effect("AI - Scan for Target - Trigger"),
+    StateTrigger = DCEI.Effect("AI - State Trigger"),
+    HealthLockArmor = DCEI.Effect("Boss - Health Lock - Armor"),
+    StaggerStun = DCEI.Effect("Boss - Apply Stagger Stun"),
+}
+
+local _behaviors = {
+    CastSpeed = DCEI.Behavior("Stats - Cast Speed"),
+    MoveSpeed = DCEI.Behavior("Stats - Move Speed"),
+    Stagger = DCEI.Behavior("Stagger"),
+    Stunned = DCEI.Behavior("Boss - Stagger Stun"),
+}
+
+local _abilities = {
+    ScanTarget = DCEI.Ability("AI - Scan for Target"),
+    ScanHero = DCEI.Ability("AI - Scan for Hero"),
+    ScanStructure = DCEI.Ability("AI - Scan for Structure"),
+    Stagger = DCEI.Ability("Boss - Stagger"),
+    Taunt = DCEI.Ability("Boss - Taunt"),
+}
+
+local _instances = {}
+
+-- ============================================================================
+-- !SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---Apply Override Table within AI.
+---NOTE: We are using a modifier version of the EffectPath to simplify the process where (effect path tags = stat).
+---@param overrides table<EffectPath>
+---@param attributes Attributes
+local function ApplyOverrides(overrides, attributes)
+    -- local override_list = {}
+
+    for _, override in pairs(overrides) do
+        local value = attributes:Get(override.tags)
+        DCEI.SetEffectFieldValueForPlayer(PLAYER.Hostile, override.effect, override.path, value * override.scalar)
+        -- table.insert(override_list, string.format("Setting [%s]: %d", override.Effect, math.floor(value)))
+    end
+
+    -- Help.Log("Boss Override List", difficulty, override_list)
+end
+
+---@param ai AIHandler
+local function Stagger(ai)
+    ai:IncreaseStaggerTolerance()
+    DCEI.CastAbilityAtUnit(_abilities.Stagger, ai.unit, ai.unit)
+
+    ai:SetState(default_states.BaseDecision)
+end
+
+---@param ai AIHandler
+local function Taunt(ai)
+    DCEI.CastAbilityAtUnit(_abilities.Taunt, ai.unit, ai.unit)
+    ai:SetState(default_states.BaseDecision)
+end
+
+---TODO: Remove this functionality
+---@param ai AIHandler
+local function TauntAvoidance(ai)
+    -- Add Move Speed Modifier
+    local modifier = Modifier.New(STAT.MoveSpeed, AVOIDANCE_SPEED_INCREASE, SCALING.Scaled)
+    ai.attributes:Add(modifier)
+    ai:UpdateMoveSpeed()
+
+    -- Cast Taunt
+    DCEI.CastAbilityAtUnit(_abilities.Taunt, ai.unit, ai.unit)
+    ai:SetState(default_states.BaseDecision)
+end
+
+---@param ai AIHandler
+local function ScanTarget(ai)
+    DCEI.CastAbilityAtUnit(_abilities.ScanTarget, ai.unit, ai.unit)
+    ai:SetState(default_states.BaseDecision)
+end
+
+---@param ai AIHandler
+local function ScanHero(ai)
+    DCEI.CastAbilityAtUnit(_abilities.ScanHero, ai.unit, ai.unit)
+    ai:SetState(default_states.BaseDecision)
+end
+
+---@param ai AIHandler
+local function ScanStructure(ai)
+    DCEI.CastAbilityAtUnit(_abilities.ScanStructure, ai.unit, ai.unit)
+    ai:SetState(default_states.BaseDecision)
+end
+
+---@param ai AIHandler
+local function IncreasePhase(ai)
+    local position = Vector2.UnitPosition(ai.unit)
+    AIHelper.SpawnPhaseVFX(position)
+    ai:RunState(default_states.Taunt)
+end
+
+local function EliteTeleport(ai)
+    -- Validate Target
+    if not ai:ValidateSelfAndTarget() then
+        ai:RunState(default_states.BaseDecision)
+        return
+    end
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    -- We want to move the unit to the opposite side of the target.
+    local distance = Vector2.Distance(unit_position, target_position)
+    local direction = Vector2.Normalized(target_position - unit_position)
+
+    local move_position = target_position + direction * distance * 0.90
+    DCEI.SetUnitPosition2D(ai.unit, move_position.x, move_position.y)
+
+    ai:RunState(default_states.BaseDecision)
+end
+
+local function BossTeleport(ai)
+    -- Validate Target
+    if not ai:ValidateSelfAndTarget() then
+        ai:RunState(default_states.BaseDecision)
+        return
+    end
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local move_position = Vector2.Midpoint(unit_position, target_position)
+    DCEI.SetUnitPosition2DWithInterpolation(ai.unit, move_position.x, move_position.y)
+
+    ai:RunState(default_states.BaseDecision)
+end
+
+---@param ai AIHandler
+local function Teleport(ai)
+    if ai.is_boss then
+        BossTeleport(ai)
+    else
+        EliteTeleport(ai)
+    end
+end
+
+---@param ai AIHandler
+local function BaseEliteDecision(ai)
+    -- Validate Target
+    if ai.Data.Target and not Help.ValidateUnit(ai.Data.Target) then
+        ai.Data.Target = nil
+    end
+
+    -- Scan for Target
+    if not Help.ValidateUnit(ai.Data.Target) then
+        if ai.Data.TargetingPriority then
+            if ai.Data.TargetingPriority == "Hero" then
+                ai:RunState(default_states.ScanHero)
+            elseif ai.Data.TargetingPriority == "Structure" then
+                ai:RunState(default_states.ScanStructure)
+            else -- Default Case
+                ai:RunState(default_states.ScanTarget)
+            end
+        else
+            ai:RunState(default_states.ScanTarget)
+        end
+        return
+    end
+
+    -- local unit_position = Vector2.UnitPosition(ai.unit)
+    -- local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    -- Check Distance for Teleport
+    -- local distance = Vector2.Distance(unit_position, target_position)
+    -- if ai:HasState(default_states.Teleport) and distance > TELEPORT_THRESHOLD then
+    --     ai:RunState(default_states.Teleport)
+    --     return
+    -- end
+
+    -- Check Stagger
+    local is_staggered = ai:IsStaggerThresholdReached()
+    if is_staggered then
+        ai:RunState(default_states.Stagger)
+        return
+    end
+
+    -- if not ai:ValidateSelfAndTarget() then
+    --     ai:RunState(default_states.BaseDecision)
+    --     return
+    -- end
+
+    ai:RunState(default_states.AdvancedDecision)
+end
+
+local function BaseBossDecision(ai)
+    -- local time_passed = DCEI.GetGameTime() - ai.spawn_time
+    -- if math.floor(time_passed / 60) > ai.time_phase then
+    --     ai.time_phase = ai.time_phase + 1
+    --     ai:RunState(default_states.TauntAvoidance)
+    --     return
+    -- end
+
+    -- local phase_increased = ai:GetPhaseIncrease()
+    -- if phase_increased then
+    --     ai:RunState(default_states.IncreasePhase)
+    --     return
+    -- end
+
+    -- Validate Target
+    if ai.Data.Target and not Help.ValidateUnit(ai.Data.Target) then
+        ai.Data.Target = nil
+    end
+
+    -- Scan for Target
+    if not ai.Data.Target then
+        if ai.Data.TargetingPriority then
+            if ai.Data.TargetingPriority == "Hero" then
+                ai:RunState(default_states.ScanHero)
+            elseif ai.Data.TargetingPriority == "Structure" then
+                ai:RunState(default_states.ScanStructure)
+            else -- Default Case
+                ai:RunState(default_states.ScanTarget)
+            end
+        else
+            ai:RunState(default_states.ScanTarget)
+        end
+        return
+    end
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    -- Check Distance for Teleport
+    local distance = Vector2.Distance(unit_position, target_position)
+    if ai:HasState(default_states.Teleport) and distance > TELEPORT_THRESHOLD then
+        ai:RunState(default_states.Teleport)
+        return
+    end
+
+    -- Check Stagger
+    local stagger_stacks = DCEI.GetUnitBehaviorStackCount(ai.unit, _behaviors.Stagger)
+    if stagger_stacks >= ai.stagger then
+        ai:RunState(default_states.Stagger)
+        return
+    elseif ai:IsLastState(default_states.Stagger) then
+        ai:RunState(default_states.Taunt)
+        return
+    end
+
+    if not ai:ValidateSelfAndTarget() then
+        ai:RunState(default_states.BaseDecision)
+        return
+    end
+
+    ai:RunState(default_states.AdvancedDecision)
+end
+
+local function BaseDecision(ai)
+    if ai.is_boss then
+        BaseBossDecision(ai)
+    else
+        BaseEliteDecision(ai)
+    end
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Class Initialization
+---============================================================================
+
+---@class AIHandler
+---@field unit UnitInstance The Unique Unit.
+---@field state string The Current State.
+---@field last_state string The Last used State (non-repeating).
+---@field last_custom_state string The Last Custom State.
+---@field attributes Attributes Holds the attributes of the Unit.
+---@field is_boss boolean Whether the Unit is a Boss or Elite.
+---@field stun_animation string The Animation to play when Staggered.
+---@field stagger number The current stagger tolerance.
+---@field phase integer The current phase [1 - 3].
+---@field spawn_time number The Time when the AI was spawned.
+---@field time_phase integer The number of Phase Increases recorded.
+---@field States table<string, function> Dictionary of Function Callbacks.
+---@field Data table<any> Can be used to store custom information for the Unit.
+---@field PhaseIncreaseCallbacks table<function> List of Callbacks to be called when the Phase Increases.
+local AIHandler = {}
+AIHandler.__index = AIHandler
+
+---comment
+---@param unit Unit
+---@param attributes Attributes
+---@param overrides table | nil
+---@param is_boss boolean | nil
+---@param prevent_teleport boolean | nil
+---@param stun_animation string | nil
+---@return AIHandler
+function AIHandler.New(unit, attributes, overrides, is_boss, prevent_teleport, stun_animation)
+    local id = Core.Unit.GetId(unit)
+    _instances[id] = {}
+
+    local self = setmetatable(_instances[id], AIHandler)
+    self.unit = unit
+    self.attributes = attributes
+    self.is_boss = is_boss or false
+    self.stun_animation = stun_animation or "action2"
+
+    self.stagger = self.attributes:Get(STAT.StaggerResistance)
+    self.phase = 1
+    self.spawn_time = DCEI.GetGameTime()
+    self.time_phase = 0
+
+    self.state = ""
+    self.last_state = ""
+    self.last_custom_state = ""
+    self.States = {}
+
+    self.Data = {}
+    self.PhaseIncreaseCallbacks = {}
+
+    self.overrides = overrides
+    if overrides then
+        ApplyOverrides(overrides, self.attributes)
+    end
+
+    DCEI.TriggerAddUnitRemovedEvent(unit, function()
+        _instances[id] = nil
+    end, true)
+
+    -- Defaults
+
+    -- Casters
+    self:AddState(default_states.Stagger, Stagger)
+    self:AddState(default_states.ScanTarget, ScanTarget)
+    self:AddState(default_states.ScanHero, ScanHero)
+    self:AddState(default_states.ScanStructure, ScanStructure)
+
+    if is_boss then
+        self:AddState(default_states.Taunt, Taunt)
+        -- self:AddState(default_states.TauntAvoidance, TauntAvoidance)
+    end
+
+    -- Manual
+    self:AddState(default_states.BaseDecision, BaseDecision)
+
+    if not prevent_teleport then
+        self:AddState(default_states.Teleport, Teleport)
+    end
+
+    -- if is_boss then
+    --     self:AddState(default_states.IncreasePhase, IncreasePhase)
+    -- end
+
+    -- Set Initial State
+    if is_boss then
+        self:SetState(default_states.Taunt)
+    else
+        self:SetState(default_states.ScanTarget)
+    end
+
+    -- Rage - Increase Damage Taken by Boss and Target
+    -- if is_boss then
+    --     local ai = self
+
+    --     ai.Data.RageIntake = 0
+    --     ai.Data.RageOutput = 0
+
+    --     local condition = function()
+    --         return ai:ValidateUnit()
+    --     end
+
+    --     local action = function()
+    --         AIHelper.ApplyRage(ai)
+    --     end
+
+    --     Help.PeriodicGameTimer(999, 1, condition, action)
+
+    --     ai:AddPhaseIncreaseCallback(function()
+    --         -- Reset Incoming Damage from Rage
+    --         ai.Data.RageIntake = 0
+
+    --         -- Reduce Outgoing Damage from Rage (better at preventing 1-shotting from damage scale)
+    --         ai.Data.RageOutput = ai.Data.RageOutput * 0.50
+    --     end)
+    -- end
+
+    -- Health Lock - Prevent Health from dropping below current phase threshold
+    -- if is_boss then
+    --     local ai = self
+
+    --     local condition = function()
+    --         return ai:ValidateUnit()
+    --     end
+
+    --     local recurring_action = function()
+    --         local current_phase = ai.phase
+    --         local target_phase = ai:GetTargetPhaseHealth()
+
+    --         -- local message = string.format("Current Phase: %d | Target Phase: %d", current_phase, target_phase)
+    --         -- Help.Log(message)
+
+    --         if current_phase == target_phase then
+    --             return
+    --         end
+
+    --         -- Check if NOT Stunned
+    --         local stunned = DCEI.GetUnitBehaviorStackCount(ai.unit, _behaviors.Stunned)
+    --         if stunned > 0 then
+    --             return
+    --         end
+
+    --         -- Apply Armor Lock
+    --         Help.CreateEffect(PLAYER.Hostile, _effects.HealthLockArmor, ai.unit)
+    --     end
+
+    --     Help.GameTimer(1, condition, nil, function()
+    --         Help.GameTimer(999, condition, recurring_action)
+    --     end)
+    -- end
+
+    -- Health Potion Drops on Non-Boss
+    -- if not is_boss then
+    --     DCEI.TriggerAddUnitDiedEvent(unit, function()
+    --         local position = Vector2.UnitPosition(unit)
+
+    --         -- AIHelper.DropSmallHealthPotion(position)
+    --         -- AIHelper.DropSmallHealthPotion(position)
+    --         -- AIHelper.DropLargeHealthPotion(position)
+    --     end, true)
+    -- end
+
+    ---LOG: Logging Data
+    local spawn_data = {
+        type = DCEI.GetUnitType(unit),
+        spawn_time = self.spawn_time,
+        game_mode = CommonDataAccess.Get("game_mode"),
+        attempts = CommonDataAccess.Get("attempts"),
+    }
+
+    local death_data = {
+        type = DCEI.GetUnitType(unit),
+        game_mode = CommonDataAccess.Get("game_mode"),
+        attempts = CommonDataAccess.Get("attempts"),
+    }
+
+    ---LOG: Spawn
+    if is_boss then
+        ---LOG: Boss Spawn
+        Log.Boss.Spawn(spawn_data)
+    else
+        ---LOG: Elite Spawn
+        Log.Elite.Spawn(spawn_data)
+    end
+
+    ---LOG: Death
+    DCEI.TriggerAddUnitDiedEvent(unit, function()
+        death_data.death_time = DCEI.GetGameTime()
+        death_data.duration = death_data.death_time - self.spawn_time
+
+        if is_boss then
+            ---LOG: Boss Death
+            Log.Boss.Death(death_data)
+        else
+            ---LOG: Elite Death
+            Log.Elite.Death(death_data)
+        end
+    end)
+
+    return self
+end
+
+-- ============================================================================
+-- !SECTION: Class Initialization
+---SECTION: Class Functions
+---============================================================================
+
+---comment
+---@param state string
+---@param callback function
+function AIHandler:AddState(state, callback)
+    self.States[state] = callback
+end
+
+---comment
+---@param state string
+---@return boolean
+function AIHandler:HasState(state)
+    return self.States[state] ~= nil
+end
+
+function AIHandler:SetState(state)
+    if self.state == state then
+        return
+    end
+
+    self.last_state = self.state
+    self.state = state
+
+    -- If default_states does not contain self.last_state then set the last_custom_state
+    if not default_states[self.last_state] then
+        self.last_custom_state = self.last_state
+    end
+
+    if _Dev and _Dev.Log.boss_states then
+        local debug_message = string.format("===== %s : %s =====", DCEI.GetUnitType(self.unit), state)
+        Help.Warn(debug_message)
+    end
+end
+
+---comment
+---@param state string | nil
+function AIHandler:RunState(state)
+    local _state = state or self.state
+    self:SetState(_state) -- Set to the New State if Provided.
+
+    if not self.States[_state] then
+        Help.Warn("State does not exist", _state)
+        return
+    end
+
+    -- Always perform check a TICK later to prevent accidental infinite loop.
+    if not Help.WaitAndValidateUnit(TICK_RATE, self.unit) then
+        return
+    end
+
+    self.States[_state](self)
+end
+
+---Commands the Unit to Play a Sequence of Actions.
+---@param sequence table<function<AIHandler>>
+function AIHandler:PlayActionSequence(sequence)
+    for _, action in ipairs(sequence) do
+        if not self:ValidateAll() then
+            return
+        end
+
+        if not action(self) then
+            return
+        end
+    end
+end
+
+---Checks to see if the unit should be staggered.
+---@return boolean
+function AIHandler:IsStaggerThresholdReached()
+    -- Validate Unit
+    if not Help.ValidateUnit(self.unit) then
+        return false
+    end
+
+    local stagger_stacks = DCEI.GetUnitBehaviorStackCount(self.unit, _behaviors.Stagger)
+    return stagger_stacks >= self.stagger
+end
+
+---comment
+---@param stat STAT
+---@param tags table<SKILL_TAG> | nil
+---@return number
+function AIHandler:GetStat(stat, tags)
+    return self.attributes:Get(stat, tags)
+end
+
+---comment
+---@param stat STAT
+---@return number
+function AIHandler:GetEliteStat(stat)
+    return self.attributes:Get(stat, { SKILL_TAG.Elite })
+end
+
+---comment
+---@param stat STAT
+---@return number
+function AIHandler:GetBossStat(stat)
+    return self.attributes:Get(stat, { SKILL_TAG.Boss })
+end
+
+---Get the Speed Modifier of the unit (based on Attack Speed).
+---@return number
+function AIHandler:GetActionSpeedModifier()
+    local action_speed = self.attributes:Get(STAT.AttackSpeed)
+    return 1 / (1 + action_speed)
+end
+
+---Get the current Health Percentage of the Unit.
+---@return number
+function AIHandler:GetHealthPercentage()
+    if not Help.ValidateUnit(self.unit) then
+        return 0
+    end
+
+    local health_max = DCEI.GetMaxHealth(self.unit)
+    if health_max == 0 then
+        return 0
+    end
+
+    local health_current = DCEI.GetHealth(self.unit)
+
+    return health_current / health_max
+end
+
+---Generates the current Phase level of the Unit.
+---This is essentially:
+---Phase 1: [100% - 75%)
+---Phase 2: [75% - 50%)
+---Phase 3: [50% - 0%]
+---@return integer [1-3]
+function AIHandler:GetTargetPhaseHealth()
+    if not Help.ValidateUnit(self.unit) then
+        return 0
+    end
+
+    local percentage = self:GetHealthPercentage()
+    return math.min(1 + math.floor((1 - percentage) / PHASE_FACTOR), PHASE_MAX)
+end
+
+function AIHandler:PhaseHealthIncrease()
+    local health_max = DCEI.GetMaxHealth(self.unit)
+    local health_current = DCEI.GetHealth(self.unit)
+
+    health_max = health_max * (1 + HEALTH_INCREASE_PER_PHASE)
+    health_current = health_current * (1 + HEALTH_INCREASE_PER_PHASE)
+
+    SimpleUnit.ModifyHealth(self.unit, health_current, health_max)
+end
+
+-- Heals and Removes Stagger
+function AIHandler:RecoverStatus()
+    if not Help.ValidateUnit(self.unit) then
+        return
+    end
+
+    -- Heal
+    local max_health = self.attributes:Get(STAT.Health)
+    local current_health = DCEI.GetHealth(self.unit)
+    local heal_amount = max_health * HEAL_FACTOR * TICK_RATE
+    local new_health = math.min(max_health, current_health + heal_amount)
+    SimpleUnit.ModifyHealth(self.unit, new_health, max_health)
+
+    -- Clear Stagger
+    DCEI.RemoveBehavior(self.unit, _behaviors.Stagger, 5)
+end
+
+---Automatically increases the Phase and Health of the Unit.
+---@return true|false
+function AIHandler:GetPhaseIncrease()
+    local phase = self:GetTargetPhaseHealth()
+
+    local phase_increased = phase > self.phase
+    if phase_increased then
+        self.phase = phase
+
+        -- Drop Health Potions
+        if self.is_boss then
+            local position = Vector2.UnitPosition(self.unit)
+
+            -- AIHelper.DropSmallHealthPotion(position)
+            -- AIHelper.DropSmallHealthPotion(position)
+            -- AIHelper.DropSmallHealthPotion(position)
+        end
+
+        self:PhaseHealthIncrease()
+
+        -- Call Phase Increase Callbacks
+        for _, callback in ipairs(self.PhaseIncreaseCallbacks) do
+            callback(self)
+        end
+
+        self:UpdateMoveSpeed()
+        self:UpdateCastSpeed()
+
+        -- Reapply Overrides
+        if self.overrides then
+            ApplyOverrides(self.overrides, self.attributes)
+        end
+    end
+
+    return phase_increased
+end
+
+---Adds a Callback to be called when the Phase Increases.
+---@param callback function
+function AIHandler:AddPhaseIncreaseCallback(callback)
+    table.insert(self.PhaseIncreaseCallbacks, callback)
+end
+
+---Increases the Boss' Stagger Tolerance based on its difficulty.
+function AIHandler:IncreaseStaggerTolerance()
+    local added_stagger_resistance = self.attributes:Get(STAT.AddedStaggerResistance)
+    local modifier = Modifier.New(STAT.StaggerResistance, added_stagger_resistance, SCALING.Scaled)
+    self.attributes:Add(modifier)
+    self.stagger = self.attributes:Get(STAT.StaggerResistance)
+end
+
+---Returns whether the provided name is the same as the last custom state (non-internal).
+---@param name string
+---@return boolean
+function AIHandler:IsLastState(name)
+    return self.last_custom_state == name
+end
+
+---Validate self.unit (Unit)
+---@return boolean
+function AIHandler:ValidateUnit()
+    return Help.ValidateUnit(self.unit)
+end
+
+---Validate self.Data.Target (Unit)
+---@return boolean
+function AIHandler:ValidateTarget()
+    return Help.ValidateUnit(self.Data.Target)
+end
+
+function AIHandler:ValidateSelf()
+    return self:ValidateUnit()
+end
+
+---Validate self.unit and self.Data.Target.
+---@return boolean
+function AIHandler:ValidateSelfAndTarget()
+    return self:ValidateUnit() and self:ValidateTarget()
+end
+
+---Validate Unit and Target. Also ensures Stagger is not reached.
+---@return boolean
+function AIHandler:ValidateAll()
+    return self:ValidateUnit() and self:ValidateTarget() and not self:IsStaggerThresholdReached()
+end
+
+function AIHandler:UpdateCastSpeed()
+    local cast_speed = self.attributes:Get(STAT.AttackSpeed)
+    local cast_speed_stacks = math.floor(cast_speed * 100)
+    Core.Unit.SetBehaviorCount(self.unit, _behaviors.CastSpeed, cast_speed_stacks)
+end
+
+function AIHandler:UpdateMoveSpeed()
+    local move_speed = self.attributes:Get(STAT.MoveSpeed)
+    local move_speed_stacks = math.floor(move_speed * 100)
+    Core.Unit.SetBehaviorCount(self.unit, _behaviors.MoveSpeed, move_speed_stacks)
+end
+
+-- ============================================================================
+-- !SECTION: Class Functions
+---SECTION: Class Library
+---============================================================================
+
+---comment
+---@param unit Unit
+---@return AIHandler | nil
+function AIHandler.Fetch(unit)
+    local id = Core.Unit.GetId(unit)
+    return _instances[id]
+end
+
+-- ============================================================================
+-- !SECTION: Class Library
+---SECTION: Triggers
+---============================================================================
+
+---comment
+---@param ctx EffectContext
+local function OnScanTrigger(ctx)
+    -- Help.Log("On Scan Trigger")
+    local ai = AIHandler.Fetch(ctx.caster)
+
+    if not ai or not ai:ValidateUnit() then
+        Help.Warn("Scan attempted to call an AI Brain on an invalid unit", DCEI.GetUnitType(ctx.caster))
+        return
+    end
+
+    if ctx.target == ai.unit then -- Self Target, Cancel
+        -- Help.Warn("Scan attempted to target itself", DCEI.GetUnitType(ctx.caster))
+        ai:SetState(default_states.BaseDecision)
+        ai:RunState()
+        return
+    end
+
+    -- Set the Target
+    ai.Data.Target = ctx.target
+
+    if _Dev and _Dev.Log.boss_states and Help.ValidateUnit(ai.Data.Target) then
+        Help.Log("Target Acquired", DCEI.GetUnitType(ai.Data.Target))
+    end
+
+    -- Self Target, change to a Random Hero Unit
+    -- if ai.Data.Target == ai.unit then
+    --     ai.Data.Target = Hero.GetRandomTarget()
+    -- end
+
+    -- Help.Log("Target Acquired", DCEI.GetUnitType(ai.Data.Target))
+
+    DCEI.Wait(TICK_RATE, false)
+    -- ai:RunState()
+    ai:SetState(default_states.BaseDecision)
+    ai:RunState()
+end
+
+local function OnStateTrigger(ctx)
+    -- Help.Log("On State Trigger")
+    local ai = AIHandler.Fetch(ctx.caster)
+
+    if not ai or not ai:ValidateUnit() then
+        Help.Warn("State attempted to call an AI Brain on an invalid unit", DCEI.GetUnitType(ctx.caster))
+        return
+    end
+
+    DCEI.Wait(TICK_RATE, false)
+    ai:RunState()
+end
+
+---@param ctx EffectContext
+local function TriggerStaggerAnimation(ctx)
+    local ai = AIHandler.Fetch(ctx.caster)
+
+    if not ai or not ai:ValidateUnit() then
+        Help.Log("Failed to find AI Instance", DCEI.GetUnitType(ctx.caster))
+        return
+    end
+
+    local duration = DCEI.GetEffectHookFieldValue(EJS.ApplyBehavior.Duration)
+    -- Help.Log("Stagger Stun Duration", duration)
+    Help.PlayAnimationWithDuration(ai.unit, ai.stun_animation, duration)
+end
+
+DCEI.TriggerAddEffectEvent(_effects.ScanTrigger, DCEI.Coroutine(OnScanTrigger))
+DCEI.TriggerAddEffectEvent(_effects.StateTrigger, DCEI.Coroutine(OnStateTrigger))
+DCEI.TriggerAddEffectHookEvent(_effects.StaggerStun, TriggerStaggerAnimation, true)
+
+-- ============================================================================
+-- !SECTION: Triggers
+---============================================================================
+
+return AIHandler

@@ -1,0 +1,93 @@
+-- ================================================================================================
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local ability = DCEI.Ability("Hydra")
+
+local behaviors = {}
+local effects = {
+    duration = DCEI.Effect("Hydra - Apply Duration"),
+    damage = DCEI.Effect("Hydra - Damage"),
+    impact_area = DCEI.Effect("Hydra - Impact Area"),
+    impact_area_actor_size = DCEI.Effect("Hydra - Impact Spawn - Apply Size"),
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = "Hydra",
+}
+
+Upgrade.Cache = {
+    -- [STAT.CastSpeed] placeholder required for Abilities with Cooldowns.
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillDuration] = {
+        EffectPath.New(effects.duration, EJS.ApplyBehavior.Duration),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(effects.impact_area, EJS.AreaSearch.Radius),
+        EffectPath.New(effects.impact_area_actor_size, EJS.ApplyBehavior.Count, nil, 80),
+    },
+    ---NOTE: Calculated in Override to inherit both Weapon and Spell Bonuses.
+    -- [STAT.SpellDamage] = {
+    --     EffectPath.New(effects.damage, EJS.Damage.Value),
+    -- },
+    -- [STAT.SpellCriticalChance] = {
+    --     EffectPath.New(effects.damage, EJS.Damage.CriticalChance),
+    -- },
+    -- [STAT.SpellCriticalMultiplier] = {
+    --     EffectPath.New(effects.damage, EJS.Damage.CriticalMultiplier),
+    -- },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Inherits from both Weapon and Spell Damage Properties
+    local weapon_damage = hero:GetStat(STAT.Damage, Upgrade.Name)
+    local weapon_critical_chance = hero:GetStat(STAT.CriticalChance, Upgrade.Name)
+    local weapon_critical_multiplier = hero:GetStat(STAT.CriticalMultiplier, Upgrade.Name)
+
+    local spell_damage = hero:GetStat(STAT.Damage, Upgrade.Name)
+    local spell_critical_chance = hero:GetStat(STAT.CriticalChance, Upgrade.Name)
+    local spell_critical_multiplier = hero:GetStat(STAT.CriticalMultiplier, Upgrade.Name)
+
+    local total_damage = weapon_damage + spell_damage
+    local total_critical_chance = weapon_critical_chance + spell_critical_chance
+    local total_critical_multiplier = weapon_critical_multiplier + spell_critical_multiplier
+
+    hero:SetEffectValue(effects.damage, EJS.Damage.Value, total_damage)
+    hero:SetEffectValue(effects.damage, EJS.Damage.CriticalChance, total_critical_chance)
+    hero:SetEffectValue(effects.damage, EJS.Damage.CriticalMultiplier, total_critical_multiplier)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

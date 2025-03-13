@@ -1,0 +1,95 @@
+---@class TransformAnimationOptions
+---@field start_position Vector3
+---@field end_position Vector3
+---@field random_position_offset Vector3
+---@field start_scale Vector3
+---@field end_scale Vector3
+---@field pivot Vector3
+---@field start_seconds number
+---@field end_seconds number
+---@field rotation_axis Vector3
+---@field start_degree number
+---@field end_degree number
+---@field ease Ease
+local TransformAnimationOptions = {}
+TransformAnimationOptions.__index = TransformAnimationOptions
+
+function TransformAnimationOptions.New()
+    local self = setmetatable({}, TransformAnimationOptions)
+
+    return self
+end
+
+---Set the Start Position
+---@param start_position Vector3
+function TransformAnimationOptions:AddStartPosition(start_position)
+    self.start_position = start_position
+end
+
+---Add End Position
+---@param end_position Vector3
+function TransformAnimationOptions:AddEndPosition(end_position)
+    self.end_position = end_position
+end
+
+---Add Random Position Offset
+---@param random_position_offset Vector3
+function TransformAnimationOptions:AddRandomPositionOffset(random_position_offset)
+    self.random_position_offset = random_position_offset
+end
+
+---Add Start Scale
+---@param start_scale Vector3
+function TransformAnimationOptions:AddStartScale(start_scale)
+    self.start_scale = start_scale
+end
+
+---Add End Scale
+---@param end_scale Vector3
+function TransformAnimationOptions:AddEndScale(end_scale)
+    self.end_scale = end_scale
+end
+
+---Add Pivor
+---@param pivot Vector3
+function TransformAnimationOptions:AddPivot(pivot)
+    self.pivot = pivot
+end
+
+---Add Start Seconds
+---@param start_seconds number
+function TransformAnimationOptions:AddStartSeconds(start_seconds)
+    self.start_seconds = start_seconds
+end
+
+---Add End Seconds
+---@param end_seconds number
+function TransformAnimationOptions:AddEndSeconds(end_seconds)
+    self.end_seconds = end_seconds
+end
+
+---Add Rotation Axis
+---@param rotation_axis Vector3
+function TransformAnimationOptions:AddRotationAxis(rotation_axis)
+    self.rotation_axis = rotation_axis
+end
+
+---Add Start Degree
+---@param start_degree number
+function TransformAnimationOptions:AddStartDegree(start_degree)
+    self.start_degree = start_degree
+end
+
+---Add End Degree
+---@param end_degree number
+function TransformAnimationOptions:AddEndDegree(end_degree)
+    self.end_degree = end_degree
+end
+
+---Add Ease
+---@param ease Ease
+function TransformAnimationOptions:AddEase(ease)
+    self.ease = ease
+end
+
+return TransformAnimationOptions

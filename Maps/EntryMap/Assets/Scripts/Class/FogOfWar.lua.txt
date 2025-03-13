@@ -1,0 +1,418 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Generates a 2D FogOfWar (Square Only)
+
+
+    ---TODO: 
+        Teleportation - Does not account for Unloading Distant Tile
+        Resizing
+        Non-Symmetrical Tile Sizes
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+-- Region Scale Min/Max. Acts as a padding range.
+-- This is used to automatically update the Region Scales when needed.
+local REGION_SCALE_RANGE = Vector2.New(3, 5)
+
+-- Pre-calculated Mid-Point for Scale
+local REGION_TO_AREA_SCALE = (REGION_SCALE_RANGE.x + REGION_SCALE_RANGE.y) / 2
+
+---@enum SMOOTHING_TYPE
+local SMOOTHING_TYPES = {
+    LINEAR = "LINEAR",
+    LERP = "LERP",
+}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Converts a Cardinal Direction to a Vector2
+---@param cardinal_direction string
+---@return Vector2
+function CardinalToVector(cardinal_direction)
+    if cardinal_direction == CARDINAL.North then
+        return Vector2.Down()
+    elseif cardinal_direction == CARDINAL.East then
+        return Vector2.Left()
+    elseif cardinal_direction == CARDINAL.South then
+        return Vector2.Up()
+    elseif cardinal_direction == CARDINAL.West then
+        return Vector2.Right()
+    end
+
+    return Vector2.Zero()
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class FogOfWar
+---@field active boolean
+---@field position Vector2
+---@field size number
+---@field minimum_size number
+---@field target_position Vector2
+---@field target_size number
+---@field smoothing_amount number
+---@field smoothing_type SMOOTHING_TYPE
+---@field region_size number
+---@field regions table
+---@field Map table
+local FogOfWar = {}
+FogOfWar.__index = FogOfWar
+
+---Generates a Fog of War, darkening outside of the specified area.
+---NOTE: Can only generate a square shape.
+---@param position Vector2 | nil Default: (0, 0) --> The center-point of the Fog of War.
+---@param size number | nil Default: 10 --> The total distance from left to right.
+---@param minimum_size number | nil Default: 10 --> The minimum size the Fog of War can be.
+---@return FogOfWar
+function FogOfWar.New(position, size, minimum_size)
+    position = position or Vector2.Zero()
+    size = size or 10
+    minimum_size = minimum_size or 10
+
+    local self = setmetatable({}, FogOfWar)
+    self.active = true
+
+    -- Set Base Values
+    self.position = position
+    self.size = size
+    self.minimum_size = minimum_size
+
+    -- Allows us to smoothly transition to a new position or size
+    self.target_position = self.position
+    self.target_size = self.size
+
+    -- Smoothing
+    self.smoothing_amount = 1
+    self.smoothing_type = SMOOTHING_TYPES.LINEAR
+
+    -- Cache Region Size
+    self.region_size = size * REGION_TO_AREA_SCALE
+
+    -- Setup Regions table
+    self.regions = {}
+
+    -- Generate the Dark Regions
+    -- self:_SpawnFogOfWar()
+
+    return self
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+---Spawns a region in all Cardinal directions and set Active.
+function FogOfWar:_SpawnFogOfWar()
+    -- Check each Region based on its Direction.
+    local distance = self.size / 2 + self.region_size / 2
+
+    for _, direction in pairs(CARDINAL) do
+        local offset = CardinalToVector(direction) * distance
+        local region_position = self.position + offset
+
+        self.regions[direction] =
+            DCEI.CreateRegion(region_position.x, region_position.y, self.region_size, self.region_size)
+
+        -- Makes each of the regions "Dark"
+        DCEI.HideRegion(self.regions[direction])
+    end
+
+    self.active = true
+end
+
+---Moves the Fog of War to the desired position.
+---@param position Vector2 | nil Passing no value updates the regions.
+function FogOfWar:_Move(position)
+    self.position = position and position or self.position
+
+    -- Active Check
+    if not self.active then
+        return
+    end
+
+    -- Check each Region based on its Direction.
+    local distance = self.size / 2 + self.region_size / 2
+
+    for _, direction in pairs(CARDINAL) do
+        local offset = CardinalToVector(direction) * distance
+        local region_position = self.position + offset
+
+        DCEI.MoveRegion(self.regions[direction], region_position.x, region_position.y)
+    end
+end
+
+---Removes all regions and set Inactive.
+function FogOfWar:_ClearFogOfWar()
+    if self.regions then
+        for _, direction in pairs(CARDINAL) do
+            if self.regions[direction] then
+                DCEI.RemoveRegion(self.regions[direction])
+            end
+        end
+    end
+
+    self.active = false
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+---Returns the Active Status.
+---@return boolean
+function FogOfWar:IsActive()
+    return self.active
+end
+
+---Returns the Center Position.
+---@return Vector2
+function FogOfWar:GetPosition()
+    return self.position
+end
+
+---Returns the Revealed Size.
+---@return number
+function FogOfWar:GetSize()
+    return self.size
+end
+
+---Returns the min/max edge positions with the given padding.
+---@param padding number | nil Increases the distance from the center.
+---@return Vector2 min The bottom-left position.
+---@return Vector2 max The top-right position.
+function FogOfWar:GetBoundary(padding)
+    padding = padding or 0
+
+    local min = Vector2.Zero()
+    local max = Vector2.Zero()
+
+    local edge_distance = self.size / 2 + padding
+    min.x = self.position.x - edge_distance
+    min.y = self.position.y - edge_distance
+    max.x = self.position.x + edge_distance
+    max.y = self.position.y + edge_distance
+
+    return min, max
+end
+
+---Gets a random Edge position
+---@param padding number | nil Default: 0 --> Increases the position's distance from the center.
+---@return Vector2
+function FogOfWar:GetRandomEdgePosition(padding)
+    padding = padding or 0
+
+    local position = Vector2.Zero()
+    local edge_distance = self.size / 2 + padding
+
+    -- Get either x or y as the target edge
+    local vertical_edge = math.random() < 0.5
+
+    if vertical_edge then
+        position.y = self.position.y + edge_distance * (math.random() < 0.5 and -1 or 1)
+        position.x = self.position.x + math.random() * edge_distance * (math.random() < 0.5 and -1 or 1)
+    else
+        position.x = self.position.x + edge_distance * (math.random() < 0.5 and -1 or 1)
+        position.y = self.position.y + math.random() * edge_distance * (math.random() < 0.5 and -1 or 1)
+    end
+
+    return position
+end
+
+---Gets a random Position inside the Fog of War.
+---@param padding number Default: 0 --> Decreases the distance from the center.
+---@return Vector2
+function FogOfWar:GetRandomInsidePosition(padding)
+    padding = padding or 0
+
+    local edge_distance = self.size / 2 - padding
+
+    return Vector2.New(
+        self.position.x + Core.Random.GetNumber(-edge_distance, edge_distance),
+        self.position.y + Core.Random.GetNumber(-edge_distance, edge_distance)
+    )
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+---Set the Fog of War Active/Inactive status.
+---@param status boolean
+function FogOfWar:SetActive(status)
+    if self.active and not status then -- Active, Set to Inactive
+        self:_ClearFogOfWar()
+    elseif not self.active and status then -- Not Active, Set to Active
+        self:_SpawnFogOfWar()
+    end
+end
+
+---Set the center-point of the regions.
+---@param position Vector2
+---@param force_update boolean | nil Must be *true* if you want the regions to move.
+function FogOfWar:SetPosition(position, force_update)
+    self.position = position
+
+    -- Force an Update on the Regions
+    if force_update then
+        self:_Move()
+    end
+end
+
+---Set the size of the revealed area.
+---@param size number
+---@param force_update boolean | nil Must be *true* if you want the regions to move.
+function FogOfWar:SetSize(size, force_update)
+    -- Prevent updating if size matches.
+    if self.size == size then
+        return
+    end
+
+    -- Set Variables.
+    self.size = math.max(size, self.minimum_size)
+
+    -- Check if the Region Size is outside of the Scale Range
+    if self.region_size < self.size * REGION_SCALE_RANGE.x or self.region_size > self.size * REGION_SCALE_RANGE.y then
+        self.region_size = size * REGION_TO_AREA_SCALE
+
+        -- Check Active: Recreate FogOfWar
+        if self.active then
+            self:_ClearFogOfWar()
+            self:_SpawnFogOfWar()
+        end
+    elseif self.active and force_update then
+        self:_Move()
+    end
+end
+
+---Set the Target Position.
+---@param position Vector2
+function FogOfWar:SetTargetPosition(position)
+    self.target_position = position
+end
+
+---Set the Minimum Size.
+---@param size number
+function FogOfWar:SetMinimumSize(size)
+    self.minimum_size = size
+end
+
+---Set the Target Size.
+---@param size number
+function FogOfWar:SetTargetSize(size)
+    if size < self.minimum_size then
+        DCEI.LogWarning("Target Size set below Minimum Size.")
+    end
+
+    self.target_size = math.max(size, self.minimum_size)
+end
+
+---Modify the Target Size.
+---@param amount number
+function FogOfWar:ModifyTargetSize(amount)
+    self:SetTargetSize(self.target_size + amount)
+end
+
+---Set the Update Smoothing Amount
+---@param smoothing_amount number
+function FogOfWar:SetSmoothingAmount(smoothing_amount)
+    self.smoothing_amount = smoothing_amount
+end
+
+---Set the Update Smoothing Type.
+---@param smoothing_type SMOOTHING_TYPE
+function FogOfWar:SetSmoothingType(smoothing_type)
+    self.smoothing_type = smoothing_type
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+function FogOfWar:Update(delta)
+    -- Update the Position and Size towards the Target Position and Target Size
+
+    local requires_update = false
+
+    -- Used for both size and position changes.
+    local smoothing = delta * self.smoothing_amount
+
+    -- Scale: We do this first because it requires a position update
+    if self.size ~= self.target_size then
+        requires_update = true
+
+        -- LINEAR SMOOTHING
+        if self.smoothing_type == SMOOTHING_TYPES.LINEAR then
+            if self.size < self.target_size then
+                self:SetSize(math.min(self.size + smoothing, self.target_size))
+            else
+                self:SetSize(math.max(self.size - smoothing, self.target_size))
+            end
+        elseif self.smoothing_type == SMOOTHING_TYPES.LERP then
+            self:SetSize(Core.Math.Lerp(self.size, self.target_size, smoothing))
+        end
+    end
+
+    -- Position
+    if self.position ~= self.target_position then
+        requires_update = true
+
+        if self.smoothing_type == SMOOTHING_TYPES.LINEAR then
+            self:SetPosition(Vector2.MoveTowards(self.position, self.target_position, smoothing))
+        elseif self.smoothing_type == SMOOTHING_TYPES.LERP then
+            self:SetPosition(Vector2.Lerp(self.position, self.target_position, smoothing))
+        end
+    end
+
+    if requires_update then
+        self:_Move()
+    end
+end
+
+function FogOfWar:IsPositionInFog(position)
+    return position.x < self.position.x - self.size / 2
+        or position.x > self.position.x + self.size / 2
+        or position.y < self.position.y - self.size / 2
+        or position.y > self.position.y + self.size / 2
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Singleton
+-- ================================================================================================
+
+local _instance = FogOfWar.New()
+
+---@return FogOfWar
+FogOfWar.Instance = _instance
+
+-- ================================================================================================
+-- !SECTION -- Class Singleton
+-- ================================================================================================
+
+return FogOfWar

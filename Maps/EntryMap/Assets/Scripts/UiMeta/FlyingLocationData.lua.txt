@@ -1,0 +1,22 @@
+return {
+    [TRACKED_STATS.Wood] = {
+        end_offset_x = -80,
+        end_offset_y = 0,
+    },
+    [TRACKED_STATS.Meat] = {
+        end_offset_x = -80,
+        end_offset_y = 0,
+    },
+    [TRACKED_STATS.Gold] = {
+        end_offset_x = -80,
+        end_offset_y = 0,
+    },
+    [TRACKED_STATS.Gems] = {
+        end_offset_x = -80,
+        end_offset_y = 0,
+    },
+    ["t_trophy"] = {
+        end_offset_x = 0,
+        end_offset_y = 0,
+    },
+}

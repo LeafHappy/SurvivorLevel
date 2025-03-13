@@ -1,0 +1,338 @@
+local Vector2 = require("Class/Vector2")
+
+---@class CampData
+---@field Name string
+---@field UnitType UnitType
+---@field Position Vector2
+---@field Rotation Vector2 | nil Default: Down (0, -1)
+---@field Scale number | nil Default: 1
+---@field HideLabel boolean
+---@field BarkSettings CampData.BarkSettings | nil
+---@field UIMessageEventOptions CampData.UIMessageEventOptions | nil
+---@field ActorEvents table<string>
+---@field Colliders table<CampData.ColliderData>
+---@field MetaRequirements table<META_DATA>
+
+---@class CampData.ColliderData
+---@field Offset Vector2
+---@field Size number
+
+---@class CampData.BarkSettings
+---@field Chance number | nil Default: 1
+---@field ShowDistance number
+---@field BreakDistance number
+---@field BarkTime Vector2
+---@field BarkCooldown Vector2
+---@field BarkOptions table<string>
+
+---@class CampData.UIMessageEventOptions
+---@field ShowDistance number
+---@field EventId string
+
+---@class CampData.MetaRequirements -- Required in order to spawn the instance
+
+---@type table<CampData>
+local Data = {
+    ---EXAMPLE
+    -- Witch = {
+    --     Name = "Witch",
+    --     UnitType = DCEI.Unit("Camp - Witch"),
+    --     Position = Vector2.New(-4, 8),
+    --     Rotation = Vector2.New(1, -3),
+    --     Scale = 2.0,
+
+    --     BarkOptions = {
+    --         ShowDistance = 4,
+    --         BreakDistance = 6,
+    --         BarkTime = Vector2.New(5, 10),
+    --         BarkCooldown = Vector2.New(2, 3),
+    --         BarkOptions = {
+    --             "I'm a witch!",
+    --             "Get away from me.",
+    --             "You wreak of human.",
+    --         },
+    --     },
+    -- },
+
+    -- Heroes
+    Annie = {
+        Name = "Annie",
+        UnitType = DCEI.Unit("Hero - Annie"),
+        Position = Vector2.New(0, -7),
+        Rotation = Vector2.New(0, -1),
+        ActorEvents = {
+            "Create Top", -- Required for the Hero to create their Top Section.
+        },
+        HideLabel = true,
+
+        BarkSettings = {
+            Chance = 0.30,
+            ShowDistance = 4,
+            BreakDistance = 6,
+            BarkTime = Vector2.New(2, 3),
+            BarkCooldown = Vector2.New(10, 20),
+            BarkOptions = {
+                "Go get 'em!",
+                "You got this!",
+            },
+        },
+    },
+    Jorian = {
+        Name = "Jorian",
+        UnitType = DCEI.Unit("Hero - Jorian"),
+        Position = Vector2.New(2.5, -8),
+        Rotation = Vector2.New(-2, -1),
+        ActorEvents = {
+            "Create Top", -- Required for the Hero to create their Top Section.
+        },
+        MetaRequirements = {
+            META_DATA.jorian_unlocked,
+        },
+        HideLabel = true,
+
+        BarkSettings = {
+            Chance = 0.30,
+            ShowDistance = 4,
+            BreakDistance = 6,
+            BarkTime = Vector2.New(2, 3),
+            BarkCooldown = Vector2.New(10, 20),
+            BarkOptions = {
+                "*Grumble*",
+                "Ice to meet you.",
+            },
+        },
+    },
+
+    -- Interactable Camp Objects
+    Campfire = {
+        Name = "Campfire",
+        UnitType = DCEI.Unit("Camp - Campfire"),
+        Position = Vector2.New(0, -10),
+        Scale = 1.0,
+
+        UIMessageEventOptions = {
+            ShowDistance = 0.75,
+            EventId = "Camp.Campfire",
+        },
+    },
+    StageInfo = {
+        Name = "Stage Info",
+        UnitType = DCEI.Unit("Camp - Stage Selection"),
+        Position = Vector2.New(0, 7),
+        Scale = 1.0,
+
+        BarkSettings = {
+            ShowDistance = 4,
+            BreakDistance = 6,
+            BarkTime = Vector2.New(10, 10),
+            BarkCooldown = Vector2.New(1, 1),
+            BarkOptions = {
+                "Change stage here",
+            },
+        },
+
+        UIMessageEventOptions = {
+            ShowDistance = 1.75,
+            EventId = "Camp.StageInfo",
+        },
+
+        Colliders = {
+            { -- Left Building
+                Offset = Vector2.New(-1.15, 0.2),
+                Size = 1.60,
+            },
+            { -- Right Building
+                Offset = Vector2.New(0.8, 1),
+                Size = 1.60,
+            },
+        },
+    },
+    Zeppelin = {
+        Name = "Raid",
+        UnitType = DCEI.Unit("Camp - Zeppelin"),
+        Position = Vector2.New(5, 5),
+        Scale = 3.0,
+
+        BarkSettings = {
+            ShowDistance = 5,
+            BreakDistance = 6,
+            BarkTime = Vector2.New(3, 4),
+            BarkCooldown = Vector2.New(4, 5),
+            BarkOptions = {
+                "Let's go on a raid!",
+                "You're letting them get away!",
+                "Raids give tons of loot.. Let's go!",
+            },
+        },
+
+        UIMessageEventOptions = {
+            ShowDistance = 1.5,
+            EventId = "Camp.Zeppelin",
+        },
+    },
+    ShrineOfBlessing = {
+        Name = "Hero Shrine",
+        UnitType = DCEI.Unit("Camp - Shrine of Blessing"),
+        -- Position = Vector2.New(-8, -8),
+        Position = Vector2.New(-6, 4),
+        Scale = 1.0,
+
+        BarkSettings = {
+            ShowDistance = 4,
+            BreakDistance = 6,
+            BarkTime = Vector2.New(10, 10),
+            BarkCooldown = Vector2.New(1, 1),
+            BarkOptions = {
+                "Upgrade your hero here!",
+            },
+        },
+
+        UIMessageEventOptions = {
+            ShowDistance = 1.75,
+            EventId = "Camp.ShrineOfBlessing",
+        },
+
+        Colliders = {
+            {
+                Offset = Vector2.New(-0.15, 0.35),
+                Size = 1.3,
+            },
+        },
+    },
+    Achievements = {
+        Name = "Achievements",
+        UnitType = DCEI.Unit("Camp - Achievements"),
+        -- Position = Vector2.New(-7, 9),
+        Position = Vector2.New(-9, -7),
+        Scale = 1.0,
+
+        BarkSettings = {
+            ShowDistance = 4,
+            BreakDistance = 6,
+            BarkTime = Vector2.New(10, 10),
+            BarkCooldown = Vector2.New(1, 1),
+            BarkOptions = {
+                "Check out your Achievements here",
+            },
+        },
+
+        UIMessageEventOptions = {
+            ShowDistance = 1.80,
+            EventId = "Camp.Achievements",
+        },
+
+        Colliders = {
+            { -- Left
+                Offset = Vector2.New(-0.4, -0.10),
+                Size = 1.30,
+            },
+            { -- Middle
+                Offset = Vector2.New(0, 0.30),
+                Size = 1.30,
+            },
+            { -- Right
+                Offset = Vector2.New(0.4, 0.80),
+                Size = 1.30,
+            },
+        },
+    },
+    Vault = {
+        Name = "Vault",
+        UnitType = DCEI.Unit("Camp - Vault"),
+        Position = Vector2.New(-12, 1),
+        Scale = 1.0,
+
+        BarkSettings = {
+            ShowDistance = 4,
+            BreakDistance = 6,
+            BarkTime = Vector2.New(10, 10),
+            BarkCooldown = Vector2.New(1, 1),
+            BarkOptions = {
+                "View your collection of gear",
+            },
+        },
+
+        UIMessageEventOptions = {
+            ShowDistance = 1.75,
+            EventId = "Camp.Vault",
+        },
+
+        Colliders = {
+            { -- Left Crate
+                Offset = Vector2.New(-1.40, 0.00),
+                Size = 1.25,
+            },
+            { -- Bottom Box
+                Offset = Vector2.New(-0.55, -0.50),
+                Size = 1.00,
+            },
+            { -- Star
+                Offset = Vector2.New(1.40, -0.60),
+                Size = 1.10,
+            },
+            { -- Right Box
+                Offset = Vector2.New(1.60, 0.60),
+                Size = 0.75,
+            },
+            { -- Building Center
+                Offset = Vector2.New(-0.20, 0.40),
+                Size = 1.75,
+            },
+        },
+    },
+
+    ---ANCHOR: Details
+    Home = {
+        Name = "Home",
+        UnitType = DCEI.Unit("Camp - Home"),
+        Position = Vector2.New(6, -7),
+
+        Colliders = {
+            { -- Left
+                Offset = Vector2.New(-0.85, 0.35),
+                Size = 1.25,
+            },
+            { -- Right
+                Offset = Vector2.New(0.85, 0.35),
+                Size = 1.25,
+            },
+            { -- Bottom
+                Offset = Vector2.New(0.05, -0.35),
+                Size = 1.25,
+            },
+            { -- Top
+                Offset = Vector2.New(0.05, 0.90),
+                Size = 1.25,
+            },
+        },
+
+        HideLabel = true,
+    },
+
+    ---TESTING: Boss Proportions
+    -- JorianModelTest = {
+    --     Name = "Jorian",
+    --     UnitType = DCEI.Unit("Hero - Jorian"),
+    --     Position = Vector2.New(2, -10),
+    --     Rotation = Vector2.New(0, -1),
+    --     ActorEvents = {
+    --         "Create Top", -- Required for the Hero to create their Top Section.
+    --     },
+    -- },
+    -- IceMageModelTest = {
+    --     Name = "Ice Mage",
+    --     UnitType = DCEI.Unit("Boss - Alchemist"),
+    --     Position = Vector2.New(0, -10),
+    --     Rotation = Vector2.New(0, -1),
+    --     Scale = 2.85,
+    -- },
+    -- GiantModelTest = {
+    --     Name = "Giant",
+    --     UnitType = DCEI.Unit("Boss - Giant"),
+    --     Position = Vector2.New(0, -10),
+    --     Rotation = Vector2.New(0, -1),
+    --     Scale = 1.5,
+    -- },
+}
+
+return Data

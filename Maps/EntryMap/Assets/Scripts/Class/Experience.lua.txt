@@ -1,0 +1,239 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About Class
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local _required_cache = {}
+local _experience = {
+    [1] = 10,
+    [2] = 20,
+    [3] = 40,
+    [4] = 70,
+    [5] = 110,
+}
+
+-- Experience Requirements
+local base = 30
+local added = 2
+local step_size = 5
+local step_added = 4
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function GetRequiredExperience(level)
+    -- Check the cache
+    if _required_cache[level] then
+        return _required_cache[level]
+    else -- Cache calculation
+        local added_xp = (level - 1) * added
+        local step = math.floor(level / step_size)
+        local step_added_xp = step * step_added * level
+
+        _required_cache[level] = base + added_xp + step_added_xp
+    end
+
+    return _required_cache[level]
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Class Initialization
+---============================================================================
+
+---@class Experience
+local Experience = {}
+Experience.__index = Experience
+
+function Experience.New(id)
+    local self = setmetatable({}, Experience)
+
+    -- Register Internally
+    self.id = id
+    _experience[id] = self
+
+    self:Reset()
+
+    return self
+end
+
+function Experience:Reset()
+    self.level = 1
+    self.xp_total = 0
+    self.xp_current = 0
+    -- self.talent_points = 0
+    self.xp_multiplier = 0
+
+    self.running_total_experience = 0
+end
+
+---============================================================================
+---!SECTION: Class Initialization
+---SECTION: Class Internal
+---============================================================================
+
+---============================================================================
+---!SECTION: Class Internal
+---SECTION: Class Getters
+---============================================================================
+
+-- Getters
+function Experience:GetLevel()
+    return self.level
+end
+
+function Experience:GetFill()
+    return self.xp_current / GetRequiredExperience(self.level)
+end
+
+-- Returns the total level of all players
+function Experience:GetAllLevels()
+    local total = 0
+    for _, xp in pairs(_experience) do
+        total = total + xp:GetLevel()
+    end
+
+    return total
+end
+
+---Get the total experience gained.
+---@return integer
+function Experience:GetRunningTotalExperience()
+    return self.running_total_experience
+end
+
+---============================================================================
+---!SECTION: Class Getters
+---SECTION: Class Setters
+---============================================================================
+
+function Experience:SetMultiplier(amount)
+    self.xp_multiplier = amount
+end
+
+---============================================================================
+---!SECTION: Class Setters
+---SECTION: Class Functions
+---============================================================================
+
+---comment
+---@param amount number
+function Experience:Gain(amount)
+    amount = amount * (1 + self.xp_multiplier)
+
+    self.xp_total = self.xp_total + amount
+    self.xp_current = self.xp_current + amount
+    self.running_total_experience = self.running_total_experience + amount
+
+    local required = GetRequiredExperience(self.level)
+    while self.xp_current >= required do
+        self.xp_current = self.xp_current - required
+        self:GainLevel()
+        -- self:GainTalentPoint()
+
+        required = GetRequiredExperience(self.level)
+    end
+
+    -- if self.xp_current >= required then
+    --     self.xp_current = self.xp_current - required
+    --     self:GainLevel()
+    --     -- self:GainTalentPoint()
+    -- end
+
+    self:OnExperienceIncreased()
+end
+
+function Experience:GainLevel()
+    self.level = self.level + 1
+    self:OnLevelIncreased()
+end
+
+function Experience:GainTalentPoint()
+    -- self.talent_points = self.talent_points + 1
+    self:OnTalentIncreased()
+end
+
+function Experience:SetLevel(level, skip_leveling)
+    if skip_leveling then
+        self.level = level
+        return
+    end
+
+    while self.level < level do
+        self:GainLevel()
+    end
+end
+
+-- For Testing -- Does not update UI
+function Experience:IncreaseLevel(amount)
+    self.level = self.level + amount
+end
+
+function Experience:SetExperience(amount)
+    self.xp_current = amount
+end
+
+-- Callbacks
+function Experience:OnExperienceIncreased() end
+function Experience:OnLevelIncreased() end
+function Experience:OnTalentIncreased() end
+
+---============================================================================
+---!SECTION: Class Functions
+---SECTION: Class Library
+---============================================================================
+
+---Returns the Experience class with the associated Id.
+---@param id integer
+---@return Experience
+function Experience.Fetch(id)
+    local experience = _experience[id]
+
+    if experience then
+        return experience
+    end
+
+    return Experience.New(id)
+end
+
+---Remove all experience entries.
+function Experience.ClearEntries()
+    _experience = {}
+end
+
+---============================================================================
+---!SECTION: Class Library
+---SECTION: Developer
+---============================================================================
+
+if _Dev then
+    local function GainHeroLevel()
+        local xp = Experience.Fetch(PLAYER.Player1)
+        if xp then
+            xp:GainLevel()
+        end
+    end
+
+    _Dev.Events.Register("Gain Hero Level", GainHeroLevel)
+end
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return Experience

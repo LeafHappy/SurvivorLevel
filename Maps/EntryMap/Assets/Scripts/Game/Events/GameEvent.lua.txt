@@ -1,0 +1,738 @@
+--[[
+    Probably have to have an ID for an Event and a way to determine what to track in a given object.
+    
+
+    
+]]
+
+---============================================================================
+-- SECTION -- Libraries
+---============================================================================
+
+-- Core Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+-- Classes
+local Event = require("Class/Event")
+local Vector2 = require("Class/Vector2")
+
+-- Simple Units
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+-- Game
+local Hero = require("Game/Hero")
+local StageHelper = require("Game/StageHelper")
+local Elites = require("Game/AI/Elites")
+local UiHelper = require("Game/UiHelper")
+
+-- Data
+
+-- Helper
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+---============================================================================
+
+local REF = {
+    DEFAULT_ICON = DCEI.Texture("icon_event_npe_point_big"),
+
+    MOVER_SMALL = DCEI.Effect("SMover - Random Circle - Small"),
+    MOVER_MEDIUM = DCEI.Effect("SMover - Random Circle - Medium"),
+    MOVER_LARGE = DCEI.Effect("SMover - Random Circle - Large"),
+}
+
+local _LastEventPosition = Vector2.Zero()
+
+---============================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+---============================================================================
+
+---comment
+---@param unit_type string
+---@param position Vector2
+---@return unknown
+local function SpawnInstance(unit_type, position)
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, unit_type, position.x, position.y)
+    return instance
+end
+
+---comment
+---@param instance Unit
+---@param settings EventStructureData.CombatSettings
+local function ApplyCombatSettings(instance, settings)
+    -- Health Check
+    if settings.Health then
+        SimpleUnit.ModifyHealth(instance, settings.Health)
+        SimpleUnit.ModifyArmor(instance, settings.ArmorType)
+    end
+
+    -- Attackable Check
+    if settings.IsAttackable then
+        -- Change Owner
+        DCEI.SetUnitOwner(instance, PLAYER.Hostile)
+        DCEI.SetUnitTeamId(instance, TEAM.Hostile)
+    end
+
+    -- Tag
+    SimpleUnit.ModifyTag(instance, settings.SimpleTags)
+end
+
+---comment
+---@param instance Unit
+---@param settings EventStructureData.CollisionSettings
+local function ApplyCollisionSettings(instance, settings)
+    if not settings then
+        return
+    end
+
+    -- Collision
+    SimpleUnit.ModifyCollision(instance, settings.CollisionLayer, settings.CollisionLayerHit, settings.CollisionSize)
+
+    -- Check for Collision Effect Data
+    if settings.CollisionEffects then
+        -- Help.Log("Adding Collision Effects", nil, settings.CollisionEffects)
+
+        local collision_effects = {}
+
+        for _, collision_effect in ipairs(settings.CollisionEffects) do
+            local simple_collision_effect = SimpleUnit.GenerateCollisionEffect(
+                collision_effect.effect_name,
+                collision_effect.timing,
+                collision_effect.cooldown_seconds,
+                collision_effect.tag_mask_filter
+            )
+
+            table.insert(collision_effects, simple_collision_effect)
+        end
+
+        SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+    end
+end
+
+---comment
+---@param instance Unit
+---@param behaviors table<Behavior>
+local function ApplyBehaviors(instance, behaviors)
+    if not behaviors then
+        return
+    end
+
+    for _, behavior in ipairs(behaviors) do
+        DCEI.ApplyBehaviorToSelf(instance, behavior.behavior, behavior.count)
+    end
+end
+
+-- This may not work because the source unit is dead, causing an issue after a long delay.
+-- Maybe there needs to be 2 functions, one for caching, one for casting
+---@param instance Unit
+---@param settings EventData.DeathSettings
+local function ApplyDeathSettings(instance, settings)
+    -- Help.Log("Checking Death Settings", nil, settings)
+
+    -- Validate Death Settings
+    if not settings or not settings.DeathEffects then
+        return
+    end
+
+    -- Help.Log("Apply Death Settings", nil, death_settings)
+
+    -- Delay
+    local delay = settings.Delay or 0
+
+    -- Trigger Death Effects
+    ---@param position Vector2
+    ---@param target Unit | Vector2
+    ---@param effects table<Effect>
+    local function TriggerDeathEffects(position, target, effects)
+        -- Help.Log("Triggering Death Effects")
+        for _, effect in ipairs(effects) do
+            -- DCEI.CreateEffectAtUnit(effect, target, caster)
+            Help.CreateEffect(PLAYER.Hostile, effect, position, target)
+        end
+
+        -- Simple Drop Table
+        if settings.DropTable then
+            local drop_table_options = {
+                apply_mover_effect = REF.MOVER_MEDIUM,
+                spawn_over_time = true,
+            }
+
+            Help.SpawnDropTable(position, settings.DropTable, drop_table_options)
+        end
+    end
+
+    -- Either: Cast Death Effects Immediately or Cache for Delay
+    ---@param killing_unit Unit
+    local function OnUnitDeathEvent(killing_unit)
+        -- Help.Log("Unit Death Event Triggered", delay)
+
+        local position = Vector2.UnitPosition(DCEI.TriggeringUnit)
+        local target = killing_unit
+        local target_position = Vector2.UnitPosition(killing_unit)
+
+        -- Cast immediately
+        if not delay or delay <= 0 then
+            if not Help.ValidateUnit(target) then
+                target = target_position
+            end
+
+            TriggerDeathEffects(position, target, settings.DeathEffects)
+            return
+        end
+
+        -- Cast on a Delay
+        if delay > 0 then
+            local timer = Core.Timer.Game.New()
+            timer:SetDuration(delay)
+
+            function timer:Action()
+                if not Help.ValidateUnit(target) then
+                    target = target_position
+                end
+
+                TriggerDeathEffects(position, target, settings.DeathEffects)
+            end
+        end
+    end
+
+    -- Death Event
+    -- Help.Log("Registering Death Event")
+    DCEI.TriggerAddUnitDiedEvent(instance, OnUnitDeathEvent)
+end
+
+---comment
+---@param instance Unit
+---@param settings EventData.DisplaySettings
+local function ApplyDisplaySettings(instance, settings)
+    if not settings then
+        return
+    end
+
+    if settings.ModelScale then
+        Help.SetModelScale(instance, settings.ModelScale)
+    end
+
+    if settings.ShowOffscreenIndicator then
+        local icon = settings.Icon or REF.DEFAULT_ICON
+        SimpleUnits.Helpers.CreateOffscreenIndicator(instance, icon)
+    end
+
+    -- Status Bar
+    if settings.ShowHealth then
+        local unit_ref = GMUI.CreateUnitReference(instance)
+        Core.Event.SendPresentationEvent("StatusBarManager.NewEventStatus", unit_ref)
+    end
+end
+
+---comment
+---@param settings EventData.WarningSettings
+---@return number Delay
+local function DisplayWarning(settings)
+    if not settings then
+        return 0
+    end
+
+    UiHelper.EventWarning(settings.Message, settings.Duration)
+
+    return settings.Duration
+end
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class
+---============================================================================
+
+---@class GameEventData
+---@field EventTypeOptions EventData | EventSpawnData | EventStructureData | EventEliteData
+---@field Conditions table<GameEvent.Condition>
+---@field InstanceRemovalConditions table<GameEvent.Condition>
+---@field EffectTriggers table<Effect>
+---@field WarningSettings EventData.WarningSettings
+
+---@class GameEvent.ConditionData
+---@field HeroStat STAT
+---@field CalculatedStat STAT
+---@field TrackedStat TRACKED_STATS
+---@field GameTrackedStat GAME_TRACKED_STAT
+---@field EventTrackedStat EVENT_TRACKED_STAT
+---@field InstanceStat EVENT_INSTANCE_STAT
+---@field StatFilter table<SKILL_TAG> | nil
+---@field Multiplier number | nil
+
+---@class GameEvent.Condition
+---@field A number | GameEvent.ConditionData
+---@field B number | GameEvent.ConditionData
+---@field Comparison COMPARISON_TYPE
+
+---@class GameEvent
+---@field EventData GameEventData
+---@field EventManager GameEventManager
+---@field ParentSequence GameEventSequence | nil
+---@field TrackedData table<EVENT_TRACKED_STAT, number>
+---@field Instances table<string, Unit>
+---@field OnEventCompleted Event Callback for when the event is completed. Used for sequence events.
+local GameEvent = {}
+GameEvent.__index = GameEvent
+
+---comment
+---@param event_data GameEventData
+---@param game_event_manager GameEventManager
+---@param parent_sequence GameEventSequence | nil
+---@return GameEvent
+function GameEvent.New(event_data, game_event_manager, parent_sequence)
+    local self = setmetatable({}, GameEvent)
+
+    self.EventData = event_data
+    self.EventManager = game_event_manager
+    self.ParentSequence = parent_sequence
+
+    if self.ParentSequence then
+        Help.Log("Generated New Game Event from a Parent Sequence")
+    end
+
+    self.TrackedData = {}
+
+    self.Instances = {}
+
+    self.OnEventCompleted = Event.New()
+
+    self:Reset()
+
+    return self
+end
+
+function GameEvent:Reset()
+    self.TrackedData = {}
+    for _, value in pairs(EVENT_TRACKED_STAT) do
+        self.TrackedData[value] = 0
+    end
+
+    self.Instances = {}
+end
+
+function GameEvent:Destroy()
+    for instance_id, instance in pairs(self.Instances) do
+        if instance and Help.ValidateSimpleUnit(instance) then
+            DCEI.RemoveUnit(instance)
+        end
+
+        self.Instances[instance_id] = nil
+    end
+end
+
+---============================================================================
+-- !SECTION -- Class
+-- SECTION -- Class Functions
+---============================================================================
+
+---comment
+---@param t GameEvent.ConditionData
+---@param instance UnitInstance
+---@return integer
+function GameEvent:_GetValueFromTable(t, instance)
+    local value = nil
+    -- Based on the Condition Type, get the value
+    if t.GameTrackedStat then
+        value = self.EventManager:GetGameStat(t.GameTrackedStat)
+    elseif t.CalculatedStat then
+        -- Check Calculated Stat
+        value = self.EventManager:GetCalculatedStat(t.CalculatedStat)
+    elseif t.HeroStat then
+        -- Check Hero Stat
+        value = Hero.Fetch(PLAYER.Player1):GetStat(t.HeroStat, t.StatFilter)
+    elseif t.TrackedStat then
+        -- Check Tracked Stat
+        value = StageHelper.GetTrackedStat(t.TrackedStat)
+    elseif t.EventTrackedStat then
+        -- Something I am tracking
+        if not self.TrackedData[t.EventTrackedStat] then
+            self.TrackedData[t.EventTrackedStat] = 0
+        end
+
+        value = self.TrackedData[t.EventTrackedStat]
+    elseif Help.ValidateUnit(instance) and t.InstanceStat then
+        -- Check Instance Stat
+        if t.InstanceStat == EVENT_INSTANCE_STAT.Distance then
+            local hero_position = Hero.Fetch(PLAYER.Player1):GetPosition()
+            local instance_position = Vector2.UnitPosition(instance)
+
+            value = Vector2.Distance(hero_position, instance_position)
+        end
+    end
+
+    if value == nil then
+        Help.Warn("Invalid Condition Value", nil, t)
+        return 0
+    end
+
+    if t.Multiplier then
+        value = value * t.Multiplier
+    end
+
+    -- Help.Log("Condition Value", value, condition)
+    return value
+end
+
+---comment
+---@param ref number | GameEvent.ConditionData
+---@param instance UnitInstance
+---@return number
+function GameEvent:_GetValue(ref, instance)
+    if type(ref) == "number" then
+        return ref
+    elseif type(ref) == "table" then
+        return self:_GetValueFromTable(ref, instance)
+    end
+
+    return 0
+end
+
+---TODO: At some point, add a way to dump condition data into an easy to read format.
+
+---comment
+---@param condition GameEvent.Condition
+---@param instance Unit | nil
+---@return boolean
+function GameEvent:EvaluateCondition(condition, instance)
+    local a = self:_GetValue(condition.A, instance)
+    local b = self:_GetValue(condition.B, instance)
+
+    local passed = Help.Compare(a, b, condition.Comparison)
+
+    -- if passed then
+    --     local message = string.format("Condition Passed: %s %s %s", a, condition.Comparison, b)
+    --     Help.Log(message, nil, condition)
+    -- else
+    --     local message = string.format("Condition Failed: %s %s %s", a, condition.Comparison, b)
+    --     Help.Warn(message, nil, condition)
+    -- end
+
+    return passed
+end
+
+---comment
+---@param conditions table<GameEvent.Condition>
+---@param instance Unit | nil
+---@return boolean
+function GameEvent:EvaluateConditions(conditions, instance)
+    for _, condition in pairs(conditions) do
+        local passed = self:EvaluateCondition(condition, instance)
+
+        -- if passed then
+        --     Help.Log("Condition Passed", passed, condition)
+        -- else
+        --     Help.Log("Condition Failed", passed, condition)
+        -- end
+
+        if not passed then
+            return false
+        end
+    end
+
+    -- Help.Log("All Conditions Passed", nil, conditions)
+
+    return true
+end
+
+---comment
+---@param event_data EventSpawnData
+function GameEvent:_LoadSpawnData(event_data)
+    local event_manager = self.EventManager
+
+    if not event_manager then
+        Help.Warn("No Event Manager", nil, event_data)
+        return
+    end
+
+    local spawner = event_manager.Spawner
+
+    if not spawner then
+        Help.Warn("No Spawn Director", nil, event_data)
+        return
+    end
+
+    local target = event_manager.Target
+
+    if not Help.ValidateUnit(target) then
+        Help.Warn("Invalid Target", nil, event_data)
+        return
+    end
+
+    if event_data.WarningSettings then
+        DisplayWarning(event_data.WarningSettings)
+
+        -- Delay Spawn
+        local timer = Core.Timer.Game.New()
+        timer:SetDuration(event_data.WarningSettings.Duration)
+
+        function timer:Action()
+            -- Must revalidate objects
+            if not event_manager or not spawner or not Help.ValidateUnit(target) then
+                return
+            end
+
+            spawner:SpawnFromEventData(event_data, target, event_manager.Modifiers)
+        end
+
+        return
+    end
+
+    --- Send information to spawn director
+    spawner:SpawnFromEventData(event_data, target, event_manager.Modifiers)
+end
+
+---comment
+---@param settings EventData.SpawnSettings
+---@return Vector2
+function GameEvent:_GetSpawnPosition(settings)
+    local spawn_position = Vector2.Zero()
+
+    -- Check Base Spawn Position Type
+    if settings.BaseSpawnPositionType == EVENT_SPAWN_BASE.UsePlayerPosition then
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local hero_position = hero:GetPosition()
+        spawn_position = spawn_position + hero_position
+    elseif settings.BaseSpawnPositionType == EVENT_SPAWN_BASE.UseLastEventPosition then
+        spawn_position = _LastEventPosition
+    elseif settings.BaseSpawnPositionType == EVENT_SPAWN_BASE.UseMapCenter then
+        spawn_position = Vector2.Zero()
+    elseif settings.BaseSpawnPositionType == EVENT_SPAWN_BASE.UseLastEventPositionFromSequence then
+        if self.ParentSequence then ---FIXME: Figure out why this doesn't work and _LastEventPosition does.
+            Help.Log("Getting Last Position from Sequence", self.ParentSequence)
+            spawn_position = self.ParentSequence:GetLastPositionInSequence()
+        else
+            spawn_position = _LastEventPosition
+        end
+    end
+
+    -- Add Fixed Offset
+    if settings.Offset then
+        spawn_position = spawn_position + settings.Offset
+    end
+
+    -- Add Distance Offset
+    if settings.Distance then
+        local offset = Vector2.Zero()
+
+        if type(settings.Distance) == "number" then
+            -- offset = Vector2.Random() * settings.Distance
+            offset = Vector2.RandomRange(settings.Distance, settings.Distance)
+        elseif type(settings.Distance) == "table" then
+            offset = Vector2.Random() * Core.Random.GetNumber(settings.Distance.x, settings.Distance.y)
+        end
+
+        spawn_position = spawn_position + offset
+    end
+
+    -- Set Last Event Position
+    _LastEventPosition = spawn_position
+
+    return spawn_position
+end
+
+---comment
+---@param event_data EventEliteData
+---@param passed_modifiers table<Modifier>
+---@return Unit
+function GameEvent:_SpawnEliteEvent(event_data, passed_modifiers)
+    ---TODO: Need to figure out if there's a way to delay the instance
+    local delay = DisplayWarning(event_data.WarningSettings)
+
+    local spawn_position = self:_GetSpawnPosition(event_data.SpawnSettings)
+
+    -- Collect passed modifiers
+    ---@type table<Modifier>
+    local passed_modifiers = Core.Table.Combine(event_data.Modifiers, passed_modifiers)
+
+    local passed_events = {}
+
+    local instance = Elites.Spawn(event_data.EliteType, spawn_position, passed_modifiers)
+
+    -- Apply Common Settings
+    ApplyBehaviors(instance, event_data.AppliedBehaviors)
+    ApplyDeathSettings(instance, event_data.DeathSettings)
+    ApplyDisplaySettings(instance, event_data.DisplaySettings)
+
+    return instance
+end
+
+---comment
+---@param event_data EventStructureData
+---@return Unit
+function GameEvent:_SpawnStructureEvent(event_data)
+    -- Help.Log("Stage Event Data", type(event_data), event_data)
+
+    -- Check if we were sent a table of events.
+    if type(event_data) == "table" and #event_data > 0 then
+        -- Randomly select an event from the table.
+        local instance = self:_SpawnStructureEvent(event_data[Help.RandomInteger(1, #event_data)])
+        return instance
+    end
+
+    -- Help.Log("Stage Event Data", nil, event_data)
+
+    -- Handle Spawn Settings
+    local spawn_position = self:_GetSpawnPosition(event_data.SpawnSettings)
+
+    -- Spawn Instance
+    local instance = SpawnInstance(event_data.UnitType, spawn_position)
+
+    -- Apply Combat Settings
+    ApplyCombatSettings(instance, event_data.CombatSettings)
+
+    -- Apply Collision Settings
+    ApplyCollisionSettings(instance, event_data.CollisionSettings)
+
+    -- Apply Common Settings
+    ApplyBehaviors(instance, event_data.AppliedBehaviors)
+    ApplyDeathSettings(instance, event_data.DeathSettings)
+    ApplyDisplaySettings(instance, event_data.DisplaySettings)
+
+    ---TODO: Need to figure out if there's a way to delay the instance
+    local delay = DisplayWarning(event_data.WarningSettings)
+
+    -- RegisterEventInstance(instance)
+
+    return instance
+end
+
+---comment
+---@param event_data EventData | EventSpawnData | EventStructureData | EventEliteData
+function GameEvent:SpawnInstance(event_data)
+    local instance
+
+    -- Check if table
+    if #event_data > 0 then
+        local random_index = Help.RandomInteger(1, #event_data)
+        instance = self:SpawnInstance(event_data[random_index])
+        return instance
+    end
+
+    -- Check if Elite or Standard Event
+    if event_data.EliteType then
+        instance = GameEvent:_SpawnEliteEvent(event_data, self.EventManager.Modifiers)
+    elseif event_data.UnitType then
+        instance = GameEvent:_SpawnStructureEvent(event_data)
+    elseif event_data.Hostile then
+        instance = self:_LoadSpawnData(event_data)
+    else
+        Help.Warn("Invalid Event Data", nil, event_data)
+        return
+    end
+
+    -- Update Event Tracked Stats
+    self.TrackedData[EVENT_TRACKED_STAT.TimeSinceLastSpawned] = 0
+    self.TrackedData[EVENT_TRACKED_STAT.DistanceTraveled] = 0
+
+    if not instance then
+        return nil
+    end
+
+    -- Apply Last Sequence Position if available
+    if self.ParentSequence then
+        self.ParentSequence:UpdateLatestSpawnPosition(Vector2.UnitPosition(instance))
+    end
+
+    -- Spawn the Event
+    -- local instance = SpawnStandardEvent(event_data)
+    local instance_id = Core.Unit.GetId(instance)
+    self.Instances[instance_id] = instance
+
+    -- Update Event Tracked Stats (Instanced)
+    self.TrackedData[EVENT_TRACKED_STAT.ActiveCount] = self.TrackedData[EVENT_TRACKED_STAT.ActiveCount] + 1
+
+    -- Event Completed Callback
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        -- Trigger Event Completed
+        self.OnEventCompleted()
+    end)
+
+    -- Event Removed Callback
+    DCEI.TriggerAddUnitRemovedEvent(instance, function()
+        self.TrackedData[EVENT_TRACKED_STAT.ActiveCount] = self.TrackedData[EVENT_TRACKED_STAT.ActiveCount] - 1
+        self.Instances[instance_id] = nil
+    end)
+
+    return instance
+end
+
+-- Update Event Stats
+function GameEvent:_UpdateStats(delta)
+    -- Time Since Last Spawned
+    self.TrackedData[EVENT_TRACKED_STAT.TimeSinceLastSpawned] = self.TrackedData[EVENT_TRACKED_STAT.TimeSinceLastSpawned]
+        + delta
+
+    -- Hero Distance Traveled Since Last Spawned
+    if not self._LastRecordedPlayerPosition then
+        self._LastRecordedPlayerPosition = Hero.Fetch(PLAYER.Player1):GetPosition()
+    end
+
+    local hero_position = Hero.Fetch(PLAYER.Player1):GetPosition()
+    local distance_traveled = Vector2.Distance(self._LastRecordedPlayerPosition, hero_position)
+
+    self.TrackedData[EVENT_TRACKED_STAT.DistanceTraveled] = self.TrackedData[EVENT_TRACKED_STAT.DistanceTraveled]
+        + distance_traveled
+
+    self._LastRecordedPlayerPosition = hero_position
+end
+
+---comment
+---@param event_data GameEventData
+function GameEvent:_UpdateEvent(event_data)
+    -- Check Instance Removal
+    for instance_id, instance in pairs(self.Instances) do
+        if event_data.InstanceRemovalConditions then
+            local passed = self:EvaluateConditions(event_data.InstanceRemovalConditions, instance)
+
+            if passed then
+                DCEI.RemoveUnit(instance)
+                self.Instances[instance_id] = nil
+            end
+        end
+    end
+
+    -- Check Conditions
+    if event_data.Conditions then
+        local passed = self:EvaluateConditions(event_data.Conditions)
+
+        if passed then
+            -- Trigger Event Type Options if available
+            if event_data.EventTypeOptions then
+                self:SpawnInstance(event_data.EventTypeOptions)
+            end
+
+            -- Check for Effect List
+            if event_data.EffectTriggers then
+                for _, effect in pairs(event_data.EffectTriggers) do
+                    local target = Hero.GetRandomTarget()
+                    DCEI.CreateEffectAtSelf(effect, target)
+                end
+            end
+
+            if event_data.WarningSettings then
+                DisplayWarning(event_data.WarningSettings)
+            end
+        end
+    end
+end
+
+---comment
+---@param delta Time
+function GameEvent:Update(delta)
+    -- Update Event Stats
+    self:_UpdateStats(delta)
+
+    -- Update Event
+    self:_UpdateEvent(self.EventData)
+end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return GameEvent

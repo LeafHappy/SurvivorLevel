@@ -1,0 +1,67 @@
+local StateMachine = require("Class/StateMachine")
+local Machine = StateMachine.New(TICK_RATE)
+
+-- ================================================================================================
+-- SECTION -- Game States
+-- ================================================================================================
+
+-- Hybrid
+Machine.States.Hybrid = require("FSM/state_hybrid")
+
+-- Camp
+-- Machine.States.Camp = require("FSM/state_camp")
+
+-- Meta
+-- Machine.States.Meta = require("FSM/state_meta")
+
+-- Prologue
+-- Machine.States.Prologue = require("FSM/state_prologue")
+
+-- Game Over
+-- Machine.States.GameOver = require("FSM/state_game_over")
+
+-- Try
+-- Machine.States.Try = require("FSM/Modes/state_try")
+
+-- Hunt
+-- Machine.States.Hunt = require("FSM/Modes/state_hunt")
+
+-- Test
+Machine.States.Test = require("FSM/Modes/state_test")
+
+-- Nexus
+-- Machine.States.Nexus = require("FSM/Modes/state_nexus")
+
+-- Shadow Fall
+-- Machine.States.Shadowfall = require("FSM/Modes/state_shadowfall")
+
+-- ================================================================================================
+-- !SECTION -- Game States
+-- SECTION -- Add Game States to State Machine
+-- ================================================================================================
+
+Machine:AddStates({
+    -- Hybrid
+    Machine.States.Hybrid,
+
+    -- Core
+    -- Machine.States.Camp,
+    -- Machine.States.Meta,
+    -- Machine.States.Prologue,
+    -- Machine.States.GameOver,
+
+    -- Game Modes
+    -- Machine.States.Try,
+    -- Machine.States.Hunt,
+    -- Machine.States.Nexus,
+    -- Machine.States.Shadowfall,
+
+    -- Dev
+    Machine.States.Test,
+})
+
+-- ================================================================================================
+-- !SECTION -- Add Game States to State Machine
+-- ================================================================================================
+
+return Machine

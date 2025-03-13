@@ -1,0 +1,404 @@
+--[[
+    About
+        A basic framework for Joystick-Engine hookup.
+
+    -- TODO
+        Significant cleanup and accessibility.
+        Default values for different Joystick types.
+        Figure out rendering order/input blocking.
+        Hookup for changing Sprite Textures.
+        Classify with annotations.
+]]
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+local Colors = require("Data/Colors")
+
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Class
+---============================================================================
+
+local _joysticks = {}
+
+---============================================================================
+---!SECTION: Local
+---SECTION: Class
+---============================================================================
+
+---@class Joystick
+---@field player_id integer
+local Joystick = {}
+Joystick.__index = Joystick
+function Joystick.New(player_id)
+    local self = setmetatable({}, Joystick)
+    self.player_id = player_id
+    _joysticks[self.player_id] = self
+
+    self.active = false
+
+    self.object = nil
+    self.axes = Vector2.Zero()
+    self.unit_bounds = nil
+
+    -- Set up Joystick Options --
+    self.joystick_options = {}
+    self.joystick_options.joystick_id = self.player_id
+
+    -- Check Saved Joystick Options --
+    self.always_run = true
+    self.joystick_options.radius = 100
+    self.joystick_options.dynamic_position = true
+    -- self.joystick_options.active_area_offset = { bottom = 120 }
+    -- self.joystick_options.active_area_offset = { top = 500, debug_draw_color = Colors.One.Transparent_Black }
+    -- TODO: Figure out how to interupt the Joystick Touch when over another UI element
+    self.joystick_options.parent = DCEI.GetUiRootFrame()
+
+    -- Conditional Option --
+    self.joystick_options.always_show = false
+
+    -- Coloring
+    self.joystick_options.handle_icon_color = Colors.RGBA(1, 1, 1, 1)
+    self.joystick_options.background_icon_color = Colors.RGBA(1, 1, 1, 1)
+
+    self.camera_angle = 0
+    -- self.locked_move_angle = 45
+
+    DCEI.TriggerAddJoystickEventWithJoystickOptions(function()
+        self:OnJoystickMove()
+    end, self.joystick_options)
+    DCEI.TriggerAddJoystickReleaseEventWithId(function()
+        self:OnJoystickRelease()
+    end, self.joystick_options.joystick_id)
+
+    return self
+end
+
+function Joystick:Reset()
+    self:SetActive(false)
+    self:ClearUnit()
+    self:ClearUnitBounds()
+    self.axes = Vector2.Zero()
+end
+
+function Joystick:ClearUnitBounds()
+    self.unit_bounds = nil
+end
+
+function Joystick:ClearUnit()
+    self.object = nil
+    self:Hide()
+end
+
+function Joystick:SetCameraAngle(angle)
+    self.camera_angle = angle
+end
+
+function Joystick:OnJoystickMove()
+    if not self.active then
+        return
+    end
+
+    local axes = Vector2.NewFromTable(DCEI.TriggeringJoystickAxes)
+    if self.always_run then
+        axes = Vector2.Normalized(axes)
+    end
+
+    if self.locked_move_angle then
+        local angle = Vector2.Angle(axes) + 22.5
+        angle = (angle + 360) % 360 -- Force Positive
+        angle = math.floor(angle / 45) * 45
+        axes = Vector2.NewFromAngle(angle)
+    end
+
+    self:Set(axes.x, axes.y)
+    -- DCEI.SetSpeedFactor(1)
+end
+
+function Joystick:Set(x, y)
+    self.axes = Vector2.New(x, y)
+end
+
+function Joystick:OnJoystickRelease()
+    self:Set(0, 0)
+end
+
+function Joystick:Show()
+    self.active = true
+    DCEI.ShowJoystick(self.player_id)
+end
+
+function Joystick:Hide()
+    self.active = false
+    self.axes = Vector2.New(0, 0)
+    DCEI.HideJoystick(self.player_id)
+end
+
+function Joystick:SetActive(status)
+    if not self.object then
+        -- Help.Warn("Player [" .. self.player_id .. "] does not have an assigned unit.")
+        self:Hide()
+    end
+
+    if status then
+        self:Show()
+    else
+        self:Hide()
+    end
+end
+
+function Joystick:SetUnit(unit, set_active)
+    self.object = unit
+    self:SetActive(set_active)
+end
+
+---comment
+---@param left number | nil
+---@param right number | nil
+---@param bottom number | nil
+---@param top number | nil
+function Joystick:SetUnitBounds(left, right, bottom, top)
+    self.unit_bounds = {
+        {
+            left = left,
+            right = right,
+            bottom = bottom,
+            top = top,
+        },
+    }
+end
+
+---add unit bounds
+---@param left number | nil
+---@param right number | nil
+---@param bottom number | nil
+---@param top number | nil
+function Joystick:AddUnitBounds(left, right, bottom, top)
+    self.unit_bounds = self.unit_bounds or {}
+    table.insert(self.unit_bounds, {
+        left = left,
+        right = right,
+        bottom = bottom,
+        top = top,
+    })
+end
+
+---Set the Top Bounds of the Unit's allowed movement.
+---@param limit number
+function Joystick:SetTopBounds(limit)
+    if not self.unit_bounds then
+        self.unit_bounds = { {} }
+    end
+
+    self.unit_bounds[1].top = limit
+end
+
+---Set the Left Bounds of the Unit's allowed movement.
+---@param limit number
+function Joystick:SetLeftBounds(limit)
+    if not self.unit_bounds then
+        self.unit_bounds = { {} }
+    end
+
+    self.unit_bounds[1].left = limit
+end
+
+---Set the Right Bounds of the Unit's allowed movement.
+---@param limit number
+function Joystick:SetRightBounds(limit)
+    if not self.unit_bounds then
+        self.unit_bounds = { {} }
+    end
+
+    self.unit_bounds[1].right = limit
+end
+
+---Set the Bottom Bounds of the Unit's allowed movement.
+---@param limit number
+function Joystick:SetBottomBounds(limit)
+    if not self.unit_bounds then
+        self.unit_bounds = { {} }
+    end
+
+    self.unit_bounds[1].bottom = limit
+end
+
+function Joystick:Toggle()
+    if self.active then
+        self:Hide()
+    else
+        self:Show()
+    end
+end
+
+-- Called each frame to move the unit
+---comment
+---@param unit Unit | nil
+---@param keep_inside_bounds boolean | nil
+function Joystick:MoveUnit(unit, keep_inside_bounds)
+    -- Helper function to check if a position is inside a given rectangle.
+    local function isInside(rect, pos)
+        return pos.x >= rect.left and pos.x <= rect.right and pos.y >= rect.bottom and pos.y <= rect.top
+    end
+
+    unit = unit or self.object
+
+    if not self.active then
+        return
+    end
+
+    if not unit then
+        return
+    end
+
+    -- Deadzone
+    -- if Vector2.Magnitude(self.axes) < 0.1 and not keep_inside_bounds then
+    --     return
+    -- end
+
+    -- Rotate 45 Degrees to match Camera
+    self.axes = Vector2.RotateAround(self.axes, -self.camera_angle)
+
+    -- Create a Copy so we can keep the player's intended input
+    local axes = Vector2.Copy(self.axes)
+
+    if self.always_run then
+        axes = Vector2.Normalized(axes)
+    end
+
+    -- Prevent Movement that would put the unit out of bounds
+    if keep_inside_bounds and self.unit_bounds then
+        -- Get the current position and intended next position.
+        local position = Vector2.UnitPosition(unit)
+        local next_position = position + axes
+
+        local next_position_horizontal = position + Vector2.New(axes.x, 0)
+        local next_position_vertical = position + Vector2.New(0, axes.y)
+
+        -- Determine which rectangle (if any) the unit is currently in.
+        local current_rect = nil
+        local next_rect = nil
+
+        local next_rect_horizontal = nil
+        local next_rect_vertical = nil
+        for _, rect in ipairs(self.unit_bounds) do
+            if isInside(rect, position) then
+                current_rect = rect
+            end
+
+            if isInside(rect, next_position) then
+                next_rect = rect
+            end
+
+            if isInside(rect, next_position_horizontal) then
+                next_rect_horizontal = rect
+            end
+
+            if isInside(rect, next_position_vertical) then
+                next_rect_vertical = rect
+            end
+        end
+
+        -- If the unit is inside a known rectangle, adjust axes to clamp movement within it.
+        if current_rect then
+            if next_rect == nil then
+                if next_rect_horizontal then
+                    axes.y = 0
+                elseif next_rect_vertical then
+                    axes.x = 0
+                else
+                    if next_position.x < current_rect.left then
+                        axes.x = current_rect.left - position.x
+                    elseif next_position.x > current_rect.right then
+                        axes.x = current_rect.right - position.x
+                    end
+
+                    if next_position.y < current_rect.bottom then
+                        axes.y = current_rect.bottom - position.y
+                    elseif next_position.y > current_rect.top then
+                        axes.y = current_rect.top - position.y
+                    end
+                end
+            end
+        else
+            if next_rect then
+            else
+                axes = Vector2.New(0, 0)
+            end
+        end
+    end
+
+    -- If the Unit is outside the bounds, move it back inside
+    if keep_inside_bounds and self.unit_bounds and self.unit_bounds[1] then
+        -- local position = Vector2.UnitPosition(unit)
+
+        -- -- Check for Top Bounds
+        -- if self.unit_bounds[1].top and position.y > self.unit_bounds[1].top then
+        --     local difference = position.y - self.unit_bounds[1].top
+        --     axes.y = math.min(-1, -difference)
+        -- end
+
+        -- -- Check for Bottom Bounds
+        -- if self.unit_bounds[1].bottom and position.y < self.unit_bounds[1].bottom then
+        --     local difference = position.y - self.unit_bounds[1].bottom
+        --     axes.y = math.max(1, difference)
+        -- end
+
+        -- -- Check for Right Bounds
+        -- if self.unit_bounds[1].right and position.x > self.unit_bounds[1].right then
+        --     local difference = position.x - self.unit_bounds[1].right
+        --     axes.x = math.min(-1, -difference)
+        -- end
+
+        -- -- Check for Left Bounds
+        -- if self.unit_bounds[1].left and position.x < self.unit_bounds[1].left then
+        --     local difference = position.x - self.unit_bounds[1].left
+        --     axes.x = math.max(1, difference)
+        -- end
+    end
+
+    -- -- Prevents the unit from "flipping" upside down.
+    local absolute = Vector2.Absolute(axes)
+    if absolute.x < 0.1 and absolute.y < 0.1 then
+        return
+    end
+
+    DCEI.TurnUnitTowards(unit, axes.x, axes.y)
+    DCEI.DirectionalMove(unit, axes.x, axes.y)
+end
+
+---Returns the Joystick associated to the given id
+---@param player_id integer
+---@return Joystick
+function Joystick.Fetch(player_id)
+    local joystick = _joysticks[player_id]
+
+    if joystick then
+        return joystick
+    end
+
+    return Joystick.New(player_id)
+end
+
+---============================================================================
+---!SECTION: Class
+---SECTION: Developer
+---============================================================================
+
+if _Dev then
+    local function ToggleJoystick()
+        Joystick.Fetch(PLAYER.Player1):Toggle()
+    end
+
+    _Dev.Events.Register("Toggle Joystick", ToggleJoystick)
+end
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return Joystick

@@ -1,0 +1,48 @@
+local KeyItemData = require("SharedData/KeyItemData")
+
+---@class KeyItemSettings
+---@field Type Unit | string
+---@field Status ZONE_STATUS
+
+---@class ZoneKeyItemData:ZoneItemData
+---@field Settings KeyItemSettings
+
+local data = {
+    ChopTree = {
+        Key = "ChopTree",
+        Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
+        GhostPlacement = DCEI.Unit("Editor - Ghost - KeyItem - Axe"),
+        Settings = {
+            -- Position
+            Type = DCEI.Unit("KeyItem - Axe"),
+        },
+    },
+    Strafe = {
+        Key = "Strafe",
+        Icon = DCEI.Texture("icon_bow_blue_wildsurvivor"),
+        GhostPlacement = DCEI.Unit("Editor - Ghost - KeyItem - Bow"),
+        Settings = {
+            -- Position
+            Type = DCEI.Unit("KeyItem - Bow"),
+        },
+    },
+    MineStone = {
+        Key = "MineStone",
+        Icon = DCEI.Texture("general_icon_relic_diamondpickaxe_castle"),
+        GhostPlacement = DCEI.Unit("Editor - Ghost - KeyItem - Pickaxe"),
+        Settings = {
+            -- Position
+            Type = DCEI.Unit("KeyItem - Pickaxe"),
+        },
+    },
+    Shovel = {
+        Key = "Shovel",
+        Icon = DCEI.Texture("wildcastle2_prop_castle_beach_shovel"),
+        GhostPlacement = DCEI.Unit("Editor - Ghost - KeyItem - Shovel"),
+        Settings = {
+            Type = DCEI.Unit("KeyItem - Shovel"),
+        },
+    },
+}
+
+return data

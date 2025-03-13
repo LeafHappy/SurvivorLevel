@@ -1,0 +1,115 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local EquipmentDisplay = require("UiCamp/Equipment/EquipmentDisplay")
+
+-- DATA
+local DataManager = require("UiMeta/DataManager")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local ComparePopup = {}
+ComparePopup.is_initialized = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function ComparePopup.Initialize()
+    if ComparePopup.is_initialized then
+        return
+    end
+
+    -- Create layout
+    ComparePopup.layout = GMUI.Layout.New({
+        name = "Camp/Vault/ComparePopup",
+        parent = ui.z3.Lower,
+    })
+    ui.camp.vault = ComparePopup.layout
+
+    ComparePopup.current_item = EquipmentDisplay.Initialize(ComparePopup.layout.current_item)
+    ComparePopup.next_item = EquipmentDisplay.Initialize(ComparePopup.layout.next_item)
+
+    DCEI.SetOnClickCallback(ComparePopup.layout.close.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ComparePopup.layout:Hide()
+    end)
+    DCEI.SetOnClickOutsideCallback(ComparePopup.layout.Background, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ComparePopup.layout:Hide()
+    end)
+
+    ComparePopup.is_initialized = true
+end
+
+---@param item_layout Layout
+---@param equipment_save_data EquipmentSaveData
+---@param equip_callback function
+function ComparePopup.Open(item_layout, equipment_save_data, equip_callback)
+    if not ComparePopup.is_initialized then
+        ComparePopup.Initialize()
+    end
+
+    local display_data = DataManager.GetEquipmentDisplayData(equipment_save_data.id)
+    if not display_data then
+        return
+    end
+
+    local hero_name = DataManager.save_data.player.hero
+    local hero_equipment = DataManager.GetHeroEquipmentIndices(hero_name)
+    local current_item_index = hero_equipment[display_data.SlotType]
+    local current_equipment_save_data = DataManager.GetEquipmentSaveData(current_item_index)
+
+
+    if not current_equipment_save_data or current_equipment_save_data == equipment_save_data then
+        ComparePopup.next_item.Populate(equipment_save_data)
+        ComparePopup.layout.state.has_equipped = false
+    else
+        ComparePopup.current_item.Populate(current_equipment_save_data)
+        ComparePopup.next_item.Populate(equipment_save_data, current_equipment_save_data)
+        ComparePopup.layout.state.has_equipped = true
+    end
+
+    DCEI.SetOnClickCallback(ComparePopup.layout.equip_button.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        equip_callback(item_layout, equipment_save_data)
+        ComparePopup.layout:Hide()
+    end)
+
+    ComparePopup.layout:Show()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return ComparePopup

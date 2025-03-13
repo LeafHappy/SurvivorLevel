@@ -1,0 +1,131 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local Help = {}
+
+function Help.ConvertTableToString(t, indent)
+    indent = indent or 0
+
+    local spacing = string.rep("| ", indent)
+    local message = ""
+    for key, value in pairs(t) do
+        message = message .. "\n"
+        local format = key .. ": "
+        if type(value) == "table" then
+            message = message .. spacing .. format .. Help.ConvertTableToString(value, indent + 1)
+        else
+            message = message .. spacing .. format .. tostring(value)
+        end
+    end
+
+    return message
+end
+
+function Help.Message(message, property, table, message_type)
+    local display = "[" .. Help.GetLineNumber(4) .. "] " .. Help.GetFileName(2) .. "> "
+
+    if message then
+        display = display .. message
+    end
+
+    if property then
+        display = display .. ": " .. tostring(property)
+    end
+
+    if table and type(table) == "table" then
+        display = display .. "\n\n" .. Help.ConvertTableToString(table)
+    end
+
+    if message_type == "Error" then
+        DCEI.LogError(display)
+    elseif message_type == "Warning" then
+        DCEI.LogWarning(display)
+    else
+        DCEI.LogMessage(display)
+    end
+end
+
+function Help.Log(message, property, table)
+    Help.Message(message, property, table, "Message")
+end
+
+function Help.Warn(message, property, table)
+    Help.Message(message, property, table, "Warning")
+end
+
+function Help.Error(message, property, table)
+    Help.Message(message, property, table, "Error")
+end
+
+function Help.GetFileName(depth)
+    depth = depth or 0
+    local info = debug.getinfo(2 + depth, "S").source
+    return info:match("^.+/(.+)$"):match("[^.]+")
+end
+
+function Help.GetLineNumber(depth)
+    depth = depth or 0
+    return debug.getinfo(depth).currentline
+end
+
+function Help.Split(input, separator)
+    local s = separator or "%s"
+
+    local t = {}
+    for str in string.gmatch(input, "([^" .. s .. "]+)") do
+        table.insert(t, str)
+    end
+
+    return t
+end
+
+function Help.FormatDamage(value)
+    local suffixes = { "", "k", "M", "B", "T" }
+    local suffixIndex = 1
+    while value >= 1000 and suffixIndex < #suffixes do
+        value = value / 1000
+        suffixIndex = suffixIndex + 1
+    end
+    value = math.floor(value * 100) / 100
+
+    -- Remove Trailing Zeros
+    local stripped_value = string.format("%.2f", value):gsub("%.?0+$", "")
+    return string.format("%s%s", stripped_value, suffixes[suffixIndex])
+end
+
+---Converts a number to a string formatted for minutes and seconds.
+---@param value number
+---@return string
+function Help.FormatTime(value)
+    local minutes = math.floor(value / 60)
+    local seconds = value % 60
+
+    return string.format("%02d:%02d", minutes, seconds)
+end
+
+-- Initializing Layout Array Helper
+
+---Checks the table for a layout at the specified index. If it does not exist, it creates a new layout.
+---Automatically turns the Layout on so that it can be modified.
+---@param layout_name string
+---@param parent Layout
+---@param table_ref table
+---@param index integer
+---@return Layout
+function Help.GenerateLayoutRef(layout_name, parent, table_ref, index)
+    local layout = table_ref[index]
+
+    if not layout then
+        layout = GMUI.Layout.New({
+            name = layout_name,
+            parent = parent,
+        })
+        table_ref[index] = layout
+    end
+
+    DCEI.SetFrameActive(layout.Frame, true)
+    return layout
+end
+
+return Help

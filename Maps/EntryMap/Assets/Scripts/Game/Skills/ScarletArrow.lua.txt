@@ -1,0 +1,299 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Releases an Arrow towards the closest Target in Range.
+
+    Upgrade: Every 3rd Shot releases +2 Projectiles.
+
+    Multiple Projectiles are released in a Cone/Arc.
+
+
+    ---TODO:
+        - DeathVFX lingers too long.
+            - Use Play Animation with Duration (currently causes a Crash).
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Scarlet Arrow"),
+
+    -- Behaviors
+    PierceStack = DCEI.Behavior("Missile - Pierce"),
+    LearnedExplosion = DCEI.Behavior("Weapon - Scarlet Arrow - Explosion - Learned"),
+    ProjectileSpeed = DCEI.Behavior("Weapon - Scarlet Arrow - Projectile Speed"),
+
+    -- Units
+    Projectile = DCEI.Unit("Weapon - Scarlet Arrow - Projectile"),
+
+    -- Effects
+    Scan = DCEI.Effect("Weapon - Scarlet Arrow - Scan"),
+    ScanFallback = DCEI.Effect("Weapon - Scarlet Arrow - Scan - Fallback"),
+    Launch = DCEI.Effect("Weapon - Scarlet Arrow - Launch"),
+    OnEnter = DCEI.Effect("Weapon - Scarlet Arrow - OnEnter"),
+    Damage = DCEI.Effect("Weapon - Scarlet Arrow - Damage"),
+    Stagger = DCEI.Effect("Weapon - Scarlet Arrow - Stagger"),
+    ImpactVFX = DCEI.Effect("Weapon - Scarlet Arrow - ImpactVFX"),
+    DeathVFX = DCEI.Effect("Weapon - Scarlet Arrow - DeathVFX"),
+    DamageReduction = DCEI.Effect("Weapon - Scarlet Arrow - Damage Reduction"),
+    ExplosionArea = DCEI.Effect("Weapon - Scarlet Arrow - Explosion Area"),
+    ExplosionDamage = DCEI.Effect("Weapon - Scarlet Arrow - Explosion - Damage"),
+    ExplosionVFX = DCEI.Effect("Weapon - Scarlet Arrow - Explosion VFX"),
+
+    -- Filter
+    ProjectileFilter = DCEI.CreateUnitFilter({ name = DCEI.Unit("Weapon - Scarlet Arrow - Projectile") }),
+
+    -- Simple Unit
+    -- SimpleProjectileCollider = DCEI.SimpleUnit("Simple Projectile Collider"),
+
+    -- Trigger
+    Success = DCEI.Effect("Weapon - Scarlet Arrow - Success"),
+
+    -- Tags
+    IsPrimaryWeapon = DCEI.Tag("Weapon - Scarlet Arrow - IsPrimaryWeapon"),
+
+    -- Quick Draw
+    QuickDrawCooldown = DCEI.Effect("Weapon - Scarlet Arrow - Quick Draw - Apply Cooldown"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+local MODEL_SCALE = 0.75
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Standard Projectile Spawn Callback
+---Attaches necessary Components to the Projectile
+local function OnProjectileSpawn()
+    local projectile = DCEI.TriggeringUnit
+
+    local player_id = DCEI.GetUnitPlayerId(projectile)
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SkillData.ScarletArrow.Key)
+
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    Help.SetModelScale(projectile, size * MODEL_SCALE, 0.10, Ease.OutCubic)
+
+    local health = hero:GetStat(STAT.ProjectileHealth, tags)
+    DCEI.ApplyBehaviorToSelf(projectile, REF.PierceStack, health)
+
+    SimpleUnit.ModifyHealth(projectile, 1)
+    SimpleUnit.ModifyCollision(projectile, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start, 1),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(projectile, collision_effects)
+
+    if Help.UnitHasBehavior(hero.unit, REF.LearnedExplosion) then
+        DCEI.ApplyBehaviorToSelf(projectile, REF.LearnedExplosion, 1)
+    end
+end
+
+---Launch a Standard Projectile
+---Also Calls the Scattershot Function if the Behavior is Learned
+---@param hero Hero
+---@param target_position Vector2
+local function LaunchProjectile(hero, target_position)
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.ScarletArrow.Key)
+    local hero_position = hero:GetPosition()
+
+    local launch_direction = Vector2.Normalized(target_position - hero_position)
+    local distance = hero:GetStat(STAT.SkillRange, tags)
+    local launch_position = hero_position + (launch_direction * distance)
+
+    DCEI.CreateEffectAtPosition(REF.Launch, hero.unit, launch_position.x, launch_position.y)
+end
+
+---Hero Ability Success Callback
+---Calls the Projectile Launch Function on Success
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local caster = ctx.caster
+    local player_id = DCEI.GetUnitPlayerId(caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local tags = hero:GetInheritedTags(SkillData.ScarletArrow.Key)
+
+    -- We need to get the Target and Force the Player to Rotate Towards it.
+    local target = ctx.target
+
+    local animation_delay = 0.15
+
+    -- Keep a record of the last known position of the Target in case it dies.
+    local target_position = Vector2.UnitPosition(target)
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(animation_delay)
+
+    function timer:Tick()
+        -- Validate Hero
+        if not hero:IsUnitAlive() then
+            self:Destroy()
+            return
+        end
+
+        -- Update Latest Target Position
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+    end
+
+    function timer:Action()
+        -- Validate Hero
+        if not hero:IsUnitAlive() then
+            return
+        end
+
+        -- Validate Latest Target Position
+        if Help.ValidateSimpleUnit(target) then
+            target_position = Vector2.UnitPosition(target)
+        end
+
+        local count = hero:GetStat(STAT.ProjectileCount, tags)
+
+        if count == 1 then
+            LaunchProjectile(hero, target_position)
+        else
+            local projectile_size = hero:GetStat(STAT.SkillSize, tags)
+            local projectile_range = hero:GetStat(STAT.SkillRange, tags)
+
+            local base_angle = Vector2.AngleBetween(hero:GetPosition(), target_position)
+
+            -- local angle_between = math.deg(math.acos(1 - (projectile_size ^ 2) / (2 * projectile_range ^ 2)))
+            local angle_between = 60 / count * projectile_size
+            local starting_angle = base_angle - (angle_between * (count - 1) / 2)
+
+            for i = 1, count do
+                local target_position = hero:GetPosition()
+                    + Vector2.NewFromAngle(starting_angle + (angle_between * (i - 1))) * projectile_range
+                LaunchProjectile(hero, target_position)
+            end
+        end
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {
+        -- EffectPath.New(nil, nil, nil),
+        -- EffectPath.New(REF.QuickDrawCooldown, EJS.ApplyBehavior.Duration),
+    },
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ScanFallback, EJS.AreaSearch.Radius),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, nil, MODEL_SCALE),
+        EffectPath.New(REF.DeathVFX, EJS.Actor.Scale, nil, MODEL_SCALE),
+
+        EffectPath.New(REF.ExplosionArea, EJS.AreaSearch.Radius, { SKILL_TAG.ScarletArrowExplosion }, MODEL_SCALE),
+        EffectPath.New(REF.ExplosionVFX, EJS.Actor.Scale, { SKILL_TAG.ScarletArrowExplosion }, MODEL_SCALE),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+
+        EffectPath.New(REF.ExplosionDamage, EJS.Damage.Value, { SKILL_TAG.ScarletArrowExplosion }),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+    [STAT.Break] = {
+        EffectPath.New(REF.DamageReduction, EJS.DamageOutput.Multiplier),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    local tags = hero:GetInheritedTags(SkillData.ScarletArrow.Key)
+
+    -- Apply Projectile Speed Behavior
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local projectile_speed_stacks = math.floor(projectile_speed * 100)
+    Core.Unit.SetBehaviorCount(hero.unit, REF.ProjectileSpeed, projectile_speed_stacks)
+
+    ---TEMP: Go ahead and Set the Scarlet Arrow as the Primary Weapon
+    ---Ideally, we have a better way to handle this.
+    DCEI.ApplyTag(hero.unit, REF.IsPrimaryWeapon, -1, 1)
+
+    -- Need to access the Cast Range of this Ability and set a Custom Property for the Top Detection Range.
+    local detection_range = hero:GetStat(STAT.SkillRange, tags)
+    hero:SetDetectionRange(detection_range)
+
+    -- Need to Register when this Ability is Cast and force the Top to play the Attack Animation
+    DCEI.TriggerAddEffectEvent(REF.Success, function()
+        Help.SendActorEvent(hero.top, "Attack")
+    end, true)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess)
+DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

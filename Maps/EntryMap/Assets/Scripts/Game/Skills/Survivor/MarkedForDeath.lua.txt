@@ -1,0 +1,331 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+local LootData = require("Data/SimpleUnits/LootData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Marked for Death"),
+
+    -- Behaviors
+
+    -- Effects
+    Scan = DCEI.Effect("Skill - Marked for Death - Scan"),
+    Trigger = DCEI.Effect("Skill - Marked for Death - Trigger"),
+    Exposed = DCEI.Effect("Skill - Marked for Death - Exposed"),
+
+    -- Death Effects
+    OnDeathEffects = DCEI.Effect("Skill - Marked for Death - OnDeath - Effects"),
+
+    -- VFX
+
+    -- Unit
+    Overhead = DCEI.Unit("Skill - Marked for Death - Overhead"),
+
+    -- Filter
+
+    -- Unstable Marker
+    UnstableMarkerEffects = DCEI.Effect("Skill - Unstable Marker - Effects"),
+    UnstableMarkerScan = DCEI.Effect("Skill - Unstable Marker - Scan"),
+    UnstableMarkerAreaDamage = DCEI.Effect("Skill - Unstable Marker - Area Damage"),
+    UnstableMarkerDeathVFX = DCEI.Effect("Skill - Unstable Marker - Death VFX"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+local DROP_TABLE = {
+    {
+        [LootData.SmallExperience] = 100,
+        [LootData.MediumExperience] = 1,
+    },
+    {
+        [LootData.SmallExperience] = 50,
+        [LootData.MediumExperience] = 2,
+    },
+    {
+        [LootData.SmallExperience] = 50,
+        [LootData.MediumExperience] = 3,
+    },
+}
+
+local EXPLOSION_MODEL_SCALE = 0.50
+
+---@type table<string, UnitInstance | SimpleUnitInstance>
+local _MarkedTargets = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+end
+
+---comment
+---@param hero Hero
+---@param position Vector2
+local function OnDeathEffects(hero, position)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    -- Kill Streak - Reset Cooldown
+    if hero:IsSkillLearned(SkillData.KillStreak.Key) then
+        DCEI.SetUnitAbilityCooldown(hero.unit, REF.Ability, 0.25)
+    end
+
+    -- Bounty Hunter - Spawn Drop Table
+    -- if hero:IsSkillLearned(SkillData.BountyHunter.Key) then
+    local drop_table_options = {
+        apply_mover_effect = DCEI.Effect("SMover - Random Circle - Large"),
+        spawn_over_time = true,
+    }
+
+    Help.SpawnDropTable(position, DROP_TABLE, drop_table_options)
+    -- end
+
+    if hero:IsSkillLearned(SkillData.UnstableMarker.Key) then
+        DCEI.CreateEffectAtPosition(REF.UnstableMarkerEffects, hero.unit, position.x, position.y)
+    end
+
+    DCEI.CreateEffectAtPosition(REF.OnDeathEffects, hero.unit, position.x, position.y)
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local target = ctx.target
+
+    local is_simple_unit = Help.ValidateSimpleUnit(target)
+    local is_normal_unit = Help.ValidateUnit(target)
+
+    -- local uid = Core.Unit.GetId(target)
+    local uid = tostring(target)
+
+    if _MarkedTargets[uid] then
+        DCEI.SetUnitAbilityCooldown(hero.unit, REF.Ability, 0.25)
+        return
+    end
+
+    DCEI.CreateEffectAtUnit(REF.Exposed, target, hero.unit)
+    _MarkedTargets[uid] = target
+
+    local tags = hero:GetInheritedTags(SkillData.MarkedForDeath.Key)
+
+    local duration = hero:GetStat(STAT.DebuffDuration, tags)
+
+    local target_position = Vector2.UnitPosition(ctx.target)
+    local overhead = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.Overhead, target_position.x, target_position.y)
+
+    ---FIXME: Figure out why the priority is not working.
+    -- Set overhead tag/priority
+    SimpleUnit.ModifyTag(overhead, SIMPLE_TAG.Hostile)
+    SimpleUnit.ModifyTargetingPriority(target, 10)
+
+    -- Animation
+    Help.PlayAnimationWithDuration(overhead, "attack", 0.5)
+    Help.GameTimer(0.5, nil, nil, function()
+        if not Help.ValidateUnit(overhead) then
+            return
+        end
+
+        Help.PlayAnimation(overhead, "idle")
+    end, nil)
+
+    local height = is_normal_unit and 2.5 or 1.25
+
+    local function RemoveMark()
+        -- SimpleUnit.ModifyTargetingPriority(target, 1)
+        _MarkedTargets[uid] = nil
+        DCEI.RemoveUnit(overhead)
+    end
+
+    local condition = function()
+        -- Hero is no longer alive
+        if not hero:IsUnitAlive() then
+            return false
+        end
+
+        -- Simple Unit is no longer alive
+        if is_simple_unit and not Help.ValidateSimpleUnit(target) then
+            return false
+        end
+
+        -- Normal Unit is no longer alive
+        if is_normal_unit and not Help.ValidateUnit(target) then
+            return false
+        end
+
+        return true
+    end
+
+    local recurring_action = function()
+        -- Update the position of the overhead unit
+        target_position = Vector2.UnitPosition(target)
+        DCEI.SetUnitPosition3DWithInterpolation(overhead, target_position.x, height, target_position.y)
+    end
+
+    local callback_action = function()
+        RemoveMark()
+    end
+
+    local cancel_action = function()
+        OnDeathEffects(hero, target_position)
+        RemoveMark()
+    end
+
+    Help.GameTimer(duration, condition, recurring_action, callback_action, cancel_action)
+
+    -- local timer = Core.Timer.Game.New()
+    -- timer:SetDuration(duration)
+
+    -- function timer:Tick()
+    --     -- Remove if Hero is no longer alive
+    --     if not hero:GetUnitAlive() then
+    --         RemoveMark()
+    --         return
+    --     end
+
+    --     -- Simple Unit is no longer alive
+    --     if is_simple_unit and not Help.ValidateSimpleUnit(target) then
+    --         OnDeathEffects(hero, target_position)
+    --         RemoveMark()
+    --         return
+    --     end
+
+    --     -- Normal Unit is no longer alive
+    --     if is_normal_unit and not Help.ValidateUnit(target) then
+    --         OnDeathEffects(hero, target_position)
+    --         RemoveMark()
+    --         return
+    --     end
+
+    --     -- Double Check?
+    --     if not Help.ValidateSimpleUnit(ctx.target) then
+    --         DCEI.RemoveUnit(overhead)
+    --         return
+    --     end
+
+    --     target_position = Vector2.UnitPosition(ctx.target)
+    --     DCEI.SetUnitPosition3DWithInterpolation(overhead, target_position.x, height, target_position.y)
+    --     -- DCEI.SetUnitPosition2DWithInterpolation(overhead, target_position.x, target_position.y)
+    -- end
+
+    -- function timer:Action()
+    --     -- Unit is no longer marked
+    --     _MarkedTargets[uid] = nil
+    --     DCEI.RemoveUnit(overhead)
+    -- end
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero) end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+    },
+    [STAT.DebuffDuration] = {
+        EffectPath.New(REF.Exposed, EJS.DamageIntake.Duration),
+    },
+    [STAT.Exposed] = {
+        EffectPath.New(REF.Exposed, EJS.DamageIntake.Multiplier),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.UnstableMarkerScan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.UnstableMarkerDeathVFX, EJS.Actor.Scale, nil, EXPLOSION_MODEL_SCALE),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.MarkedForDeath.Key)
+
+    -- Unstable Marker Damage
+    local health = hero:GetStat(STAT.Health, tags)
+    local area_damage = hero:GetStat(STAT.AreaDamage, tags)
+    local damage = health * area_damage
+    hero:SetEffectValue(REF.UnstableMarkerAreaDamage, EJS.Damage.Value, damage)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

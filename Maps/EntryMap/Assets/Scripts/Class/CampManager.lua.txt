@@ -1,0 +1,1034 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Joystick = require("Class/Joystick")
+
+local Attributes = require("Class/Attributes")
+local CampObject = require("Class/CampObject")
+local Event = require("Class/Event")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local PropData = require("Map/PropData")
+
+local Modifier = require("SharedData/Class/Modifier")
+local MetaData = require("SharedData/MetaData")
+local TalentData = require("SharedData/Talents/TalentData")
+local CampData = require("SharedData/H_CampData")
+
+local SaveDataManager = require("Class/SaveDataManager")
+local QuestManager = require("Meta/Quest/QuestManager")
+
+local Help = require("Help")
+
+local _Dev = require("_Dev")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local PERK_OFFER_DISTANCE = 5
+
+local UI_UPDATES = {
+    [SAVE_KEY.Gems] = "Camp.Overlay.SetGems",
+    [SAVE_KEY.Gold] = "Camp.Overlay.SetGold",
+    -- [SaveKey.Experience] = "Camp.Overlay.SetExperience", -- Requires Fill Value, handled in hybrid state
+    [SAVE_KEY.SkillPoints] = "Camp.Overlay.SetSkillPoints",
+    [SAVE_KEY.Level] = "Camp.Overlay.SetPlayerLevel",
+}
+
+local DEFAULT_VALUES = {
+    [SAVE_KEY.Level] = 1,
+    [SAVE_KEY.Wave] = 1,
+}
+
+local _SaveData = {}
+
+local _LatestCampData = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class CampManager.EventDataPass
+---@field data table
+---@field callback function
+
+---@class CampManager
+---@field Objects table<string, CampObject>
+---@field HasAuthority boolean
+---@field AuthorityTimer number The amount of time forced in game mode when Authority is gained.
+---@field EventDataPass table<string, CampManager.EventDataPass>
+---@field LatestMessageEventId string
+---@field ShowButtonDisplay boolean
+---@field LatestButtonUID string | nil
+---@field OnKeyStructureDestroyed Event
+---@field DisposeIds table<string, CampObject>
+---@field ButtonDisplayCooldown number
+---@field modifiers table<Modifier>
+local CampManager = {}
+CampManager.__index = CampManager
+
+---comment
+---@return CampManager
+local function New()
+    local self = setmetatable({}, CampManager)
+    self:Reset()
+
+    return self
+end
+
+function CampManager:Reset()
+    if self.Objects then
+        -- Loop through all objects and remove them
+        for _, camp_object in pairs(self.Objects) do
+            camp_object:RemoveInstance()
+        end
+    end
+
+    self.LoadedKeys = {}
+    self.Objects = {}
+    self.HasAuthority = true
+    self.AuthorityTimer = 0
+    self.EventDataPass = {
+        -- ["Camp.ShrineOfBlessing"] = {
+        --     data = {},
+        --     callback = {},
+        -- },
+    }
+
+    self.LatestMessageEventId = ""
+
+    self.ShowButtonDisplay = true
+    -- if self.LatestButtonUID then
+    --     self:_ClearButtonDisplay()
+    -- end
+    -- self.LatestButtonUID = nil
+
+    self.OnKeyStructureDestroyed = Event.New()
+
+    self.DisposeIds = {}
+
+    self.ButtonDisplayCooldown = 0
+
+    self.Attributes = Attributes.New()
+    self.modifiers = {}
+    self.is_dirty = false
+
+    self.is_showing_perk_offer = false
+    self.latest_perk_offer = nil
+
+    Core.Event.SendPresentationEvent("Camp.RemoveBark")
+end
+
+function CampManager:Reload()
+    for _, camp_object in pairs(self.Objects) do
+        camp_object:SpawnInstance()
+        camp_object:HideStatusBar()
+        camp_object:Reload()
+    end
+
+    self.LatestMessageEventId = ""
+    if self.LatestButtonUID then
+        self:_ClearButtonDisplay()
+    end
+    self.LatestButtonUID = nil
+
+    -- Attempt to Load any new Camp Data
+    for _, data in pairs(_LatestCampData) do
+        if not self.LoadedKeys[data.Key] then
+            -- Help.Log("Loading New Camp Data", nil, data)
+            self:LoadNewCampObjectData(data)
+        end
+    end
+end
+
+function CampManager:Clear()
+    for _, camp_object in pairs(self.Objects) do
+        camp_object:RemoveInstance()
+    end
+
+    self.Objects = {}
+    self.LoadedKeys = {}
+end
+
+local Instance = New()
+CampManager.Instance = Instance
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param data table
+local function ReturnControl(data)
+    -- Help.Log("Game has Authority", nil, data)
+
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    joystick:SetActive(true)
+
+    Instance.HasAuthority = true
+    Instance.AuthorityTimer = 0.5
+
+    if Instance.LatestMessageEventId ~= "" then
+        local event_data = Instance.EventDataPass[Instance.LatestMessageEventId]
+        if event_data and event_data.callback then
+            event_data.callback(data)
+        end
+
+        Instance.LatestMessageEventId = ""
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+---comment
+---@param camp_object CampObject
+function CampManager:_AssignToBeRemoved(camp_object)
+    table.insert(self.DisposeIds, camp_object.uid)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+---comment
+---@param name string
+---@return CampObject | nil
+function CampManager:FindObjectByUnitName(name)
+    for _, camp_object in pairs(self.Objects) do
+        if camp_object.data.Name == name then
+            return camp_object
+        end
+    end
+
+    return nil
+end
+
+---comment
+---@param unit_type string
+---@return CampObject | nil
+function CampManager:FindObjectByUnitType(unit_type)
+    for _, camp_object in pairs(self.Objects) do
+        if camp_object.data.UnitType == unit_type then
+            return camp_object
+        end
+    end
+
+    return nil
+end
+
+---comment
+---@param position Vector2
+---@return CampObject | nil
+function CampManager:FindClosestCampObject(position)
+    local closest_object = nil
+    local closest_distance = 9999
+
+    for _, camp_object in pairs(self.Objects) do
+        if camp_object:IsAlive() then
+            local distance = Vector2.Distance(position, camp_object.data.Position)
+            if distance < closest_distance then
+                closest_distance = distance
+                closest_object = camp_object
+            end
+        end
+    end
+
+    return closest_object
+end
+
+---comment
+---@return boolean
+---@return string | nil
+function CampManager:IsWaveReady()
+    local message
+    local is_ready = true
+    for _, camp_object in pairs(self.Objects) do
+        is_ready, message = camp_object:IsWaveReady()
+        if not is_ready then
+            return false, message
+        end
+    end
+
+    return true, message
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+---comment
+---@param modifier Modifier
+function CampManager:AddModifier(modifier)
+    table.insert(self.modifiers, modifier)
+
+    for _, camp_object in pairs(self.Objects) do
+        camp_object:AddModifier(modifier)
+    end
+end
+
+---comment
+---@param modifiers table<Modifier>
+function CampManager:AddModifiers(modifiers)
+    for _, value in ipairs(modifiers) do
+        self:AddModifier(value)
+    end
+end
+
+function CampManager:ResetModifiers()
+    self.modifiers = {}
+
+    for _, camp_object in pairs(self.Objects) do
+        camp_object:ResetModifiers()
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+function CampManager:PrimeCommit()
+    if self.prime_timer then
+        return
+    end
+
+    local manager = self
+
+    manager.prime_timer = Help.GameTimer(1, nil, nil, function()
+        SaveDataManager.CommitSaveData()
+        manager.prime_timer = nil
+    end)
+end
+
+---comment
+---@param camp_object_name string
+---@param ignore_meta_requirements boolean
+function CampManager:LoadNewCampObjectByName(camp_object_name, ignore_meta_requirements, add_meta_requirements)
+    local camp_object_data = _LatestCampData[camp_object_name]
+
+    if not camp_object_data then
+        Help.Warn("Invalid Camp Object Name", camp_object_name)
+        return
+    end
+
+    if add_meta_requirements and camp_object_data.MetaRequirements then
+        for _, meta in pairs(camp_object_data.MetaRequirements) do
+            local meta_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+            if not meta_data[meta] then
+                meta_data[meta] = 0
+            end
+
+            meta_data[meta] = meta_data[meta] + 1
+            SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+            SaveDataManager.CommitSaveData()
+        end
+    end
+
+    -- Help.Log("Found Camp Object Data", camp_object_name, camp_object_data)
+    self:LoadNewCampObjectData(camp_object_data, ignore_meta_requirements)
+end
+
+---comment
+---@param camp_data HybridCampData
+function CampManager:LoadNewCampObjectData(camp_data, ignore_meta_requirements)
+    -- Check Meta Requirements
+    if not ignore_meta_requirements and camp_data.MetaRequirements then
+        local meta_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+        for _, meta in pairs(camp_data.MetaRequirements) do
+            if not meta_data[meta] then
+                -- Help.Log("Failed Meta Requirements", camp_data.Name)
+                return
+            end
+        end
+    end
+
+    -- Check quest requirement
+    local requirements = camp_data.quest_requirement
+    if not ignore_meta_requirements and requirements then
+        local quest_data = SaveDataManager.GetReference(SAVE_KEY.Quest) or {}
+        local quest = quest_data[requirements.key]
+        if quest then
+            local objective_done = quest.step >= requirements.objective
+                or QuestManager.IsQuestFinished(requirements.key)
+            if not objective_done then
+                return
+            end
+        else
+            return
+        end
+    end
+
+    -- Check Camp Object Data Modifiers for GoldLimit
+    if camp_data.CampModifiers then
+        self.Attributes:AddModifiers(camp_data.CampModifiers, true)
+
+        local limit = self:GetGoldStorageLimit()
+        SaveDataManager.SetCurrencyLimit(SAVE_KEY.Gold, limit)
+        Core.Event.SendPresentationEvent("Camp.Overlay.SetGoldLimit", limit)
+    end
+
+    local camp_object = CampObject.New(camp_data, self, self.modifiers)
+    self.Objects[camp_object.uid] = camp_object
+    self.LoadedKeys[camp_data.Key] = true
+end
+
+---comment
+---@param camp_data table<HybridCampData> | nil
+function CampManager:LoadCampData(camp_data)
+    camp_data = camp_data or _LatestCampData
+    _LatestCampData = camp_data
+
+    if not _LatestCampData then
+        Help.Warn("Invalid Camp Data Provided")
+        return
+    end
+
+    for _, data in pairs(_LatestCampData) do
+        self:LoadNewCampObjectData(data)
+    end
+end
+
+function CampManager:ResetPerkOffer()
+    if self.latest_perk_offer then
+        self.latest_perk_offer:ShowPerkTesting(false)
+        self.latest_perk_offer = nil
+    end
+
+    if self.is_showing_perk_offer then
+        Core.Event.SendPresentationEvent("Camp.HidePerkOffer")
+        self.is_showing_perk_offer = false
+    end
+end
+
+function CampManager:_CheckPerkOffer(delta, hero)
+    -- Loop thorugh all camp objects to see if they have a perk offer
+    -- Find the closest one and display the offer
+    -- If no offer is within range, hide the offer
+
+    local hero_position = hero:GetPosition()
+    if not hero_position then
+        return
+    end
+
+    -- Find the Closest Object with an offer available
+    local closest_camp_object_with_offer = nil
+    local closest_distance = 999
+    for _, camp_object in pairs(self.Objects) do
+        local offer = camp_object:GetPerkOffer()
+        if offer then -- Has an Offer
+            local distance = Vector2.Distance(hero_position, camp_object.data.Position)
+            if distance < PERK_OFFER_DISTANCE then -- Within Range
+                if not closest_camp_object_with_offer then
+                    closest_camp_object_with_offer = camp_object
+                    closest_distance = distance
+                elseif distance < closest_distance then
+                    closest_distance = distance
+                    closest_camp_object_with_offer = camp_object
+                end
+            end
+        end
+    end
+
+    if not closest_camp_object_with_offer then -- No Offers Available, Reset
+        -- If we have a latest perk offer object, set its PerkOffer Modifier
+        if self.latest_perk_offer then
+            self.latest_perk_offer:ShowPerkTesting(false)
+            self.latest_perk_offer = nil
+        end
+
+        if self.is_showing_perk_offer then
+            -- Hide the Perk Offer
+            Core.Event.SendPresentationEvent("Camp.HidePerkOffer")
+            self.is_showing_perk_offer = false
+        end
+
+        return
+    end
+
+    if self.latest_perk_offer == closest_camp_object_with_offer then -- Same Offer, No Change
+        return
+    end
+
+    if self.latest_perk_offer then
+        self.latest_perk_offer:ShowPerkTesting(false)
+    end
+
+    closest_camp_object_with_offer:ShowPerkTesting(true)
+
+    self.latest_perk_offer = closest_camp_object_with_offer
+    self.is_showing_perk_offer = true
+
+    local offer = closest_camp_object_with_offer:GetPerkOffer()
+    Core.Event.SendPresentationEvent("Camp.UpdatePerkOffer", offer)
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function CampManager:Update(delta, hero)
+    -- self:_CheckDisplayOverheadButton(delta, hero)
+    -- self:_CheckForUIMessageEvent(delta, hero)
+
+    self:_CheckPerkOffer(delta, hero)
+
+    -- Check for any Removal prior to Update
+    for index, value in ipairs(self.DisposeIds) do
+        -- Remove the Key
+        self.LoadedKeys[self.Objects[value].data.Key] = nil
+
+        -- Remove the Object
+        self.Objects[value]:RemoveInstance()
+        self.Objects[value] = nil
+    end
+
+    self.DisposeIds = {}
+
+    -- Generate Structures
+    for _, camp_object in pairs(self.Objects) do
+        camp_object:Update(delta, hero)
+
+        if self.is_dirty then
+            camp_object:ReconfigureInstanceStats()
+        end
+    end
+
+    local limit = self:GetGoldStorageLimit()
+    -- Core.Event.SendPresentationEvent("Camp.Overlay.SetGoldLimit", limit)
+
+    self.is_dirty = false
+end
+
+---comment
+---@param event_id string
+---@param data table
+---@param callback function
+function CampManager:AddNewEventDataPass(event_id, data, callback)
+    self.EventDataPass[event_id] = {
+        data = data,
+        callback = callback,
+    }
+    -- Help.Log("Latest Event Data Information", nil, self.EventDataPass)
+end
+
+function CampManager:RemoveEventDataPass(event_id)
+    self.EventDataPass[event_id] = nil
+end
+
+function CampManager:SetWaveActive(status)
+    for _, camp_object in pairs(self.Objects) do
+        camp_object:SetWaveActive(status)
+    end
+end
+
+---comment
+---@param status boolean
+function CampManager:SetButtonDisplayActive(status)
+    self.ShowButtonDisplay = status
+
+    for key, obj in pairs(self.Objects) do
+        obj:SetButtonDisplayActive(status)
+    end
+
+    -- if not status then
+    --     self:_ClearButtonDisplay()
+    -- end
+end
+
+function CampManager:ReloadCampObject(camp_object_name)
+    for _, camp_object in pairs(self.Objects) do
+        if camp_object.data.Name == camp_object_name then
+            camp_object:Reload()
+        end
+    end
+end
+
+function CampManager:SubscribeOnKeyStructureDestroyed(callback)
+    self.OnKeyStructureDestroyed:Subscribe(callback)
+end
+
+function CampManager:ShowStatusBars()
+    -- loop through all objects and show status bars
+    for _, camp_object in pairs(self.Objects) do
+        camp_object:ShowStatusBar()
+    end
+end
+
+---comment
+---@param key string
+---@return CampObject
+function CampManager:GetCampObjectByKey(key)
+    for _, camp_object in pairs(self.Objects) do
+        if camp_object.data.Key == key then
+            return camp_object
+        end
+    end
+
+    return nil
+end
+
+---comment
+---@param key string
+---@return HybridCampData
+function CampManager:GetCampDataByKey(key)
+    local camp_data = _LatestCampData[key]
+
+    if not camp_data then
+        Help.Warn("Invalid Camp Data Key", key)
+        return
+    end
+
+    return camp_data
+end
+
+function CampManager:ApplyMetaRequirements(key)
+    local camp_data = _LatestCampData[key]
+
+    if not camp_data then
+        Help.Warn("Invalid Camp Data Key", key)
+        return
+    end
+
+    -- Meta Requirements
+    if camp_data.MetaRequirements then
+        for _, meta in pairs(camp_data.MetaRequirements) do
+            local meta_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+            if not meta_data[meta] then
+                meta_data[meta] = 0
+            end
+
+            meta_data[meta] = meta_data[meta] + 1
+            SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+            SaveDataManager.CommitSaveData()
+        end
+    end
+
+    SaveDataManager.CommitSaveData()
+end
+
+function CampManager:RemoveMetaRequirements(key)
+    local camp_data = _LatestCampData[key]
+
+    if not camp_data then
+        Help.Warn("Invalid Camp Data Key", key)
+        return
+    end
+
+    -- Meta Requirements
+    if camp_data.MetaRequirements then
+        for _, meta in pairs(camp_data.MetaRequirements) do
+            local meta_data = SaveDataManager.GetReference(SAVE_KEY.Meta) or {}
+            if not meta_data[meta] then
+                meta_data[meta] = 0
+            end
+
+            meta_data[meta] = meta_data[meta] - 1
+
+            if meta_data[meta] <= 0 then
+                meta_data[meta] = nil
+            end
+
+            SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+            SaveDataManager.CommitSaveData()
+        end
+    end
+
+    SaveDataManager.CommitSaveData()
+end
+
+function CampManager:ApplyMetaChanges(key)
+    local camp_data = _LatestCampData[key]
+
+    if not camp_data then
+        Help.Warn("Invalid Camp Data Key", key)
+        return
+    end
+
+    -- Meta Applier / Removal
+    if camp_data.MetaApplier then
+        for _, meta in pairs(camp_data.MetaApplier) do
+            local meta_data = SaveDataManager.Get(SAVE_KEY.Meta)
+
+            if not meta_data[meta] then
+                meta_data[meta] = 0
+            end
+
+            meta_data[meta] = meta_data[meta] + 1
+            SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+        end
+    end
+
+    if camp_data.MetaRemover then
+        for _, meta in pairs(camp_data.MetaRemover) do
+            local meta_data = SaveDataManager.Get(SAVE_KEY.Meta)
+            meta_data[meta] = meta_data[meta] - 1
+
+            if meta_data[meta] <= 0 then
+                meta_data[meta] = nil
+            end
+            SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+        end
+    end
+
+    SaveDataManager.CommitSaveData()
+
+    if camp_data.MetaApplier then
+        self:Reload()
+    end
+end
+
+function CampManager:ReplaceCampObject(camp_object, replacement_key)
+    --
+    self:_AssignToBeRemoved(camp_object)
+
+    local camp_data = _LatestCampData[replacement_key]
+    if not camp_data then
+        Help.Warn("Invalid Replacement Key", replacement_key)
+        return
+    end
+
+    QuestManager.CheckBuildingQuest(camp_data.UnitType)
+    self:LoadNewCampObjectData(camp_data, true)
+end
+
+---comment
+---@param camp_object CampObject
+function CampManager:ReplaceCampObjectWithMetaChanges(camp_object, replacement_key)
+    -- Remove the old camp object
+    self:_AssignToBeRemoved(camp_object)
+
+    -- Create the new camp object
+    local camp_data = _LatestCampData[replacement_key]
+
+    if not camp_data then
+        Help.Warn("Invalid Replacement Key", replacement_key)
+        return
+    end
+
+    QuestManager.CheckBuildingQuest(camp_data.UnitType)
+
+    -- Meta Applier / Removal
+    if camp_data.MetaApplier then
+        for _, meta in pairs(camp_data.MetaApplier) do
+            local meta_data = SaveDataManager.Get(SAVE_KEY.Meta)
+
+            if not meta_data[meta] then
+                meta_data[meta] = 0
+            end
+
+            meta_data[meta] = meta_data[meta] + 1
+            SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+        end
+    end
+
+    if camp_data.MetaRemover then
+        for _, meta in pairs(camp_data.MetaRemover) do
+            local meta_data = SaveDataManager.Get(SAVE_KEY.Meta)
+            if meta_data[meta] then
+                meta_data[meta] = meta_data[meta] - 1
+
+                if meta_data[meta] <= 0 then
+                    meta_data[meta] = nil
+                end
+                SaveDataManager.Set(SAVE_KEY.Meta, meta_data)
+            end
+        end
+    end
+
+    self:LoadNewCampObjectData(camp_data, true)
+    SaveDataManager.CommitSaveData()
+
+    if camp_data.MetaApplier then
+        self:Reload()
+    end
+end
+
+function CampManager:AddCampObject(replacement_key)
+    -- Create the new camp object
+    local camp_data = _LatestCampData[replacement_key]
+
+    if not camp_data then
+        Help.Warn("Invalid Replacement Key", replacement_key)
+        return
+    end
+
+    QuestManager.CheckBuildingQuest(camp_data.UnitType)
+    self:LoadNewCampObjectData(camp_data, true)
+end
+function CampManager:GetGoldStorageLimit()
+    return self.Attributes:Get(STAT.GoldStorageLimit)
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Save/Load
+-- ================================================================================================
+
+function CampManager:LoadSaveData()
+    if _Dev and _Dev.Extra.reset_save_data_on_startup then
+        -- DCEI.Save.Set("camp_data", Json.encode({}))
+        -- DCEI.Save.Commit()
+        _SaveData = {}
+        return
+    end
+
+    local save_data = DCEI.Save.Get("camp_data")
+    if not save_data then
+        save_data = {}
+        -- DCEI.Save.Set("camp_data", Json.encode(save_data))
+        -- DCEI.Save.Commit()
+    else
+        save_data = Json.decode(save_data)
+    end
+
+    _SaveData = save_data
+
+    -- Move Reserved Gold into Gold
+    local reserved_gold = self:GetSaveData(SAVE_KEY.GoldReserve)
+
+    if reserved_gold > 0 then
+        self:ModifySaveData(SAVE_KEY.Gold, reserved_gold)
+        self:SetSaveData(SAVE_KEY.GoldReserve, 0)
+    end
+
+    -- Auto-add Talents
+    local talents = self:GetTalents()
+    for key, level in pairs(talents) do
+        local talent_data = TalentData.GetTalent(key)
+
+        if talent_data.ModifierTarget == MODIFIER_TARGET.Camp then
+            local modifier = Modifier.Copy(talent_data.Modifier)
+            modifier.value = talent_data.Modifier.value * level
+            self:AddModifier(modifier)
+        end
+    end
+
+    Core.Event.SendPresentationEvent("Camp.TalentMenu.SetTalentLevels", talents)
+
+    -- show offline miner income
+end
+
+function CampManager:CommitSaveData()
+    -- Calculate Resevered Gold
+    local reserved_gold = 0
+    for _, camp_object in pairs(self.Objects) do
+        if camp_object.data.required_resource then
+            local total = camp_object.data.required_resource.amount
+            local remaining = camp_object.resource_cost.amount
+            local holding = total - remaining
+            reserved_gold = reserved_gold + holding
+        end
+    end
+
+    self:SetSaveData(SAVE_KEY.GoldReserve, reserved_gold)
+
+    -- DCEI.Save.Set("camp_data", Json.encode(_SaveData))
+    -- DCEI.Save.Commit()
+end
+
+---comment
+---@param key CampManager.SaveKey
+function CampManager:GetSaveData(key)
+    local current = _SaveData
+    for i = 1, #key - 1 do
+        if current[key[i]] == nil then
+            current[key[i]] = {}
+        end
+        current = current[key[i]]
+    end
+    current[key[#key]] = current[key[#key]] or 0
+
+    -- Check Default Value
+    if DEFAULT_VALUES[key] and current[key[#key]] == 0 then
+        current[key[#key]] = DEFAULT_VALUES[key]
+    end
+
+    return current[key[#key]]
+end
+
+---comment
+---@param key CampManager.SaveKey
+---@param amount number
+function CampManager:ModifySaveData(key, amount)
+    local current = _SaveData
+    for i = 1, #key - 1 do
+        if current[key[i]] == nil then
+            current[key[i]] = {}
+        end
+        current = current[key[i]]
+    end
+    current[key[#key]] = current[key[#key]] or 0
+    current[key[#key]] = current[key[#key]] + amount
+
+    -- Gold Storage Limit
+    if key == SAVE_KEY.Gold then
+        local limit = self:GetGoldStorageLimit()
+        if current[key[#key]] > limit then
+            current[key[#key]] = limit
+        end
+    end
+
+    -- Update UI Display
+    if UI_UPDATES[key] then
+        -- Core.Event.SendPresentationEvent(UI_UPDATES[key], current[key[#key]])
+    end
+
+    return current[key[#key]]
+end
+
+---comment
+---@param key CampManager.SaveKey
+---@param value number
+function CampManager:SetSaveData(key, value)
+    local current = _SaveData
+    for i = 1, #key - 1 do
+        if current[key[i]] == nil then
+            current[key[i]] = {}
+        end
+        current = current[key[i]]
+    end
+    current[key[#key]] = value
+
+    if UI_UPDATES[key] then
+        -- Core.Event.SendPresentationEvent(UI_UPDATES[key], value)
+    end
+end
+
+---comment
+---@param key CampManager.SaveKey
+---@param amount number
+---@return boolean success
+function CampManager:SpendSaveData(key, amount)
+    local current = _SaveData
+    for i = 1, #key - 1 do
+        if current[key[i]] == nil then
+            current[key[i]] = {}
+        end
+        current = current[key[i]]
+    end
+    current[key[#key]] = current[key[#key]] or 0
+
+    if current[key[#key]] < amount then
+        return false
+    end
+
+    current[key[#key]] = current[key[#key]] - amount
+
+    if UI_UPDATES[key] then
+        -- Core.Event.SendPresentationEvent(UI_UPDATES[key], current[key[#key]])
+    end
+
+    return true
+end
+
+function CampManager:InitializeUIValues()
+    SaveDataManager.SendPresentationEvents()
+
+    for key, event_id in pairs(UI_UPDATES) do
+        if event_id then
+            local value = self:GetSaveData(key)
+            -- Core.Event.SendPresentationEvent(event_id, value)
+        end
+    end
+end
+
+function CampManager:AddSkillKey(key)
+    if not _SaveData.skills then
+        _SaveData.skills = {}
+    end
+
+    table.insert(_SaveData.skills, key)
+end
+
+function CampManager:GetSkillKeys()
+    if not _SaveData.skills then
+        _SaveData.skills = {}
+    end
+
+    return _SaveData.skills
+end
+
+---comment
+---@param key string
+---@param amount integer
+---@return integer
+function CampManager:ModifyTalentKey(key, amount)
+    if not _SaveData.talents then
+        _SaveData.talents = {}
+    end
+
+    _SaveData.talents[key] = _SaveData.talents[key] or 0
+    _SaveData.talents[key] = _SaveData.talents[key] + amount
+
+    return _SaveData.talents[key]
+end
+
+---comment
+---@param key string
+---@param amount integer
+function CampManager:SetTalentKey(key, amount)
+    if not _SaveData.talents then
+        _SaveData.talents = {}
+    end
+
+    _SaveData.talents[key] = amount
+end
+
+---comment
+---@param key string
+---@return integer
+function CampManager:GetTalentKey(key)
+    if not _SaveData.talents then
+        _SaveData.talents = {}
+    end
+
+    return _SaveData.talents[key] or 0
+end
+
+function CampManager:GetTalents()
+    if not _SaveData.talents then
+        _SaveData.talents = {}
+    end
+
+    return _SaveData.talents
+end
+
+function CampManager:ResetTalents()
+    _SaveData.talents = {}
+    self:ResetModifiers()
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Save/Load
+-- ================================================================================================
+
+return CampManager

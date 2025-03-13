@@ -1,0 +1,335 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Bramble
+
+    -- Keeps its distance from the player.
+    -- Drops thorns on the ground that deal damage over time.    
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Elite
+local Elite = {}
+
+---@type EliteData
+Elite.Data = {
+    Name = "Bramble",
+    Type = DCEI.Unit("Elite - Bramble"),
+    Stats = {
+        Modifier.New(STAT.Health, 1050, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 6, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.95, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 2.00, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 100, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 50, SCALING.Scaled),
+        Modifier.New(STAT.MinionCount, 1, SCALING.Scaled),
+    },
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 1.25
+
+local REF = {
+    Stagger = DCEI.Behavior("Stagger"),
+
+    OnEnter = DCEI.Effect("Elite - Bramble - OnEnter"),
+    ContactDamage = DCEI.Effect("Elite - Bramble - Contact Damage"),
+
+    ThornsMinion = DCEI.Unit("Bramble - Minion - Thorns"),
+    ThornsMinionDamage = DCEI.Effect("Bramble - Minion - Thorns - Damage"),
+}
+
+local STATES = {
+    -- Elite Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Elite Custom
+    Idle = "Idle",
+    Move = "Move",
+    SpawnThorns = "SpawnThorns",
+}
+
+local ACTION_ORDER = {
+    STATES.Move,
+    STATES.Idle,
+    STATES.SpawnThorns,
+    STATES.Idle,
+}
+
+local OVERRIDES = {
+    EffectPath.New(REF.ContactDamage, EJS.Damage.Value, STAT.Thorns, 1),
+    EffectPath.New(REF.ThornsMinionDamage, EJS.Damage.Value, STAT.Thorns, 0.20),
+}
+
+local SIMPLE_UNITS = {
+    [SimpleUnits.Data.ThornsMinion] = SimpleUnit.New(SimpleUnits.Data.ThornsMinion.Type),
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function RegisterSimpleUnits(attributes)
+    local minion = SimpleUnits.Helpers.QuickRegister(SimpleUnits.Data.ThornsMinion, attributes)
+
+    -- Overwrite the Collision Effect (so we can do it every 0.25 seconds)
+    local size = SimpleUnits.Data.ThornsMinion.Stats[STAT.CollisionSize]
+    minion:SetCollision(CollisionLayers.None, CollisionLayers.Friendly, size)
+
+    minion:SetCollisionEffect(
+        SimpleUnits.Data.ThornsMinion.OnEnter,
+        CollisionTiming.Start | CollisionTiming.Continue,
+        0.25,
+        SIMPLE_TAG.Hero
+    )
+
+    minion:SetTimer(nil, 60)
+
+    minion:SetLocalAvoidance(false)
+
+    minion:Register()
+
+    SIMPLE_UNITS[SimpleUnits.Data.ThornsMinion] = minion
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Patterns
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Patterns
+---SECTION: Local Casters
+---============================================================================
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---@param ai AIHandler
+local function CastIdle(ai)
+    -- Validate Unit
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai:RunState()
+end
+
+--- Move to a random nearby position.
+---@param ai AIHandler
+local function CastMove(ai)
+    -- Validate Unit
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local distance = Vector2.Distance(position, ai.Data.MovePosition)
+
+    DCEI.Move(ai.unit, ai.Data.MovePosition.x, ai.Data.MovePosition.y)
+
+    if distance <= 0.1 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+---@param position Vector2
+local function SpawnThornsUnit(ai, position)
+    -- Validation
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local instance =
+        SIMPLE_UNITS[SimpleUnits.Data.ThornsMinion]:SpawnSyncStationary(PLAYER.Hostile, TEAM.Hostile, position)
+
+    table.insert(ai.Data.Summons, instance)
+end
+
+-- At some point, we can add different patterns for different counts.
+---@param ai AIHandler
+local function CastSummonThorns(ai)
+    -- Validate Unit
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    -- Animation
+    Help.SendActorEvent(ai.unit, "Attack")
+
+    local position = Vector2.UnitPosition(ai.unit)
+
+    local spawn_count = ai.attributes:Get(STAT.MinionCount)
+    local radius = 5
+
+    local condition = function()
+        return Help.ValidateUnit(ai.unit)
+    end
+
+    local action = function()
+        local spawn_position = position + Vector2.RandomInside(radius)
+        AIHelper.SpawnMarker(ai.unit, spawn_position, function()
+            SpawnThornsUnit(ai, spawn_position)
+        end)
+    end
+
+    Help.PeriodicGameTimer(spawn_count, 0.50, condition, action)
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(unit_position, target_position)
+
+    -- Update State
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #ACTION_ORDER then
+        ai.Data.StateIndex = 1
+    end
+
+    -- Determine State and Action Setup
+    local action_speed = ai.attributes:Get(STAT.AttackSpeed)
+
+    local state = ACTION_ORDER[ai.Data.StateIndex]
+    if state == STATES.Idle then
+        ai.Data.StateTime = Help.RandomNumber(1, 2) / (1 + action_speed)
+        ai.Data.StateTimer = ai.Data.StateTime
+
+        ai:SetState(STATES.Idle)
+    elseif state == STATES.Move then
+        ai.Data.StateTime = Help.RandomNumber(2, 3) / (1 + action_speed)
+        ai.Data.StateTimer = ai.Data.StateTime
+        -- Setup Move
+        -- Get a location between the player and the unit.
+        -- Create a circle from that location.
+        -- Move to a random point on that circle.
+        local random_anchor_percentage = Help.RandomNumber(0.5, 1)
+        local random_anchor_position = Vector2.Lerp(unit_position, target_position, random_anchor_percentage)
+        local circle_radius = math.max(distance * 0.30, distance * 0.90)
+        local circle_offset = Vector2.Random() * circle_radius
+        ai.Data.MovePosition = random_anchor_position + circle_offset
+
+        ai:SetState(STATES.Move)
+    elseif state == STATES.SpawnThorns then
+        ai.Data.StateTime = Help.RandomNumber(1, 2) / (1 + action_speed)
+        ai.Data.StateTimer = ai.Data.StateTime
+        ai:SetState(STATES.SpawnThorns)
+    end
+
+    if not Help.WaitAndValidateUnit(0.25, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Elite.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, OVERRIDES)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, REF.OnEnter)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    RegisterSimpleUnits(attributes)
+
+    -- Core States
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+    ai:AddState(STATES.Move, CastMove)
+    ai:AddState(STATES.Idle, CastIdle)
+    ai:AddState(STATES.SpawnThorns, CastSummonThorns)
+
+    -- Register to the Elite Stagger Bar
+    AIHelper.RegisterOverheadStaggerUpdate(ai)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+    ai.Data.Summons = {}
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+
+    -- Death - Remove Thorns
+    DCEI.TriggerAddUnitDiedEvent(unit, function()
+        for _, instance in pairs(ai.Data.Summons) do
+            local unit_exists = DCEI.SimpleUnitExists(instance)
+
+            if unit_exists then
+                DCEI.RemoveSimpleUnit(instance)
+            end
+        end
+    end)
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Elite

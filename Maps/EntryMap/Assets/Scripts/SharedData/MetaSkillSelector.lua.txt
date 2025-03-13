@@ -1,0 +1,563 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Assists in generating Keys that are passed to the Game to
+    determine what Skills are available to the Player.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Heroes = require("SharedData/Heroes")
+local SkillData = require("SharedData/Skills/SkillData")
+
+local EquipmentData = require("SharedData/GearData/EquipmentData")
+
+-- local Help = require("UiHelp")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Data Hookups
+-- ================================================================================================
+
+-- Placeholder
+local DefaultSkills = {
+    Starting = {},
+    Optional = {},
+}
+
+local Camp = {
+    -- Strafe
+    -- SkillData.Quickfire.Key,
+    -- SkillData.Slipstream.Key,
+    SkillData.Trickshot.Key,
+    SkillData.SpectralArrow.Key,
+
+    -- Bash
+    SkillData.Bash.Key,
+    -- SkillData.DeadlyReach.Key,
+    -- SkillData.Brawler.Key,
+    SkillData.HollowStrike.Key,
+    SkillData.DoubleStrike.Key,
+
+    -- Boomerang
+    SkillData.Boomerang.Key,
+    -- SkillData.PowerThrow.Key,
+    -- SkillData.Precision.Key,
+    SkillData.Snapback.Key,
+    SkillData.DoubleThrow.Key,
+
+    -- Guardian Shield
+    SkillData.GuardianShield.Key,
+    -- SkillData.BluntForce.Key,
+    -- SkillData.TakeCover.Key,
+    SkillData.Concussion.Key,
+    SkillData.Bodyguard.Key,
+}
+
+local HeroSkillMap = {
+    Annie = {
+        [0] = {
+            Starting = {
+                -- Native Passive
+                SkillData.MarkedForDeath.Key,
+
+                ---TODO: Move to Strafe Weapon
+                -- Active
+                -- SkillData.Strafe.Key,
+            },
+            Optional = {
+                -- Optional Passives
+                SkillData.Scavenger.Key,
+                SkillData.EvasiveManeuvers.Key,
+                -- SkillData.SpeedForce.Key,
+
+                -- Native Passive Uniques
+                SkillData.KillStreak.Key,
+                SkillData.UnstableMarker.Key,
+
+                ---TODO: Move to Strafe Weapon
+                -- Active Passives
+                -- SkillData.Quickfire.Key,
+                -- SkillData.Slipstream.Key,
+
+                ---TODO: Move to Strafe Weapon
+                -- Active Uniques
+                -- SkillData.SpectralArrow,
+                -- SkillData.Trickshot.Key,
+            },
+        },
+        [1] = {
+            Starting = {},
+            Optional = {},
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+        [4] = {
+            Starting = {},
+            Optional = {},
+        },
+        [5] = {
+            Starting = {},
+            Optional = {},
+        },
+        [6] = {
+            Starting = {},
+            Optional = {},
+        },
+        [7] = {
+            Starting = {},
+            Optional = {},
+        },
+        [8] = {
+            Starting = {},
+            Optional = {},
+        },
+        [9] = {
+            Starting = {},
+            Optional = {},
+        },
+        [10] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+    Jorian = {
+        [0] = {
+            Starting = {
+                SkillData.FrostGuard.Key,
+            },
+            Optional = {
+                SkillData.ColdSteel.Key,
+                SkillData.Tundra.Key,
+
+                SkillData.IceSplash.Key,
+                SkillData.FrostboundFrenzy.Key,
+            },
+        },
+        [1] = {
+            Starting = {},
+            Optional = {},
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+        [4] = {
+            Starting = {},
+            Optional = {},
+        },
+        [5] = {
+            Starting = {},
+            Optional = {},
+        },
+        [6] = {
+            Starting = {},
+            Optional = {},
+        },
+        [7] = {
+            Starting = {},
+            Optional = {},
+        },
+        [8] = {
+            Starting = {},
+            Optional = {},
+        },
+        [9] = {
+            Starting = {},
+            Optional = {},
+        },
+        [10] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+}
+
+-- [Stage][Difficulty]
+local StageSkillMap = {
+    [1] = {
+        [1] = {
+            Starting = {},
+            Optional = {
+                -- Bash
+                SkillData.Bash.Key,
+                SkillData.DeadlyReach.Key,
+                SkillData.Brawler.Key,
+                SkillData.HollowStrike.Key,
+                SkillData.DoubleStrike.Key,
+
+                -- Boomerang
+                SkillData.Boomerang.Key,
+                SkillData.PowerThrow.Key,
+                SkillData.Precision.Key,
+                SkillData.Snapback.Key,
+                SkillData.DoubleThrow.Key,
+
+                -- Guardian Shield
+                SkillData.GuardianShield.Key,
+                SkillData.BluntForce.Key,
+                SkillData.TakeCover.Key,
+                SkillData.Concussion.Key,
+                SkillData.Bodyguard.Key,
+            },
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+    [2] = {
+        [1] = {
+            Starting = {},
+            Optional = {
+                -- Fireball
+                SkillData.Fireball.Key,
+                SkillData.BloodBoil.Key,
+                SkillData.BurningCrusade.Key,
+                SkillData.Flamethrower.Key,
+                -- SkillData.Firecracker.Key,
+                SkillData.FlameExtension.Key,
+
+                -- Heatwave
+                SkillData.Heatwave.Key,
+                SkillData.FlameSwell.Key,
+                SkillData.VitalSurge.Key,
+                SkillData.Meltdown.Key,
+                SkillData.Detonation.Key,
+            },
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+    [3] = {
+        [1] = {
+            Starting = {},
+            Optional = {
+                -- Tesla Field
+                SkillData.TeslaField.Key,
+                SkillData.Energize.Key,
+                SkillData.Magnetism.Key,
+                SkillData.StaticDischarge.Key,
+                SkillData.ClosedCircuit.Key,
+
+                -- Lightning Strike
+                SkillData.LightningStrike.Key,
+                SkillData.Surge.Key,
+                SkillData.Amplify.Key,
+                SkillData.LightningDouble.Key,
+                SkillData.LightningSplash.Key,
+            },
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+    [4] = {
+        [1] = {
+            Starting = {},
+            Optional = {
+                -- Ice Barrage
+                SkillData.IceBarrage.Key,
+                SkillData.Permafrost.Key,
+                SkillData.ColdShoulder.Key,
+                SkillData.IceFracture.Key,
+                SkillData.SnowPiercer.Key,
+
+                -- Ice Rupture
+                SkillData.IceRupture.Key,
+                SkillData.Frostborn.Key,
+                SkillData.FrostfieldPlate.Key,
+                SkillData.GlacialExpansion.Key,
+                SkillData.IceLocked.Key,
+            },
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+    [5] = {
+        [1] = {
+            Starting = {},
+            Optional = {
+                -- Magma Orb
+                SkillData.MagmaOrb.Key,
+                SkillData.InfernalEngine.Key,
+                SkillData.Everflame.Key,
+                SkillData.MoltenCore.Key,
+                SkillData.Returnal.Key,
+
+                -- Static Remnants
+                SkillData.StaticRemnants.Key,
+                SkillData.Overcharge.Key,
+                SkillData.Flux.Key,
+                SkillData.StormSerpent.Key,
+                SkillData.Accumulator.Key,
+            },
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+    [6] = {
+        [1] = {
+            Starting = {},
+            Optional = {
+                -- Frostfang
+                SkillData.Frostfang.Key,
+                SkillData.FrostStrider.Key,
+                SkillData.ColdStepping.Key,
+                SkillData.Hibernation.Key,
+                SkillData.ScatterHail.Key,
+
+                -- Chakram
+                SkillData.Chakram.Key,
+                SkillData.Juggernaut.Key,
+                SkillData.PressurePoint.Key,
+                SkillData.Rend.Key,
+                SkillData.HyperGlaives.Key,
+            },
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+    [7] = {
+        [1] = {
+            Starting = {},
+            Optional = {},
+        },
+        [2] = {
+            Starting = {},
+            Optional = {},
+        },
+        [3] = {
+            Starting = {},
+            Optional = {},
+        },
+    },
+}
+
+-- Adds the Default Skill if none of the Core Skills are found.
+local DefaultHeroSkillmap = {
+    [SURVIVOR.Annie] = {
+        Default = SkillData.Strafe.Key,
+        CoreSkills = {
+            SkillData.Strafe.Key,
+        },
+    },
+    [SURVIVOR.Jorian] = {
+        Default = SkillData.FrostGuard.Key,
+        CoreSkills = {
+            SkillData.FrostGuard.Key,
+        },
+    },
+}
+
+local EquipmentSkillMap = {
+    [SkillData.Strafe.Key] = {
+        -- Passive
+        SkillData.Quickfire.Key,
+        SkillData.Slipstream.Key,
+
+        -- Unique
+        SkillData.Trickshot.Key,
+        SkillData.SpectralArrow.Key,
+    },
+}
+
+-- ================================================================================================
+-- !SECTION -- Data Hookups
+-- SECTION -- Library
+-- ================================================================================================
+
+local MetaSkillSelector = {}
+
+---comment
+---@param skill_table table
+---@param starting_table_reference table
+---@param optional_table_reference table
+local function Extract(skill_table, starting_table_reference, optional_table_reference)
+    for group, skill_list in pairs(skill_table) do
+        local target_table = (group == "Starting") and starting_table_reference or optional_table_reference
+
+        for _, skill_key in pairs(skill_list) do
+            table.insert(target_table, skill_key)
+        end
+    end
+end
+
+---comment
+---@param hero string
+---@param rank integer
+---@param equipment table<EquipmentSaveData> | nil
+---@return table<string> starting_upgrades, table<string> optional_upgrades, table<string> featured_skills, table<Modifier> modifiers
+function MetaSkillSelector.Get(hero, rank, equipment, stage, difficulty)
+    local starting_upgrades = {}
+    local optional_upgrades = {}
+    local modifiers = {}
+
+    -- Load Default
+    Extract(DefaultSkills, starting_upgrades, optional_upgrades)
+
+    -- Table Lookup for hero[rank] and add each of those upgrades
+    if HeroSkillMap[hero] and HeroSkillMap[hero][rank] then
+        -- Exclusive Hero Skills
+        -- Extract(HeroSkillMap[hero][rank], starting_upgrades, optional_upgrades)
+
+        -- Inclusive Hero Skills
+        for i = 0, rank do
+            Extract(HeroSkillMap[hero][i], starting_upgrades, optional_upgrades)
+        end
+    end
+
+    -- We need to check for equipment
+    if equipment and #equipment > 0 then
+        local eq_skills = {}
+
+        -- Loop through all of the hero equipment
+        for _, item in pairs(equipment) do
+            -- Get all Modifiers
+            for _, modifier_data in pairs(item.modifiers) do
+                table.insert(modifiers, {
+                    Stat = modifier_data.Stat,
+                    Value = modifier_data.Value,
+                    Scaling = modifier_data.Scaling,
+                    Tags = modifier_data.Tags,
+                })
+            end
+
+            local skill = EquipmentData.GetSkillFromItemId(item.id)
+            if skill then
+                table.insert(eq_skills, skill)
+            end
+        end
+
+        -- Need to establish a "Default" set of Skills for each Hero
+        local default_map = DefaultHeroSkillmap[hero]
+        if default_map then
+            -- Check if our eq skills contains any of the Core Skills
+            local core_skills = default_map.CoreSkills
+            local found = false
+            for _, core_skill in pairs(core_skills) do
+                if Help.Contains(eq_skills, core_skill) then
+                    found = true
+                    break
+                end
+            end
+
+            -- If none of the Core Skills are found, add the Default Skill
+            if not found then
+                table.insert(eq_skills, default_map.Default)
+            end
+        end
+
+        -- Add Related Skills from Equipment Data and the SkillMap
+        for _, skill in pairs(eq_skills) do
+            -- Add the Starting Skill
+            table.insert(starting_upgrades, skill)
+
+            -- Add the Related Skills
+            if EquipmentSkillMap[skill] then
+                for _, related_skill in pairs(EquipmentSkillMap[skill]) do
+                    table.insert(optional_upgrades, related_skill)
+                end
+            end
+        end
+    else -- If no EquipmentData, then load the default skill
+        local default_map = DefaultHeroSkillmap[hero]
+        if default_map then
+            table.insert(starting_upgrades, default_map.Default)
+
+            -- Add the Related Skills
+            if EquipmentSkillMap[default_map.Default] then
+                for _, related_skill in pairs(EquipmentSkillMap[default_map.Default]) do
+                    table.insert(optional_upgrades, related_skill)
+                end
+            end
+        end
+    end
+
+    ---TODO: Maybe add a way to only do Starting if exact match (stage, difficulty) is found.
+    --- Otherwise, Starting becomes Optional
+    -- Order is based on Stage then Difficulty
+    if stage and difficulty then
+        for i = 1, difficulty do
+            for j = 1, stage do
+                -- local message = string.format("Checking Stage %d Difficulty %d", j, i)
+                -- local contents = {}
+
+                if StageSkillMap[j] and StageSkillMap[j][i] then
+                    -- contents = StageSkillMap[j][i]
+                    Extract(StageSkillMap[j][i], starting_upgrades, optional_upgrades)
+                end
+
+                -- Help.Log(message, nil, contents)
+            end
+        end
+    end
+
+    -- Featured Skills
+    -- If we have exact stage match, add those skills to a special group
+    local featured_skills = {}
+
+    if stage and difficulty then
+        if StageSkillMap[stage] and StageSkillMap[stage][difficulty] then
+            Extract(StageSkillMap[stage][difficulty], featured_skills, featured_skills)
+        end
+    end
+
+    return starting_upgrades, optional_upgrades, featured_skills, modifiers
+end
+
+function MetaSkillSelector.GetCampSkills()
+    return Camp
+end
+
+-- ================================================================================================
+-- !SECTION -- Library
+-- ================================================================================================
+
+return MetaSkillSelector

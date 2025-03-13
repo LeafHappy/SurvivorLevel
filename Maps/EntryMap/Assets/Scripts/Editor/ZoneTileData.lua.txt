@@ -1,0 +1,78 @@
+local REF = {
+    BaseTile = DCEI.SimpleUnit("Zone - Base Tile"),
+
+    AvailableDefault = DCEI.SimpleUnit("Zone - Available - Default"),
+    OccupiedDefault = DCEI.SimpleUnit("Zone - Occupied - Default"),
+    CleansedDefault = DCEI.SimpleUnit("Zone - Cleansed - Default"),
+
+    Grass01 = DCEI.SimpleUnit("Zone - Grass - 01"),
+    Desert01 = DCEI.SimpleUnit("Zone - Desert - 01"),
+    Road01 = DCEI.SimpleUnit("Zone - Road - 01"),
+    Wasteland01 = DCEI.SimpleUnit("Zone - Wasteland - 01"),
+}
+
+---@type table<ZoneItemData>
+local ZoneTileData = {
+    StandardTile = {
+        Key = "StandardTile",
+        Icon = DCEI.Texture("wildsurvivor_standard_tile"), -- Displayed in the Editor UI
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Standard Tile"), -- The Unit that will follow the cursor
+        Settings = {
+            Tiles = {
+                -- [ZONE_STATUS.Available] = REF.AvailableDefault,
+                [ZONE_STATUS.Occupied] = REF.OccupiedDefault,
+                [ZONE_STATUS.Cleansed] = REF.CleansedDefault,
+            },
+        },
+    },
+    Grasslands = {
+        Key = "Grasslands",
+        Icon = DCEI.Texture("cartoon_land1_survival"), -- Displayed in the Editor UI
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Grasslands"), -- The Unit that will follow the cursor
+        Settings = {
+            Tiles = {
+                -- [ZONE_STATUS.Available] = REF.Grass01,
+                [ZONE_STATUS.Occupied] = REF.Grass01,
+                [ZONE_STATUS.Cleansed] = REF.Grass01,
+            },
+        },
+    },
+    Desert = {
+        Key = "Desert",
+        Icon = DCEI.Texture("cartoon_land2_survival"), -- Displayed in the Editor UI
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Desert"), -- The Unit that will follow the cursor
+        Settings = {
+            Tiles = {
+                -- [ZONE_STATUS.Available] = REF.Desert01,
+                [ZONE_STATUS.Occupied] = REF.Desert01,
+                [ZONE_STATUS.Cleansed] = REF.Desert01,
+            },
+        },
+    },
+    Road = {
+        Key = "Road",
+        Icon = DCEI.Texture("tile_bigroad"), -- Displayed in the Editor UI
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Road"), -- The Unit that will follow the cursor
+        Settings = {
+            Tiles = {
+                -- [ZONE_STATUS.Available] = REF.Road01,
+                [ZONE_STATUS.Occupied] = REF.Road01,
+                [ZONE_STATUS.Cleansed] = REF.Road01,
+            },
+        },
+    },
+    Wasteland = {
+        Key = "Wasteland",
+        Icon = DCEI.Texture("tile_wasteland"), -- Displayed in the Editor UI
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Wasteland"), -- The Unit that will follow the cursor
+        Settings = {
+            Tiles = {
+                -- [ZONE_STATUS.Available] = REF.Wasteland01,
+                [ZONE_STATUS.Occupied] = REF.Wasteland01,
+                [ZONE_STATUS.Cleansed] = REF.Wasteland01,
+            },
+        },
+    },
+}
+
+return ZoneTileData

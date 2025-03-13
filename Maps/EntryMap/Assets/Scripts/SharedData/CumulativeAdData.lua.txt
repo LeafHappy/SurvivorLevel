@@ -1,0 +1,30 @@
+return {
+    ["BigItem"] = {
+        {
+            type = "c_legendary",
+            text = "AD MEGA - BOX!",
+            min_value = 1,
+            max_value = 1,
+        },
+    },
+    ["SmallItem"] = {
+        {
+            type = "gold",
+            text = "25 - 75",
+            min_value = 25,
+            max_value = 75,
+        },
+        {
+            type = "gems",
+            text = "5 - 15",
+            min_value = 5,
+            max_value = 15,
+        },
+        {
+            type = "c_common",
+            text = "Common Chest",
+            min_value = 1,
+            max_value = 1,
+        },
+    },
+}

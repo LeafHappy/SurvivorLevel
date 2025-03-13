@@ -1,0 +1,253 @@
+-- ================================================================================================
+-- SECTION: Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local Help = require("Help")
+local Vector2 = require("Class/Vector2")
+
+local Hero = require("Game/Hero")
+local Joystick = require("Class/Joystick")
+
+-- ================================================================================================
+-- !SECTION: Libraries
+-- SECTION: Variables
+-- ================================================================================================
+
+local _PRINT = false
+
+local Companion = {}
+local _companion = {}
+
+-- ================================================================================================
+-- !SECTION: Variables
+-- SECTION: Companion Data
+-- ================================================================================================
+
+---@class CompanionData
+---@field unit Unit
+---@field brain function
+---@field timer Timer
+---@field offset Vector2
+
+---Generates CompanionData.
+---@param unit Unit
+---@param brain function
+---@param offset Vector2
+---@return CompanionData
+local function GenerateCompanionData(unit, brain, offset)
+    return {
+        unit = unit,
+        brain = brain,
+        timer = Core.Timer.Game:New(),
+        offset = offset or Vector2.Zero(),
+    }
+end
+
+---Returns the Unit's Id.
+---@param unit Unit
+---@return string
+local function GetUnitId(unit)
+    return tostring(unit)
+end
+
+---Gets the Internal Companion Data Reference
+---@param unit Unit
+---@return CompanionData
+local function GetCompanionData(unit)
+    local id = GetUnitId(unit)
+    return _companion[id]
+end
+
+---Adds Companion Data into the local table _companion.
+---@param unit Unit
+---@param brain function
+local function _StoreCompanion(unit, brain, offset)
+    local unit_id = GetUnitId(unit)
+    _companion[unit_id] = GenerateCompanionData(unit, brain, offset)
+    return _companion[unit_id]
+end
+
+---Removes the unit from the local table _companion.
+---@param unit Unit
+local function _RemoveCompanion(unit)
+    local unit_id = GetUnitId(unit)
+
+    if _companion[unit_id].timer then
+        _companion[unit_id].timer:Destroy()
+    end
+
+    _companion[unit_id] = nil
+end
+
+---Removes the Triggering Unit.
+---@return Unit
+local function ReleaseTriggeringUnit()
+    local unit = DCEI.TriggeringUnit
+    _RemoveCompanion(unit)
+
+    if _PRINT then
+        local unit_type = DCEI.GetUnitType(unit)
+        local unit_id = GetUnitId(unit)
+        local message = string.format("Releasing [%s] as [%s]", unit_type, unit_id)
+        Help.Warn(message)
+    end
+
+    return unit
+end
+
+---Registers all necessary information to track this Unit as a Companion.
+---@param unit Unit
+---@param brain function
+---@param offset Vector2
+---@return CompanionData
+local function RegisterCompanion(unit, brain, offset)
+    _StoreCompanion(unit, brain, offset)
+
+    DCEI.TriggerAddUnitRemovedEvent(unit, ReleaseTriggeringUnit, true)
+
+    if _PRINT then
+        local unit_type = DCEI.GetUnitType(unit)
+        local unit_id = GetUnitId(unit)
+        local message = string.format("Storing [%s] as [%s]", unit_type, unit_id)
+        Help.Warn(message)
+    end
+
+    return GetCompanionData(unit)
+end
+
+local function GetValidatedCompanionData(unit)
+    local data = GetCompanionData(unit)
+
+    if not data then
+        return nil
+    end
+
+    return data
+end
+
+-- ================================================================================================
+-- !SECTION: Companion Data
+-- SECTION: Functions
+-- ================================================================================================
+
+local function GetHostiles()
+    local t = DCEI.FindSimpleUnitsByPlayerId(PLAYER.Hostile)
+
+    local elites = DCEI.FindUnitsByTeamId(TEAM.Hostile)
+
+    for i = 1, #elites do
+        table.insert(t, elites[i])
+    end
+
+    return t
+end
+
+local function ConvertUnitsToPositions(units)
+    local t = {}
+    for i = 1, #units do
+        table.insert(t, Vector2.UnitPosition(units[i]))
+    end
+    return t
+end
+
+---@class HeatMapData
+---@field danger_offset Vector2
+---@field closest_position Vector2
+
+---Returns Heatmap Data
+---@param origin Vector2
+---@param hostiles table<Unit>
+---@return HeatMapData
+local function GenerateHeatMapData(origin, hostiles)
+    local positions = ConvertUnitsToPositions(hostiles)
+
+    local danger_offset = Vector2.Zero()
+    local highest_danger_recorded = 0
+    local highest_danger_index = 0
+    for i = 1, #positions do
+        local offset = positions[i] - origin
+        local danger = 1 / Vector2.SqrMagnitude(offset)
+
+        danger_offset.x = danger_offset.x + offset.x * danger
+        danger_offset.y = danger_offset.y + offset.y * danger
+
+        if danger > highest_danger_recorded then
+            highest_danger_recorded = danger
+            highest_danger_index = i
+        end
+    end
+
+    return {
+        danger_offset = danger_offset,
+        closest_position = positions[highest_danger_index],
+    }
+end
+
+local function GetAlly()
+    return Hero.Fetch(PLAYER.Player1).unit
+end
+
+local function GenerateMarker(position)
+    local marker = DCEI.CreateUnit(1, 1, DCEI.Unit("Target Marker"), position.x, position.y, 0, -1)
+    DCEI.ApplyBehaviorWithDurationAsync(marker, DCEI.Behavior("Temporary - Remove"), 0.125, false)
+end
+
+local function IssueMoveOrder(unit, position)
+    DCEI.Move(unit, position.x, position.y)
+end
+
+-- ================================================================================================
+-- !SECTION: Functions
+-- SECTION: Brains
+-- ================================================================================================
+
+--[[
+    What do we need to keep track of?
+        Host: The Player's Hero Unit
+        Hostiles: 
+]]
+
+local _states = {
+    None = "None",
+    Retreat = "Retreat",
+    Stationary = "Stationary",
+    Pursue = "Pursue",
+    Follow = "Follow",
+}
+
+-- Simplified for Performance
+local function CompanionBrain(unit)
+    local companion = GetCompanionData(unit)
+    local ally = GetAlly()
+
+    -- Make sure there's companion Data and Validated Units
+    if not companion or not Help.ValidateUnit(unit) or not Help.ValidateUnit(ally) then
+        return
+    end
+
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    local ally_position = Vector2.UnitPosition(ally)
+
+    if Vector2.SqrMagnitude(joystick.axes) < 0.1 then
+        return
+    end
+
+    -- local move_position = ally_position + joystick.axes * 1.5
+    local move_position = ally_position + companion.offset
+    IssueMoveOrder(unit, move_position)
+end
+
+function Companion.New(unit, offset)
+    local companion = RegisterCompanion(unit, CompanionBrain, offset)
+
+    function companion.timer:Tick()
+        CompanionBrain(unit)
+    end
+end
+
+-- ================================================================================================
+-- !SECTION: Brains
+-- ================================================================================================
+
+return Companion

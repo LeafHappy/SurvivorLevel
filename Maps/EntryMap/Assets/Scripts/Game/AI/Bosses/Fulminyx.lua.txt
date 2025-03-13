@@ -1,0 +1,1051 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    Lightning-Based Boss
+
+    Actions:
+        Move
+            Moves to a random position near the hero.
+            Selects an anchor point on a Line towards the Hero, then selects a Move Position randomly around it.
+        
+        Lightning Ball
+            Spawns projectiles on the opposite side of the Hero, accelerating towards the Boss.
+        
+        Nova
+            Channel into an Explosion that deals damage and increases the speed of spawned Minions.
+        
+        Summon
+            Spawns Minions around the Boss.
+        
+        Construct
+            Spawns a Lightning Spire that channels into an explosion.
+                - Deals Damage around itself
+                - Accelerates Minions
+                - Damages self
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local FogOfWar = require("Class/FogOfWar")
+
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Boss
+local Boss = {}
+
+---@type BossData
+Boss.Data = {
+    Key = "Fulminyx",
+    Name = "Fulminyx",
+    Type = DCEI.Unit("Boss - Fulminyx"),
+    Stats = {
+        Modifier.New(STAT.Health, 10000, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 20, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 1.25, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 3.22, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 500, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 250, SCALING.Scaled),
+
+        -- Minions
+        Modifier.New(STAT.MinionCount, 3, SCALING.Scaled),
+        Modifier.New(STAT.MinionHealth, 55, SCALING.Scaled),
+        Modifier.New(STAT.MinionDamage, 6, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 0.75, SCALING.Scaled),
+
+        -- Skills
+        Modifier.New(STAT.ProjectileCount, 3, SCALING.Scaled), -- The number of projectiles spawned by Lightning Ball
+        Modifier.New(STAT.ProjectileDistance, 15, SCALING.Scaled), -- How far the Projectiles Spawn
+        Modifier.New(STAT.ProjectileSpeed, 15, SCALING.Scaled), -- Lightning Orb Projectile Speeds
+        Modifier.New(STAT.ProjectileSize, 0.75, SCALING.Scaled), -- Lightning Orb Projectile Size
+        Modifier.New(STAT.SkillSize, 4, SCALING.Scaled), -- The size of the Nova Explosion
+    },
+    StaggerAnimation = "action2",
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 1.50
+
+local PHASE_MODIFIERS = {
+    Modifier.New(STAT.AttackSpeed, 0.10, SCALING.Scaled),
+    Modifier.New(STAT.MoveSpeed, 0.05, SCALING.Additive),
+    Modifier.New(STAT.ProjectileCount, 2, SCALING.Scaled),
+    Modifier.New(STAT.SkillSize, 0.25, SCALING.Additive),
+    -- Modifier.New(STAT.ProjectileSpeed, 0.90, SCALING.Multiplier),
+
+    Modifier.New(STAT.MinionCount, 1, SCALING.Scaled),
+    Modifier.New(STAT.MinionHealth, 1.25, SCALING.Multiplier),
+    Modifier.New(STAT.MinionSpeed, 1.25, SCALING.Multiplier),
+}
+
+local REF = {
+    -- Effects
+    OnStay = DCEI.Effect("Boss - Fulminyx - OnStay"),
+    ContactDamage = DCEI.Effect("Boss - Fulminyx - Contact Damage"),
+
+    -- Shock Troopers
+    MinionDamage = DCEI.Effect("Minion - Fulminyx - Drone - Damage"),
+
+    -- Lightning Spire
+    LightningSpire = DCEI.Unit("Boss - Fulminyx - Lightning Spire"),
+    LightningSpireNovaTelegraph = DCEI.Unit("Boss - Fulminyx - Lightning Spire - Nova - Telegraph"),
+    LightningSpireNovaEffects = DCEI.Effect("Boss - Fulminyx - Lightning Spire - Nova Effects"),
+    LightningSpireImpactGroundVFX = DCEI.Effect("Boss - Fulminyx - Lightning Spire - Nova - Impact Ground VFX"),
+    LightningSpireImpactVFX = DCEI.Effect("Boss - Fulminyx - Lightning Spire - Nova - Impact VFX"),
+    LightningSpireExplosionDamageScan = DCEI.Effect("Boss - Fulminyx - Lightning Spire - Nova - Explosion Damage Scan"),
+    LightningSpireExplosionBuffScan = DCEI.Effect("Boss - Fulminyx - Lightning Spire - Nova - Explosion Buff Scan"),
+    LightningSpireExplosionDamage = DCEI.Effect("Boss - Fulminyx - Lightning Spire - Nova - Explosion Damage"),
+    LightningSpireSelfDamage = DCEI.Effect("Boss - Fulminyx - Lightning Spire - Self Damage"),
+
+    -- Nova
+    NovaTelegraph = DCEI.Unit("Boss - Fulminyx - Nova - Telegraph"),
+    NovaGrowVFX = DCEI.Unit("Boss - Fulminyx - Nova - Grow VFX"),
+    NovaExplosionEffects = DCEI.Effect("Boss - Fulminyx - Nova - Explosion Effects"),
+    NovaExplosionVFX = DCEI.Effect("Boss - Fulminyx - Nova - Explosion VFX"),
+    NovaExplosionDamageScan = DCEI.Effect("Boss - Fulminyx - Nova - Explosion Damage Scan"),
+    NovaExplosionBuffScan = DCEI.Effect("Boss - Fulminyx - Nova - Explosion Buff Scan"),
+    NovaDamage = DCEI.Effect("Boss - Fulminyx - Nova - Damage"),
+
+    -- Lightning Ball
+    GroundSparks = DCEI.Unit("Boss - Fulminyx - Ground Sparks"),
+    LightningBallTelegraph = DCEI.Unit("Boss - Fulminyx - Lightning Ball - Telegraph"),
+    LightningBallProjectile = DCEI.Unit("Boss - Fulminyx - Lightning Ball - Projectile"),
+    LightningBallOnEnter = DCEI.Effect("Boss - Fulminyx - Lightning Ball - OnEnter"),
+    LightningBallDamage = DCEI.Effect("Boss - Fulminyx - Lightning Ball - Damage"),
+}
+
+local LIGHTNING_SPIRE_SIZE_MODIFIER = 0.75
+
+local OVERRIDES = {
+    EffectPath.New(REF.ContactDamage, EJS.Damage.Value, STAT.Thorns, 0.50),
+
+    -- Minions
+    EffectPath.New(REF.MinionDamage, EJS.Damage.Value, STAT.MinionDamage, 1),
+
+    -- Lightning Spire
+    EffectPath.New(REF.LightningSpireImpactGroundVFX, EJS.Actor.Scale, STAT.SkillSize, 1),
+    EffectPath.New(REF.LightningSpireImpactVFX, EJS.Actor.Scale, STAT.SkillSize, 1),
+
+    EffectPath.New(
+        REF.LightningSpireExplosionDamageScan,
+        EJS.AreaSearch.Radius,
+        STAT.SkillSize,
+        LIGHTNING_SPIRE_SIZE_MODIFIER
+    ),
+    EffectPath.New(
+        REF.LightningSpireExplosionBuffScan,
+        EJS.AreaSearch.Radius,
+        STAT.SkillSize,
+        LIGHTNING_SPIRE_SIZE_MODIFIER
+    ),
+    EffectPath.New(REF.LightningSpireExplosionDamage, EJS.Damage.Value, STAT.Thorns, 0.50),
+    EffectPath.New(REF.LightningSpireSelfDamage, EJS.Damage.Value, STAT.MinionHealth, 0.50),
+
+    -- Nova
+    EffectPath.New(REF.NovaExplosionVFX, EJS.Actor.Scale, STAT.SkillSize, 5),
+    EffectPath.New(REF.NovaExplosionDamageScan, EJS.AreaSearch.Radius, STAT.SkillSize, 1),
+    EffectPath.New(REF.NovaExplosionBuffScan, EJS.AreaSearch.Radius, STAT.SkillSize, 1),
+    EffectPath.New(REF.NovaDamage, EJS.Damage.Value, STAT.Thorns, 1.5),
+
+    -- Lightning Ball
+    EffectPath.New(REF.LightningBallDamage, EJS.Damage.Value, STAT.Thorns, 1.0),
+}
+
+local SIMPLE_UNITS = {
+    drone = SimpleUnit.New("Fulminyx Drone"),
+}
+
+local STATES = {
+    -- Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Custom
+    Move = "Move",
+    Summon = "Summon", -- action4
+    Construct = "Construct", -- action3
+    Nova = "Nova",
+    LightningBall = "LightningBall", -- action4
+}
+
+local ACTION_ORDER_01 = {
+    -- STATES.Move,
+    -- STATES.Summon,
+    -- STATES.Construct,
+    -- STATES.Nova,
+    -- STATES.LightningBall,
+
+    STATES.Move,
+    STATES.Construct,
+    STATES.Move,
+    STATES.Summon,
+    STATES.Move,
+    STATES.Nova,
+    STATES.Move,
+}
+
+local ACTION_ORDER_02 = {
+    STATES.LightningBall,
+    STATES.Move,
+    STATES.Construct,
+    STATES.Construct,
+    STATES.Summon,
+    STATES.Nova,
+    STATES.LightningBall,
+}
+
+local ACTION_ORDER_03 = {
+    STATES.Move,
+    STATES.Construct,
+    STATES.Summon,
+    STATES.Nova,
+    STATES.Move,
+    STATES.LightningBall,
+    STATES.LightningBall,
+    STATES.LightningBall,
+}
+
+local FOW_PADDING = -3
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+---comment
+---@param attributes Attributes
+local function RegisterSimpleUnits(attributes)
+    SIMPLE_UNITS.drone =
+        SimpleUnits.Helpers.QuickRegister(SimpleUnits.Data.FulminyxDrone, attributes, SIMPLE_TAG.ShockTrooperMinion)
+end
+
+---comment
+---@param ai AIHandler
+local function UpdateCache(ai)
+    RegisterSimpleUnits(ai.attributes)
+end
+
+---comment
+---@param ai AIHandler
+local function OnPhaseIncreased(ai)
+    ai.Data.StateIndex = 0
+
+    for _, modifier in pairs(PHASE_MODIFIERS) do
+        local new_modifier = modifier:Copy()
+        ai.attributes:Add(new_modifier)
+    end
+
+    -- Other Required Updates
+    UpdateCache(ai)
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Action Parts
+---============================================================================
+
+---Turns the Unit towards their Target
+---@param ai AIHandler
+local function TurnTowardsTarget(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return false
+    end
+
+    local BASE_CAST_TIME = 0.25
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local facing = Vector2.GetUnitOffsetVector(ai.unit, ai.Data.Target, true)
+    DCEI.TurnUnitTowards(ai.unit, facing.x, facing.y, cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---Nova Part 2: Start Casting Animation
+---@param ai AIHandler
+local function NovaStart(ai)
+    local BASE_CAST_TIME = 1.00
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    -- Add a little extra time for the animation to prevent clipping
+    local animation_time = cast_time + TICK_RATE
+    Help.PlayAnimationWithDuration(ai.unit, "channeling_start", animation_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---comment
+---@param ai AIHandler
+local function SpawnNovaTelegraph(ai, spawn_position, duration)
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+
+    local instance =
+        DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.NovaTelegraph, spawn_position.x, spawn_position.y)
+
+    Help.SetModelScale(instance, skill_size)
+    Help.PlayAnimationWithDuration(instance, "idle", duration)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget() and Help.ValidateUnit(instance)
+    end
+
+    local action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    Help.GameTimer(duration, condition, nil, action, action)
+
+    return instance
+end
+
+---Nova Part 3: Channeling
+---@param ai AIHandler
+local function NovaChannel(ai)
+    local BASE_CAST_TIME = 2.00
+    -- local BASE_CAST_TIME = 5.00
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+    local collision_size = ai:GetBossStat(STAT.CollisionSize)
+    local move_speed = ai:GetBossStat(STAT.MoveSpeed)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    ---NOTE: Casting with Duration causes the animation to stop prematurely
+    local ANIMATION_TIME = 1.00
+    local animation_speed = ANIMATION_TIME / cast_time
+
+    Help.PeriodicGameTimer(cast_time / animation_speed, animation_speed, condition, function()
+        Help.PlayAnimationWithDuration(ai.unit, "channeling", animation_speed + TICK_RATE)
+    end, true)
+    -- Help.PlayAnimationWithDuration(ai.unit, "channeling", animation_speed)
+    -- Help.PlayAnimation(ai.unit, "channeling")
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local forward = Vector2.UnitForward(ai.unit)
+    local NOVA_OFFSET = 3.5
+    local impact_position = position + forward * collision_size * NOVA_OFFSET
+
+    local telegraph = SpawnNovaTelegraph(ai, impact_position, cast_time)
+
+    -- local i1, i2 = AIHelper.SpawnTimedIndicators(impact_position, skill_size, cast_time)
+
+    local grow_instance =
+        DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.NovaGrowVFX, impact_position.x, impact_position.y)
+    Help.SetModelScale(grow_instance, skill_size, cast_time)
+
+    local max_turn_angle = move_speed * 10
+    local recurring_action = function()
+        -- Rotate towards the target
+        local target_position = Vector2.UnitPosition(ai.Data.Target)
+        local facing_angle = Vector2.UnitFacing(ai.unit)
+        local target_angle = Vector2.AngleBetween(position, target_position)
+        target_angle = Help.NormalizeAngle(target_angle)
+
+        local angle_difference = Help.NormalizeAngle(target_angle - facing_angle)
+        local direction = angle_difference > 0 and 1 or -1
+        local angle_step = math.min(math.abs(angle_difference), max_turn_angle * TICK_RATE)
+        local new_angle = facing_angle + direction * angle_step
+        local new_facing = Vector2.NewFromAngle(new_angle)
+
+        impact_position = position + new_facing * collision_size * NOVA_OFFSET
+
+        DCEI.TurnUnitTowards(ai.unit, new_facing.x, new_facing.y, TICK_RATE)
+        -- DCEI.SetUnitPosition2DWithInterpolation(i1, impact_position.x, impact_position.y, TICK_RATE)
+        -- DCEI.SetUnitPosition2DWithInterpolation(i2, impact_position.x, impact_position.y, TICK_RATE)
+        DCEI.SetUnitPosition2DWithInterpolation(telegraph, impact_position.x, impact_position.y)
+        DCEI.SetUnitPosition2DWithInterpolation(grow_instance, impact_position.x, impact_position.y)
+    end
+
+    local cancel_action = function()
+        DCEI.RemoveUnit(telegraph)
+        DCEI.RemoveUnit(grow_instance)
+        -- DCEI.RemoveUnit(i1)
+        -- DCEI.RemoveUnit(i2)
+    end
+
+    local callback_action = function()
+        DCEI.CreateEffectAtPosition(REF.NovaExplosionEffects, ai.unit, impact_position.x, impact_position.y)
+        cancel_action()
+    end
+
+    Help.GameTimer(cast_time, condition, recurring_action, callback_action, cancel_action)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        -- DCEI.RemoveUnit(grow_instance)
+        return false
+    end
+
+    -- DCEI.CreateEffectAtPosition(REF.NovaExplosionEffects, ai.unit, impact_position.x, impact_position.y)
+    -- DCEI.RemoveUnit(grow_instance)
+
+    return true
+end
+
+---Nova Part 4: Channeling End
+---@param ai AIHandler
+local function NovaEnd(ai)
+    local BASE_CAST_TIME = 1
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    Help.PlayAnimationWithDuration(ai.unit, "channeling_end", cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---comment
+---@param ai AIHandler
+---@param spawn_position Vector2
+local function SpawnLightningBallProjectile(ai, spawn_position)
+    -- Stats
+    local projectile_size = ai:GetBossStat(STAT.ProjectileSize)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+
+    local instance =
+        DCEI.CreateUnit(TEAM.Terrain, PLAYER.Hostile, REF.LightningBallProjectile, spawn_position.x, spawn_position.y)
+
+    -- Setup Collision
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Friendly, projectile_size)
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(
+            REF.LightningBallOnEnter,
+            CollisionTiming.Start | CollisionTiming.Continue,
+            1,
+            SIMPLE_TAG.Hero
+        ),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+    SimpleUnit.ModifyHealth(instance, 1)
+
+    -- Projectile Travel (used for acceleration)
+    local current_speed = 0
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget() and Help.ValidateUnit(instance)
+    end
+
+    local recurring_action = function()
+        local current_position = Vector2.UnitPosition(instance)
+        local target_position = Vector2.UnitPosition(ai.unit)
+
+        local distance = Vector2.Distance(current_position, target_position)
+
+        -- Cleanup if desintation reached
+        if distance < projectile_size then
+            DCEI.RemoveUnit(instance)
+            return
+        end
+
+        current_speed = current_speed + projectile_speed * TICK_RATE
+
+        local direction = Vector2.Normalized(target_position - current_position)
+        local new_position = current_position + direction * current_speed * TICK_RATE
+        DCEI.SetUnitPosition2DWithInterpolation(instance, new_position.x, new_position.y)
+    end
+
+    local cancel_action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    Help.GameTimer(99, condition, recurring_action, nil, cancel_action)
+end
+
+---comment
+---@param ai AIHandler
+---@param spawn_position Vector2
+---@param facing Vector2
+---@param duration number
+local function SpawnLightningBallTelegraph(ai, spawn_position, facing, duration)
+    local projectile_size = ai:GetBossStat(STAT.ProjectileSize)
+
+    local instance = DCEI.CreateUnit(
+        TEAM.Hostile,
+        PLAYER.Hostile,
+        REF.LightningBallTelegraph,
+        spawn_position.x,
+        spawn_position.y,
+        facing.x,
+        facing.y
+    )
+
+    Help.SetModelScale(instance, projectile_size)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget() and Help.ValidateUnit(instance)
+    end
+
+    local action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    Help.GameTimer(duration, condition, nil, action, action)
+
+    return instance
+end
+
+---comment
+---@param ai AIHandler
+---@param spawn_position Vector2
+local function SpawnGroundSpark(ai, spawn_position, target_position)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+
+    local instance = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.GroundSparks, spawn_position.x, spawn_position.y)
+
+    local direction = Vector2.Normalized(target_position - spawn_position)
+    local distance = Vector2.Distance(spawn_position, target_position)
+    local duration = distance / projectile_speed
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget() and Help.ValidateUnit(instance)
+    end
+
+    local recurring_action = function()
+        local current_position = Vector2.UnitPosition(instance)
+        local new_position = current_position + direction * projectile_speed * TICK_RATE
+        DCEI.SetUnitPosition2DWithInterpolation(instance, new_position.x, new_position.y)
+    end
+
+    local callback_action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    local cancel_action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    Help.GameTimer(duration, condition, recurring_action, callback_action, cancel_action)
+
+    return instance
+end
+
+---@param ai AIHandler
+local function LightningBallAction(ai)
+    local BASE_CAST_TIME = 3.00
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local CAST_POINT = 32 / 92 -- When the hands touch the ground
+    local cast_point_time = cast_time * CAST_POINT
+
+    -- Stats
+    local projectile_count = ai:GetBossStat(STAT.ProjectileCount)
+    local projectile_distance = ai:GetBossStat(STAT.ProjectileDistance)
+    local projectile_speed = ai:GetBossStat(STAT.ProjectileSpeed)
+
+    local projectile_travel_time = projectile_distance / projectile_speed
+    local impact_time = cast_point_time + projectile_travel_time
+
+    Help.PlayAnimationWithDuration(ai.unit, "action4", cast_time)
+
+    -- Spawn Ground Sparks that travel to each spawn position
+    local angle_between_projectiles = 30
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local starting_angle = Vector2.UnitFacing(ai.unit)
+        - projectile_count / 2 * angle_between_projectiles
+        + angle_between_projectiles / 2
+
+    local target_positions = {}
+    for i = 1, projectile_count do
+        local offset = Vector2.NewFromAngle(starting_angle + (i - 1) * angle_between_projectiles) * projectile_distance
+        table.insert(target_positions, position + offset)
+    end
+
+    -- Spawn Telegraph
+    local telegraphs = {}
+    for i = 1, projectile_count do
+        local telegraph_position = target_positions[i]
+        local facing = Vector2.Normalized(telegraph_position - position)
+        local telegraph = SpawnLightningBallTelegraph(ai, telegraph_position, facing, impact_time)
+
+        table.insert(telegraphs, telegraph)
+    end
+
+    -- Spawn Ground Sparks
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function()
+        -- Spawn Ground Sparks
+        for i = 1, #target_positions do
+            local ground_spark = SpawnGroundSpark(ai, position, target_positions[i])
+        end
+    end
+
+    Help.GameTimer(cast_point_time, condition, nil, action)
+
+    -- Impact Point
+
+    local callback_action = function()
+        -- Spawn Lightning Orbs
+        for i = 1, #target_positions do
+            SpawnLightningBallProjectile(ai, target_positions[i])
+        end
+    end
+
+    local cancel_action = function()
+        --
+    end
+
+    Help.GameTimer(impact_time, condition, nil, callback_action, cancel_action)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+-- ============================================================================
+-- !SECTION: Action Parts
+---SECTION: Local Casters
+---============================================================================
+
+---@param ai AIHandler
+local function CastMove(ai)
+    -- Validation
+    if not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local distance = Vector2.Distance(position, ai.Data.MovePosition)
+
+    -- Check if Staggered
+    if ai:IsStaggerThresholdReached() then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Check if reached destination
+    if distance <= 0.1 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Check if the timer has expired
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Stop Movement if moving out of this State
+    if ai.state ~= STATES.Move then
+        ai.Data.MovePosition = position
+    end
+
+    DCEI.Move(ai.unit, ai.Data.MovePosition.x, ai.Data.MovePosition.y)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+---@param min Vector2
+---@param max Vector2
+---@return Vector2
+local function GetSummonPosition(ai, min, max)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    local spawn_position = AIHelper.RerollPositionAttempt(function()
+        local target_offset = Vector2.Random() * 5 -- At least 2 units away from the target
+        local random_offset = Vector2.Random() * 2 -- Random Offset
+
+        local position = target_position + target_offset + random_offset
+
+        if Vector2.Distance(position, target_position) < 5 then
+            position = position + target_offset
+        end
+
+        return target_position + target_offset + random_offset
+    end, 3, min, max)
+
+    return spawn_position
+end
+
+---@param ai AIHandler
+local function CastSummon(ai)
+    local BASE_CAST_TIME = 2.0
+
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local spawn_count = ai:GetBossStat(STAT.MinionCount)
+
+    local min, max = FogOfWar.Instance:GetBoundary(FOW_PADDING)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+
+    local action = function(counter)
+        local spawn_position = GetSummonPosition(ai, min, max)
+
+        AIHelper.SpawnMarker(ai.unit, spawn_position, function()
+            if not ai:ValidateSelfAndTarget() then
+                return
+            end
+
+            SIMPLE_UNITS.drone:SpawnSync(PLAYER.Hostile, TEAM.Hostile, spawn_position, ai.Data.Target)
+        end)
+    end
+
+    local frequency = cast_time / spawn_count
+    Help.PeriodicGameTimer(spawn_count, frequency, condition, action)
+
+    Help.PlayAnimationWithDuration(ai.unit, "attack", cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return
+    end
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function SpawnLightningSpireTelegraph(ai, spawn_position, duration)
+    local skill_size = ai:GetBossStat(STAT.SkillSize) * LIGHTNING_SPIRE_SIZE_MODIFIER
+
+    local instance = DCEI.CreateUnit(
+        TEAM.Hostile,
+        PLAYER.Hostile,
+        REF.LightningSpireNovaTelegraph,
+        spawn_position.x,
+        spawn_position.y
+    )
+
+    Help.SetModelScale(instance, skill_size)
+    Help.PlayAnimationWithDuration(instance, "attack", duration)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget() and Help.ValidateUnit(instance)
+    end
+
+    local action = function()
+        DCEI.RemoveUnit(instance)
+    end
+
+    Help.GameTimer(duration, condition, nil, action, action)
+
+    return instance
+end
+
+---@param ai AIHandler
+local function SpawnLightningSpire(ai, position)
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local instance = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.LightningSpire, position.x, position.y)
+
+    -- local skill_size = ai:GetBossStat(STAT.SkillSize) * LIGHTNING_SPIRE_SIZE_MODIFIER
+
+    local birth_time = 1
+    Help.PlayAnimationWithDuration(instance, "build", birth_time)
+
+    local health = ai:GetBossStat(STAT.MinionHealth) * 10
+
+    SimpleUnit.ModifyHealth(instance, health)
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.Hostile, CollisionLayers.Friendly, 0.50)
+
+    local unit_ref = GMUI.CreateUnitReference(instance)
+    Core.Event.SendPresentationEvent("StatusBarManager.NewEnemyStatus", unit_ref)
+
+    local condition = function()
+        return Help.ValidateUnit(instance)
+    end
+
+    -- Don't start Nova until after birth time/animation
+    Help.GameTimer(birth_time, condition, nil, function()
+        local nova_delay = 3
+
+        local action = function()
+            local telegraph = SpawnLightningSpireTelegraph(ai, position, nova_delay)
+            Help.GameTimer(nova_delay, condition, nil, function()
+                DCEI.CreateEffectAtPosition(REF.LightningSpireNovaEffects, instance, position.x, position.y)
+            end, function()
+                DCEI.RemoveUnit(telegraph)
+            end)
+        end
+
+        action()
+        Help.PeriodicGameTimer(1000, nova_delay, condition, action)
+    end, nil)
+end
+
+local CONSTRUCT_SPAWN_OFFSET_RANGE = Vector2.New(3, 6)
+
+---Gets a random position around the boss and target.
+---@param ai AIHandler
+---@param min Vector2
+---@param max Vector2
+---@return Vector2
+local function GetConstructBasePosition(ai, min, max)
+    local position = AIHelper.RerollPositionAttempt(function()
+        local position = Vector2.UnitPosition(ai.unit)
+        local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+        local nearby_offset_position = position
+            + Vector2.Random() * Help.RandomNumber(CONSTRUCT_SPAWN_OFFSET_RANGE.x, CONSTRUCT_SPAWN_OFFSET_RANGE.y)
+
+        local target_offset_position = target_position
+            + Vector2.Random() * Help.RandomNumber(CONSTRUCT_SPAWN_OFFSET_RANGE.x, CONSTRUCT_SPAWN_OFFSET_RANGE.y)
+
+        local spawn_position = Vector2.Lerp(nearby_offset_position, target_offset_position, Help.RandomNumber(0, 1))
+        return spawn_position
+    end, 3, min, max)
+
+    return position
+end
+
+---Attempts to generate a preferred spawn position for the construct.
+---@param ai AIHandler
+---@param max_attempts integer
+---@param min Vector2
+---@param max Vector2
+---@return Vector2
+local function GetConstructSpawnPosition(ai, max_attempts, min, max)
+    local spawn_position = GetConstructBasePosition(ai, min, max)
+
+    local others = DCEI.FindUnits(REF.LightningSpire)
+
+    local minimum_distance = 3
+
+    if #others > 0 then
+        -- Check the distance between the current spawn_position and the others
+        for _, other in ipairs(others) do
+            local other_position = Vector2.UnitPosition(other)
+            local distance = Vector2.Distance(spawn_position, other_position)
+
+            -- Force this position if attempts failed.
+            if max_attempts <= 0 then
+                return spawn_position
+            end
+
+            -- Check distance
+            if distance < minimum_distance then
+                -- Recalculate the spawn position
+                return GetConstructSpawnPosition(ai, max_attempts - 1, min, max)
+            end
+        end
+    end
+
+    return spawn_position
+end
+
+---@param ai AIHandler
+local function CastConstruct(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local BASE_CAST_TIME = 2.00
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local min, max = FogOfWar.Instance:GetBoundary(FOW_PADDING)
+    local spawn_position = GetConstructSpawnPosition(ai, 3, min, max)
+
+    local lightning_spire_size = 1
+
+    Help.PlayAnimationWithDuration(ai.unit, "action4", cast_time)
+    AIHelper.SpawnIndicator(spawn_position, lightning_spire_size, cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return
+    end
+
+    -- Spawn Lightning Spire Unit
+    SpawnLightningSpire(ai, spawn_position)
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function CastNova(ai)
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai:PlayActionSequence({
+        TurnTowardsTarget,
+        NovaStart,
+        NovaChannel,
+        NovaEnd,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function CastLightningBall(ai)
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai:PlayActionSequence({
+        TurnTowardsTarget,
+        LightningBallAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---Generates a random position near the target
+---@param ai AIHandler
+---@return Vector2
+local function GetMovePosition(ai)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local random_offset = Vector2.RandomInside(8)
+    local move_position = target_position + random_offset
+    return move_position
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+
+    ---TODO: Boss Specific Actions
+    local phase = ai.phase
+    local action_order = phase == 1 and ACTION_ORDER_01 or phase == 2 and ACTION_ORDER_02 or ACTION_ORDER_03
+
+    -- Update State Index
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #action_order then
+        ai.Data.StateIndex = 1
+    end
+
+    local state = action_order[ai.Data.StateIndex]
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+
+    ai:SetState(state)
+
+    if state == STATES.Move then
+        local min_bounds, max_bounds = FogOfWar.Instance:GetBoundary(FOW_PADDING)
+        local move_position = AIHelper.RerollPositionAttempt(function()
+            return GetMovePosition(ai)
+        end, 3, min_bounds, max_bounds)
+
+        ai.Data.MovePosition = move_position
+
+        ai.Data.StateTime = Core.Random.GetNumber(2, 4) * action_speed_modifier
+        ai.Data.StateTimer = ai.Data.StateTime
+    end
+
+    local think_time = 0.25 * action_speed_modifier
+    if not Help.WaitAndValidateUnit(think_time, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Boss.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, OVERRIDES, true, true, Boss.Data.StaggerAnimation)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, REF.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    UpdateCache(ai)
+
+    -- Core States
+    ai:AddState(STATES.Move, CastMove)
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+
+    -- Boss Specific
+    ai:AddState(STATES.Summon, CastSummon)
+    ai:AddState(STATES.Construct, CastConstruct)
+    ai:AddState(STATES.Nova, CastNova)
+    ai:AddState(STATES.LightningBall, CastLightningBall)
+
+    -- Phase Increase
+    ai:AddPhaseIncreaseCallback(OnPhaseIncreased)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+
+    -- Stagger
+    AIHelper.RegisterBossStaggerUpdate(ai)
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Boss

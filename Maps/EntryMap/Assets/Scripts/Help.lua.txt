@@ -1,0 +1,1704 @@
+-- ============================================================================
+-- SECTION -- About
+-- ============================================================================
+--[[
+    Contains Helpful Functions
+
+    ---TODO: List
+    -- Remove Global Caster Concept
+    -- Remove/Update Effect Casting
+]]
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+local Json = require("json")
+
+local ObjectPooling = require("Class/ObjectPooling")
+local Vector2 = require("Class/Vector2")
+
+local Ease = require("Data/Ease")
+local Colors = require("Data/Colors")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+local CLIP_NAME_TO_ID = {
+    ["attack"] = 0,
+    ["die"] = 1,
+    ["idle"] = 2,
+    ["walk"] = 3,
+    ["action1"] = 4,
+    ["build"] = 5,
+    ["select"] = 6,
+    ["close"] = 7,
+    ["open"] = 8,
+    ["flying"] = 9,
+    ["action2"] = 10,
+    ["hit"] = 11,
+    ["birth"] = 12,
+    ["action3"] = 13,
+    ["action4"] = 14,
+    ["action5"] = 15,
+    ["fidget"] = 16,
+    ["attack1"] = 17,
+    ["victory"] = 18,
+    ["jump_start"] = 19,
+    ["jump"] = 20,
+    ["jump_end"] = 21,
+    ["channeling_start"] = 22,
+    ["channeling"] = 23,
+    ["channeling_end"] = 24,
+    ["attack2"] = 25,
+    ["dodge"] = 26,
+    ["walk2"] = 27,
+    ["walk3"] = 28,
+    ["walk4"] = 29,
+    ["walk5"] = 30,
+    ["vfx_fadeout"] = 98,
+    ["sfx_loop"] = 99,
+    ["clip id 31"] = 31,
+}
+
+local EASE_NAME_TO_ID = {
+    ["Linear"] = 0,
+    ["InSine"] = 1,
+    ["OutSine"] = 2,
+    ["InOutSine"] = 3,
+    ["InQuad"] = 4,
+    ["OutQuad"] = 5,
+    ["InOutQuad"] = 6,
+    ["InCubic"] = 7,
+    ["OutCubic"] = 8,
+    ["InOutCubic"] = 9,
+    ["InQuart"] = 10,
+    ["OutQuart"] = 11,
+    ["InOutQuart"] = 12,
+    ["InQuint"] = 13,
+    ["OutQuint"] = 14,
+    ["InOutQuint"] = 15,
+    ["InExpo"] = 16,
+    ["OutExpo"] = 17,
+    ["InOutExpo"] = 18,
+    ["InCirc"] = 19,
+    ["OutCirc"] = 20,
+    ["InOutCirc"] = 21,
+    ["InElastic"] = 22,
+    ["OutElastic"] = 23,
+    ["InOutElastic"] = 24,
+    ["InBack"] = 25,
+    ["OutBack"] = 26,
+    ["InOutBack"] = 27,
+    ["InBounce"] = 28,
+    ["OutBounce"] = 29,
+    ["InOutBounce"] = 30,
+    ["Flash"] = 31,
+    ["InFlash"] = 32,
+    ["OutFlash"] = 33,
+    ["InOutFlash"] = 34,
+}
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Variables
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+function GetAnimationClipId(name)
+    local id = CLIP_NAME_TO_ID[name]
+    assert(id, "> Animation type not found: " .. name)
+    return id
+end
+
+---Converts the Easing Name to its associated integer value.
+---@param name string
+---@return integer
+function GetEasingClipId(name)
+    local id = EASE_NAME_TO_ID[name]
+    assert(id, "> Easing type not found: " .. name)
+    return id
+end
+
+---Verifies the correct type of Easing.
+---@param ease any
+---@return any
+local function ConvertValidateEase(ease)
+    local _ease = ease
+    if type(ease) == "string" then
+        _ease = GetEasingClipId(ease)
+    elseif not ease then
+        _ease = 0
+    end
+    return _ease
+end
+
+---@class ModelScaleActorAction
+---@field actor string
+---@field model_scale number
+---@field duration number
+---@field ease Ease
+---@field ease_intensity number
+
+---Generate a Model Scale Actor Action.
+---@param actor string
+---@param model_scale number
+---@param duration number
+---@param ease Ease
+---@param ease_intensity number
+---@return ModelScaleActorAction
+local function CreateModelScaleActorAction(actor, model_scale, duration, ease, ease_intensity)
+    return {
+        actor = actor,
+        model_scale = model_scale,
+        duration = duration,
+        ease = ease,
+        ease_intensity = ease_intensity,
+    }
+end
+
+---@class TintColorActorAction
+---@field actor string
+---@field color ColorHex
+---@field duration number
+---@field ease Ease
+---@field ease_intensity number
+
+---Generate a Tint Color Actor Action.
+---@param actor string
+---@param color ColorHex
+---@param duration number
+---@param ease Ease
+---@param ease_intensity number
+---@return TintColorActorAction
+local function CreateTintColorActorAction(actor, color, duration, ease, ease_intensity)
+    return {
+        actor = actor,
+        color = color,
+        duration = duration,
+        ease = ease,
+        ease_intensity = ease_intensity,
+    }
+end
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Library
+---============================================================================
+
+local Help = {}
+
+---============================================================================
+---!SECTION: Library
+---SECTION: Global Casters
+---============================================================================
+
+Help.GlobalCaster = ObjectPooling.New()
+function Help.GlobalCaster:Object()
+    return DCEI.CreateUnit(1, 1, DCEI.Unit("Global Caster"), 0, 0)
+end
+
+function Help.GlobalCaster:OnFetch(obj)
+    if not DCEI.UnitExists(obj) then
+        return Help.GlobalCaster:Fetch()
+    end
+
+    return obj
+end
+
+---Returns the given object into the Object Pool after the given delay.
+---@param obj any
+---@param delay number
+function Help.GlobalCaster:DelayedReturn(obj, delay, func)
+    delay = delay or 3
+
+    DCEI.TriggerAddTimerEventElapsed(function()
+        if func then
+            func()
+        end
+
+        if DCEI.UnitExists(obj) then
+            self:Store(obj)
+        end
+    end, delay, false, true)
+end
+
+function Help.GlobalCaster:OnStore(obj)
+    if not DCEI.UnitExists(obj) then
+        return nil
+    end
+
+    return obj
+end
+
+---============================================================================
+---!SECTION: Global Casters
+---SECTION: Utilities
+---============================================================================
+
+function Help.IsPlayingOnAndroid()
+    return Help.GetPlatform() == "Android"
+end
+
+function Help.IsPlayingOnIOs()
+    return Help.GetPlatform() == "IPhonePlayer"
+end
+
+--- Platform Cache
+local simulated_platform = nil
+
+---Get the Platform
+---@return string
+function Help.GetPlatform()
+    return simulated_platform or DCEI.Platform
+end
+
+---============================================================================
+---!SECTION: Utilities
+---SECTION: File & Format
+---============================================================================
+
+local function fn()
+    local x = 10
+    print(x[1])
+end
+
+function Help.StackTrace()
+    local status, err = xpcall(fn, debug.traceback)
+    return "\n\n" .. err .. "\n\n"
+end
+
+function Help.ConvertTableToString(t, indent)
+    indent = indent or 0
+
+    local spacing = string.rep("| ", indent)
+    local message = ""
+    for key, value in pairs(t) do
+        message = message .. "\n"
+        local format = tostring(key) .. ": "
+        if type(value) == "table" then
+            message = message .. spacing .. format .. Help.ConvertTableToString(value, indent + 1)
+        else
+            message = message .. spacing .. format .. tostring(value)
+        end
+    end
+
+    return message
+end
+
+function Help.Message(message, property, table, message_type, show_stack)
+    local display = "[" .. Help.GetLineNumber(4) .. "] " .. Help.GetFileName(2) .. "> "
+
+    if message then
+        display = display .. message
+    end
+
+    if property then
+        display = display .. ": " .. tostring(property)
+    end
+
+    if table and type(table) == "table" then
+        display = display .. "\n\n" .. Help.ConvertTableToString(table)
+    end
+
+    if show_stack then
+        display = display .. Help.StackTrace()
+    end
+
+    if message_type == "Error" then
+        DCEI.LogError(display)
+    elseif message_type == "Warning" then
+        DCEI.LogWarning(display)
+    else
+        DCEI.LogMessage(display)
+    end
+end
+
+function Help.Log(message, property, table, show_stack)
+    Help.Message(message, property, table, "Message", show_stack)
+end
+
+function Help.Warn(message, property, table, show_stack)
+    Help.Message(message, property, table, "Warning", show_stack)
+end
+
+function Help.Error(message, property, table, show_stack)
+    Help.Message(message, property, table, "Error", show_stack)
+end
+
+function Help.GetFileName(depth)
+    depth = depth or 0
+    local data = debug.getinfo(2 + depth, "S")
+
+    if not data then
+        return ""
+    end
+
+    local info = data.source
+    return info:match("^.+/(.+)$"):match("[^.]+")
+end
+
+function Help.GetLineNumber(depth)
+    depth = depth or 0
+    return debug.getinfo(depth).currentline
+end
+
+function Help.GetStateName()
+    local info = debug.getinfo(2, "S").source
+    local i, j = string.find(info, "state")
+    local k, l = string.find(info, ".lua.txt")
+
+    -- Remove the "e_" and "."
+    local sub = string.sub(info, j + 2, k - 1)
+    return sub
+end
+
+function Help.Split(input, separator)
+    local s = separator or "%s"
+
+    local t = {}
+    for str in string.gmatch(input, "([^" .. s .. "]+)") do
+        table.insert(t, str)
+    end
+
+    return t
+end
+
+---============================================================================
+---!SECTION: Global Casters
+---SECTION: Actor Actions
+---============================================================================
+
+-- ANCHOR -- Actor Actions
+
+---@class CreateActorAction
+---@field actor string
+---@field host_site string
+---@field host_site_operations table<string>
+---@field aliases table<string>
+---@field detached boolean
+
+---comment
+---@param actor string
+---@param host_site string
+---@param host_site_operations table<string>
+---@param aliases table<string>
+---@param detached boolean
+---@return CreateActorAction
+local function CreateActorAction(actor, host_site, host_site_operations, aliases, detached)
+    --
+    return {
+        actor = actor,
+        host_site = host_site,
+        host_site_operations = host_site_operations,
+        aliases = aliases,
+        detached = detached,
+    }
+end
+
+---comment
+---@param unit Unit
+---@param create_actor_action CreateActorAction
+---@param target_actor_name any
+function Help.CreateActor(unit, create_actor_action, target_actor_name)
+    --
+    DCEI.SendCreateActorAction(unit, create_actor_action, target_actor_name)
+end
+
+function Help.PlayAnimation(unit, clip_name, use_real_time, alias)
+    local action = {
+        clip_id = clip_name,
+        use_real_time = use_real_time,
+    }
+
+    DCEI.SendPlayAnimationActorAction(unit, action, alias)
+end
+
+function Help.PlayAnimationWithDuration(unit, clip_name, duration, use_real_time, alias)
+    local action = {
+        clip_id = clip_name,
+        duration = duration,
+        use_real_time = use_real_time,
+    }
+
+    DCEI.SendPlayAnimationActorAction(unit, action, alias)
+end
+
+function Help.PauseAnimation(unit, clip_name, alias)
+    local action = {
+        clip_id = clip_name,
+    }
+
+    DCEI.SendPauseAnimationActorAction(unit, action, alias)
+end
+
+---Set the Unit's Model Scale
+---TODO: Check to see if a Scale of 0 Defaults back to 1
+---@param unit Unit
+---@param scale number | nil Default: 1
+---@param duration number | nil Default: 0
+---@param ease Ease | string | integer | nil Default: Linear
+---@param ease_intensity number | nil Default: 1
+---@param alias string | nil Default: nil
+function Help.SetModelScale(unit, scale, duration, ease, ease_intensity, alias)
+    scale = scale or 1
+    duration = duration or 0
+    ease = ConvertValidateEase(ease)
+    ease_intensity = ease_intensity or 1
+
+    local unit_type = DCEI.GetUnitType(unit)
+    local action = CreateModelScaleActorAction(unit_type, scale, duration, ease, ease_intensity)
+
+    DCEI.SendSetModelScaleActorAction(unit, action, alias)
+end
+
+---Set the Tint Color of the Unit.
+---@param unit Unit
+---@param color ColorHex | nil Default: white
+---@param duration number | nil Default: 0
+---@param ease Ease | nil Default: Linear
+---@param ease_intensity number | nil Default: 1
+---@param alias string | nil Default: nil
+function Help.SetTintColor(unit, color, duration, ease, ease_intensity, alias)
+    color = color or { r = 255, g = 255, b = 255, a = 255 }
+    duration = duration or 0
+    ease = ConvertValidateEase(ease)
+    ease_intensity = ease_intensity or 1
+
+    local unit_type = DCEI.GetUnitType(unit)
+    local action = CreateTintColorActorAction(unit_type, color, duration, ease, ease_intensity)
+
+    DCEI.SendSetTintColorActorAction(unit, action, alias)
+end
+
+---Send Actor Event
+---@param unit Unit
+---@param event_name string
+function Help.SendActorEvent(unit, event_name)
+    DCEI.SendSendCustomEventActorAction(unit, { identifier = event_name })
+end
+
+---============================================================================
+---!SECTION: Actor Actions
+---SECTION: Game
+---============================================================================
+
+---Generates a dummy unit.
+---@param position Vector2 | nil
+---@return UnitInstance
+function Help.CreateDummyUnit(position)
+    position = position or Vector2.Zero()
+
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, DCEI.Unit("Tracker"), position.x, position.y)
+    return instance
+end
+
+---Verify that the Unit exists.
+---@param unit Unit | nil
+---@return boolean
+function Help.ValidateUnit(unit)
+    return unit ~= nil and unit and DCEI.UnitExists(unit)
+end
+
+---Verify that the Simple Unit Exists.
+---@param unit SimpleUnit
+function Help.ValidateSimpleUnit(unit)
+    return unit and DCEI.SimpleUnitExists(unit)
+end
+
+---@class UnitProperties
+---@field object Unit Unit Reference
+---@field player_id integer Player Id: [0 : n]
+---@field team_id integer Team Id: [0 : n]
+---@field position Vector2 Position: (x, y)
+---@field forward Vector2 Foward: (x, y)
+---@field facing number Angle: [0 : 360]
+---@field type string Type: "Unit Type"
+
+---Get the Unit's properties
+---@param unit Unit
+---@return UnitProperties
+function Help.GetUnitProperties(unit)
+    return {
+        ---@type Unit
+        object = unit,
+        ---@type integer
+        player_id = DCEI.GetUnitPlayerId(unit),
+        ---@type integer
+        team_id = DCEI.GetUnitTeamId(unit),
+        position = Vector2.UnitPosition(unit),
+        forward = Vector2.UnitForward(unit),
+        facing = Vector2.UnitFacing(unit),
+        ---@type string
+        type = DCEI.GetUnitType(unit),
+    }
+end
+
+function Help.SetTagCount(unit, tag_name, stacks)
+    local current_stacks = DCEI.GetUnitTagCount(unit, tag_name)
+    local difference = stacks - current_stacks
+
+    if difference > 0 then
+        -- Help.Log("Applying Tag Stacks: ", difference)
+        DCEI.ApplyTag(unit, tag_name, -1, difference)
+    elseif difference < 0 then
+        -- Help.Log("Removing Tag Stacks: ", difference)
+        DCEI.RemoveTag(unit, tag_name, difference)
+    end
+end
+
+function Help.UnitHasBehavior(unit, behavior)
+    return DCEI.GetUnitBehaviorStackCount(unit, behavior) > 0
+end
+
+---Returns a table containing active, behavior, and count
+---@param unit any
+---@param behavior string
+---@return table
+function Help.GetBehaviorInfo(unit, behavior)
+    ---@type number
+    local stacks = DCEI.GetUnitBehaviorStackCount(unit, behavior)
+    return {
+        active = stacks > 0,
+        behavior = behavior,
+        count = stacks,
+    }
+end
+
+function Help.GetRefBehaviorInfo(unit, ref_behaviors)
+    local t = {}
+    for key, behavior in pairs(ref_behaviors) do
+        t[key] = Help.GetBehaviorInfo(unit, behavior)
+    end
+    return t
+end
+
+---Applies a list of behaviors to the unit.
+local function ApplyBehaviorsToUnit(unit, behaviors)
+    if behaviors then
+        for _, behavior in pairs(behaviors) do
+            if type(behaviors) == "table" then
+                if behavior.count > 0 then
+                    DCEI.ApplyBehaviorToSelf(unit, behavior.behavior, 1)
+                end
+            elseif type(behavior) == "string" then
+                DCEI.ApplyBehaviorToSelf(unit, behavior, 1)
+            end
+        end
+    end
+end
+
+---Removes a list of behaviors from a unit.
+local function RemoveBehaviorsFromUnit(unit, behaviors)
+    if not DCEI.UnitExists(unit) then
+        return
+    end
+
+    if behaviors then
+        for _, behavior in pairs(behaviors) do
+            if type(behaviors) == "table" then
+                if behavior.count then
+                    DCEI.RemoveBehavior(unit, behavior.behavior, behavior.count)
+                end
+            elseif type(behavior) == "string" then
+                DCEI.RemoveBehavior(unit, behavior, 1)
+            end
+        end
+    end
+end
+
+---DEPRECATED: Use DCEI.CreateEffectAtPosition, DCEI.CreateEffectAtSelf, or DCEI.CreateEffectAtUnit instead.
+---Creates an effect based on the given parameters.
+---@param player_id number The owner's ID
+---@param effect any The effect to cast
+---@param from any Unit, Position, or Nil
+---@param to any Unit, Position, or Nil
+---@param duration any How long the dummy caster should remain (if used)
+---@param behaviors any List of Behaviors you want to apply when from is not the caster
+function Help.CreateEffect(player_id, effect, from, to, duration, behaviors)
+    if not duration then
+        duration = 3
+    end
+
+    local caster
+
+    if type(from) == "table" then -- From Position
+        caster = Help.GlobalCaster:Fetch()
+        DCEI.SetUnitOwner(caster, player_id)
+        DCEI.SetUnitPosition2D(caster, from.x, from.y)
+        ApplyBehaviorsToUnit(caster, behaviors)
+
+        if type(to) == "table" then -- To Position
+            -- Creates an effect from a position to a position
+            local offset = to - from
+            DCEI.TurnUnitTowards(caster, offset.x, offset.y, 0)
+            DCEI.CreateEffectAtPosition(effect, caster, to.x, to.y)
+        elseif type(to) == "userdata" then -- To Unit
+            -- Creates an effect from a position to a unit
+            -- REVIEW: Verify the target
+            DCEI.CreateEffectAtUnit(effect, to, caster, caster)
+        else -- To Nil
+            -- Creates an effect from a position (no target)
+            DCEI.CreateEffectAtPosition(effect, caster, from.x, from.y)
+        end
+
+        Help.GlobalCaster:DelayedReturn(caster, duration, function()
+            RemoveBehaviorsFromUnit(caster, behaviors)
+        end)
+    elseif type(from) == "userdata" then -- From Unit
+        if type(to) == "table" then -- To Position
+            -- Creates an effect from a unit to a position
+            DCEI.CreateEffectAtPosition(effect, from, to.x, to.y)
+        elseif type(to) == "userdata" then -- To Unit
+            -- Creates an effect from a unit to a unit
+            -- REVIEW: Verify the target
+            DCEI.CreateEffectAtUnit(effect, to, from, from)
+        else -- To Nil
+            -- Creates an effect from a unit (no target)
+            to = Vector2.UnitPosition(from)
+            DCEI.CreateEffectAtPosition(effect, from, to.x, to.y)
+        end
+    else -- From Nil
+        if type(to) == "table" then -- To Position
+            -- Creates an effect at a position
+            caster = Help.GlobalCaster:Fetch()
+            DCEI.SetUnitOwner(caster, player_id)
+            DCEI.SetUnitPosition2D(caster, to.x, to.y)
+            ApplyBehaviorsToUnit(caster, behaviors)
+
+            DCEI.CreateEffectAtPosition(effect, caster, to.x, to.y)
+
+            Help.GlobalCaster:DelayedReturn(caster, duration, function()
+                RemoveBehaviorsFromUnit(caster, behaviors)
+            end)
+        elseif type(to) == "userdata" then -- To Unit
+            -- Creates an effect on a unit
+            local tp = Vector2.UnitPosition(to)
+            caster = Help.GlobalCaster:Fetch()
+            DCEI.SetUnitOwner(caster, player_id)
+            DCEI.SetUnitPosition2D(caster, tp.x, tp.y)
+            ApplyBehaviorsToUnit(caster, behaviors)
+
+            DCEI.CreateEffectAtUnit(effect, to, caster, caster)
+
+            Help.GlobalCaster:DelayedReturn(caster, duration, function()
+                RemoveBehaviorsFromUnit(caster, behaviors)
+            end)
+        else
+            -- To Nil
+            -- Do nothing
+        end
+    end
+
+    return caster
+end
+
+---Create a VFX Unit at the given position.
+---@param player_id number
+---@param position Vector2
+---@param facing Vector2
+---@param vfx_type string
+---@param scale number
+---@param duration number
+function Help.CreateVFX(player_id, position, facing, vfx_type, scale, duration)
+    local vfx = DCEI.CreateUnit(player_id, player_id, vfx_type, position.x, position.y, facing.x, facing.y)
+
+    -- DCEI.TurnUnitTowards(vfx, facing.x, facing.y, 0)
+    Help.SetModelScale(vfx, scale, 0)
+
+    DCEI.TriggerAddTimerEventElapsed(function()
+        DCEI.RemoveUnit(vfx)
+    end, duration, false, true)
+end
+
+---Wait for the designated time, then return if the unit is still valid.
+---@param time number
+---@param unit Unit
+---@return boolean
+function Help.WaitAndValidateUnit(time, unit)
+    DCEI.Wait(time)
+    return Help.ValidateUnit(unit)
+end
+
+function Help.SetGameSpeed(speed)
+    speed = Core.Math.Clamp(speed, 0, 3)
+
+    if speed > 1 then
+        DCEI.SetUpdateFrequency(2)
+        DCEI.SetSpeedFactor(speed / 2)
+    else
+        DCEI.SetUpdateFrequency(1)
+        DCEI.SetSpeedFactor(speed)
+    end
+end
+
+---Drops a loot item at the given position.
+---@param position Vector2
+---@param loot_data LootData
+---@param apply_mover_effect Effect | nil
+---@return SimpleUnitInstance | nil
+function Help.SpawnLoot(position, loot_data, apply_mover_effect)
+    if not (type(loot_data) == "table") then
+        return nil
+    end
+
+    local instance = loot_data:SpawnSync(PLAYER.Terrain, TEAM.Terrain, position)
+
+    -- Check if the mover should be applied.
+    if apply_mover_effect then
+        DCEI.CreateEffectAtSelf(apply_mover_effect, instance)
+    end
+
+    return instance
+end
+
+---@class DropTableOptions
+---@field apply_mover_effect Effect | nil Causes the Loot to be pushed away from its spawn point.
+---@field spawn_over_time boolean Causes the Loot to be spawned over time.
+---@field omitted_items table<string> List of items to omit from the DropTable.
+
+---Drops loot at the given position.
+---@param position Vector2
+---@param drop_table DropTable
+---@param drop_loot_table_options DropTableOptions
+---@return table<SimpleUnitInstance> | nil When Spawned over time, no instances are returned.
+function Help.SpawnDropTable(position, drop_table, drop_loot_table_options)
+    Help.Log("Dropping Loot", nil, drop_table)
+    -- Convert DropTable into a table of LootData
+    local drop_list = Help.GetItemsFromDropTable(drop_table, drop_loot_table_options.omitted_items)
+
+    if drop_loot_table_options.spawn_over_time then
+        local timer = Core.Timer.Game.New()
+
+        function timer:Tick()
+            if #drop_list == 0 then
+                timer:Destroy()
+                return
+            end
+
+            local loot_data = table.remove(drop_list, 1)
+            Help.SpawnLoot(position, loot_data, drop_loot_table_options.apply_mover_effect)
+        end
+
+        -- Exit
+        return nil
+    end
+
+    local instances = {}
+
+    -- Loop through the Loot
+    for _, loot_data in pairs(drop_list) do
+        local instance = Help.SpawnLoot(position, loot_data, drop_loot_table_options.apply_mover_effect)
+
+        if instance then
+            table.insert(instances, instance)
+        end
+    end
+
+    return instances
+end
+
+---Returns the Unit's Unique Identifier
+---@see Core.Unit.GetId
+---@param instance UnitInstance
+---@return string
+function Help.GetUniqueId(instance)
+    return Core.Unit.GetId(instance)
+end
+
+---============================================================================
+---!SECTION: Game
+---SECTION: String / Seed
+---============================================================================
+
+---
+---Part 1: (1xx): Length of Word (at most 99)
+---Part 3: (xxx): Byte of each Letter
+---@param word string
+function Help.ConvertToByte(word)
+    local s = tostring(100 + #word)
+
+    for i = 1, #word do
+        local byte = tostring(string.byte(word, i))
+        local leading_zeros = 3 - #byte
+
+        for j = 1, leading_zeros do
+            s = s .. tostring(0)
+        end
+        s = s .. tostring(byte)
+    end
+
+    return s
+end
+
+function Help.ConvertFromByte(byte)
+    local s = ""
+
+    -- Omit the first 3 numbers
+    for i = 1, #byte / 3 - 1 do
+        local first = 1 + i * 3
+        local last = first + 2
+        local sub = string.sub(byte, first, last)
+        local letter = string.char(tonumber(sub))
+        s = s .. letter
+    end
+
+    return s
+end
+
+---comment
+---@param hero_name string
+---@param game_mode_name string
+---@param stage_level integer
+---@return unknown
+function Help.ConvertToSeed(hero_name, game_mode_name, stage_level)
+    local hero_byte = Help.ConvertToByte(hero_name)
+    local game_byte = Help.ConvertToByte(game_mode_name)
+
+    return tonumber(hero_byte .. game_byte .. "000") + stage_level
+end
+
+function Help.FirstToUpper(str)
+    return (str:gsub("^%l", string.upper))
+end
+
+---============================================================================
+---!SECTION: String / Seed
+---SECTION: Math
+---============================================================================
+
+---Returns the Sign of the given value.
+---@param value number
+---@return integer
+function Help.Sign(value)
+    return value > 0 and 1 or value < 0 and -1 or 0
+end
+
+---comment
+---@param a number
+---@param b number
+---@param t number [0 - 1]
+---@param ease Ease | nil
+function Help.Lerp(a, b, t, ease)
+    ease = ease or Ease.Linear
+
+    if ease == Ease.Linear then
+        return a + (b - a) * t
+    elseif ease == Ease.InSine then
+        return a + (b - a) * (1 - math.cos(t * (math.pi / 2)))
+    elseif ease == Ease.OutSine then
+        return a + (b - a) * math.sin(t * (math.pi / 2))
+    elseif ease == Ease.InOutSine then
+        return a + (b - a) * (-(math.cos(math.pi * t) - 1) / 2)
+    elseif ease == Ease.InQuad then
+        return a + (b - a) * t * t
+    elseif ease == Ease.OutQuad then
+        return a + (b - a) * t * (2 - t)
+    elseif ease == Ease.InOutQuad then
+        if t < 0.5 then
+            return a + (b - a) * 2 * t * t
+        else
+            return a + (b - a) * (-2 * t * t + 4 * t - 1)
+        end
+    elseif ease == Ease.InCubic then
+        return a + (b - a) * t * t * t
+    elseif ease == Ease.OutCubic then
+        return a + (b - a) * ((t - 1) * (t - 1) * (t - 1) + 1)
+    elseif ease == Ease.InOutCubic then
+        if t < 0.5 then
+            return a + (b - a) * 4 * t * t * t
+        else
+            return a + (b - a) * (4 * t * t * t - 12 * t * t + 12 * t - 3)
+        end
+    elseif ease == Ease.InQuart then
+        return a + (b - a) * t * t * t * t
+    elseif ease == Ease.OutQuart then
+        return a + (b - a) * (1 - (t - 1) * (t - 1) * (t - 1) * (t - 1))
+    elseif ease == Ease.InOutQuart then
+        if t < 0.5 then
+            return a + (b - a) * 8 * t * t * t * t
+        else
+            return a + (b - a) * (1 - 8 * (t - 1) * (t - 1) * (t - 1) * (t - 1))
+        end
+    elseif ease == Ease.InQuint then
+        return a + (b - a) * t * t * t * t * t
+    elseif ease == Ease.OutQuint then
+        return a + (b - a) * ((t - 1) * (t - 1) * (t - 1) * (t - 1) * (t - 1) + 1)
+    elseif ease == Ease.InOutQuint then
+        if t < 0.5 then
+            return a + (b - a) * 16 * t * t * t * t * t
+        else
+            return a + (b - a) * (1 - 16 * (t - 1) * (t - 1) * (t - 1) * (t - 1) * (t - 1))
+        end
+    elseif ease == Ease.InExpo then
+        return a + (b - a) * (2 ^ (10 * (t - 1)))
+    elseif ease == Ease.OutExpo then
+        return a + (b - a) * (-2 ^ (-10 * t) + 1)
+    elseif ease == Ease.InOutExpo then
+        if t < 0.5 then
+            return a + (b - a) * (2 ^ (20 * t - 10) / 2)
+        else
+            return a + (b - a) * (-(2 ^ (-20 * t + 10) - 2) / 2)
+        end
+    elseif ease == Ease.InCirc then
+        return a + (b - a) * (1 - math.sqrt(1 - t * t))
+    elseif ease == Ease.OutCirc then
+        return a + (b - a) * math.sqrt(1 - (t - 1) * (t - 1))
+    elseif ease == Ease.InOutCirc then
+        if t < 0.5 then
+            return a + (b - a) * ((1 - math.sqrt(1 - 4 * t * t)) / 2)
+        else
+            return a + (b - a) * ((math.sqrt(1 - 4 * (t - 1) * (t - 1)) + 1) / 2)
+        end
+    elseif ease == Ease.InElastic then
+        local c4 = (2 * math.pi) / 3
+        if t == 0 then
+            return a
+        elseif t == 1 then
+            return b
+        else
+            return a + (b - a) * (-2 ^ (10 * t - 10) * math.sin((t * 10 - 10.75) * c4))
+        end
+    elseif ease == Ease.OutElastic then
+        local c4 = (2 * math.pi) / 3
+        if t == 0 then
+            return a
+        elseif t == 1 then
+            return b
+        else
+            return a + (b - a) * (2 ^ (-10 * t) * math.sin((t * 10 - 0.75) * c4) + 1)
+        end
+    elseif ease == Ease.InOutElastic then
+        local c5 = (2 * math.pi) / 4.5
+        if t == 0 then
+            return a
+        elseif t == 1 then
+            return b
+        elseif t < 0.5 then
+            return a + (b - a) * (-(2 ^ (20 * t - 10) * math.sin((20 * t - 11.125) * c5)) / 2)
+        else
+            return a + (b - a) * (((2 ^ (-20 * t + 10)) * math.sin((20 * t - 11.125) * c5)) / 2 + 1)
+        end
+    elseif ease == Ease.InBack then
+        local s = 1.70158
+        return a + (b - a) * t * t * ((s + 1) * t - s)
+    elseif ease == Ease.OutBack then
+        local s = 1.70158
+        return a + (b - a) * ((t - 1) * (t - 1) * ((s + 1) * (t - 1) + s) + 1)
+    elseif ease == Ease.InOutBack then
+        local s = 1.70158 * 1.525
+        if t < 0.5 then
+            return a + (b - a) * (2 * t * t * ((s + 1) * 2 * t - s) / 2)
+        else
+            return a + (b - a) * ((2 * t - 2) * (2 * t - 2) * ((s + 1) * (2 * t - 2) + s) + 2) / 2
+        end
+    elseif ease == Ease.InBounce then
+        return a + (b - a) * (1 - Ease.OutBounce(1 - t))
+    elseif ease == Ease.OutBounce then
+        if t < 1 / 2.75 then
+            return a + (b - a) * (7.5625 * t * t)
+        elseif t < 2 / 2.75 then
+            t = t - 1.5 / 2.75
+            return a + (b - a) * (7.5625 * t * t + 0.75)
+        elseif t < 2.5 / 2.75 then
+            t = t - 2.25 / 2.75
+            return a + (b - a) * (7.5625 * t * t + 0.9375)
+        else
+            t = t - 2.625 / 2.75
+            return a + (b - a) * (7.5625 * t * t + 0.984375)
+        end
+    elseif ease == Ease.InOutBounce then
+        if t < 0.5 then
+            return a + (b - a) * (Ease.InBounce(t * 2) * 0.5)
+        else
+            return a + (b - a) * (Ease.OutBounce(t * 2 - 1) * 0.5 + 0.5)
+        end
+    elseif ease == Ease.Flash then
+        if t < 0.5 then
+            return a
+        else
+            return b
+        end
+    elseif ease == Ease.InFlash then
+        return a + (b - a) * t * t
+    elseif ease == Ease.OutFlash then
+        return a + (b - a) * (1 - (1 - t) * (1 - t))
+    elseif ease == Ease.InOutFlash then
+        if t < 0.5 then
+            return a + (b - a) * (2 * t * t)
+        else
+            return a + (b - a) * (1 - 2 * (1 - t) * (1 - t))
+        end
+    else
+        return a + (b - a) * t
+    end
+end
+
+---comment
+---@param a integer
+---@param b integer
+---@return integer
+function Help.RandomInteger(a, b)
+    return Core.Random.GetInteger(a, b)
+end
+
+---comment
+---@param a number
+---@param b number
+---@return number
+function Help.RandomNumber(a, b)
+    return Core.Random.GetNumber(a, b)
+end
+
+function Help.RandomSign()
+    return math.random(1, 2) == 1 and 1 or -1
+end
+
+function Help.Flip()
+    return math.random(1, 2) == 1
+end
+
+---Converts the given value into Stacks for Engine interpretation (x100).
+---@param value number
+---@param multiplier number | nil Default: 100
+---@return integer
+function Help.Stacks(value, multiplier)
+    multiplier = multiplier or 100
+    return math.floor(value * 100)
+end
+
+---@param chance number (0 - 1)
+---@return boolean
+function Help.Chance(chance)
+    return Core.Random.GetNumber(0, 1) < chance
+end
+
+function Help.Rescale(value, old_min, old_max, new_min, new_max)
+    return (value - old_min) / (old_max - old_min) * (new_max - new_min) + new_min
+end
+
+---Returns a number whose value is limited to the given range.
+---@param value number
+---@param min number
+---@param max number
+---@return number
+function Help.Clamp(value, min, max)
+    return math.min(math.max(value, min), max)
+end
+
+---Returns the min or max based on how close the given value is.
+---@param value number
+---@param min number
+---@param max number
+function Help.Edge(value, min, max)
+    return (value / 2) < ((max + min) / 2) and min or max
+end
+
+---Generates a table of evenly spaced angles.
+---@param center_angle number generates new angles from this angle
+---@param count integer the number of angles returned
+---@param spread number difference between each angle
+---@param angle_limit any limits the total angle range to this value (or 360 when true)
+---@param snap_to_starting_angle any makes sure the center_angle is used
+---@return table
+function Help.GenerateAngles(center_angle, count, spread, angle_limit, snap_to_starting_angle)
+    -- Limits the angle range to the angle_limit or inside of a circle
+    -- (prevents angle wrapping)
+    if angle_limit then
+        if type(angle_limit) == "number" then
+            spread = math.min(spread, angle_limit)
+        else
+            spread = math.min(spread, 360 / count)
+        end
+    end
+
+    local starting_angle = center_angle - (count - 1) / 2 * spread
+
+    -- Check if we want to snap to the center_angle
+    if snap_to_starting_angle then
+        -- Offset shifts even numbers to ensure the main target is hit
+        local offset = count % 2 == 0 and spread / 2 or 0
+        starting_angle = starting_angle + offset
+    end
+
+    -- Generate a table of angles
+    local t = {}
+    for i = 1, count, 1 do
+        t[i] = starting_angle + (i - 1) * spread
+    end
+
+    return t
+end
+
+function Help.Linear(value, count)
+    return value * count
+end
+
+function Help.Hyperbolic(value, count)
+    return 1 - 1 / (1 + value * count)
+end
+
+function Help.Exponential(value, count)
+    return (1 + value) ^ count - 1
+end
+
+---Standard Comparison Operation
+---@param a number
+---@param b number
+---@param comparison_type COMPARISON_TYPE
+---@return boolean
+function Help.Compare(a, b, comparison_type)
+    if comparison_type == COMPARISON_TYPE.EqualTo then
+        return a == b
+    elseif comparison_type == COMPARISON_TYPE.GreaterThan then
+        return a > b
+    elseif comparison_type == COMPARISON_TYPE.GreaterThanOrEqualTo then
+        return a >= b
+    elseif comparison_type == COMPARISON_TYPE.LessThan then
+        return a < b
+    elseif comparison_type == COMPARISON_TYPE.LessThanOrEqualTo then
+        return a <= b
+    elseif comparison_type == COMPARISON_TYPE.Modulo then
+        return (a % b) == 0
+    elseif comparison_type == COMPARISON_TYPE.NotEqualTo then
+        return a ~= b
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Math
+---SECTION: Random
+---============================================================================
+
+function Help.GetRandomCardinalDirection()
+    local roll = math.random(1, 4)
+
+    if roll == 1 then
+        return "North"
+    elseif roll == 2 then
+        return "South"
+    elseif roll == 3 then
+        return "East"
+    else
+        return "West"
+    end
+end
+
+---Retrieve a value from var.
+---When a nuber is provided, just use the number.
+---When a Vector2 is provided, get a random number between the x and y values.
+---@param var number | Vector2
+---@return number
+function Help.GetValue(var)
+    if type(var) == "number" then
+        return var
+    elseif type(var) == "table" then
+        return Core.Random.GetNumber(var.x, var.y)
+    end
+
+    return 0
+end
+
+---Determine if the value falls within the given range.
+---@param value number
+---@param range number | Vector2
+---@param exclusive boolean | nil
+function Help.InRange(value, range, exclusive)
+    if type(range) == "number" then
+        if exclusive then
+            return value > -range and value < range
+        else
+            return value >= -range and value <= range
+        end
+    end
+
+    if exclusive then
+        return value > range.x and value < range.y
+    else
+        return value >= range.x and value <= range.y
+    end
+end
+
+--- Helper function to calculate the inverse lerp value between two numbers.
+---@param a number
+---@param b number
+---@param t number
+---@return number
+function Help.InverseLerp(a, b, t)
+    return (t - a) / (b - a)
+end
+
+-- Returns if the two values are within the given value of one another.
+function Help.WithinRange(a, b, value)
+    return math.abs(a - b) <= value
+end
+
+-- Returns if one of the values is negative and the other is positive.
+function Help.Exclusive(v1, v2)
+    return (v1 < 0 and v2 > 0) or (v1 > 0 and v2 < 0)
+end
+
+---Moves a towards b at a rate of c
+---@param a number
+---@param b number
+---@param c number
+---@return number
+function Help.MoveTowards(a, b, c)
+    if math.abs(b - a) <= c then
+        return b
+    else
+        return a + Help.Sign(b - a) * c
+    end
+end
+
+---Normalize angles to the range of -180 to 180 degrees.
+---@param angle number
+---@return integer
+function Help.NormalizeAngle(angle)
+    angle = angle % 360
+    if angle > 180 then
+        angle = angle - 360
+    end
+    return angle
+end
+
+---Rotates the initial angle towards the target angle up to a maximum amount.
+---@param angle number
+---@param target_angle number
+---@param max_amount number
+---@return number
+function Help.RotateTowards(angle, target_angle, max_amount)
+    local delta = Help.NormalizeAngle(target_angle - angle)
+    local sign = Help.Sign(delta)
+    local amount = math.min(math.abs(delta), max_amount)
+    return angle + sign * amount
+end
+
+---Dampens the value towards the target value.
+---@param a number
+---@param b number
+---@param intensity number
+---@param delta_time number
+---@return number
+function Help.Damp(a, b, intensity, delta_time)
+    return a + (b - a) * (1 - math.exp(-intensity * delta_time))
+end
+
+---============================================================================
+---!SECTION: Random
+---SECTION: Spline
+---============================================================================
+
+---@class SplinePoint
+---@field key number
+---@field value number
+---@field pre_curve number | nil Not used when first entry
+---@field post_curve number | nil Not used when last entry
+
+function Help.NewSplinePoint(key, value, pre_curve, post_curve)
+    return {
+        key = key,
+        value = value,
+        pre_curve = pre_curve or 0,
+        post_curve = post_curve or 0,
+    }
+end
+
+---comment
+---@param points table<SplinePoint>
+---@param value number
+function Help.Spline(points, value)
+    local count = #points
+    if count == 0 then
+        return 0
+    end
+
+    if count == 1 then
+        return points[1].value
+    end
+
+    local first = points[1]
+    if value <= first.key then
+        return first.value
+    end
+
+    local last = points[count]
+    if value >= last.key then
+        return last.value
+    end
+
+    for i = 1, count - 1 do
+        local point = points[i]
+        local next_point = points[i + 1]
+
+        if value >= point.key and value <= next_point.key then
+            local t = (value - point.key) / (next_point.key - point.key)
+            local t2 = t * t
+            local t3 = t2 * t
+
+            local a = 2 * t3 - 3 * t2 + 1
+            local b = t3 - 2 * t2 + t
+            local c = -2 * t3 + 3 * t2
+            local d = t3 - t2
+
+            return a * point.value + b * point.post_curve + c * next_point.value + d * next_point.pre_curve
+        end
+    end
+
+    return 0
+end
+
+---============================================================================
+---!SECTION: Spline
+---SECTION: Table
+---============================================================================
+
+---Remove invalid Units from the table.
+---@param units any
+function Help.RemoveInvalidUnitsFromTable(units)
+    for i = #units, 1, -1 do
+        -- Check if the Unit is Invalid
+        if not Help.ValidateUnit(units[i]) then
+            table.remove(units, i)
+        end
+    end
+end
+
+---Combines 2 tables.
+---NOTE: Does not check for duplicates.
+---@param a table
+---@param b table
+---@return table
+function Help.CombineTables(a, b)
+    local t = {}
+    for _, value in pairs(a) do
+        table.insert(t, value)
+    end
+
+    for _, value in pairs(b) do
+        table.insert(t, value)
+    end
+
+    return t
+end
+
+---@class WeightedTable
+---@field Weight integer
+---@field Value any
+
+---comment
+---@param weighted_table WeightedTable
+---@return any
+function Help.GetRandomValueFromWeightedTable(weighted_table)
+    local total_weight = 0
+    for _, data in pairs(weighted_table) do
+        total_weight = total_weight + data.Weight
+    end
+
+    local target_weight = Help.RandomInteger(0, total_weight)
+
+    for _, data in pairs(weighted_table) do
+        target_weight = target_weight - data.Weight
+        if target_weight < 0 then
+            return data.Value
+        end
+    end
+end
+
+---Returns a single item from a Weighted Table.
+---@param drop_table table<any, number>
+---@param omitted_items table<any> | nil
+---@return LootData
+function Help.GetItemFromWeightedDropTable(drop_table, omitted_items)
+    local new_drop_table = {}
+
+    if not omitted_items then
+        new_drop_table = drop_table
+    else
+        -- Remove the omitted items from the table.
+        for loot_data, weight in pairs(drop_table) do
+            local omit = false
+            for _, omitted_data in pairs(omitted_items) do
+                if loot_data == omitted_data then
+                    omit = true
+                    break
+                end
+            end
+
+            if not omit then
+                new_drop_table[loot_data] = weight
+            end
+        end
+    end
+
+    -- Accumulate the total weight in the table.
+    local total_weight = 0
+    for loot_data, weight in pairs(new_drop_table) do
+        total_weight = total_weight + weight
+    end
+
+    -- Generate a random number between 0 and the total weight.
+    local target_weight = Core.Random.GetNumber(0, total_weight)
+
+    -- Iterate through the table and subtract the weight from the target weight.
+    -- When the target weight is less than 0, return the current index.
+    for loot_data, weight in pairs(new_drop_table) do
+        -- Subtract the weight from the target weight
+        target_weight = target_weight - weight
+        if target_weight < 0 then
+            -- We've reached the target weight, return the current index.
+            return loot_data
+        end
+    end
+end
+
+---comment
+---@param drop_table DropTable
+---@param omitted_items table<string> | nil
+---@return table<LootData>
+function Help.GetItemsFromDropTable(drop_table, omitted_items)
+    local drop_list = {}
+
+    -- Iterate through each Group
+    for _, group in pairs(drop_table) do
+        local loot_data = Help.GetItemFromWeightedDropTable(group, omitted_items)
+
+        if loot_data then
+            table.insert(drop_list, loot_data)
+        end
+    end
+
+    return drop_list
+end
+
+---Injects the stacks into the provided table. Returns the newly added stacks.
+---@param hero Hero
+---@param game_stat GAME_STATS
+---@param instance_table table<PLAYER, number>
+---@return number stacks
+function Help.InjectGameStats(hero, game_stat, instance_table)
+    -- Initialize Instance Table Index
+    if not instance_table[hero.player_id] then
+        instance_table[hero.player_id] = 0
+    end
+
+    local stacks = hero:GetRecordedStat(game_stat)
+    if stacks and stacks > 0 then
+        instance_table[hero.player_id] = instance_table[hero.player_id] + stacks
+    end
+
+    return stacks
+end
+
+---============================================================================
+---!SECTION: Table
+---SECTION: Helpers
+---============================================================================
+
+---Generates a Periodic Timer that triggers a function at a given frequency.
+---@param count integer
+---@param frequency number
+---@param condition function | nil If the Condition fails, the Timer is destroyed.
+---@param action function | function<integer> | nil The function to trigger, passes the current count.
+---@param trigger_immediately boolean | nil Triggers the action immediately.
+---@return Timer
+function Help.PeriodicGameTimer(count, frequency, condition, action, trigger_immediately)
+    local timer = Core.Timer.Game.New()
+
+    local actions_triggered = 0
+
+    if action and trigger_immediately then
+        actions_triggered = 1
+        action(actions_triggered)
+    end
+
+    function timer:Tick()
+        if condition and not condition() then
+            timer:Destroy()
+            return
+        end
+
+        -- local target_count = math.floor(timer:GetTimeElapsed() / frequency)
+
+        local target_count = trigger_immediately and math.floor((timer:GetTimeElapsed() + frequency) / frequency)
+            or math.floor(timer:GetTimeElapsed() / frequency)
+
+        if action and actions_triggered < target_count then
+            actions_triggered = actions_triggered + 1
+            action(actions_triggered)
+        end
+
+        if actions_triggered >= count then
+            timer:Destroy()
+        end
+    end
+
+    return timer
+end
+
+-- Cancel Action
+---comment
+---@param duration number
+---@param condition function | nil
+---@param recurring_action function | function<number> | nil The function to trigger, passes the current percentage.
+---@param callback_action function | nil
+---@param cancel_action function | nil
+---@return GameTimer
+function Help.GameTimer(duration, condition, recurring_action, callback_action, cancel_action)
+    local timer = Core.Timer.Game.New()
+
+    function timer:Tick()
+        if condition and not condition() then
+            if cancel_action then
+                cancel_action()
+            end
+            timer:Destroy()
+            return
+        end
+
+        if recurring_action then
+            -- Get Percentage of Time Elapsed
+            local percentage = timer:GetTimeElapsed() / duration
+            percentage = Core.Math.Clamp(percentage, 0, 1)
+            recurring_action(percentage)
+        end
+
+        if timer:GetTimeElapsed() >= duration then
+            if callback_action then
+                callback_action()
+            end
+            timer:Destroy()
+        end
+    end
+
+    return timer
+end
+
+---Generates a number of angles inside of the total spread.
+---@param base_angle number
+---@param count integer
+---@param total_spread number
+---@param alternating boolean | nil
+---@return table<number>
+function Help.CalculateSpread(base_angle, count, total_spread, alternating)
+    local offset_angles = {}
+
+    if count <= 1 then -- One
+        table.insert(offset_angles, base_angle)
+    elseif (count % 2) == 0 then -- Even
+        if alternating then
+            local half_count = count / 2
+            local angle_between = total_spread / half_count / 2
+
+            for i = 1, half_count do
+                table.insert(offset_angles, base_angle + angle_between * i)
+                table.insert(offset_angles, base_angle - angle_between * i)
+            end
+        else
+            local angle_between = total_spread / (count - 1)
+            local starting_angle = base_angle - (total_spread / 2)
+
+            for i = 1, count do
+                table.insert(offset_angles, starting_angle + angle_between * (i - 1))
+            end
+        end
+    else -- Odd
+        if alternating then
+            local half_count = (count - 1) / 2
+            local angle_between = total_spread / half_count / 2
+
+            table.insert(offset_angles, base_angle)
+            for i = 1, half_count do
+                table.insert(offset_angles, base_angle + angle_between * i)
+                table.insert(offset_angles, base_angle - angle_between * i)
+            end
+        else
+            local angle_between = total_spread / (count - 1)
+            local starting_angle = base_angle - (total_spread / 2)
+
+            for i = 1, count do
+                table.insert(offset_angles, starting_angle + angle_between * (i - 1))
+            end
+        end
+    end
+
+    return offset_angles
+end
+
+---comment
+---@param scaling SCALING
+---@return ModifierType
+function Help.ConvertScalingToModifier(scaling)
+    if scaling == SCALING.Scaled then
+        return MODIFIER_TYPE.Scaled
+    elseif scaling == SCALING.Additive then
+        return MODIFIER_TYPE.Additive
+    elseif scaling == SCALING.Multiplier then
+        return MODIFIER_TYPE.Multiplier
+    elseif scaling == SCALING.Unscaled then
+        return MODIFIER_TYPE.Unscaled
+    end
+
+    Help.Error("Invalid Scaling Conversion", scaling)
+    return MODIFIER_TYPE.Unscaled
+end
+
+---Slow Time over a given duration
+---@param speed number
+---@param duration Time
+function Help.SlowTime(speed, duration)
+    local current_speed = DCEI.GetSpeedFactor()
+    local time_passed = 0
+
+    Help.GameTimer(duration, nil, function()
+        time_passed = time_passed + TICK_RATE
+        local interpolated = Help.Lerp(current_speed, speed, time_passed / duration)
+        DCEI.SetSpeedFactor(interpolated)
+    end)
+end
+
+---============================================================================
+---!SECTION: Helpers
+---SECTION: Indicator
+---============================================================================
+
+local INDICATOR = DCEI.Unit("Indicator")
+
+---Spawn a White Indicator at the given position.
+---@param position Vector2
+---@return Unit
+function Help.SpawnIndicator(position)
+    local indicator = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, INDICATOR, position.x, position.y)
+    return indicator
+end
+
+---comment
+---@param position Vector2
+---@param duration number | nil Default: 1
+---@param size number | nil Default: 1
+function Help.Draw(position, duration, size)
+    duration = duration or 1
+    size = size or 1
+
+    local indicator = Help.SpawnIndicator(position)
+    Help.SetModelScale(indicator, size)
+
+    Help.GameTimer(duration, nil, nil, function()
+        DCEI.RemoveUnit(indicator)
+    end)
+end
+
+---============================================================================
+---!SECTION: Indicator
+---============================================================================
+
+return Help

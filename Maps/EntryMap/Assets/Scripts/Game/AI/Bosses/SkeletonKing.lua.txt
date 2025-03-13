@@ -1,0 +1,870 @@
+-- ============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local Modifier = require("SharedData/Class/Modifier")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Pattern = require("Data/Pattern")
+local EJS = require("Data/EJS")
+
+local AIHandler = require("Game/AI/AIHandler")
+local AIHelper = require("Game/AI/AIHelper")
+
+local Help = require("Help")
+
+-- ============================================================================
+-- !SECTION: About
+---SECTION: Boss Data
+---============================================================================
+
+---@type Boss
+local Boss = {}
+
+---@type BossData
+Boss.Data = {
+    Key = "SkeletonKing",
+    Name = "Skeleton King",
+    Type = DCEI.Unit("Boss - Skeleton King"),
+    Stats = {
+        Modifier.New(STAT.Health, 10000, SCALING.Scaled),
+        Modifier.New(STAT.Thorns, 20, SCALING.Scaled),
+        Modifier.New(STAT.CollisionSize, 0.85, SCALING.Scaled),
+        Modifier.New(STAT.MoveSpeed, 2.95, SCALING.Scaled),
+        Modifier.New(STAT.StaggerResistance, 500, SCALING.Scaled),
+        Modifier.New(STAT.AddedStaggerResistance, 250, SCALING.Scaled),
+
+        -- Skills
+        Modifier.New(STAT.ProjectileCount, 2, SCALING.Scaled),
+        Modifier.New(STAT.SkillSize, 5.0, SCALING.Scaled),
+        -- Modifier.New(STAT.SkillDuration, 2.0, SCALING.Scaled),
+
+        -- Minions
+        Modifier.New(STAT.MinionCount, 8, SCALING.Scaled),
+        Modifier.New(STAT.MinionHealth, 35, SCALING.Scaled),
+        Modifier.New(STAT.MinionDamage, 10, SCALING.Scaled),
+        Modifier.New(STAT.MinionSpeed, 2.40, SCALING.Scaled),
+    },
+    StaggerAnimation = "action2",
+}
+
+-- ============================================================================
+-- !SECTION: Boss Data
+---SECTION: Local Variables
+---============================================================================
+
+local MODEL_SCALE = 2.25
+
+local PHASE_MODIFIERS = {
+    Modifier.New(STAT.AttackSpeed, 0.20, SCALING.Scaled),
+    Modifier.New(STAT.MoveSpeed, 0.10, SCALING.Additive),
+    Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled),
+    Modifier.New(STAT.SkillSize, 0.15, SCALING.Additive),
+    -- Modifier.New(STAT.SkillDuration, 0.95, SCALING.Multiplier),
+
+    Modifier.New(STAT.MinionCount, 1.25, SCALING.Multiplier),
+    Modifier.New(STAT.MinionHealth, 1.25, SCALING.Multiplier),
+    Modifier.New(STAT.MinionSpeed, 1.25, SCALING.Multiplier),
+}
+
+local REF = {
+    CastSpeed = DCEI.Behavior("Stats - Cast Speed"),
+
+    OnStay = DCEI.Effect("Boss - Skeleton King - OnStay"),
+    ContactDamage = DCEI.Effect("Boss - Skeleton King - Contact Damage"),
+
+    -- Horizontal Slash
+    HorizontalTelegraph = DCEI.Unit("Boss - Skeleton King - Horizontal - Telegraph"),
+    HorizontalSlashEffects = DCEI.Effect("Boss - Skeleton King - Horizontal Slash - Effects"),
+    HorizontalSlashVFX = DCEI.Effect("Boss - Skeleton King - Horizontal Slash - Impact VFX"),
+    HorizontalSlashScan = DCEI.Effect("Boss - Skeleton King - Horizontal Slash - Scan"),
+    HorizontalSlashDamage = DCEI.Effect("Boss - Skeleton King - Horizontal Slash - Damage"),
+
+    -- Vertical Slash
+    VerticalTelegraph = DCEI.Unit("Boss - Skeleton King - Vertical - Telegraph"),
+    VerticalSlashEffects = DCEI.Effect("Boss - Skeleton King - Vertical Slash - Effects"),
+    VerticalSlashVFX = DCEI.Effect("Boss - Skeleton King - Vertical Slash - Impact VFX"),
+    VerticalSlashScan = DCEI.Effect("Boss - Skeleton King - Vertical Slash - Scan"),
+    VerticalSlashDamage = DCEI.Effect("Boss - Skeleton King - Vertical Slash - Damage"),
+
+    -- Flame Strike
+    FlameStrikeTelegraph = DCEI.Unit("Boss - Skeleton King - Flame Strike - Telegraph"),
+    -- -- Primary
+    FlameStrikePrimaryEffects = DCEI.Effect("Boss - Skeleton King - Flame Strike - Primary Impact - Effects"),
+    FlameStrikePrimaryImpactVFX = DCEI.Effect("Boss - Skeleton King - Flame Strike - Primary Impact VFX"),
+    FlameStrikePrimaryScan = DCEI.Effect("Boss - Skeleton King - Flame Strike - Primary Impact - Scan"),
+    FlameStrikePrimaryDamage = DCEI.Effect("Boss - Skeleton King - Flame Strike - Primary Impact - Damage"),
+    -- -- Secondary
+    FlameStrikeSecondaryEffects = DCEI.Effect("Boss - Skeleton King - Flame Strike - Secondary Impact - Effects"),
+    FlameStrikeSecondaryGroundVFX = DCEI.Effect("Boss - Skeleton King - Flame Strike - Secondary Impact - Ground VFX"),
+    FlameStrikeSecondaryImpactVFX = DCEI.Effect("Boss - Skeleton King - Flame Strike - Secondary Impact - Impact VFX"),
+    FlameStrikeSecondaryScan = DCEI.Effect("Boss - Skeleton King - Flame Strike - Secondary Impact - Scan"),
+    FlameStrikeSecondaryDamage = DCEI.Effect("Boss - Skeleton King - Flame Strike - Secondary Impact - Damage"),
+
+    -- Minion
+    MinionDamage = DCEI.Effect("Skeleton King - Minion - Skeleton - Damage"),
+}
+
+local HORIZONTAL_SLASH_VFX_SCALE = 0.50
+local HORIZONTAL_TELEGRAPH_SCALE = 0.25
+
+local VERTICAL_SLASH_VFX_SCALE = 0.25
+local VERTICAL_TELEGRAPH_SCALE = 0.25
+
+local FLAME_STRIKE_DISTANCE_FACTOR = 0.75
+local FLAME_STRIKE_PRIMARY_SCALE = 0.30
+local FLAME_STRIKE_SECONDARY_SCALE = 0.45
+
+local OVERRIDES = {
+    EffectPath.New(REF.ContactDamage, EJS.Damage.Value, STAT.Thorns, 0.50),
+
+    EffectPath.New(REF.MinionDamage, EJS.Damage.Value, STAT.MinionDamage, 1),
+
+    -- Horizontal Slash
+    EffectPath.New(REF.HorizontalSlashScan, EJS.AreaSearch.InnerRadius, STAT.CollisionSize, 1),
+    EffectPath.New(REF.HorizontalSlashScan, EJS.AreaSearch.OuterRadius, STAT.SkillSize, 1),
+    EffectPath.New(REF.HorizontalSlashVFX, EJS.Actor.Scale, STAT.SkillSize, HORIZONTAL_SLASH_VFX_SCALE),
+    EffectPath.New(REF.HorizontalSlashDamage, EJS.Damage.Value, STAT.Thorns, 1),
+
+    -- Vertical Slash
+    EffectPath.New(REF.VerticalSlashScan, EJS.AreaSearch.Width, STAT.SkillSize, 0.65),
+    EffectPath.New(REF.VerticalSlashScan, EJS.AreaSearch.Length, STAT.SkillSize, 2),
+    EffectPath.New(REF.VerticalSlashVFX, EJS.Actor.Scale, STAT.SkillSize, VERTICAL_SLASH_VFX_SCALE),
+    EffectPath.New(REF.VerticalSlashDamage, EJS.Damage.Value, STAT.Thorns, 1),
+
+    -- FlameStrike
+    -- -- Primary
+    EffectPath.New(REF.FlameStrikePrimaryScan, EJS.AreaSearch.Radius, STAT.SkillSize, FLAME_STRIKE_PRIMARY_SCALE),
+    EffectPath.New(REF.FlameStrikePrimaryImpactVFX, EJS.Actor.Scale, STAT.SkillSize, FLAME_STRIKE_PRIMARY_SCALE),
+    EffectPath.New(REF.FlameStrikePrimaryDamage, EJS.Damage.Value, STAT.Thorns, 1),
+    -- -- Secondary
+    EffectPath.New(REF.FlameStrikeSecondaryScan, EJS.AreaSearch.Radius, STAT.SkillSize, FLAME_STRIKE_SECONDARY_SCALE),
+    EffectPath.New(REF.FlameStrikeSecondaryGroundVFX, EJS.Actor.Scale, STAT.SkillSize, FLAME_STRIKE_SECONDARY_SCALE),
+    EffectPath.New(REF.FlameStrikeSecondaryImpactVFX, EJS.Actor.Scale, STAT.SkillSize, FLAME_STRIKE_SECONDARY_SCALE),
+    EffectPath.New(REF.FlameStrikeSecondaryDamage, EJS.Damage.Value, STAT.Thorns, 1),
+}
+
+local SIMPLE_UNITS = {
+    [SimpleUnits.Data.SkeletonMinion] = SimpleUnit.New(SimpleUnits.Data.SkeletonMinion.Type),
+}
+
+local STATES = {
+    -- Core
+    BaseDecision = "BaseDecision",
+    AdvancedDecision = "AdvancedDecision",
+
+    -- Custom
+    Move = "Move", -- "walk"
+    Summon = "Summon", -- action3
+    HorizontalSlash = "HorizontalSlash", -- attack
+    VerticalSlash = "VerticalSlash", -- attack1
+    FlameStrike = "FlameStrike", -- action4
+    Dash = "Dash", -- walk
+}
+
+local ACTION_ORDER_01 = {
+    -- STATES.Move,
+    -- STATES.Summon,
+    -- STATES.HorizontalSlash,
+    -- STATES.VerticalSlash,
+    -- STATES.FlameStrike,
+    -- STATES.Dash,
+
+    STATES.Summon,
+    STATES.Move,
+    STATES.HorizontalSlash,
+    STATES.Move,
+    STATES.VerticalSlash,
+    STATES.Move,
+    STATES.FlameStrike,
+}
+
+local ACTION_ORDER_02 = {
+    STATES.FlameStrike,
+    STATES.HorizontalSlash,
+    STATES.Summon,
+    STATES.Move,
+    STATES.VerticalSlash,
+    STATES.VerticalSlash,
+    STATES.Move,
+}
+
+local ACTION_ORDER_03 = {
+    STATES.Summon,
+    STATES.Dash,
+    STATES.HorizontalSlash,
+    STATES.VerticalSlash,
+    STATES.FlameStrike,
+    STATES.Move,
+}
+
+-- ============================================================================
+-- !SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function RegisterSimpleUnits(attributes)
+    for unit_data, _ in pairs(SIMPLE_UNITS) do
+        SIMPLE_UNITS[unit_data] = SimpleUnits.Helpers.QuickRegister(unit_data, attributes)
+    end
+end
+
+---comment
+---@param ai AIHandler
+local function UpdateCache(ai)
+    RegisterSimpleUnits(ai.attributes)
+end
+
+---comment
+---@param ai AIHandler
+local function OnPhaseIncreased(ai)
+    ai.Data.StateIndex = 0
+
+    for _, modifier in pairs(PHASE_MODIFIERS) do
+        local new_modifier = modifier:Copy()
+        ai.attributes:Add(new_modifier)
+    end
+
+    -- Other Required Updates
+    UpdateCache(ai)
+end
+
+local function SpawnSkeleton(ai, position, direction)
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    SIMPLE_UNITS[SimpleUnits.Data.SkeletonMinion]:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, ai.Data.Target)
+end
+
+local function SpawnSkeletonWithMarker(ai, position, direction)
+    AIHelper.SpawnMarker(ai.unit, position, function()
+        SpawnSkeleton(ai, position, direction)
+    end)
+end
+
+-- Spawns units in a line
+---@param ai AIHandler
+local function SpawnPattern_01(ai)
+    local unit_position = Vector2.UnitPosition(ai.unit)
+
+    local angle = Vector2.UnitFacing(ai.unit)
+    local distance = 20
+
+    local position_a = unit_position + Vector2.NewFromAngle(angle + 125) * distance
+    local position_b = unit_position + Vector2.NewFromAngle(angle - 125) * distance
+
+    local count = ai.attributes:Get(STAT.MinionCount)
+    local pattern = Pattern.Line(position_a, position_b, count)
+    local move_direction = Vector2.NewFromAngle(angle)
+
+    for i = 1, #pattern do
+        SpawnSkeletonWithMarker(ai, pattern[i], move_direction)
+    end
+end
+
+-- Spawns units in a circle
+---@param ai AIHandler
+local function SpawnPattern_02(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local radius = 20
+
+    local count = ai.attributes:Get(STAT.MinionCount)
+    local pattern = Pattern.EllipseEdge(unit_position, radius, radius, count)
+
+    for i = 1, #pattern do
+        local move_direction = target_position - pattern[i]
+        SpawnSkeletonWithMarker(ai, pattern[i], move_direction)
+    end
+end
+
+-- ============================================================================
+-- !SECTION: Local Functions
+---SECTION: Action Parts
+---============================================================================
+
+---Turns the Unit towards their Target
+---@param ai AIHandler
+local function TurnTowardsTarget(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return false
+    end
+
+    local BASE_CAST_TIME = 0.25
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local facing = Vector2.GetUnitOffsetVector(ai.unit, ai.Data.Target, true)
+    DCEI.TurnUnitTowards(ai.unit, facing.x, facing.y, cast_time)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---@param ai AIHandler
+local function SummonAction(ai)
+    local BASE_CAST_TIME = 1.25
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    Help.PlayAnimationWithDuration(ai.unit, "action3", cast_time)
+
+    -- Part 3: Spawn Projectiles after Cast Point Delay
+    local CAST_POINT = 16 / 30
+    local cast_point_time = cast_time * CAST_POINT
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function()
+        -- Summon Skeletons
+        if Help.Flip() then
+            SpawnPattern_01(ai)
+        else
+            SpawnPattern_02(ai)
+        end
+    end
+
+    Help.GameTimer(cast_point_time, condition, nil, action, nil)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---@param ai AIHandler
+local function SpawnHorizontalTelegraph(ai, duration)
+    local position = Vector2.UnitPosition(ai.unit)
+    local facing = Vector2.UnitForward(ai.unit)
+
+    local collision_size = ai:GetBossStat(STAT.CollisionSize)
+
+    local spawn_position = position + facing * collision_size
+
+    local instance = DCEI.CreateUnit(
+        TEAM.Hostile,
+        PLAYER.Hostile,
+        REF.HorizontalTelegraph,
+        spawn_position.x,
+        spawn_position.y,
+        facing.x,
+        facing.y
+    )
+
+    -- Scale
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+    Help.SetModelScale(instance, (skill_size - collision_size / 2) * HORIZONTAL_TELEGRAPH_SCALE)
+
+    -- Simulation Speed
+    local TELEGRAPH_TIME = 1.50
+    local cast_speed_stacks = math.floor(TELEGRAPH_TIME / duration * 100)
+    Core.Unit.SetBehaviorCount(instance, REF.CastSpeed, cast_speed_stacks)
+    Help.SendActorEvent(instance, "Play")
+
+    return instance
+end
+
+---@param ai AIHandler
+local function HorizontalSlashAction(ai)
+    local BASE_CAST_TIME = 2.00
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local CAST_POINT = 13 / 30
+    local cast_point_time = cast_time * CAST_POINT
+
+    -- Telegraph
+    local telegraph = SpawnHorizontalTelegraph(ai, cast_point_time)
+
+    Help.PlayAnimationWithDuration(ai.unit, "attack", cast_time)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function()
+        DCEI.RemoveUnit(telegraph)
+
+        local position = Vector2.UnitPosition(ai.unit)
+        local forward = Vector2.UnitForward(ai.unit)
+        local target_position = position + forward
+        Help.CreateEffect(PLAYER.Hostile, REF.HorizontalSlashEffects, ai.unit, target_position)
+    end
+
+    local cancel_action = function()
+        DCEI.RemoveUnit(telegraph)
+    end
+
+    Help.GameTimer(cast_point_time, condition, nil, action, cancel_action)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---@param ai AIHandler
+local function SpawnVerticalTelegraph(ai, duration)
+    local position = Vector2.UnitPosition(ai.unit)
+    local facing = Vector2.UnitForward(ai.unit)
+
+    local spawn_position = position
+
+    local instance = DCEI.CreateUnit(
+        TEAM.Hostile,
+        PLAYER.Hostile,
+        REF.VerticalTelegraph,
+        spawn_position.x,
+        spawn_position.y,
+        facing.x,
+        facing.y
+    )
+
+    -- Scale
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+    Help.SetModelScale(instance, skill_size * VERTICAL_TELEGRAPH_SCALE)
+
+    -- Simulation Speed
+    local TELEGRAPH_TIME = 1.50
+    local cast_speed_stacks = math.floor(TELEGRAPH_TIME / duration * 100)
+    Core.Unit.SetBehaviorCount(instance, REF.CastSpeed, cast_speed_stacks)
+    Help.SendActorEvent(instance, "Play")
+
+    return instance
+end
+
+---@param ai AIHandler
+local function VerticalSlashAction(ai)
+    local BASE_CAST_TIME = 1.50
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local CAST_POINT = 12 / 30
+    local cast_point_time = cast_time * CAST_POINT
+
+    -- Telegraph
+    local telegraph = SpawnVerticalTelegraph(ai, cast_point_time)
+
+    Help.PlayAnimationWithDuration(ai.unit, "attack1", cast_time)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local action = function()
+        DCEI.RemoveUnit(telegraph)
+
+        local position = Vector2.UnitPosition(ai.unit)
+        local forward = Vector2.UnitForward(ai.unit)
+        local target_position = position + forward
+        Help.CreateEffect(PLAYER.Hostile, REF.VerticalSlashEffects, ai.unit, target_position)
+    end
+
+    local cancel_action = function()
+        DCEI.RemoveUnit(telegraph)
+    end
+
+    Help.GameTimer(cast_point_time, condition, nil, action, cancel_action)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---@param ai AIHandler
+local function SpawnFlameStrikeTelegraph(ai, position, size, duration)
+    local facing = Vector2.UnitForward(ai.unit)
+
+    local instance = DCEI.CreateUnit(
+        TEAM.Hostile,
+        PLAYER.Hostile,
+        REF.FlameStrikeTelegraph,
+        position.x,
+        position.y,
+        facing.x,
+        facing.y
+    )
+
+    -- Scale
+    Help.SetModelScale(instance, size)
+
+    -- Play Animation
+    Help.PlayAnimationWithDuration(instance, "attack", duration)
+
+    return instance
+end
+
+---@param ai AIHandler
+local function FlameStrikeAction(ai)
+    local BASE_CAST_TIME = 1.75
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+    local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local CAST_POINT = 24 / 61
+    local cast_point_time = cast_time * CAST_POINT
+
+    -- Stats
+    local position = Vector2.UnitPosition(ai.unit)
+    local forward = Vector2.UnitForward(ai.unit)
+    local collision_size = ai:GetBossStat(STAT.CollisionSize)
+    local skill_size = ai:GetBossStat(STAT.SkillSize)
+    local projectile_count = ai:GetBossStat(STAT.ProjectileCount)
+
+    local move_position = position + forward * skill_size * FLAME_STRIKE_DISTANCE_FACTOR
+    local strike_position = move_position + forward * collision_size * 2
+
+    local initial_impact_size = skill_size * FLAME_STRIKE_PRIMARY_SCALE
+    local secondary_impact_size = skill_size * FLAME_STRIKE_SECONDARY_SCALE
+    local secondary_impact_time = 1 * action_speed_modifier
+
+    -- Telegraph
+    local telegraph = SpawnFlameStrikeTelegraph(ai, strike_position, initial_impact_size, cast_point_time)
+
+    Help.PlayAnimationWithDuration(ai.unit, "action4", cast_time)
+
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local recurring_action = function(percentage)
+        -- Move the Unit towards the telegraph
+        local new_position = Vector2.Lerp(position, move_position, percentage)
+        DCEI.SetUnitPosition2DWithInterpolation(ai.unit, new_position.x, new_position.y)
+    end
+
+    local action = function()
+        DCEI.RemoveUnit(telegraph)
+
+        -- Create Initial Flame Strike Impact Effect
+        Help.CreateEffect(PLAYER.Hostile, REF.FlameStrikePrimaryEffects, ai.unit, strike_position)
+
+        local max_distance = skill_size
+        local distance_step = max_distance / projectile_count
+
+        for i = 1, projectile_count do
+            local random_position = move_position + Vector2.Random() * distance_step * i
+
+            local telegraph =
+                SpawnFlameStrikeTelegraph(ai, random_position, secondary_impact_size, secondary_impact_time)
+
+            Help.GameTimer(secondary_impact_time, nil, nil, function()
+                DCEI.RemoveUnit(telegraph)
+
+                -- Create Secondary Flame Strike Impact Effect
+                Help.CreateEffect(PLAYER.Hostile, REF.FlameStrikeSecondaryEffects, ai.unit, random_position)
+            end)
+        end
+    end
+
+    local cancel_action = function()
+        DCEI.RemoveUnit(telegraph)
+    end
+
+    Help.GameTimer(cast_point_time, condition, recurring_action, action, cancel_action)
+
+    if not Help.WaitAndValidateUnit(cast_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+---@param ai AIHandler
+local function DashAction(ai)
+    -- local BASE_CAST_TIME = 1.50
+    -- local action_speed_modifier = ai:GetActionSpeedModifier()
+    -- local cast_time = BASE_CAST_TIME * action_speed_modifier
+
+    local collision_size = ai:GetBossStat(STAT.CollisionSize)
+    local move_speed = ai:GetBossStat(STAT.MoveSpeed)
+    local charge_distance = ai:GetBossStat(STAT.SkillSize)
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+
+    -- We will get a position very close to the player and move there.
+    local distance = Vector2.Distance(position, target_position)
+    local move_distance = distance - (collision_size * 2)
+    local direction = Vector2.Normalized(target_position - position)
+    local move_position = position + direction * move_distance
+
+    local move_distance = Vector2.Distance(position, move_position)
+
+    local charge_speed_multiplier = 7.50
+    local charge_speed = move_speed * charge_speed_multiplier
+
+    local charge_time = move_distance / charge_speed
+
+    -- Move
+    local condition = function()
+        return ai:ValidateSelfAndTarget()
+    end
+
+    local recurring_action = function(percentage)
+        local position = Vector2.UnitPosition(ai.unit)
+        local target_postiion = Vector2.UnitPosition(ai.Data.Target)
+        local move_direction = Vector2.Normalized(target_postiion - position)
+        local desired_position = target_position - move_direction * (collision_size * 2)
+
+        local new_position = Vector2.MoveTowards(position, desired_position, charge_speed * TICK_RATE)
+
+        -- local new_position = Vector2.Lerp(position, move_position, percentage)
+        DCEI.SetUnitPosition2DWithInterpolation(ai.unit, new_position.x, new_position.y)
+    end
+
+    Help.GameTimer(charge_time, condition, recurring_action)
+
+    -- Play Walk Animation
+    local walk_animation_time = 1 / charge_speed * 5
+
+    local action = function()
+        Help.PlayAnimationWithDuration(ai.unit, "walk", walk_animation_time)
+    end
+
+    Help.PeriodicGameTimer(charge_time / walk_animation_time, walk_animation_time, condition, action, true)
+
+    if not Help.WaitAndValidateUnit(charge_time, ai.unit) then
+        return false
+    end
+
+    return true
+end
+
+-- ============================================================================
+-- !SECTION: Action Parts
+---SECTION: Local Casters
+---============================================================================
+
+---@param ai AIHandler
+local function CastSummon(ai)
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai:PlayActionSequence({
+        TurnTowardsTarget,
+        SummonAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---TODO: Reimplement when Circle Sector is functional.
+---@param ai AIHandler
+local function CastHorizontalSlash(ai)
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai:PlayActionSequence({
+        TurnTowardsTarget,
+        HorizontalSlashAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function CastVerticalSlash(ai)
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai:PlayActionSequence({
+        TurnTowardsTarget,
+        VerticalSlashAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+---@param ai AIHandler
+local function CastFlameStrike(ai)
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai:PlayActionSequence({
+        TurnTowardsTarget,
+        FlameStrikeAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+local function CastDash(ai)
+    if not ai.unit or not Help.ValidateUnit(ai.unit) then
+        return
+    end
+
+    ai:PlayActionSequence({
+        TurnTowardsTarget,
+        DashAction,
+    })
+
+    ai:SetState(STATES.BaseDecision)
+    ai:RunState()
+end
+
+-- ============================================================================
+-- !SECTION: Local Casters
+---SECTION: Local Manual State Handlers
+---============================================================================
+
+---@param ai AIHandler
+local function CastMove(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    local position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(position, target_position)
+    local collision_size = ai.attributes:Get(STAT.CollisionSize)
+
+    ai.Data.MovePosition = target_position
+
+    -- Stagger Reached
+
+    if ai:IsStaggerThresholdReached() then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- If we are close enough to the target, we can stop moving.
+    if distance <= collision_size then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Timer expired
+    ai.Data.StateTimer = ai.Data.StateTimer - TICK_RATE
+    if ai.Data.StateTimer <= 0 then
+        ai:SetState(STATES.BaseDecision)
+    end
+
+    -- Stop Movement if moving out of this State
+    if ai.state ~= STATES.Move then
+        ai.Data.MovePosition = position
+    end
+
+    DCEI.Move(ai.unit, ai.Data.MovePosition.x, ai.Data.MovePosition.y)
+    ai:RunState()
+end
+
+---comment
+---@param ai AIHandler
+local function AdvancedDecision(ai)
+    -- Common Variables
+    local unit_position = Vector2.UnitPosition(ai.unit)
+    local target_position = Vector2.UnitPosition(ai.Data.Target)
+    local distance = Vector2.Distance(unit_position, target_position)
+
+    ---TODO: Boss Specific Actions
+    local phase = ai.phase
+    local action_order = phase == 1 and ACTION_ORDER_01 or phase == 2 and ACTION_ORDER_02 or ACTION_ORDER_03
+
+    -- Update State Index
+    ai.Data.StateIndex = ai.Data.StateIndex + 1
+    if ai.Data.StateIndex > #action_order then
+        ai.Data.StateIndex = 1
+    end
+
+    local state = action_order[ai.Data.StateIndex]
+    local action_speed_modifier = ai:GetActionSpeedModifier()
+
+    ai:SetState(state)
+
+    if state == STATES.Move then
+        ai.Data.StateTime = Core.Random.GetNumber(1.5, 2.0) * action_speed_modifier
+        ai.Data.StateTimer = ai.Data.StateTime
+    end
+
+    local think_time = 0.25 * action_speed_modifier
+    if not Help.WaitAndValidateUnit(think_time, ai.unit) then
+        return
+    end
+
+    ai:RunState()
+end
+
+-- ============================================================================
+---!SECTION: Local Manual State Handlers
+---SECTION: AI Setup
+---============================================================================
+
+---Setup and Start the AI
+---@param unit Unit
+---@param attributes Attributes
+function Boss.StartAI(unit, attributes)
+    local ai = AIHandler.New(unit, attributes, OVERRIDES, true, true, Boss.Data.StaggerAnimation)
+    local collision_size = ai:GetBossStat(STAT.CollisionSize)
+    SimpleUnits.Helpers.AttachBossCollider(unit, collision_size, REF.OnStay)
+    Help.SetModelScale(unit, collision_size * MODEL_SCALE)
+
+    UpdateCache(ai)
+
+    -- Core States
+    ai:AddState(STATES.Move, CastMove)
+    ai:AddState(STATES.AdvancedDecision, AdvancedDecision)
+
+    -- Boss Specific
+    ai:AddState(STATES.Summon, CastSummon)
+    ai:AddState(STATES.HorizontalSlash, CastHorizontalSlash)
+    ai:AddState(STATES.VerticalSlash, CastVerticalSlash)
+    ai:AddState(STATES.FlameStrike, CastFlameStrike)
+    ai:AddState(STATES.Dash, CastDash)
+
+    -- ai:AddState(STATES.SummonPattern_01, CastSummonPattern_01)
+    -- ai:AddState(STATES.SummonPattern_02, CastSummonPattern_02)
+    -- ai:AddState(STATES.VerticalSlash, CastVerticalSlash)
+
+    -- simple_units.SkeletonWarrior = SimpleUnits.SetupHostile(SimpleUnits.Data.SkeletonWarrior, difficulty)
+
+    -- Stagger
+    AIHelper.RegisterBossStaggerUpdate(ai)
+
+    -- Phase Increase
+    ai:AddPhaseIncreaseCallback(OnPhaseIncreased)
+
+    -- Initialize Data
+    ai.Data.StateIndex = 0
+
+    -- Force this to occur in a separate thread so we can use Wait.
+    DCEI.TriggerAddTimerEventElapsed(
+        DCEI.Coroutine(function()
+            ai:RunState()
+        end),
+        TICK_RATE,
+        false,
+        false
+    )
+end
+
+-- ============================================================================
+-- !SECTION: AI Setup
+---SECTION: Libraries
+---============================================================================
+
+return Boss

@@ -1,0 +1,330 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Meta = require("Meta:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local ComparePopup = require("UiCamp/Equipment/ComparePopup")
+local SkillTagData = require("SharedData/Skills/SkillTagData")
+local StatData = require("SharedData/Skills/StatData")
+local EquipmentDataHelper = require("SharedData/Class/EquipmentDataHelper")
+
+-- DATA
+local DataManager = require("UiMeta/DataManager")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local Vault = {}
+Vault.is_initialized = false
+
+local inventory_items = {}
+local modifier_items = {}
+local slots = {}
+local sort_type = EQUIPMENT_SORTING_TYPES.SlotType
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@param parent table
+---@param tag SKILL_TAG
+---@return table
+local function CreateTagLayout(parent, tag)
+    local tag_layout = GMUI.Layout.New({
+        name = "Camp/Vault/EquipmentPopup/Modifier/Tag",
+        parent = parent.TagContainer,
+    })
+
+    local skill_tag_data = SkillTagData[tag] or SkillTagData.Default
+    tag_layout.state.icon = skill_tag_data.Icon
+
+    return tag_layout
+end
+
+---@param modifier_data ModifierData
+---@return table
+local function CreateModifierItem(modifier_data)
+    local modifier_layout = GMUI.Layout.New({
+        name = "Camp/Vault/Modifier",
+        parent = Vault.layout.CurrentModifiers,
+    })
+
+    local mod_text = StatData.ConvertModifierDataToText(modifier_data)
+    modifier_layout.state.mod_text = mod_text
+
+    if modifier_data.Tags then
+        modifier_layout.tag_layouts = {}
+        for _, tag in ipairs(modifier_data.Tags) do
+            local tag_layout = CreateTagLayout(modifier_layout, tag)
+            table.insert(modifier_layout.tag_layouts, tag_layout)
+        end
+    end
+
+    return modifier_layout
+end
+
+local function UpdateModifierDisplay()
+    for _, modifier_layout in ipairs(modifier_items) do
+        modifier_layout:Destroy()
+    end
+    modifier_items = {}
+
+    local modifiers = {}
+
+    -- Get all modifiers on each equipped item
+    local hero_name = DataManager.save_data.player.hero
+    local hero_equipment = DataManager.GetHeroEquipmentIndices(hero_name)
+    for _, index in pairs(hero_equipment) do
+        local equipment_save_data =  DataManager.GetEquipmentSaveData(index) or {}
+        for _, mod in ipairs(equipment_save_data.modifiers or {}) do
+            table.insert(modifiers, mod)
+        end
+    end
+
+    -- Create each item after merging all mods that are the same
+    local merged_modifiers = EquipmentDataHelper.MergeDuplicateModifiers(modifiers)
+    for _, modifier_data in ipairs(merged_modifiers) do
+        local modifier_layout = CreateModifierItem(modifier_data)
+        table.insert(modifier_items, modifier_layout)
+    end
+end
+
+---@param slot_type EQUIPMENT_SLOT
+local function UnEquipAllOfType(slot_type)
+    for _, item_layout in ipairs(inventory_items) do
+        if item_layout.slot_type == slot_type then
+            item_layout.state.is_equipped = false
+        end
+    end
+end
+
+local function GetSlotByType(slot_type)
+    for _, slot in ipairs(slots) do
+        if slot.type == slot_type then
+            return slot
+        end
+    end
+end
+
+local function UnEquipSlot(slot_type)
+    UnEquipAllOfType(slot_type)
+
+    local slot = GetSlotByType(slot_type)
+    slot.layout.state.is_equipped = false
+
+    -- Wait for save data to update
+    DCEI.WaitForUiUpdateToComplete(UpdateModifierDisplay)
+end
+
+local function EquipSlot(slot_type, equipment_save_data)
+    local display_data = DataManager.GetEquipmentDisplayData(equipment_save_data.id)
+    if not display_data then
+        return
+    end
+
+    local slot = GetSlotByType(slot_type)
+    slot.layout.state.is_equipped = true
+    slot.layout.state.icon = display_data.Icon
+
+    -- Wait for save data to update
+    DCEI.WaitForUiUpdateToComplete(UpdateModifierDisplay)
+end
+
+local function InitializeSlot(slot)
+    slot.layout.state.is_equipped = false
+
+    DCEI.SetOnClickCallback(slot.layout.Frame, function()
+        UnEquipSlot(slot.type)
+
+        local hero_name = DataManager.save_data.player.hero
+        DataManager.UnEquipEquipment(hero_name, slot.type)
+    end)
+end
+
+local function InitializeSlots()
+    slots = {
+        {
+            type = EQUIPMENT_SLOT.Weapon,
+            layout = Vault.layout.weapon_slot,
+        },
+        {
+            type = EQUIPMENT_SLOT.Consumable,
+            layout = Vault.layout.consumable_slot,
+        },
+        {
+            type = EQUIPMENT_SLOT.Ring,
+            layout = Vault.layout.ring_slot,
+        },
+        {
+            type = EQUIPMENT_SLOT.Head,
+            layout = Vault.layout.head_slot,
+        },
+        {
+            type = EQUIPMENT_SLOT.Chest,
+            layout = Vault.layout.chest_slot,
+        },
+        {
+            type = EQUIPMENT_SLOT.Boot,
+            layout = Vault.layout.boot_slot,
+        },
+    }
+
+    for _, slot in ipairs(slots) do
+        InitializeSlot(slot)
+    end
+end
+
+---@param equipment_save_data EquipmentSaveData
+local function CreateItem(equipment_save_data)
+    local display_data = DataManager.GetEquipmentDisplayData(equipment_save_data.id)
+    if not display_data then
+        return
+    end
+
+    local item_layout = GMUI.Layout.New({
+        name = "Camp/Vault/Item",
+        parent = Vault.layout.ItemGrid,
+    })
+
+    item_layout.state.icon = display_data.Icon
+    item_layout.slot_type = display_data.SlotType
+    item_layout.index = equipment_save_data.index
+
+    DCEI.SetOnClickCallback(item_layout.Frame, function()
+        ComparePopup.Open(item_layout, equipment_save_data, Vault.TryEquip)
+    end)
+
+    table.insert(inventory_items, item_layout)
+end
+
+local function CreateInventory()
+    for _, item_layout in ipairs(inventory_items) do
+        item_layout:Destroy()
+    end
+    inventory_items = {}
+
+    local hero_name = DataManager.save_data.player.hero
+    local hero_equipment = DataManager.GetHeroEquipmentIndices(hero_name)
+    local equipment = DataManager.GetEquipmentInventory()
+    equipment = EquipmentDataHelper.SortInventory(equipment, sort_type)
+
+    for i, equipment_save_data in ipairs(equipment) do
+        CreateItem(equipment_save_data)
+
+        for slot, equipment_index in pairs(hero_equipment) do
+            if equipment_save_data.index == equipment_index then
+                Vault.TryEquip(inventory_items[i], equipment_save_data)
+                break
+            end
+        end
+    end
+end
+
+---@param callback function
+local function GiveAuthority(data, callback)
+    Vault.Open(callback)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@param item_layout Layout
+---@param equipment_save_data EquipmentSaveData
+function Vault.TryEquip(item_layout, equipment_save_data)
+    local hero_name = DataManager.save_data.player.hero
+
+    -- Un-equip if already equipped
+    if item_layout.state.is_equipped then
+        UnEquipSlot(item_layout.slot_type)
+        DataManager.UnEquipEquipment(hero_name, item_layout.slot_type)
+        item_layout.state.is_equipped = false
+        return
+    end
+
+    -- Otherwise, update all states and equip new gear
+    UnEquipAllOfType(item_layout.slot_type)
+    EquipSlot(item_layout.slot_type, equipment_save_data)
+    DataManager.EquipEquipment(hero_name, equipment_save_data)
+    item_layout.state.is_equipped = true
+end
+
+function Vault.Initialize()
+    if Vault.is_initialized then
+        return
+    end
+
+    -- Create layout
+    Vault.layout = GMUI.Layout.New({
+        name = "Camp/Vault",
+        parent = ui.z3.Lower,
+    })
+    ui.camp.vault = Vault.layout
+
+    InitializeSlots()
+
+    Vault.layout.HideActual = Vault.layout.Hide
+    function Vault.layout:Hide()
+        GMUI.RunSimulationCallback(Vault.return_authority)
+        self:HideActual()
+    end
+
+    DCEI.SetOnClickCallback(Vault.layout.close.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Vault.layout:Hide()
+    end)
+    DCEI.SetOnClickOutsideCallback(Vault.layout.Popup, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Vault.layout:Hide()
+    end)
+
+    Vault.is_initialized = true
+end
+
+function Vault.Open(callback)
+    if not Vault.is_initialized then
+        Vault.Initialize()
+    end
+
+    -- Reset slots
+    for _, slot in ipairs(slots) do
+        slot.layout.state.is_equipped = false
+    end
+
+    CreateInventory()
+    UpdateModifierDisplay()
+
+    Vault.return_authority = callback
+    Vault.layout:Show()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.Vault", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return Vault

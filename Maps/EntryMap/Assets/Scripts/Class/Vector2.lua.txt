@@ -1,0 +1,509 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    -- ANCHOR -- Description --
+
+    Contains common Vector2 methods and operations.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Main
+-- ================================================================================================
+
+-- ANCHOR: Initialization
+
+---@class Vector2
+---@field x number
+---@field y number
+---@operator unm: Vector2
+---@operator add(Vector2): Vector2
+---@operator sub(Vector2): Vector2
+---@operator mul(number): Vector2
+---@operator div(number): Vector2
+---@operator idiv(number): Vector2
+---@operator mod(number): Vector2
+---@operator pow(number): Vector2
+local Vector2 = {}
+Vector2.__index = Vector2
+
+---Creates a new vector with the given (x, y) components.
+---@param x number | nil Default: 0
+---@param y number | nil Default: 0
+---@return Vector2
+function Vector2.New(x, y)
+    local self = setmetatable({}, Vector2)
+    self.x = x or 0
+    self.y = y or 0
+
+    return self
+end
+
+-- ANCHOR: Metatable Methods
+
+-- ---Returns a formatted string for this vector.
+-- ---@return string
+-- function Vector2:__tostring() return string.format("> Vector2: (%f, %f)", self.x, self.y) end
+
+---Returns true if the given vector is exactly equal to this vector.
+---@param vector Vector2
+---@return boolean
+function Vector2:__eq(vector) return self.x == vector.x and self.y == vector.y end
+
+---Inverts the vector values.
+---@return Vector2
+function Vector2:__unm() return Vector2.New(-self.x, -self.y) end
+
+---Adds two vectors.
+---@param vector Vector2
+---@return Vector2
+function Vector2:__add(vector) return Vector2.New(self.x + vector.x, self.y + vector.y) end
+
+---Subtracts one vector from another.
+---@param vector Vector2
+---@return Vector2
+function Vector2:__sub(vector) return Vector2.New(self.x - vector.x, self.y - vector.y) end
+
+---Multiplies a vector by a number.
+---@param value number
+---@return Vector2
+function Vector2:__mul(value) return Vector2.New(self.x * value, self.y * value) end
+
+---Divides a vector by a number.
+---@param value number
+---@return Vector2
+function Vector2:__div(value) return Vector2.New(self.x / value, self.y / value) end
+
+---Divides a vector by an integer.
+---@param value integer
+---@return Vector2
+function Vector2:__idiv(value) return Vector2.New(math.floor(self.x / value), math.floor(self.y / value)) end
+
+---Applies a modulo to the vector values.
+---@param value number
+---@return Vector2
+function Vector2:__mod(value) return Vector2.New(self.x % value, self.y % value) end
+
+---Applies a power to the vector values.
+---@param value number
+---@return Vector2
+function Vector2:__pow(value) return Vector2.New(self.x ^ value, self.y ^ value) end
+
+-- ANCHOR: Static Properties
+
+---Shorthand for writing Vector2.New(0, 0).
+---@return Vector2
+function Vector2.Zero() return Vector2.New(0, 0) end
+
+---Shorthand for writing Vector2.New(0, 1).
+---@return Vector2
+function Vector2.Up() return Vector2.New(0, 1) end
+
+---Shorthand for writing Vector2.New(0, -1).
+---@return Vector2
+function Vector2.Down() return Vector2.New(0, -1) end
+
+---Shorthand for writing Vector2.New(-1, 0).
+---@return Vector2
+function Vector2.Left() return Vector2.New(-1, 0) end
+
+---Shorthand for writing Vector2.New(1, 0).
+---@return Vector2
+function Vector2.Right() return Vector2.New(1, 0) end
+
+---Shorthand for writing Vector2.New(1, 1).
+---@return Vector2
+function Vector2.One() return Vector2.New(1, 1) end
+
+---Shorthand to get a Vector2 in the given Quadrant.
+---Quadrant 1 = (1, 1)
+---Quadrant 2 = (-1, 1)
+---Quadrant 3 = (-1, -1)
+---Quadrant 4 = (1, -1)
+---@param n number | nil Default: 1 [1 - 4]
+---@param normalized boolean | nil Default: false
+function Vector2.Quadrant(n, normalized)
+    n = n or 1
+    normalized = normalized or false
+
+    local v = Vector2.New(1, 1)
+    if n == 2 or n == 3 then v.x = -v.x end
+    if n == 3 or n == 4 then v.y = -v.y end
+
+    if normalized then
+        v = Vector2.Normalized(v)
+    end
+
+    return v
+end
+
+-- ANCHOR: Static Methods
+
+---Returns the squared length of the vector.
+---@return number
+function Vector2.SqrMagnitude(vector) return (vector.x * vector.x) + (vector.y * vector.y) end
+
+---Returns the length of the vector.
+---@param vector Vector2
+---@return number
+function Vector2.Magnitude(vector) return math.sqrt(Vector2.SqrMagnitude(vector)) end
+
+---Returns the vector with a magnitude of 1.
+---@return Vector2
+function Vector2.Normalized(vector)
+    local mag = Vector2.Magnitude(vector)
+    if mag > 0 then return Vector2.New(vector.x / mag, vector.y / mag) else return Vector2.Zero() end
+end
+
+---Returns the angle in degrees.
+---@param vector Vector2
+---@return number
+function Vector2.Angle(vector) return math.deg(math.atan(vector.y, vector.x)) end
+
+---Gets the angle in degrees between two vectors.
+---@param a Vector2
+---@param b Vector2
+---@return number
+function Vector2.AngleBetween(a, b) return math.deg(math.atan(b.y - a.y, b.x - a.x)) end
+
+---Returns a copy of vector with its magnitude clamped between the min and max.
+---@param vector Vector2
+---@param min number
+---@param max number
+---@return Vector2
+function Vector2.ClampMagnitude(vector, min, max)
+    local length = Vector2.Magnitude(vector)
+    if length > max then
+        return Vector2.New(
+            vector.x * max / length,
+            vector.y * max / length
+        )
+    elseif length < min then
+        return Vector2.New(
+            vector.x * min / length,
+            vector.y * min / length
+        )
+    else
+        return vector
+    end
+end
+
+---Returns the midpoint of two vectors.
+---@param a Vector2
+---@param b Vector2
+---@return Vector2
+function Vector2.Midpoint(a, b) return Vector2.New((a.x + b.x) / 2, (a.y + b.y) / 2) end
+
+---Dot Product of two vectors.
+---@param a Vector2
+---@param b Vector2
+---@return number
+function Vector2.Dot(a, b) return (a.x * b.x) + (a.y * b.y) end
+
+---Returns the distance between two vectors.
+---@param a Vector2
+---@param b Vector2
+---@return number
+function Vector2.Distance(a, b) return Vector2.Magnitude(a - b) end
+
+---Returns the squared distance between two vectors.
+---@param a Vector2
+---@param b Vector2
+---@return number
+function Vector2.SqrDistance(a, b) return Vector2.SqrMagnitude(a - b) end
+
+---Makes each of the vector values positive.
+---@param vector Vector2
+---@return Vector2
+function Vector2.Absolute(vector) return Vector2.New(math.abs(vector.x), math.abs(vector.y)) end
+
+---Lineraly interpolates between vectors a and b by t.
+---@param a Vector2
+---@param b Vector2
+---@param t number
+---@return Vector2
+function Vector2.Lerp(a, b, t) return Vector2.New(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y)) end
+
+---Returns a vector that is made from the largest components of two vectors.
+---@param a Vector2
+---@param b Vector2
+---@return Vector2
+function Vector2.Max(a, b) return Vector2.New(a.x > b.x and a.x or b.x, a.y > b.y and a.y or b.y) end
+
+---Returns a vector that is made from the smallest components of two vectors.
+---@param a Vector2
+---@param b Vector2
+---@return Vector2
+function Vector2.Min(a, b) return Vector2.New(a.x < b.x and a.x or b.x, a.y < b.y and a.y or b.y) end
+
+---Floors each value.
+---@param v Vector2
+---@return Vector2
+function Vector2.ToInt(v) return Vector2.New(math.floor(v.x), math.floor(v.y)) end
+
+---Moves a vector towards the target.
+---@param current Vector2
+---@param target Vector2
+---@param max_distance number
+---@return Vector2
+function Vector2.MoveTowards(current, target, max_distance)
+    local a = target - current
+    local m = Vector2.Magnitude(a)
+
+    if (m <= max_distance or m == 0) then return target
+    else return current + a / m * max_distance end
+end
+
+---Creates a vector that points towards the target.
+---@param source Vector2
+---@param target Vector2
+---@return Vector2
+function Vector2.Towards(source, target) return Vector2.New(target.x - source.x, target.y - source.y) end
+
+---The clockwise (+) perpendicular direction.
+---@param vector Vector2
+---@return Vector2
+function Vector2.PerpendicularClockwise(vector) return Vector2.New(vector.y, -vector.x) end
+
+---The counterclockwise (-) perpendicular direction.
+---@param vector Vector2
+---@return Vector2
+function Vector2.PerpendicularCounterClockwise(vector) return Vector2.New(-vector.y, vector.x) end
+
+---Reflects a vector off the vector defined by normal.
+---@param in_direction Vector2
+---@param in_normal Vector2
+---@return number
+function Vector2.Reflect(in_direction, in_normal) return in_direction - 2 * (in_direction * in_normal) * in_normal end
+
+---Rotates a vector around a given point by the degrees.
+---@param vector Vector2
+---@param degrees number
+---@param origin Vector2 | nil
+---@return Vector2
+function Vector2.RotateAround(vector, degrees, origin)
+    degrees = math.rad(degrees)
+    origin = origin or Vector2.Zero()
+    return Vector2.New(
+        origin.x + (vector.x - origin.x) * math.cos(degrees) - (vector.y - origin.y) * math.sin(degrees),
+        origin.y + (vector.x - origin.x) * math.sin(degrees) + (vector.y - origin.y) * math.cos(degrees)
+    )
+end
+
+---Multiplies two vector component-wise.
+---@param a Vector2
+---@param b Vector2
+---@return Vector2
+function Vector2.Scale(a, b) return Vector2.New(a.x * b.x, a.y * b.y) end
+
+---Creates a copy of a vector.
+---@param v Vector2
+---@return Vector2
+function Vector2.Copy(v) return Vector2.New(v.x, v.y) end
+
+-- ANCHOR: Special Methods
+
+---Creates a vector that inherits an (x, y) position from the table.
+---@param t table
+---@return Vector2
+function Vector2.NewFromTable(t) return Vector2.New(t.x, t.y) end
+
+---Creates a vector from an angle in degrees.
+---@param angle number
+---@return Vector2
+function Vector2.NewFromAngle(angle)
+    local radians = math.rad(angle)
+    return Vector2.New(math.cos(radians), math.sin(radians))
+end
+
+---Creates a vector with the given unit's position.
+---@param unit Unit
+---@return Vector2
+function Vector2.UnitPosition(unit) return Vector2.NewFromTable(DCEI.GetUnitPosition2D(unit)) end
+
+---Returns the unit's forward vector.
+---@param unit Unit
+---@return Vector2
+function Vector2.UnitForward(unit) return Vector2.NewFromTable(DCEI.GetUnitFacing2D(unit)) end
+
+---Returns the unit's forward angle.
+function Vector2.UnitForwardAngle(unit) return Vector2.Angle(Vector2.UnitForward(unit)) end
+
+---Returns the unit's right vector.
+---@param unit Unit
+---@return Vector2
+function Vector2.UnitRight(unit) return Vector2.PerpendicularClockwise(Vector2.UnitForward(unit)) end
+
+---Returns the unit's left vector.
+---@param unit Unit
+---@return Vector2
+function Vector2.UnitLeft(unit) return Vector2.PerpendicularCounterClockwise(Vector2.UnitForward(unit)) end
+
+---Returns the unit's backwards vector.
+---@param unit Unit
+---@return Vector2
+function Vector2.UnitBackwards(unit) return -Vector2.UnitForward(unit) end
+
+---Returns the unit's facing angle.
+---@param unit any
+---@return number
+function Vector2.UnitFacing(unit) return Vector2.Angle(Vector2.UnitForward(unit)) end
+
+---Returns the degrees towards the offset.
+---@param forward Vector2
+---@param offset Vector2
+---@return number (-180 to 180)
+function Vector2.GetOffsetAngle(forward, offset)
+    offset = Vector2.Normalized(offset)
+
+    local perpendicular = Vector2.PerpendicularClockwise(forward)
+    local dot = Vector2.Dot(offset, perpendicular)
+    return math.deg(dot)
+end
+
+---Returns the degrees offset from the unit's forward to the target position.
+---@param unit Unit
+---@param target_position Vector2
+---@return number (-180 to 180)
+function Vector2.GetUnitOffsetAngle(unit, target_position)
+    local unit_position = Vector2.UnitPosition(unit)
+    local unit_forward = Vector2.UnitForward(unit)
+    return Vector2.GetOffsetAngle(unit_forward, target_position - unit_position)
+end
+
+---Returns the angle offset from the unit's forward to the target unit.
+---@param unit Unit
+---@param target_unit Unit
+---@return number (-180 to 180)
+function Vector2.AngleTowardsUnit(unit, target_unit)
+    local target_position = Vector2.UnitPosition(target_unit)
+    return Vector2.GetUnitOffsetAngle(unit, target_position)
+end
+
+---Returns the offset from unit to the given target.
+---@param unit Unit
+---@param target_unit Unit
+---@param normalized boolean | nil
+---@return Vector2
+function Vector2.GetUnitOffsetVector(unit, target_unit, normalized)
+    local unit_position = Vector2.UnitPosition(unit)
+    local target_position = Vector2.UnitPosition(target_unit)
+    local offset = target_position - unit_position
+
+    return normalized and Vector2.Normalized(offset) or offset
+end
+
+---Returns the Distance between two units.
+---@param unit Unit
+---@param target_unit Unit
+---@return number
+function Vector2.DistanceBetweenUnits(unit, target_unit)
+    local unit_position = Vector2.UnitPosition(unit)
+    local target_position = Vector2.UnitPosition(target_unit)
+
+    return Vector2.Distance(unit_position, target_position)
+end
+
+-- ANCHOR: Random Methods
+
+---Creates a random vector position on the edge of a circle.
+---@return Vector2
+function Vector2.Random()
+    local radians = DCEI.Random(0, 1) * math.pi * 2
+    return Vector2.New(math.cos(radians), math.sin(radians))
+end
+
+---Creates a random vector position in a circle given a min and max distance
+---@param min number
+---@param max number
+---@return Vector2
+function Vector2.RandomRange(min, max)
+    return Vector2.Random() * DCEI.Random(min, max)
+end
+
+---Creates a random vector position in a circle given a min and max distance
+---@param min number
+---@param max number
+---@return Vector2
+function Vector2.UniformRandomRange(min, max)
+    local theta = DCEI.Random(0, 2 * math.pi)
+    local r = math.sqrt(DCEI.Random(min * min, max * max))
+    return Vector2.New(r * math.cos(theta), r * math.sin(theta))
+end
+
+---Creates a random vector position inside of a circle.
+---@param radius number | nil Default: 0
+---@return Vector2
+function Vector2.RandomInside(radius)
+    radius = radius or 1
+
+    local r = radius * math.sqrt(DCEI.Random(0, 1))
+    local radians = DCEI.Random(0, 1) * math.pi * 2
+    return Vector2.New(math.cos(radians) * r, math.sin(radians) * r)
+end
+
+---Creates a random vector position inside of a square.
+---@param width number | nil Default: 1
+---@param height number | nil Default: Width
+---@return Vector2
+function Vector2.RandomSquare(width, height)
+    width = width or 1
+    height = height or width
+
+    return Vector2.New(
+        DCEI.Random(-width, width),
+        DCEI.Random(-height, height)
+    )
+end
+
+---Checks if the given position is inside the bounds.
+---@param position Vector2
+---@param min Vector2
+---@param max Vector2
+---@return boolean
+function Vector2.IsInsideBounds(position, min, max)
+    return position.x >= min.x and position.y >= min.y  and position.x <= max.x and position.y <= max.y
+end
+
+---Returns the nearest position inside the bounds.
+---@param position Vector2
+---@param min Vector2
+---@param max Vector2
+---@return Vector2
+function Vector2.NearestPositionInsideBounds(position, min, max)
+    local x = math.max(min.x, math.min(max.x, position.x))
+    local y = math.max(min.y, math.min(max.y, position.y))
+    return Vector2.New(x, y)
+end
+
+---Gets the center
+---@param positions table<Vector2>
+---@return Vector2
+function Vector2.Centroid(positions)
+    if #positions == 0 then return Vector2.Zero() end
+
+    local x = 0
+    local y = 0
+    for i = 1, #positions do
+        x = x + positions[i].x
+        y = y + positions[i].y
+    end
+
+    return Vector2.New(x / #positions, y / #positions)
+end
+
+---Dampens the vector towards the target vector.
+---@param a Vector2
+---@param b Vector2
+---@param intensity number
+---@param delta_time number
+---@return Vector2
+function Vector2.Damp(a, b, intensity, delta_time)
+    return Vector2.Lerp(a, b, 1 - math.exp(-intensity * delta_time))
+end
+
+-- ================================================================================================
+-- !SECTION -- Main
+-- ================================================================================================
+
+return Vector2

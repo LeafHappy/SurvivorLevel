@@ -1,0 +1,40 @@
+-- SCRIPTS
+local AnimationBasic = require("Presentation/AnimationBasic")
+local PresentationTimer = require("Presentation/PresentationTimer")
+
+-- EXPORT
+return function(frame)
+    -- CONTROLLER
+    local ResultsAchievementItemController = {}
+
+    -- VARIABLES
+    local lifetime_seconds = 3.25
+    local fade_in_time = lifetime_seconds / 4
+    local fade_out_time = lifetime_seconds / 4
+    local float_time = lifetime_seconds / 2
+
+    -- METHODS
+    function ResultsAchievementItemController:Reset()
+        DCEI.SetFrameAlpha(frame, 0)
+    end
+
+    function ResultsAchievementItemController:Lifetime()
+        -- Reset for animation start
+        self:Reset()
+
+        -- Animate in
+        AnimationBasic.PopIn(frame, { duration = fade_in_time })
+        AnimationBasic.FadeIn(frame, fade_in_time)
+
+        -- Wait for float and in animation before animating out
+        PresentationTimer.Create(function()
+            AnimationBasic.FadeOut(frame, fade_out_time)
+        end, fade_in_time + float_time)
+    end
+
+    function ResultsAchievementItemController:OnPreview()
+        self:Lifetime()
+    end
+
+    return ResultsAchievementItemController
+end

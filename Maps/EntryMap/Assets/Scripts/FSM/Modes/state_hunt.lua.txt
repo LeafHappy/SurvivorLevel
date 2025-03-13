@@ -1,0 +1,2263 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+
+    Enemies always spawn from the Shadows.
+    Enemies Periodically Spawn.
+    Specific Waves Spawn every 1 Minute.
+    Player must expand the Shadow to have more playspace.
+
+    -- Total Time: 900 Seconds or 15 Minutes
+    -- The Player can earn up to 15 Trophies
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New("Hunt")
+
+-- Classes
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Joystick = require("Class/Joystick")
+local Camera = require("Class/FollowCamera")
+local TileMap = require("Class/TileMap")
+local FogOfWar = require("Class/FogOfWar")
+local PropManager = require("Class/PropManager")
+local PerlinNoise = require("Class/PerlinNoise")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+local Event = require("Class/Event")
+local Experience = require("Class/Experience")
+local Attributes = require("Class/Attributes")
+local Heatmap = require("Class/Heatmap")
+
+-- Data
+-- local HuntData = require("Data/Modes/HuntData")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local PropData = require("Map/PropData")
+-- local Biome = require("Data/Biomes/Forest")
+
+-- Shared Data
+local MetaData = require("SharedData/MetaData")
+local LootData = require("Data/SimpleUnits/LootData")
+local Modifier = require("SharedData/Class/Modifier")
+local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Bosses = require("Game/AI/Bosses")
+local Elites = require("Game/AI/Elites")
+local StageEvents = require("Game/Events/StageEvents")
+
+-- Directors
+local CreditDirector = require("Game/Directors/Credits")
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Hunt Data Manager
+local SequenceManager = require("Class/SequenceManager")
+local HuntDataManager = require("Data/Modes/Hunt/HuntDataManager")
+local GameEventManager = require("Game/Events/GameEventManager")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+-- TICK RATE
+local TICK_RATE = TICK_RATE or 0.0625
+
+local MAP_CENTER = Vector2.New(0, 0)
+
+---NOTE: If you change this, you need to change the Collision Size of the Disposable Remover in Editor
+local REGION_MOVER_SIZE = 55
+local KILL_BOX_SIZE = 60
+local DISPOSABLE_REMOVER = DCEI.Unit("Disposable Remover")
+
+local CREDITS_PER_MINUTE = 500
+-- local CRATE_PROGRESS_RATE = 0.05
+
+---DEBUG: Developer Startup
+local _SHOW_DEV_INFO = _Dev and _Dev.UI and _Dev.UI.show_dev_info
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Variables
+---============================================================================
+
+local REF = {
+    BossSpawnStatusVFX = DCEI.Unit("Boss - Spawn - Status VFX"),
+    BossSpawnImpactVFX = DCEI.Unit("Boss - Spawn - Impact VFX"),
+
+    BossChest = DCEI.Unit("Hunt - Boss Chest"),
+    BossChestGroundImpactVFX = DCEI.Effect("Hunt - Boss Chest - Ground Impact VFX"),
+    BossChestGroundImpact2VFX = DCEI.Effect("Hunt - Boss Chest - Ground Impact 2 VFX"),
+
+    MOVER_SMALL = DCEI.Effect("SMover - Random Circle - Small"),
+    MOVER_MEDIUM = DCEI.Effect("SMover - Random Circle - Medium"),
+    MOVER_LARGE = DCEI.Effect("SMover - Random Circle - Large"),
+}
+
+-- Set on Initialization
+---@type HuntData
+local _HuntData = nil
+local _Seed = 0
+local _BarrelProgress = 0
+
+---@type TileMap
+local _Map = nil
+
+---@type PropManager
+local _PropManager = nil
+
+---@type CreditDirector
+local _CreditDirector = nil
+
+local _BossInstance = nil
+local _IsBossIncoming = false -- This allows us to stop all other spawns.
+local _IsBossActive = false -- This allows us to stop the time.
+local _IsVictory = false
+
+local _ShrinesActive = true
+local _SHRINE_SPAWN_FREQUENCY = 200
+local _ShrineCooldown = 0
+
+local _Region = nil
+local _DisposableRemover = nil
+
+---TUTORIAL: Show Tutorial on First Play
+local _ShowTutorial = true
+
+---@type HuntData.FixedHostiles | nil
+local _LastPeriodicData = nil
+
+local _CameraSettingsApplied = {}
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions - Library
+---============================================================================
+
+---Increases the User's Attempts and Returns the Current Attempts.
+---@return integer hunt_attempts
+---@return integer session_attempts
+local function GetAttempts()
+    local user_data = DCEI.Save.Get("user_data")
+    if not user_data then
+        user_data = {}
+    else
+        user_data = Json.decode(user_data)
+    end
+
+    -- Update User Attempts
+    user_data.hunt_attempts = user_data.hunt_attempts and (user_data.hunt_attempts + 1) or 1
+    user_data.session_attempts = user_data.session_attempts and (user_data.session_attempts + 1) or 1
+
+    -- DCEI.Save.Set("user_data", Json.encode(user_data))
+    -- DCEI.Save.Commit()
+
+    return user_data.hunt_attempts, user_data.session_attempts
+end
+
+---============================================================================
+---!SECTION: Local Functions - Library
+---SECTION: Local Functions - Helpers
+---============================================================================
+
+local function SpawnExperienceCircle()
+    --
+    local count = 20
+    local distance_range = Vector2.New(5, 6)
+
+    for i = 1, count do
+        local position = Vector2.RandomRange(distance_range.x, distance_range.y)
+        LootData.SmallExperience:SpawnSync(PLAYER.Terrain, TEAM.Terrain, position)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions - Helpers
+---SECTION: Local Functions - Registered Event Callbacks
+---============================================================================
+
+---@class StageModifiers
+---@field Icon string
+---@field Description string
+
+---@class StageDataPass
+---@field Title string
+---@field Modifiers table<StageModifiers>
+
+local function UpdatePauseMenuStageData()
+    -- Set Stage Data
+    local data_pass = {
+        Stage = CommonDataAccess.Get("stage_level"),
+        Difficulty = CommonDataAccess.Get("stage_difficulty"),
+    }
+    Core.Event.SendPresentationEvent("UI.PauseMenu.SetStageData", data_pass)
+end
+
+local function UpdatePauseMenuActiveSkillData()
+    Help.Log("Update Pause Menu")
+    -- Set Active Skill Data
+    local data_pass = {}
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local skill_selector = hero.SkillSelector
+
+    -- Generate a table of ActiveSkillData based on what the Hero has.
+    local learned_skills = skill_selector:GetLearnedSkills()
+    -- Help.Log("Learned Skills", nil, learned_skills)
+
+    local total_damage = 0
+    for key, skill_data in pairs(learned_skills) do
+        if skill_data.Type == SKILL_TYPE.Active then
+            local damage = StageHelper.GetTrackedStat(key)
+            total_damage = total_damage + damage
+        end
+    end
+
+    local active_skill_data_pass = {}
+
+    for key, skill_data in pairs(learned_skills) do
+        if skill_data.Type == SKILL_TYPE.Active then
+            -- Help.Log("Active Skill", key)
+
+            active_skill_data_pass[key] = skill_data
+
+            local damage = StageHelper.GetTrackedStat(key)
+            -- Help.Log("Damage", damage)
+
+            local upgrades = skill_selector:GetLearnedSkillUpgrades(skill_data)
+            local primary_level, secondary_level = skill_selector:GetSkillLevels(key)
+
+            active_skill_data_pass[key] = {
+                Key = key,
+                DisplayName = skill_data.DisplayName,
+                ShortDescription = skill_data.ShortDescription,
+                Icon = skill_data.Icon,
+                Level = primary_level,
+                Damage = damage,
+                TotalDamage = total_damage,
+                Upgrades = upgrades,
+            }
+        end
+    end
+
+    -- Convert to List
+    for _, value in pairs(active_skill_data_pass) do
+        table.insert(data_pass, value)
+    end
+
+    ---TODO: Add Sorting?
+
+    Core.Event.SendPresentationEvent("UI.PauseMenu.SetActiveSkillData", data_pass)
+end
+
+local function UpdatePauseMenuPassiveSkillData()
+    -- Set Passive Skill Data
+    local data_pass = {}
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local skill_selector = hero.SkillSelector
+
+    -- Generate a table of ActiveSkillData based on what the Hero has.
+    local learned_skills = skill_selector:GetLearnedSkills()
+
+    for key, skill_data in pairs(learned_skills) do
+        if skill_data.Type == SKILL_TYPE.Passive then
+            table.insert(data_pass, {
+                Key = key,
+                DisplayName = skill_data.DisplayName,
+                ShortDescription = skill_data.ShortDescription,
+                Icon = skill_data.Icon,
+                SecondaryIcon = skill_data.SecondaryIcon,
+                Level = skill_data.Level,
+                MaxLevel = skill_data.MaxLevel,
+            })
+        end
+    end
+
+    ---TODO: Add Sorting?
+
+    Core.Event.SendPresentationEvent("UI.PauseMenu.SetPassiveSkillData", data_pass)
+end
+
+-- Activated when the Pause Button Event is Triggered
+local function UpdatePauseMenuData()
+    UpdatePauseMenuStageData()
+    UpdatePauseMenuActiveSkillData()
+    UpdatePauseMenuPassiveSkillData()
+end
+
+---@param ctx EffectContext
+local function OnCrateDestroyed(ctx)
+    ---TODO: Figure out why this doesn't work in-editor.
+    StageHelper.ModifyTrackStat(TRACKED_STATS.Crate, 1)
+
+    local drop_table = _HuntData.Crate
+
+    if drop_table then
+        local position = Vector2.NewFromTable(ctx.target_location)
+
+        local consumables_active = CommonDataAccess.Get("consumables_active")
+        local drop_table_options = {
+            apply_mover_effect = REF.MOVER_MEDIUM,
+            spawn_over_time = true,
+            omitted_items = consumables_active or { LootData.PotionCharge },
+        }
+
+        Help.SpawnDropTable(position, drop_table, drop_table_options)
+    end
+
+    -- local position = Vector2.NewFromTable(ctx.target_location)
+    -- local min = math.floor(#_AccumulatedLoot / 2)
+    -- local max = #_AccumulatedLoot
+    -- DropAccumulatedLoot(position, math.random(min, max))
+end
+
+---============================================================================
+---!SECTION: Local Functions - Registered Event Callbacks
+---SECTION: Local Functions - Setup
+---============================================================================
+
+local function ResetStateVariables()
+    -- Reset Map
+    if _Map then
+        _Map:Reset()
+    end
+    _Map = nil
+
+    -- Reset Fog of War
+    FogOfWar.Instance:_ClearFogOfWar()
+
+    -- Reset PropManager
+    if _PropManager then
+        _PropManager:Reset()
+    end
+    _PropManager = nil
+
+    _CreditDirector = nil
+
+    _BossInstance = nil
+    _IsBossIncoming = false
+    _IsBossActive = false
+    _IsVictory = false
+
+    _AccumulatedLoot = {}
+
+    _LastPeriodicData = nil
+
+    _CameraSettingsApplied = {}
+
+    ---TODO: Remove _DisposableRemover
+end
+
+local function PropManagerLoad(r, c)
+    local starting_range = Vector2.New(-1, 1)
+    local immediately = Help.InRange(r, starting_range) and Help.InRange(c, starting_range)
+    _PropManager:Load(r, c, immediately)
+end
+
+local function PropManagerUnload(r, c)
+    _PropManager:Unload(r, c)
+end
+
+local function AttemptSpawnShrine(r, c)
+    if not _ShrinesActive then
+        return
+    end
+
+    _ShrineCooldown = _ShrineCooldown + 1
+    if _ShrineCooldown >= _SHRINE_SPAWN_FREQUENCY then
+        -- Get a Random position in the Tile
+        local spawn_position = _Map:GetWorldPositionFromTileIndex(r, c)
+        Events.SpawnShrine(spawn_position)
+        _ShrineCooldown = 0
+    end
+end
+
+---Initialize Game Mode
+---@param ctx GameModeContext
+local function Initialize(ctx)
+    -- Help.Log("Game Context", nil, ctx)
+
+    -- Reset Player Stats
+    StageHelper.InitializeTrackedStats()
+
+    -- Clear Cached Data
+    CommonDataAccess.Clear()
+
+    -- Game Mode Setup
+    local game_mode = CommonDataAccess.Set("game_mode", State.name)
+    local stage_level = CommonDataAccess.Set("stage_level", ctx.stage)
+    local stage_difficulty = CommonDataAccess.Set("stage_difficulty", ctx.difficulty)
+
+    _HuntData = HuntDataManager.GetData(stage_level, stage_difficulty)
+
+    local total_game_time = CommonDataAccess.Set("total_game_time", 0)
+    local game_time = CommonDataAccess.Set("game_time", 0)
+    local last_boss_time = HuntDataManager.GetFinalBoss(stage_level, stage_difficulty)
+
+    -- Map Setup
+
+    -- Generate a Map Seed
+    _Seed = Core.Random.GetInteger(-255, 255)
+    -- _Seed = 4
+    _BarrelProgress = 0
+
+    -- Map & Props
+    local Biome = _HuntData.Biome
+    _Map = TileMap.New(Biome.TILE_DATA)
+    _PropManager = PropManager.New(Biome.TILE_DATA.Size)
+
+    -- PropManager Overrides
+    function _PropManager:GetWorldPositionFromTileIndex(r, c)
+        return _Map:GetWorldPositionFromTileIndex(r, c)
+    end
+
+    function _PropManager:GetTileIndexFromWorldPosition(position)
+        return _Map:GetTileIndexFromWorldPosition(position)
+    end
+
+    -- Removing Shrines, handle based on Stage Data
+    function _PropManager:PropInjection(r, c)
+        -- AttemptSpawnShrine(r, c)
+
+        return Biome.PropInjection(_Seed, r, c)
+    end
+
+    _Map:RegisterOnLoad(PropManagerLoad)
+    _Map:RegisterOnUnload(PropManagerUnload)
+
+    -- Hero Setup
+    local hero_name = CommonDataAccess.Set("hero_name", ctx.hero_name)
+    local hero_meta_level = CommonDataAccess.Set("hero_meta_level", ctx.hero_level or 1)
+    local consumables_active = CommonDataAccess.Set("consumables_active", ctx.consumables_active)
+
+    -- Hero Spawn
+    StageHelper.SetupPlayerCount(1)
+    -- Help.Log("Meta Passed Starting Upgrades", nil, ctx.starting_upgrades)
+    -- Help.Log("Meta Passed Optional Upgrades", nil, ctx.optional_upgrades)
+    local hero = StageHelper.SetupPlayerHero(
+        PLAYER.Player1,
+        hero_name,
+        hero_meta_level,
+        MAP_CENTER,
+        ctx.starting_upgrades,
+        ctx.optional_upgrades,
+        ctx.featured_skills
+    )
+
+    if ctx.meta_equipment_modifiers then
+        for _, modifier_data in ipairs(ctx.meta_equipment_modifiers) do
+            local modifier =
+                Modifier.New(modifier_data.Stat, modifier_data.Value, modifier_data.Scaling, modifier_data.Tags)
+
+            Help.Log("Adding new modifier", nil, modifier)
+            hero:ApplyModifier(modifier)
+        end
+    end
+
+    -- Experience
+    StageHelper.SetupGlobalExperience()
+
+    -- UI
+    StageHelper.ResetUI()
+    UiHelper.SetGameTimerActive(true, 0)
+    UiHelper.SetGameUIActive(true)
+    UiHelper.ModifyObjectives("Survive", "Survive until the Boss appears.", "#eeaa00ff")
+
+    -- Passive Upgrades
+    -- local passive_upgrades = ctx.passives
+    -- if passive_upgrades then
+    --     _ShrinesActive = Core.Table.Contains(passive_upgrades, "Shrines")
+    --     _ShrineCooldown = 0
+    -- end
+
+    -- Credit Director
+    _CreditDirector = CreditDirector.New()
+    _CreditDirector:SetCreditsGeneratedPerMinute(CREDITS_PER_MINUTE)
+
+    -- Spawn Director
+    -- SpawnDirector.Instance:AddNewUnit(_HuntData.Periodic.Type, _HuntData.Periodic.SimpleDropTable)
+    -- for _, modifier in pairs(_HuntData.Periodic.StartingModifiers) do
+    --     SpawnDirector.Instance:AddModifier(_HuntData.Periodic.Type, modifier)
+    -- end
+
+    -- Game Event Manager
+    GameEventManager.Instance:Reset()
+    GameEventManager.Instance:SetSpawner(SpawnDirector.Instance)
+    GameEventManager.Instance:SetTarget(hero.unit)
+    if _HuntData.GameEventData then
+        GameEventManager.Instance:LoadNewEvents(_HuntData.GameEventData)
+    end
+
+    ---TUTORIAL: Check if First Time Playing
+    -- _ShowTutorial = ctx.active_tutorial
+    _ShowTutorial = MetaData.Get(META_DATA.movement_tutorial) == 0
+    -- _ShowTutorial = ctx.tutorials and ctx.tutorials.Movement
+
+    ---LOG: Attempts
+    local hunt_attempts, session_attempts = GetAttempts()
+    CommonDataAccess.Set("hunt_attempts", hunt_attempts) -- Used later when logging Performance
+    CommonDataAccess.Set("session_attempts", session_attempts) -- Used later when logging Performance
+
+    ---LOG: Game Start
+    Log.Game.Start({
+        -- Game Mode Information
+        game_mode = game_mode,
+        level = stage_level,
+        difficulty = stage_difficulty,
+        -- hero Information
+        hero_name = hero_name,
+        hero_meta_level = hero_meta_level,
+        hunt_attempts = hunt_attempts,
+        session_attempts = session_attempts,
+    })
+
+    _DisposableRemover = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, DISPOSABLE_REMOVER, MAP_CENTER.x, MAP_CENTER.y)
+
+    ---NOTE: Dispoal through the use of Ability
+    local DISPOSER = DCEI.Ability("Disposable Remover - Autocast")
+    local has_disposer = DCEI.UnitHasAbility(_DisposableRemover, DISPOSER)
+    if not has_disposer then
+        DCEI.AddUnitAbility(DISPOSABLE_REMOVER, DISPOSER)
+    end
+
+    ---NOTE: Disposal through the use of Simple Collision
+    ---FIXME: This is the ideal method, though it does not seem to function properly.
+    -- SimpleUnit.ModifyHealth(_DisposableRemover, 1)
+    -- SimpleUnit.ModifyCollision(_DisposableRemover, CollisionLayers.None, CollisionLayers.Hostile, REGION_MOVER_SIZE / 4)
+    -- local collision_effects = {
+    --     SimpleUnit.GenerateCollisionEffect(
+    --         DCEI.Effect("Disposable Remover - OnExit"),
+    --         CollisionTiming.Stop,
+    --         0,
+    --         SIMPLE_TAG.Disposable
+    --     ),
+    -- }
+    -- SimpleUnit.ModifyCollisionEffects(_DisposableRemover, collision_effects)
+
+    DCEI.AttachUnit(_DisposableRemover, hero.unit, {})
+
+    DCEI.TriggerAddUnitRemovedEvent(hero.unit, function()
+        DCEI.RemoveUnit(_DisposableRemover)
+        _DisposableRemover = nil
+    end)
+
+    ---TESTING: Tilemap
+    -- GeneratePerlinNoiseMap()
+end
+
+---============================================================================
+---!SECTION: Local Functions - Setup
+---SECTION: Local Functions - Core
+---============================================================================
+
+---Game Over
+---@param is_victory boolean
+local function GameOver(is_victory)
+    _IsVictory = is_victory
+
+    if not FSM:IsCurrentState(State) then
+        return
+    end
+
+    -- Disable Game UI
+    UiHelper.SetGameUIActive(false)
+
+    -- Kill Enemies (prevent Player Hero from dying during transision) if the player is alive
+    if Hero.Fetch(PLAYER.Player1):IsUnitAlive() then
+        StageHelper.KillSimpleUnits(PLAYER.Hostile)
+    end
+
+    -- StageHelper.KillSimpleUnits(PLAYER.Hostile)
+
+    -- Disable Joystick
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+
+    -- Transition
+    FSM:Transition(FSM.states.game_over, { Victory = is_victory })
+end
+
+---============================================================================
+---!SECTION: Local Functions - Setup
+---SECTION: Local Functions - Tutorial
+---============================================================================
+
+local function HideGameModeTutorial()
+    Joystick.Fetch(PLAYER.Player1):SetActive(true)
+    GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Show")
+end
+
+local function ShowGameModeTutorial()
+    ---LOG: Movement Tutorial Started
+    Log.Tutorial.MovementStarted()
+
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+    UiHelper.ShowGameModeInfo({
+        Title = "Hunt Mode",
+        Description = "Survive until the Boss appears.\n\nDefeat the Boss to win!",
+        ButtonLabel = "Let's go!",
+    }, HideGameModeTutorial)
+end
+
+local function CheckMovementTutorialCompleted()
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    if Vector2.Magnitude(joystick.axes) > 0.1 then
+        ---LOG: Movement Tutorial Completed
+        Log.Tutorial.MovementCompleted()
+
+        GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Hide")
+        _ShowTutorial = false
+        TickRate:Unsubscribe(TICK_RATE, CheckMovementTutorialCompleted)
+        MetaData.Modify(META_DATA.movement_tutorial, 1)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions - Tutorial
+---SECTION: Local Functions - Spawning
+---============================================================================
+
+---comment
+---@param formation_properties table<string, any>
+---@param target Unit
+local function ExtractFormationProperties(formation_properties, target)
+    local properties = Core.Table.DeepCopy(formation_properties)
+    for key, value in pairs(properties) do
+        if value == "TargetPass" then
+            properties[key] = target
+        elseif value == "PositionPass" then
+            properties[key] = Vector2.UnitPosition(target)
+        elseif value == "RandomAnglePass" then
+            properties[key] = Core.Random.GetNumber(0, 360)
+        elseif value == "RandomCardinalPass" then
+            properties[key] = Vector2.Angle(CardinalToVector(Help.GetRandomCardinalDirection()))
+        elseif value == "HeatmapBalancing" then
+            properties[key] = Heatmap.Instance:GetDangerBalanceAngle()
+        end
+    end
+
+    return properties
+end
+
+---Periodic Spawns
+---@param game_time Time
+local function PeriodicSpawn(game_time)
+    if not _HuntData.Periodic then
+        return
+    end
+
+    -- Check Last Periodic Slot
+    local new_periodic_data = _HuntData.Periodic[game_time]
+
+    -- If they are not the same, we need to register the new Periodic Data
+    if new_periodic_data then
+        if new_periodic_data.Type == nil then
+            _LastPeriodicData = nil
+            return
+        end
+
+        -- Remove Old Unit from Spawn Director (if it exists)
+        if _LastPeriodicData and _LastPeriodicData.Type then
+            SpawnDirector.Instance:RemoveUnit(_LastPeriodicData.Type)
+        end
+
+        -- Add New Unit to Spawn Director
+        SpawnDirector.Instance:AddNewUnit(new_periodic_data.Type, new_periodic_data.SimpleDropTable)
+        for _, modifier in ipairs(new_periodic_data.Modifiers) do
+            SpawnDirector.Instance:AddModifier(new_periodic_data.Type, modifier)
+        end
+
+        -- Update Last Periodic Data
+        _LastPeriodicData = new_periodic_data
+    end
+
+    -- Return if nothing to spawn.
+    if not _LastPeriodicData then
+        return
+    end
+
+    -- Check for a valid target.
+    local target = Hero.GetRandomTarget()
+    if not target then
+        return
+    end
+
+    -- Spawn Hostiles
+    local properties = ExtractFormationProperties(_LastPeriodicData.Properties, target)
+
+    if _LastPeriodicData.FormationType == FORMATION_TYPE.Enclosure then
+        SpawnDirector.Instance:SpawnEnclosure(_LastPeriodicData.Type, _LastPeriodicData.Count, properties)
+    elseif _LastPeriodicData.FormationType == FORMATION_TYPE.Stream then
+        SpawnDirector.Instance:SpawnStream(_LastPeriodicData.Type, _LastPeriodicData.Count, properties)
+    end
+end
+
+---comment
+---@param fixed_spawn_data HuntData.FixedHostiles
+---@param properties table<string, any>
+local function AddSpawnData(fixed_spawn_data, properties)
+    -- Validate Spawn Director
+    if not SpawnDirector.Instance then
+        return
+    end
+
+    if fixed_spawn_data.FormationType == FORMATION_TYPE.Enclosure then
+        SpawnDirector.Instance:SpawnEnclosure(fixed_spawn_data.Type, fixed_spawn_data.Count, properties)
+    elseif fixed_spawn_data.FormationType == FORMATION_TYPE.Stream then
+        SpawnDirector.Instance:SpawnStream(fixed_spawn_data.Type, fixed_spawn_data.Count, properties)
+    end
+end
+
+---Checks for Fixed Spawns
+---@param game_time Time
+local function FixedSpawn(game_time)
+    if not _HuntData.Fixed then
+        return
+    end
+
+    local fixed_spawn_data = _HuntData.Fixed[game_time]
+
+    -- Verify we have Spawn Data
+    if not fixed_spawn_data then
+        return
+    end
+
+    -- Verify we have a Target
+    local target = Hero.GetRandomTarget()
+    if not target then
+        return
+    end
+
+    -- Help.Log("Fixed Spawn Data", nil, fixed_spawn_data)
+
+    -- Setup the Spawn Director Unit
+    SpawnDirector.Instance:RemoveUnit(fixed_spawn_data.Type)
+    SpawnDirector.Instance:AddNewUnit(fixed_spawn_data.Type, fixed_spawn_data.SimpleDropTable)
+
+    -- Apply Modifiers
+    for _, modifier in ipairs(fixed_spawn_data.Modifiers) do
+        SpawnDirector.Instance:AddModifier(fixed_spawn_data.Type, modifier)
+    end
+
+    -- Get Properties
+    local properties = ExtractFormationProperties(fixed_spawn_data.Properties, target)
+
+    if fixed_spawn_data.WarningSettings then
+        local message = fixed_spawn_data.WarningSettings.Message or "Warning!"
+        local duration = fixed_spawn_data.WarningSettings.Duration or 5
+
+        UiHelper.EventWarning(message, duration)
+
+        -- Delay Spawn Timer
+        local timer = Core.Timer.Game.New()
+        timer:SetDuration(duration)
+        function timer:Action()
+            AddSpawnData(fixed_spawn_data, properties)
+        end
+    else
+        AddSpawnData(fixed_spawn_data, properties)
+    end
+
+    -- if fixed_spawn_data.FormationType == FORMATION_TYPE.Enclosure then
+    --     SpawnDirector.Instance:SpawnEnclosure(fixed_spawn_data.Type, fixed_spawn_data.Count, properties)
+    -- elseif fixed_spawn_data.FormationType == FORMATION_TYPE.Stream then
+    --     SpawnDirector.Instance:SpawnStream(fixed_spawn_data.Type, fixed_spawn_data.Count, properties)
+    -- end
+
+    -- Help.Log(string.format("Spawning [%d] [%s]", fixed_spawn_data.Count, fixed_spawn_data.Type.Name))
+end
+
+-- local function OnDeathDropCrate()
+--     local unit = DCEI.TriggeringUnit
+--     local position = Vector2.UnitPosition(unit)
+--     Events.SpawnCrate(position)
+-- end
+
+---Checks for Elite Spawns
+---@param game_time Time
+local function EliteSpawn(game_time)
+    if not _HuntData.Elite then
+        return
+    end
+
+    local warning_duration = 5
+
+    local elite_spawn_data = _HuntData.Elite[game_time + warning_duration]
+
+    -- Check for Elite Spawn
+    if not elite_spawn_data then
+        return
+    end
+
+    -- Warning
+    UiHelper.EventWarning("Incoming Elite!", warning_duration)
+
+    -- Spawn Delay Timer
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(warning_duration)
+
+    function timer:Action()
+        -- Validate Hero
+        local hero = Hero.Fetch(PLAYER.Player1)
+        if not hero:IsUnitAlive() then
+            return
+        end
+
+        -- Spawn Elite
+        local hero_position = hero:GetPosition()
+        local spawn_position = hero_position + Vector2.Up() * 8
+        local elite_instance = Elites.Spawn(elite_spawn_data.Type, spawn_position, elite_spawn_data.Modifiers)
+
+        -- Register OnDeathEvent for Loot Drops
+        DCEI.TriggerAddUnitDiedEvent(elite_instance, function()
+            local drop_table = elite_spawn_data.DropTable
+            if drop_table then
+                local position = Vector2.UnitPosition(elite_instance)
+
+                local consumables_active = CommonDataAccess.Get("consumables_active")
+                local drop_table_options = {
+                    apply_mover_effect = REF.MOVER_MEDIUM,
+                    spawn_over_time = true,
+                    omitted_items = consumables_active or { LootData.PotionCharge },
+                }
+
+                Help.SpawnDropTable(position, drop_table, drop_table_options)
+            end
+        end)
+    end
+end
+
+---Calculates a jump curve based on time provided
+---@param start_time number
+---@param time_elapsed number
+---@param total_time number
+---@param max_height number
+---@return number
+local function CalculateJumpHeight(start_time, time_elapsed, total_time, max_height)
+    -- parabolic a
+    local a = 4 * max_height / (total_time - start_time) ^ 2
+    local height = -a * (time_elapsed - start_time) * (time_elapsed - total_time)
+
+    return height
+end
+
+---comment
+---@param centroid UnitInstance
+---@param chest_position Vector2
+local function TriggerEndingSequence(centroid, chest_position)
+    -- SequenceManager.Instance:Reset()
+
+    -- Clear Fog of War
+    FogOfWar.Instance:_ClearFogOfWar()
+
+    -- Update UI Objective
+    UiHelper.ModifyObjectives("Defeat", "<s>Defeat the Boss!</s>", "#aaaaaa00")
+
+    -- Spawn a Chest
+    local boss_chest = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.BossChest, chest_position.x, chest_position.y)
+
+    -- Cache
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    local chest_collect_distance = 2
+
+    -- Prevent Hero Leveling
+    joystick:SetActive(true)
+    hero:SetAllowPerkSelection(false)
+
+    -- Set Unit Bounds
+    local bounds_left = chest_position.x - 10
+    local bounds_right = chest_position.x + 10
+    local bounds_down = chest_position.y - 15
+    local bounds_up = chest_position.y + 15
+    joystick:SetUnitBounds(bounds_left, bounds_right, bounds_down, bounds_up)
+
+    -- Chest Animation Sequence (Chest Jump)
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            data.TotalTime = 1.5
+            data.Timer = data.TotalTime
+
+            Help.SetModelScale(boss_chest, 2, data.TotalTime)
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+
+            -- "Jump" the Chest
+            local chest_height = CalculateJumpHeight(0, data.TotalTime - data.Timer, data.TotalTime, 2)
+            DCEI.SetUnitPosition3DWithInterpolation(boss_chest, chest_position.x, chest_height, chest_position.y)
+
+            -- "Spin" the Chest
+            local rotation = Vector3.New(0, 360 * (data.TotalTime - data.Timer), 0)
+            DCEI.SetUnitRotationEuler(boss_chest, rotation.x, rotation.y, rotation.z)
+
+            -- Calculate Centroid of Player and Chest
+            local hero_position = hero:GetPosition()
+            local centroid_position = Vector2.UnitPosition(centroid)
+            local midpoint = Vector2.Centroid({
+                hero_position,
+                chest_position,
+            })
+
+            -- Set Camera Focus
+            local smoothed_position = Vector2.Damp(centroid_position, midpoint, 6, TICK_RATE)
+            DCEI.SetUnitPosition2DWithInterpolation(data.CentroidUnit, smoothed_position.x, smoothed_position.y)
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+        CompletionAction = function(data)
+            DCEI.CreateEffectAtUnit(REF.BossChestGroundImpactVFX, boss_chest, boss_chest)
+            DCEI.CreateEffectAtUnit(REF.BossChestGroundImpact2VFX, boss_chest, boss_chest)
+        end,
+    })
+
+    -- Chest Pickup
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            --
+        end,
+        CompletionCondition = function(data)
+            local hero_position = hero:GetPosition()
+            return Vector2.Distance(hero_position, chest_position) < chest_collect_distance
+        end,
+        ContinuousAction = function(data)
+            -- Calculate Centroid of Player and Chest
+            local hero_position = hero:GetPosition()
+            local centroid_position = Vector2.UnitPosition(centroid)
+            local midpoint = Vector2.Centroid({
+                hero_position,
+                chest_position,
+            })
+
+            -- Set Camera Focus
+            local smoothed_position = Vector2.Damp(centroid_position, midpoint, 6, TICK_RATE)
+            DCEI.SetUnitPosition2DWithInterpolation(data.CentroidUnit, smoothed_position.x, smoothed_position.y)
+        end,
+    })
+
+    -- Chest Animation Sequence 2 (Chest Jump to Player)
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            data.TotalTime = 1.0
+            data.Timer = data.TotalTime
+
+            data.StartingCameraSize = camera:GetSize()
+            data.TargetCameraSize = 5
+
+            joystick:SetActive(false)
+            hero:SetCollectorRadius(100, true)
+
+            Help.SetModelScale(boss_chest, 0.01, data.TotalTime * 1.5)
+
+            Help.SlowTime(0.5, 2)
+            UiHelper.FadeOut(4)
+
+            -- StageHelper.GameOverSlowTimeAndZoom(3, 60, 40, function()
+            --     UiHelper.FadeOut(3)
+            -- end)
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+
+            -- local chest_position = Vector2.UnitPosition(boss_chest)
+            local player_position = hero:GetPosition()
+
+            -- "Jump" the Chest
+            local chest_height = CalculateJumpHeight(0, data.TotalTime - data.Timer, data.TotalTime, 2.5)
+            local chest_plane = Vector2.Lerp(chest_position, player_position, 1 - (data.Timer / data.TotalTime))
+            DCEI.SetUnitPosition3DWithInterpolation(boss_chest, chest_plane.x, chest_height, chest_plane.y)
+
+            -- "Spin" the Chest
+            local rotation = Vector3.New(0, 360 * (data.TotalTime - data.Timer), 0)
+            DCEI.SetUnitRotationEuler(boss_chest, rotation.x, rotation.y, rotation.z)
+
+            -- Zoom in Camera
+            local camera_distance =
+                Help.Lerp(data.StartingCameraSize, data.TargetCameraSize, 1 - (data.Timer / data.TotalTime))
+            camera:SetSize(camera_distance, TICK_RATE, true)
+
+            -- Calculate Centroid of Player and Chest
+            local hero_position = hero:GetPosition()
+            local centroid_position = Vector2.UnitPosition(centroid)
+            local midpoint = Vector2.Centroid({
+                hero_position,
+            })
+
+            -- Set Camera Focus
+            local smoothed_position = Vector2.Damp(centroid_position, midpoint, 6, TICK_RATE)
+            DCEI.SetUnitPosition2DWithInterpolation(data.CentroidUnit, smoothed_position.x, smoothed_position.y)
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+        CompletionAction = function(data)
+            -- Remove Chest
+            DCEI.RemoveUnit(boss_chest)
+
+            -- Remove Centroid Unit
+            DCEI.RemoveUnit(data.CentroidUnit)
+
+            -- Transition to Victory
+            GameOver(true)
+        end,
+    })
+end
+
+---comment
+---@param game_time Time
+local function BossSpawn(game_time)
+    -- Do we need to set GameEventManager.Instance Boss set to active to prevent other event spawns early?
+
+    local warning_duration = 5 ---FIXME: This is a temporary value, if Boss Warning Duration is different, this won't work.
+    local boss_spawn_data = _HuntData.Boss[game_time + warning_duration]
+
+    -- Check for Boss Spawn
+    if not boss_spawn_data then
+        return
+    end
+
+    local stage_level = CommonDataAccess.Get("stage_level")
+    local last_boss_time, last_boss_data = HuntDataManager.GetFinalBoss(stage_level)
+
+    local is_final_boss = last_boss_time == (game_time + warning_duration)
+
+    _IsBossIncoming = true
+
+    -- Warning
+    ---TODO: Change based on Final Boss or Mini-Boss
+    local warning_message = boss_spawn_data.WarningSettings and boss_spawn_data.WarningSettings.Message
+        or "Incoming Boss!"
+    UiHelper.EventWarning(warning_message, warning_duration)
+
+    -- Fog of War
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local hero_position = hero:GetPosition()
+
+    -- Delay Spawn
+    local condition = function()
+        -- Check we are still in this state
+        return FSM:IsCurrentState(State)
+    end
+
+    local action = function()
+        ---NOTE: This auto-fixes game time to the correct time. Without this, the game time is 1 second behind per boss.
+        local game_time = CommonDataAccess.Set("game_time", game_time + warning_duration)
+
+        -- Validate Hero
+        local hero = Hero.Fetch(PLAYER.Player1)
+        if not hero:IsUnitAlive() then
+            return
+        end
+
+        _IsBossIncoming = false
+        _IsBossActive = true
+
+        -- Kill all Simple Units
+        StageHelper.KillSimpleUnits(PLAYER.Hostile)
+
+        -- Kill all Elites
+        StageHelper.KillHostiles()
+
+        -- Cached Values
+        local hero_position = hero:GetPosition()
+        local boss_spawn_position = hero_position + Vector2.Up() * 7
+
+        local joystick = Joystick.Fetch(PLAYER.Player1)
+        local camera = Camera.Fetch(PLAYER.Player1)
+
+        local current_camera_distance = camera:GetSize()
+        local target_camera_distance = 7
+
+        -- Disable Player Joystick, UI, and Leveling
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                joystick:SetActive(false)
+
+                hero:SetAllowPerkSelection(false)
+
+                UiHelper.SetGameUIActive(false)
+            end,
+            CompletionCondition = function(data)
+                return true
+            end,
+        })
+
+        -- Boss Spawn VFX and Camera Position
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                data.Timer = 0.85
+
+                -- Spawn Status VFX
+                local status_vfx = DCEI.CreateUnit(
+                    TEAM.Terrain,
+                    PLAYER.Terrain,
+                    REF.BossSpawnStatusVFX,
+                    boss_spawn_position.x,
+                    boss_spawn_position.y
+                )
+                Help.SetModelScale(status_vfx, 2, data.Timer)
+                data.StatusVFX = status_vfx
+
+                -- Transition Camera to the Boss Position
+                camera:SetFollowUnit(nil, false)
+                camera:SetSize(target_camera_distance, data.Timer, true)
+
+                DCEI.SetCameraFocusSmoothOvertimeForPlayer(
+                    PLAYER.Player1,
+                    boss_spawn_position.x,
+                    boss_spawn_position.y,
+                    data.Timer,
+                    true
+                )
+            end,
+            ContinuousAction = function(data)
+                data.Timer = data.Timer - TICK_RATE
+            end,
+            CompletionCondition = function(data)
+                return data.Timer <= 0
+            end,
+            CompletionAction = function(data)
+                DCEI.RemoveUnit(data.StatusVFX)
+            end,
+        })
+
+        -- Spawn Boss
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                data.Timer = 1
+
+                -- Spawn Impact VFX
+                local impact_vfx = DCEI.CreateUnit(
+                    TEAM.Terrain,
+                    PLAYER.Terrain,
+                    REF.BossSpawnImpactVFX,
+                    boss_spawn_position.x,
+                    boss_spawn_position.y
+                )
+                data.ImpactVFX = impact_vfx
+
+                -- Spawn Boss
+                local game_event_manager_modifiers = GameEventManager.Instance:GetModifiers()
+                local boss_spawn_data_modifiers = boss_spawn_data.Modifiers
+                local combined_modifiers = Help.CombineTables(game_event_manager_modifiers, boss_spawn_data_modifiers)
+
+                _BossInstance = Bosses.Spawn(boss_spawn_data.Type, boss_spawn_position, combined_modifiers)
+
+                -- Set Fog of War
+                local fow_position = Vector2.Centroid({
+                    hero_position,
+                    boss_spawn_position,
+                })
+
+                FogOfWar.Instance:SetPosition(fow_position)
+                FogOfWar.Instance:SetSize(40)
+                FogOfWar.Instance:SetSmoothingAmount(0.10)
+                FogOfWar.Instance:SetTargetSize(20)
+                FogOfWar.Instance:SetActive(true)
+            end,
+            ContinuousAction = function(data)
+                data.Timer = data.Timer - TICK_RATE
+            end,
+            CompletionCondition = function(data)
+                return data.Timer <= 0
+            end,
+            CompletionAction = function(data)
+                DCEI.RemoveUnit(data.ImpactVFX)
+            end,
+        })
+
+        -- Move Camera to Centroid
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                data.Timer = 1.25
+
+                local boss_position = Vector2.UnitPosition(_BossInstance)
+
+                local midpoint = Vector2.Centroid({
+                    hero_position,
+                    hero_position,
+                    boss_position,
+                })
+
+                camera:SetSize(current_camera_distance, data.Timer, true)
+
+                DCEI.SetCameraFocusSmoothOvertimeForPlayer(PLAYER.Player1, midpoint.x, midpoint.y, data.Timer, true)
+            end,
+            ContinuousAction = function(data)
+                data.Timer = data.Timer - TICK_RATE
+            end,
+            CompletionCondition = function(data)
+                return data.Timer <= 0
+            end,
+            CompletionAction = function(data)
+                joystick:SetActive(true)
+                hero:SetAllowPerkSelection(true)
+
+                -- Re-enable the Game UI
+                UiHelper.SetGameTimerActive(false)
+                UiHelper.SetGameUIActive(true)
+
+                -- Set Boss Health Bar Active
+                Bosses.ApplyOnScreenHealthBar(_BossInstance, boss_spawn_data.Type.Data.Name)
+
+                ---TODO: Update Objective UI
+                if is_final_boss then
+                    UiHelper.ModifyObjectives("Survive", "<s>Survive until the Boss appears.</s>", "#aaaaaa00")
+                    UiHelper.ModifyObjectives("Defeat", "Defeat the Boss!", "#eeaa00ff")
+                else
+                    UiHelper.ModifyObjectives("Mini-Boss", "Defeat the Mini-Boss!", "#eeaa00ff")
+                end
+            end,
+            CancelCondition = function(data)
+                return not Help.ValidateUnit(_BossInstance)
+            end,
+        })
+
+        -- Lock Camera to Centroid
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                local hero_position = hero:GetPosition()
+
+                local boss_position = Help.ValidateUnit(_BossInstance) and Vector2.UnitPosition(_BossInstance)
+                    or boss_spawn_position
+
+                local midpoint = Vector2.Centroid({
+                    hero_position,
+                    hero_position,
+                    boss_position,
+                })
+
+                local centroid_unit =
+                    DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, DCEI.Unit("Global Caster"), midpoint.x, midpoint.y)
+
+                local camera = Camera.Fetch(PLAYER.Player1)
+                camera:SetFollowUnit(centroid_unit, true)
+
+                data.CentroidUnit = centroid_unit
+            end,
+            CompletionCondition = function(data)
+                return not Help.ValidateUnit(_BossInstance)
+            end,
+            ContinuousAction = function(data)
+                local hero = Hero.Fetch(PLAYER.Player1)
+                local hero_position = hero:GetPosition()
+
+                local boss_position = Vector2.UnitPosition(_BossInstance)
+                local midpoint = Vector2.Centroid({
+                    hero_position,
+                    hero_position,
+                    hero_position,
+                    boss_position,
+                })
+
+                local centroid_position = Vector2.UnitPosition(data.CentroidUnit)
+                local smoothed_position = Vector2.Damp(centroid_position, midpoint, 6, TICK_RATE)
+                DCEI.SetUnitPosition2DWithInterpolation(data.CentroidUnit, smoothed_position.x, smoothed_position.y)
+
+                data.LatestBossPosition = boss_position
+            end,
+            CompletionAction = function(data)
+                -- Clear all Simple Units
+                StageHelper.KillSimpleUnits(PLAYER.Hostile)
+
+                -- Non-Final Boss - Set the Camera Back to the Player
+                if not is_final_boss then
+                    _IsBossActive = false
+                    camera:SetFollowUnit(hero.unit, false)
+
+                    -- Drop Loot
+                    local drop_table = boss_spawn_data.DropTable
+                    if drop_table then
+                        local position = Vector2.UnitPosition(_BossInstance)
+
+                        local consumables_active = CommonDataAccess.Get("consumables_active")
+                        local drop_table_options = {
+                            apply_mover_effect = REF.MOVER_LARGE,
+                            spawn_over_time = true,
+                            omitted_items = consumables_active or { LootData.PotionCharge },
+                        }
+
+                        Help.SpawnDropTable(position, drop_table, drop_table_options)
+                    end
+
+                    -- Remove Fog of War
+                    FogOfWar.Instance:_ClearFogOfWar()
+                    joystick:ClearUnitBounds()
+
+                    -- Turn on the Game Timer
+                    UiHelper.SetGameTimerActive(true)
+
+                    -- Update UI Objective
+                    UiHelper.ModifyObjectives("Mini-Boss", "<s>Defeat the Mini-Boss!</s>", "#aaaaaa00")
+                else -- Final Boss - Spawn Chest and do end-game sequence
+                    -- GameOver(true)
+
+                    ---TODO: End Sequence
+                    local chest_position = data.LatestBossPosition and data.LatestBossPosition or boss_spawn_position
+                    TriggerEndingSequence(data.CentroidUnit, chest_position)
+                end
+            end,
+            CancelCondition = function(data) -- Player Defeated
+                return not Help.ValidateUnit(hero.unit)
+            end,
+            CancelAction = function(data)
+                -- Clear the Centroid Unit and Focus on the Boss
+                DCEI.RemoveUnit(data.CentroidUnit)
+
+                -- Tell the Boss to do Taunt Animation
+                DCEI.CastAbilityAtUnit(DCEI.Ability("Boss - Taunt"), _BossInstance, _BossInstance, true)
+
+                -- Focus on the Boss
+                local boss_position = Vector2.UnitPosition(_BossInstance)
+                local target_position = boss_position
+                DCEI.SetCameraFocusSmoothOvertimeForPlayer(
+                    PLAYER.Player1,
+                    target_position.x,
+                    target_position.y,
+                    3,
+                    true
+                )
+            end,
+        })
+
+        -- -- Update Objective UI (only for final Boss)
+        -- local stage_level = CommonDataAccess.Get("stage_level")
+        -- local last_boss_time, last_boss_data = HuntDataManager.GetFinalBoss(stage_level)
+        -- local game_time = CommonDataAccess.Get("game_time")
+        -- if game_time >= last_boss_time then
+        --     UiHelper.ModifyObjectives("Survive", "<s>Survive until the Boss appears.</s>", "#aaaaaa00")
+        --     UiHelper.ModifyObjectives("Defeat", "Defeat the Boss!", "#eeaa00ff")
+        --     UiHelper.SetGameTimerActive(false, 0)
+        -- end
+    end
+
+    Help.GameTimer(warning_duration, condition, nil, action)
+end
+
+local function EventSpawn(game_time)
+    if not _HuntData.FixedStageEvents then
+        return
+    end
+
+    local event_data = _HuntData.FixedStageEvents and _HuntData.FixedStageEvents[game_time]
+
+    -- Validate Event
+    if not event_data then
+        return
+    end
+
+    -- Spawn Event
+    StageEvents.SpawnEvent(event_data)
+end
+
+---comment
+---@param game_time Time
+---@return boolean applied_modifier
+local function ApplyStageModifiers(game_time)
+    local applied_modifier = false
+    if _HuntData.DifficultySettings then
+        -- Fixed Modifiers
+        local fixed_modifiers = _HuntData.DifficultySettings.Fixed
+        if fixed_modifiers then
+            local applied_modifiers = fixed_modifiers[game_time]
+            if applied_modifiers then
+                applied_modifier = true
+                GameEventManager.Instance:AddModifiers(applied_modifiers)
+            end
+        end
+
+        -- Periodic Modifiers
+        local periodic_modifiers = _HuntData.DifficultySettings.Periodic
+        if periodic_modifiers then
+            for time, modifiers in pairs(periodic_modifiers) do
+                if game_time % time == 0 then
+                    applied_modifier = true
+                    GameEventManager.Instance:AddModifiers(modifiers)
+                end
+            end
+        end
+    end
+
+    return applied_modifier
+end
+
+---comment
+---@param delta number
+local function ProcessGameEvents(delta)
+    if _IsBossIncoming or _IsBossActive then
+        return
+    end
+
+    -- Check for any Modifiers to apply to the Game Event Manager
+    local game_time = CommonDataAccess.Get("game_time")
+    ApplyStageModifiers(game_time)
+
+    -- if _HuntData.DifficultySettings then
+    --     -- Fixed Modifiers
+    --     local fixed_modifiers = _HuntData.DifficultySettings.Fixed
+    --     if fixed_modifiers then
+    --         local applied_modifiers = fixed_modifiers[game_time]
+    --         if applied_modifiers then
+    --             GameEventManager.Instance:AddModifiers(applied_modifiers)
+    --         end
+    --     end
+
+    --     -- Periodic Modifiers
+    --     local periodic_modifiers = _HuntData.DifficultySettings.Periodic
+    --     if periodic_modifiers then
+    --         for time, modifiers in pairs(periodic_modifiers) do
+    --             -- Check if Game Time % Time == 0
+    --             if game_time % time == 0 then
+    --                 GameEventManager.Instance:AddModifiers(modifiers)
+    --             end
+    --         end
+    --     end
+    -- end
+
+    -- Update Conditions
+    GameEventManager.Instance:Update(delta) -- Time
+end
+
+---============================================================================
+---!SECTION: Local Functions - Spawning
+---SECTION: Local Functions - Tick Rates
+---============================================================================
+
+local function CheckDefeatStatus(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        GameOver(false)
+    end
+end
+
+---To make sure this is responsive, trigger every Frame.
+---Updates Player Movement
+---@param delta number
+local function UpdatePlayerMovement(delta)
+    StageHelper.PlayerUpdate()
+end
+
+---Updates the Map Tiles based on the hero's position.
+---@param delta number
+local function UpdateMap(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+
+    _Map:Update(tile_index)
+    StageHelper.SetSimpleUnitBounds(hero_position, KILL_BOX_SIZE)
+
+    -- Update Heatmap
+    Heatmap.Instance:Update(hero_position)
+end
+
+-- Update the Displayed Timer every 1 Second.
+local function UpdateTimer(delta)
+    if _IsBossActive then
+        return
+    end
+
+    local game_time = CommonDataAccess.Modify("game_time", delta)
+    local total_game_time = CommonDataAccess.Modify("total_game_time", delta)
+
+    -- Update UI
+    if type(game_time) == "number" then
+        UiHelper.SetGameTime(game_time)
+    end
+end
+
+---Updates Player Stats
+---NOTE: Make sure to record one final time prior to leaving the State.
+---@param delta number | nil
+local function UpdatePlayerStats(delta)
+    StageHelper.UpdatePlayerStats()
+end
+
+local function CheckCameraSettings(game_time)
+    if not _HuntData.CameraSettings then
+        return
+    end
+
+    local camera_settings = _HuntData.CameraSettings[game_time]
+
+    if not camera_settings or _CameraSettingsApplied[game_time] then
+        return
+    end
+
+    _CameraSettingsApplied[game_time] = true
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local modifier = Modifier.New(STAT.CameraDistance, camera_settings.DistanceModifier, SCALING.Scaled)
+    hero:ApplyModifier(modifier)
+end
+
+-- Checks Hostile Spawning
+local function SpawnCheck(delta)
+    local game_time = CommonDataAccess.Get("game_time")
+
+    CheckCameraSettings(game_time)
+
+    -- Prevent Spawning if a Boss is Incoming or Active
+    if _IsBossIncoming or _IsBossActive then
+        return
+    end
+
+    -- PeriodicSpawn(game_time)
+    -- FixedSpawn(game_time)
+    -- EliteSpawn(game_time)
+    BossSpawn(game_time)
+    EventSpawn(game_time)
+end
+
+---Converts AccumulatedLoot into a DropList and adds it to the AccumulatedLoot.
+---@param delta any
+local function AccumulateLoot(delta)
+    local game_time = CommonDataAccess.Get("game_time")
+    local drop_table = _HuntData.AccumulatedLoot[game_time]
+
+    if drop_table then
+        local hero_position = Hero.Fetch(PLAYER.Player1):GetPosition()
+        local position = hero_position + Vector2.Random() * 15
+        StageEvents.SpawnDrone(position, drop_table)
+    end
+
+    -- if drop_table then
+    --     local drop_list = Help.GetItemsFromDropList(drop_table)
+    --     for _, loot_data in pairs(drop_list) do
+    --         table.insert(_AccumulatedLoot, loot_data)
+    --     end
+    -- end
+end
+
+---Log Game Performance every Minute
+---@param delta number
+local function LogGamePerformance(delta)
+    ---LOG: Performance
+    Log.Performance.Event({
+        game_mode = CommonDataAccess.Get("game_mode"),
+        game_time = CommonDataAccess.Get("game_time"),
+        hero_level = CommonDataAccess.Get("hero_level"),
+        hunt_attempts = CommonDataAccess.Get("hunt_attempts"),
+        session_attempts = CommonDataAccess.Get("session_attempts"),
+    })
+end
+
+---============================================================================
+---!SECTION: Local Functions - Tick Rates
+---SECTION: Local Functions - Developer
+---============================================================================
+
+local function AutoVictory()
+    -- Setup Stats
+    -- StageHelper.SetTrackedStat("Boss Kills", 1)
+    -- Need to grant the Player the Boss Kill
+    -- This also has to be based on the next Boss in rotation
+    -- local next_boss = HuntData.Bosses[GetBossIndex()]
+
+    -- local time, next_boss =
+    --     HuntDataManager.GetFinalBoss(CommonDataAccess.Get("stage_level") + 1, CommonDataAccess.Get("stage_difficulty"))
+
+    -- StageHelper.SetTrackedStat(next_boss.Type.Data.Name, 1)
+    -- StageHelper.SetTrackedStat("Boss Kills", 1)
+
+    -- Automatically Drop all Potential Rewards (Elites, Bosses, Accumulated Loot)
+    -- Should only account for remaining time (things that haven't spawned yet)
+
+    ---TODO: Setup a way to modify Stats
+    local stage_level = CommonDataAccess.Get("stage_level")
+    local stage_difficulty = CommonDataAccess.Get("stage_difficulty")
+    local game_time = CommonDataAccess.Get("game_time")
+
+    local rewards = HuntDataManager.GetRewards(stage_level, stage_difficulty, game_time)
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    for effect, value in pairs(rewards) do
+        for i = 1, value do
+            DCEI.CreateEffectAtSelf(effect, hero.unit)
+        end
+    end
+
+    GameOver(true)
+end
+
+---Kill the Player's Hero
+local function AutoDefeat()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    DCEI.KillUnit(Hero.Fetch(PLAYER.Player1).unit)
+end
+
+local function TimeSkip()
+    -- Help.Log("Time Skip")
+
+    -- Check for a Boss
+    if Help.ValidateUnit(_BossInstance) then
+        DCEI.KillUnit(_BossInstance)
+        return
+    end
+
+    -- UiHelper.SetGameTimerActive(false, 0)
+
+    local game_time = CommonDataAccess.Get("game_time")
+    local stage_level = CommonDataAccess.Get("stage_level")
+    local stage_difficulty = CommonDataAccess.Get("stage_difficulty")
+
+    local next_boss_time = game_time
+
+    ---comment
+    ---@param t table
+    ---@param min integer
+    ---@param max integer
+    local function ExtractValidTimes(t, min, max)
+        local times = {}
+        for trigger_time, value in pairs(t) do
+            table.insert(times, trigger_time)
+        end
+
+        -- Sort
+        table.sort(times)
+
+        -- Remove Times outside the min and max (reverse loop to remove)
+        for i = #times, 1, -1 do
+            if times[i] < min or times[i] > max then
+                table.remove(times, i)
+            end
+        end
+
+        return times
+
+        -- local results = {}
+        -- for _, time in pairs(times) do
+        --     table.insert(results, t[time])
+        -- end
+
+        -- return results
+    end
+
+    local boss_times = {}
+
+    -- Get a list of all Boss Times
+    for spawn_time, _ in pairs(_HuntData.Boss) do
+        table.insert(boss_times, spawn_time)
+    end
+
+    -- Sort the Boss Times
+    table.sort(boss_times)
+
+    -- Remove any times under the current game_time (reverse loop to remove)
+    for i = #boss_times, 1, -1 do
+        if boss_times[i] < game_time then
+            table.remove(boss_times, i)
+        end
+    end
+
+    -- Get the Next Boss Time
+    if #boss_times > 0 then
+        next_boss_time = boss_times[1]
+    end
+
+    -- Gives the Boss Time for Warning (5 seconds)
+    local set_time = next_boss_time - 6
+
+    -- Apply Modifiers
+    local stat_table = {}
+    for i = game_time, set_time do
+        local applied_modifier = ApplyStageModifiers(i)
+
+        if applied_modifier then
+            -- Print Stats
+            local attributes = Attributes.New()
+
+            attributes:Add(Modifier.New(STAT.Health, 1, SCALING.Scaled)) -- Base of 10 Health
+            attributes:Add(Modifier.New(STAT.Thorns, 1, SCALING.Scaled)) -- Base of 10 Health
+            -- attributes:Add(Modifier.New(STAT.Count, 1, SCALING.Scaled))
+
+            for _, modifier in pairs(GameEventManager.Instance.Modifiers) do
+                attributes:Add(modifier)
+            end
+
+            local health_additive = attributes:GetStatScaling(STAT.Health, SCALING.Additive)
+            local health_multiplier = attributes:GetStatScaling(STAT.Health, SCALING.Multiplier)
+            local health_total = attributes:Get(STAT.Health)
+
+            local thorns_total = attributes:Get(STAT.Thorns)
+
+            local count_total = attributes:Get(STAT.Count)
+
+            local new_entry = {
+                time = i,
+                -- count_total = count_total,
+                -- health_additive = health_additive,
+                -- health_multiplier = health_multiplier,
+                health_total = Core.Math.Round(health_total, 2),
+                thorns_total = Core.Math.Round(thorns_total, 2),
+            }
+
+            table.insert(stat_table, new_entry)
+        end
+    end
+
+    local modifications_count = #stat_table
+    local message = string.format("Time Skip Modifiers from [%s] to [%s]", game_time, set_time)
+    Help.Log(message, modifications_count, stat_table)
+
+    -- Check for Camera Settings
+    local camera_times = ExtractValidTimes(_HuntData.CameraSettings, game_time, set_time)
+    for _, time in ipairs(camera_times) do
+        CheckCameraSettings(time)
+    end
+
+    local game_time = CommonDataAccess.Set("game_time", set_time)
+end
+
+local function DeveloperInfo()
+    if not _SHOW_DEV_INFO then
+        return
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+
+    local ids = {
+        -- ["n_crate"] = Biome.CrateNoise,
+        -- ["n_path"] = Biome.LargePathNoise,
+        -- ["n_floral"] = Biome.FloralForestNoise,
+        -- ["n_camp"] = Biome.CampNoise,
+
+        -- Thicket
+        -- ["n_thicket_floral"] = _HuntData.Biome.GrassNoise,
+        -- ["n_thicket_floral_density"] = _HuntData.Biome.GrassDensity,
+        -- ["dirt_patch_noise"] = _HuntData.Biome.DirtPatchNoise,
+        -- ["dirt_patch_density"] = _HuntData.Biome.DirtPatchDensity,
+
+        -- ["void_noise"] = _HuntData.Biome.RandomVoidNoise,
+        -- ["void_density"] = _HuntData.Biome.RandomVoidDensity,
+        -- ["tree_type_noise"] = _HuntData.Biome.TreeTypeNoise,
+
+        -- Swamp
+        -- ["water_noise"] = _HuntData.Biome.WaterNoise,
+        -- ["ground_texture_noise"] = _HuntData.Biome.GroundTexturesNoise,
+        -- ["tree_type_noise"] = _HuntData.Biome.TreeTypeNoise,
+    }
+
+    for key, func in pairs(ids) do
+        local noise = func(_Seed, tile_index.x, tile_index.y)
+        UiHelper.SetDeveloperText(key, string.format("%s: %.2f", key, noise))
+    end
+
+    local stage_level = CommonDataAccess.Get("stage_level")
+    local game_time = CommonDataAccess.Get("game_time")
+    -- local difficulty = HuntData.GetDifficulty(stage_level, game_time)
+
+    -- UiHelper.SetDeveloperText("Difficulty", string.format("Difficulty: %d", difficulty))
+end
+
+---============================================================================
+---!SECTION: Local Functions - Developer
+---SECTION: Local Functions - Extras
+---============================================================================
+
+local function OnRegionLeave()
+    local unit = DCEI.TriggeringUnit
+    -- Help.Log("Unit Leaving Region", unit)
+
+    -- Check if Simple Unit
+    if not Help.ValidateSimpleUnit(unit) then
+        return
+    end
+
+    -- Get Hero Position
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local unit_position = DCEI.GetUnitPosition2D(unit)
+
+    -- local unit_name = DCEI.GetUnitDisplayName(unit)
+    -- Help.Log("Unit Name", unit_name)
+
+    -- local hostile_type = DCEI.GetUnitType(unit)
+    -- Help.Log("Hostile Type", hostile_type)
+
+    -- local unit_category = DCEI.GetUnitCategory(unit)
+    -- Help.Log("Unit Category", unit_category)
+
+    -- Move it to the opposite side of the hero (-10% Distance)
+    local new_position = hero_position + (hero_position - unit_position) * 0.90
+    DCEI.SetUnitPosition2D(unit, new_position.x, new_position.y)
+end
+
+local function InitializeRegion()
+    _Region = DCEI.CreateRegion(0, 0, REGION_MOVER_SIZE, REGION_MOVER_SIZE)
+
+    local filter = DCEI.CreateUnitFilter({ player = PLAYER.Hostile })
+
+    DCEI.TriggerAddUnitLeaveRegionEvent(filter, _Region, OnRegionLeave)
+end
+
+local function RemoveRegion()
+    DCEI.RemoveRegion(_Region)
+    _Region = nil
+end
+
+local function MoveRegion()
+    -- nil check: Create Region if it doesn't exist
+    if not _Region then
+        InitializeRegion()
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    DCEI.MoveRegion(_Region, hero_position.x, hero_position.y)
+end
+
+local function UpdateFogOfWar(delta)
+    if FogOfWar.Instance:IsActive() then
+        FogOfWar.Instance:Update(delta)
+
+        -- Update Joystick
+        local joystick = Joystick.Fetch(PLAYER.Player1)
+        local min, max = FogOfWar.Instance:GetBoundary()
+        joystick:SetUnitBounds(min.x, max.x, min.y, max.y)
+
+        -- Remove Events in Fog of War
+        local event_instances = StageEvents.GetEventInstances()
+
+        local count = 0
+
+        for _, event_instance in pairs(event_instances) do
+            count = count + 1
+            local event_instance_position = Vector2.UnitPosition(event_instance)
+            local in_fog = FogOfWar.Instance:IsPositionInFog(event_instance_position)
+
+            if in_fog then
+                Help.Log("Removing Event")
+                DCEI.RemoveUnit(event_instance)
+            end
+        end
+    end
+end
+
+local function FogOfWarDamage(delta)
+    -- Check Fog of War
+    if not FogOfWar.Instance:IsActive() or not _IsBossActive then
+        return
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    if FogOfWar.Instance:IsPositionInFog(hero_position) then
+        DCEI.ApplyBehaviorToSelf(hero.unit, DCEI.Behavior("Out of Bounds"))
+    end
+end
+
+---TODO: Need to set this up to only send the Stats that have changed.
+---Need to better manage Engine Stats (and Tracked Stats)
+local function UpdateDisplayedGameStats()
+    local passed_stats = {}
+    for key, _ in pairs(DisplayedGameStats) do
+        local value = StageHelper.GetTrackedStat(key)
+        if value and value > 0 then
+            passed_stats[key] = StageHelper.GetTrackedStat(key)
+        end
+    end
+
+    -- Send information to the UI
+    Core.Event.SendPresentationEvent("Game.UpdateGameStats", passed_stats)
+end
+
+local function AnimateIndicators()
+    Core.Event.SendPresentationEvent("AnimateAllIndicators")
+end
+
+local function RunSequenceManager()
+    SequenceManager.Instance:Update()
+end
+
+---============================================================================
+---!SECTION: Local Functions - Extras
+---SECTION: Registered Functions
+---============================================================================
+
+local _TickRateUpdates = {
+    {
+        Interval = 1,
+        Function = DeveloperInfo,
+    },
+    {
+        Interval = 1,
+        Function = RunSequenceManager,
+    },
+    {
+        Interval = 1,
+        Function = CheckDefeatStatus,
+    },
+    {
+        Interval = 1,
+        Function = UpdatePlayerMovement,
+    },
+    {
+        Interval = 1,
+        Function = UpdateMap,
+    },
+    {
+        Interval = 1,
+        Function = MoveRegion,
+    },
+    {
+        Interval = 1,
+        Function = UpdateFogOfWar,
+    },
+    {
+        Interval = 1,
+        Function = UpdateDisplayedGameStats,
+    },
+    {
+        Interval = 1,
+        Function = UpdatePlayerStats,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = UpdateTimer,
+    },
+    -- {
+    --     Interval = 1 / TICK_RATE,
+    --     Function = FogOfWarDamage,
+    -- },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = SpawnCheck,
+    },
+    {
+        Interval = 1 / TICK_RATE,
+        Function = ProcessGameEvents,
+    },
+    {
+        Interval = 15 / TICK_RATE,
+        Function = AnimateIndicators,
+    },
+    {
+        Interval = 60 / TICK_RATE,
+        Function = LogGamePerformance,
+    },
+}
+
+---Un/Register Tick Rate Dependent Functions
+---@param unsubscribe boolean | nil
+local function SubscribeTickRates(unsubscribe)
+    if not unsubscribe then
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Subscribe(entry.Interval, entry.Function)
+        end
+    else
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Unsubscribe(entry.Interval, entry.Function)
+        end
+    end
+
+    ---TUTORIAL: Check for Movement Tutorial Completed
+    if _ShowTutorial then
+        TickRate:Subscribe(TICK_RATE, CheckMovementTutorialCompleted)
+    end
+end
+
+---============================================================================
+---!SECTION: Registered Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    ---@type GameModeContext
+    self.data = self.data
+
+    DamageAffinity.Instance:Reset()
+
+    -- Clear any Leftover Units
+    StageHelper.RemoveAllUnits()
+
+    -- Reset
+    ResetStateVariables()
+
+    -- Setup
+    Initialize(self.data)
+
+    -- Experience Circle
+    SpawnExperienceCircle()
+
+    -- Subscribe to Pause Event
+    OnGamePauseEvent:Subscribe(UpdatePauseMenuData)
+
+    -- StageEvents.RegisteredEvents.CrateDestroyed:Subscribe(OnCrateDestroyed)
+
+    -- Clear old pause menu layouts
+    Core.Event.SendPresentationEvent("UI.PauseMenu.CleanUpPauseMenu")
+
+    -- FadeIn
+    if _Dev and _Dev.Extra and _Dev.Extra.instant_transitions then
+        UiHelper.FadeIn(0)
+        return
+    end
+
+    UiHelper.FadeIn(3)
+end
+
+function State:OnEnter()
+    ---TESTING: Bosses
+    -- SpawnBoss(10, HuntData.Bosses[1])
+    -- SpawnBoss(10, HuntData.Bosses[2])
+    -- SpawnBoss(10, HuntData.Bosses[3])
+    -- SpawnBoss(10, HuntData.Bosses[4])
+    -- SpawnBoss(10, HuntData.Bosses[5])
+    -- SpawnBoss(10, HuntData.Bosses[6])
+    -- SpawnBoss(10, HuntData.Bosses[7])
+
+    ---TESTING: Elite
+    -- SpawnElite(100, Elites.Types.Golem, Vector2.Right() * 5)
+    -- SpawnElite(100, Elites.Types.Skull, Vector2.Up() * 5)
+
+    -- Spawn initial group of hostiles nearby
+    -- StartingSpawn()
+
+    TickRate:ResetTick() -- Forces the Tick back to Zero to keep the Ticks in Sync.
+    SubscribeTickRates() -- Subscribe to Tick Rates
+
+    SequenceManager.Instance:Reset()
+
+    -- SequenceManager.Instance:LoadAction({
+    --     StartAction = function(data)
+    --         data.TimeElapsed = 0
+
+    --         local joystick = Joystick.Fetch(PLAYER.Player1)
+    --         joystick:SetActive(false)
+
+    --         DCEI.SetCameraFocusSmoothOvertimeForPlayer(PLAYER.Player1, 10, 10, 3, false)
+    --     end,
+    --     ContinuousAction = function(data)
+    --         data.TimeElapsed = data.TimeElapsed + TICK_RATE
+    --     end,
+    --     CompletionCondition = function(data)
+    --         return data.TimeElapsed >= 5
+    --     end,
+    --     CompletionAction = function(data)
+    --         Joystick.Fetch(PLAYER.Player1):SetActive(true)
+    --     end,
+    -- })
+
+    -- Pause Time
+    -- Help.SetGameSpeed(0)
+
+    ---TUTORIAL: Movement
+    if _ShowTutorial then
+        ShowGameModeTutorial()
+    end
+
+    ---DEV: Developer Controls
+    if _Dev then
+        _Dev.Events.Register("Victory", AutoVictory)
+        _Dev.Events.Register("Defeat", AutoDefeat)
+        _Dev.Events.Register("Time Skip", TimeSkip)
+    end
+end
+
+function State:OnGameUpdate(delta)
+    DamageAffinity.Instance:Update()
+
+    if _SHOW_DEV_INFO then
+        State:Developer()
+    end
+end
+
+function State:OnTransitionExit()
+    -- Unsubscribe from Pause Event
+    OnGamePauseEvent:Unsubscribe(UpdatePauseMenuData)
+
+    -- StageEvents.RegisteredEvents.CrateDestroyed:Unsubscribe(OnCrateDestroyed)
+
+    ---TUTORIAL: Cancel Movement Tutorial if Returning to Home Meta without Completing Tutorial
+    if _ShowTutorial then
+        GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Hide")
+        TickRate:Unsubscribe(TICK_RATE, CheckMovementTutorialCompleted)
+    end
+
+    SubscribeTickRates(true)
+
+    -- Destroy Region
+    RemoveRegion()
+
+    -- Reset Hero
+    ---NOTE: This prevents Return to Menu to see VFX in Meta Menu
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    if hero:IsUnitAlive() then
+        hero:SetCollectorRadius(100, true)
+    end
+
+    if _Dev and _Dev.Extra and _Dev.Extra.instant_transitions then
+        if hero:IsUnitAlive() then
+            StageHelper.CollectAllLoot()
+        end
+    end
+
+    DCEI.Wait(1, false)
+
+    -- Transition
+    if _Dev and _Dev.Extra and _Dev.Extra.instant_transitions then
+        return
+    end
+
+    -- Only do if NOT Victory (Chest Sequence handles this)
+    if not _IsVictory then
+        StageHelper.GameOverSlowTimeAndZoom(3, 60, 40, function()
+            UiHelper.FadeOut(1)
+        end)
+    end
+end
+
+function State:OnExit()
+    Hero.Fetch(PLAYER.Player1):Reset()
+
+    -- Reset Game Speed back to Normal
+    Help.SetGameSpeed(1)
+
+    -- Clear
+    StageHelper.RemoveAllUnits()
+
+    ---DEBUG: Remove Developer Console
+
+    if _SHOW_DEV_INFO then
+        UiHelper.ResetDeveloperText()
+    end
+
+    if _Dev then
+        _Dev.Events.Unregister("Victory", AutoVictory)
+        _Dev.Events.Unregister("Defeat", AutoDefeat)
+        _Dev.Events.Unregister("Time Skip", TimeSkip)
+    end
+
+    ResetStateVariables()
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: Developer
+---============================================================================
+
+---DEBUG: Developer Console
+if _SHOW_DEV_INFO then
+    function State:Developer()
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local unit = hero.unit
+
+        -- Verify Unit Exists
+        if not unit or not DCEI.UnitExists(unit) then
+            return
+        end
+
+        -- Show Hero Level
+        local hero_level = hero.level
+        local key = "hero_level"
+        local label = string.format("Level: %d", hero_level)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Show Hero Position
+        local position = Vector2.UnitPosition(unit)
+        local key = "unit_position"
+        local label = string.format("Position: (%0.1f, %0.1f)", position.x, position.y)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Game Time
+        local game_time = CommonDataAccess.Get("game_time")
+        local key = "game_time"
+        local label = string.format("Game Time: %d", game_time)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Total Game Time
+        local total_game_time = CommonDataAccess.Get("total_game_time")
+        local key = "total_game_time"
+        local label = string.format("Total Game Time: %d", total_game_time)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Experience
+        local experience = Experience.Fetch(PLAYER.Player1)
+        local experience_value = experience:GetRunningTotalExperience() or 0
+        local xp_floor = math.floor(experience_value)
+        local experience_per_second = experience_value / total_game_time
+        local key = "experience"
+        local label = string.format("Experience: %d (%0.1f/s)", xp_floor, experience_per_second)
+        UiHelper.SetDeveloperText(key, label)
+
+        -- Total Number of Active Hostiles
+        if
+            GameEventManager.Instance
+            and GameEventManager.Instance.Stats
+            and GameEventManager.Instance.Stats[GAME_TRACKED_STAT.BasicHostileCount]
+        then
+            local hostiles = GameEventManager.Instance.Stats[GAME_TRACKED_STAT.BasicHostileCount] or 0
+            -- Get Current Stage Density
+            local density = math.floor(GameEventManager.Instance:GetCalculatedStat(STAT.StageDensity))
+            local key = "hostiles"
+            local label = string.format("Hostiles: %d/%d", hostiles, density)
+            UiHelper.SetDeveloperText(key, label)
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

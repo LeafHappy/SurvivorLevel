@@ -1,0 +1,59 @@
+local UpgradeData = {}
+
+---comment
+---@param modifier_type ModifierType
+---@param damage_type DamageType
+---@param amount number
+---@param armor_type ArmorType | nil
+---@return table
+function UpgradeData.Affinity(modifier_type, damage_type, amount, armor_type)
+    return {
+        Affinity = {
+            ModifierType = modifier_type,
+            DamageType = damage_type,
+            Amount = amount,
+            ArmorType = armor_type,
+        },
+    }
+end
+
+-- ---@class EffectPath
+-- ---@field Effect string
+-- ---@field Path table
+-- ---@field Scalar number
+
+-- ---Returns an Effect Path to Modify
+-- ---@param effect string
+-- ---@param path table | nil
+-- ---@param scalar number | nil
+-- ---@return table
+-- function EffectPath.New(effect, path, scalar)
+--     return {
+--         Effect = effect,
+--         Path = path,
+--         Scalar = scalar or 1,
+--     }
+-- end
+
+---Returns an Upgrade Condition
+---@param name string
+---@param level integer | nil Default: 1
+---@return table
+function UpgradeData.UpgradeCondition(name, level)
+    return {
+        Upgrade = {
+            Name = name,
+            Level = level or 1,
+        },
+    }
+end
+
+function UpgradeData.StatCondition(stat_type)
+    return {
+        Stat = {
+            Type = stat_type,
+        },
+    }
+end
+
+return UpgradeData

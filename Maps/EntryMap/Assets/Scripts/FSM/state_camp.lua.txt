@@ -1,0 +1,1070 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+
+    3 Parts
+    
+    - Introduction -
+    Player is free to move around, needs to travel upwards to meet the "horde".
+
+    - Horde -
+    Player must retreat back down while killing enemies.
+
+    - Overrun -
+    Throns is overrun, player must "retreat".
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New(Help.GetStateName())
+
+-- Classes
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Joystick = require("Class/Joystick")
+local Camera = require("Class/FollowCamera")
+local Experience = require("Class/Experience")
+local TileMap = require("Class/TileMap")
+local PropManager = require("Class/PropManager")
+local PerlinNoise = require("Class/PerlinNoise")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+local Event = require("Class/Event")
+local CampManager = require("Class/CampManager")
+
+-- Data
+local CampData = require("Data/Camp/CampData")
+local CampPropData = require("Data/Camp/CampPropData")
+-- local HuntData = require("Data/Modes/HuntData")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local TileData = require("Data/TileData")
+local Biome = require("Data/Biomes/Forest")
+local PropData = require("Map/PropData")
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Heroes = require("SharedData/Heroes")
+
+-- Shared Data
+local MetaData = require("SharedData/MetaData")
+local LootData = require("Data/SimpleUnits/LootData")
+local Modifier = require("SharedData/Class/Modifier")
+local SkillData = require("SharedData/Skills/SkillData")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Bosses = require("Game/AI/Bosses")
+local Elites = require("Game/AI/Elites")
+local StageEvents = require("Game/Events/StageEvents")
+
+-- Directors
+local CreditDirector = require("Game/Directors/Credits")
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Managers
+local PropManager = require("Class/PropManager")
+local HuntDataManager = require("Data/Modes/Hunt/HuntDataManager")
+local SequenceManager = require("Class/SequenceManager")
+
+-- Meta Manager
+local ReviewInviteManager = require("Meta/ReviewInviteManager")
+
+local EquipmentGenerator = require("SharedData/Class/EquipmentGenerator")
+local DialogueData = require("SharedData/DialogueData")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+-- TICK RATE
+local TICK_RATE = TICK_RATE or 0.0625
+
+local MAP_CENTER = Vector2.New(0, 0)
+
+local PLAYER_SPAWN_POSITION = Vector2.New(0, 0)
+
+-- Player Movement Constraints
+local PLAYER_BOUNDS = Vector2.New(15, 15)
+
+-- Camera Settings
+local CAMERA_STARTING_DISTANCE = 5
+local CAMERA_TARGET_DISTANCE = 10
+local CAMERA_TRANSITION_TIME = 1
+
+-- Training Dummy Position
+local TRAINING_DUMMY_POSITION = Vector2.New(10, 0)
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Variables
+---============================================================================
+
+---@type TileMap
+local _Map = nil
+
+---@type PropManager
+local _PropManager = nil
+
+local _SaveData
+local _UserData
+
+local _SaveDataUpdated = false
+local _UserDataUpdated = false
+
+local _MetaTutorialInProgress = false
+local _PreMetaTransition = false
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Stage Generation
+---============================================================================
+
+---============================================================================
+---!SECTION: Stage Generation
+---SECTION: Local Functions - Library
+---============================================================================
+
+---TODO: Update when something important changes in save data.
+---comment
+---@return table
+local function GetSaveData()
+    if not _SaveData or _SaveDataUpdated then
+        _SaveData = DCEI.Save.Get("save_data")
+        _SaveData = Json.decode(_SaveData)
+    end
+
+    return _SaveData
+end
+
+local function GetUserData()
+    if not _UserData or _UserDataUpdated then
+        _UserData = DCEI.Save.Get("user_data")
+
+        if _UserData then
+            _UserData = Json.decode(_UserData)
+        else
+            _UserData = {}
+            -- DCEI.Save.Set("user_data", Json.encode(_UserData))
+            -- DCEI.Save.Commit()
+        end
+    end
+
+    return _UserData
+end
+
+---============================================================================
+---!SECTION: Local Functions - Library
+---SECTION: Local Functions - UI Callbacks
+---============================================================================
+
+---Start the game with the provided context
+---@param ctx GameModeContext
+local function StartGame(ctx)
+    FSM:Transition(FSM.States.Hunt, ctx)
+end
+
+---comment
+---@param hero_name string
+local function ChangeHero(hero_name, force_save)
+    _SaveDataUpdated = false
+    _SaveData.player.hero = hero_name
+
+    -- Get the current hero
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local active_hero_type = hero.UnitType
+
+    -- Spawn the associated hero as Camp Object instance
+    local camp_object = CampManager.Instance:FindObjectByUnitType(active_hero_type)
+
+    if not camp_object then
+        Help.Error("Could not find the camp object for the hero: " .. hero_name)
+        return
+    end
+
+    camp_object:SpawnInstance()
+
+    hero:Reset()
+
+    if force_save then
+        Core.Event.SendPresentationEvent("DataManager.SelectHero", hero_name)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions - UI Callbacks
+---SECTION: Local Functions - Register UI Context
+---============================================================================
+
+Core.Event.RegisterSimulationEvent("Camp.StartGame", StartGame)
+Core.Event.RegisterSimulationEvent("Camp.ChangeHero", ChangeHero)
+
+---============================================================================
+---!SECTION: Local Functions - Register UI Context
+---SECTION: Local Functions - Core
+---============================================================================
+
+---comment
+---@param hero_name string
+---@param position Vector2
+local function SpawnHero(hero_name, position)
+    -- Hero Setup
+    local player_id = PLAYER.Player1
+    local hero = Hero.Fetch(player_id)
+    hero:Reset()
+    hero:SpawnHero(position, hero_name, 0, {}, {})
+
+    -- Get the rotation from the Camp Data
+    local camp_data = CampData[hero_name]
+    if camp_data then
+        local rotation = camp_data.Rotation
+        DCEI.TurnUnitTowards(hero.unit, rotation.x, rotation.y)
+    end
+
+    -- Camera Setup
+    local camera = Camera.Fetch(player_id)
+    camera:SetSize(CAMERA_STARTING_DISTANCE)
+    camera:SetSize(CAMERA_TARGET_DISTANCE, CAMERA_TRANSITION_TIME)
+    camera:SetFollowUnit(hero.unit, true)
+
+    -- Set Joystick Active
+    local joystick = Joystick.Fetch(player_id)
+    joystick:SetActive(true)
+    joystick:SetUnitBounds(-PLAYER_BOUNDS.x, PLAYER_BOUNDS.x, -PLAYER_BOUNDS.y, PLAYER_BOUNDS.y)
+end
+
+---============================================================================
+---!SECTION: Local Functions - Core
+---SECTION: Local Functions - Pre-Meta Checks (Skip Camp)
+---============================================================================
+
+---Force the player into the game immediately if first time playing.
+---@return boolean StateTransition Forced to a new state
+local function PreMetaCheckFirstRun()
+    local start_tutorial = MetaData.Get(META_DATA.auto_start_first_run) == 0
+
+    if start_tutorial then
+        ---LOG: First Run
+        Log.Generic.NewUser()
+
+        -- Set Meta Data
+        MetaData.Modify(META_DATA.auto_start_first_run, 1)
+
+        -- Force stage
+        Core.Event.SendPresentationEvent("Camp.Zeppelin")
+    end
+
+    return start_tutorial
+end
+
+---comment
+---@return boolean StateTransition Forced to a new state
+local function PreMetaCheck()
+    -- if _Dev then
+    --     return false
+    -- end
+
+    if PreMetaCheckFirstRun() then -- First Time User: Auto Start the Game
+        return true
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Local Functions - Pre-Meta Checks (Skip Camp)
+---SECTION: Local Functions - Meta Checks (Tutorials in Camp)
+---============================================================================
+
+-- Disable Joystick
+local function DisablePlayerControl()
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    joystick:SetActive(false)
+end
+
+-- Enable Joystick
+local function EnablePlayerControl()
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    joystick:SetActive(true)
+end
+
+local function FocusHero()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    camera:SetFollowUnit(hero.unit, true)
+end
+
+local function GenerateHeroValidationSequence()
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    SequenceManager.Instance:LoadAction({
+        CompletionCondition = function(data)
+            return hero:IsUnitAlive()
+        end,
+    })
+end
+
+---comment
+---@param duration number | nil Default: 1
+local function GenerateDelaySequence(duration)
+    duration = duration or 1
+
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            data.Timer = duration
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+        end,
+        CompletionCondition = function(data)
+            return data.Timer <= 0
+        end,
+    })
+end
+
+---comment
+---@param start_position Vector2
+---@param end_position Vector2
+local function GeneratePanSequence(start_position, end_position)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    local camera_speed = 10
+
+    local camera_target = Help.CreateDummyUnit()
+
+    -- Sequence: Move Camera from Hero to Camp Object
+    SequenceManager.Instance:LoadAction({
+        StartAction = function(data)
+            ---NOTE: We can change this to a speed if needed
+            data.Timer = 2
+            data.TotalTime = data.Timer
+
+            data.CameraPosition = start_position
+            data.TargetPosition = end_position
+
+            DCEI.SetUnitPosition2D(camera_target, data.CameraPosition.x, data.CameraPosition.y)
+            camera:SetFollowUnit(camera_target, false)
+        end,
+        ContinuousAction = function(data)
+            data.Timer = data.Timer - TICK_RATE
+
+            local new_position = Vector2.MoveTowards(data.CameraPosition, data.TargetPosition, camera_speed * TICK_RATE)
+            data.CameraPosition = new_position
+            DCEI.SetUnitPosition2DWithInterpolation(camera_target, new_position.x, new_position.y)
+        end,
+        CompletionCondition = function(data)
+            return Vector2.Distance(data.CameraPosition, data.TargetPosition) < 0.1
+        end,
+        CompletionAction = function(data)
+            camera:SetFollowUnit(nil, false)
+
+            -- Remove Camera Target
+            DCEI.RemoveUnit(camera_target)
+        end,
+    })
+end
+
+---comment
+---@param dialogue_sequence table<DialogueData>
+local function GenerateDialogueSequence(dialogue_sequence)
+    for _, dialogue in pairs(dialogue_sequence) do
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                data.DialogueFinished = false
+
+                Core.Event.SendPresentationEvent("TalkingHead.StartDialogue", dialogue, function()
+                    data.DialogueFinished = true
+                end)
+            end,
+            CompletionCondition = function(data)
+                return data.DialogueFinished
+            end,
+        })
+    end
+end
+
+local function MetaCheckFirstHeroUpgrade()
+    -- local start_tutorial = true
+    local start_tutorial = MetaData.Get(META_DATA.first_hero_upgrade) == 0
+
+    if start_tutorial then
+        Help.Log("Starting First Craft Tutorial")
+        ---LOG: First Craft Started
+        Log.Tutorial.CraftFirstItemStarted()
+
+        DisablePlayerControl()
+
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local hero_position = hero:GetPosition()
+
+        local camp_object = CampManager.Instance:FindObjectByUnitName("Hero Shrine")
+        local camp_instance = camp_object.instance
+        local camp_position = camp_object:GetPosition()
+
+        local data_pass = {
+            background_image = DCEI.Texture("general_icon_wildsurvivor_eventpanel_dot_orange1"),
+            unit_ref = GMUI.CreateUnitReference(camp_instance),
+        }
+
+        -- local unit_ref = GeneratePanToCampObjectAndBackToHeroSequence(camp_object, true)
+        GenerateDelaySequence(0.5)
+        GenerateDialogueSequence({ DialogueData.AnnieReturnFromFirstMissionP1 })
+        GeneratePanSequence(hero_position, camp_position)
+        GenerateDialogueSequence({ DialogueData.AnnieReturnFromFirstMissionP2 })
+        Core.Event.SendPresentationEvent("NewOffscreenIndicator", data_pass)
+        GeneratePanSequence(camp_position, hero_position)
+
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                FocusHero()
+                EnablePlayerControl()
+            end,
+            CompletionCondition = function(data)
+                return true
+            end,
+        })
+
+        -- Camp Manager - Event Data Pass
+        local event_data = {
+            tutorial_id = META_DATA.first_hero_upgrade,
+        }
+
+        local callback = function(data)
+            ---TODO: Check if the Meta Craft Sequence Passed back as Completed.
+            --- For now, we just assume they completed it.
+
+            -- if data.tutorial_id == META_DATA.craft_first_item then
+            -- end
+
+            ---LOG: First Craft Completed
+            Log.Tutorial.CraftFirstItemStarted()
+
+            CampManager.Instance:RemoveEventDataPass("Camp.ShrineOfBlessing")
+
+            -- Set/Save Meta Data Progress
+            MetaData.Modify(META_DATA.first_hero_upgrade, 1)
+
+            -- Clear Offscreen Indicator
+            Core.Event.SendPresentationEvent("DestroyOffscreenIndictor", data_pass.unit_ref)
+
+            -- Exit this tutorial sequence to allow another tutorial to take over
+            _MetaTutorialInProgress = false
+
+            EnablePlayerControl()
+        end
+
+        CampManager.Instance:AddNewEventDataPass("Camp.ShrineOfBlessing", event_data, callback)
+    end
+
+    return start_tutorial
+end
+
+local function MetaCheckStartSecondRun()
+    -- local start_tutorial = true
+    local start_tutorial = MetaData.Get(META_DATA.start_second_run) == 0
+
+    if start_tutorial then
+        Help.Log("Starting Second Run Tutorial")
+        ---LOG: Start Second Run
+        Log.Tutorial.StartSecondRunStarted()
+
+        DisablePlayerControl()
+
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local hero_position = hero:GetPosition()
+
+        local camp_object = CampManager.Instance:FindObjectByUnitName("Raid")
+        local camp_instance = camp_object.instance
+        local camp_position = camp_object:GetPosition()
+
+        local data_pass = {
+            background_image = DCEI.Texture("general_icon_wildsurvivor_eventpanel_dot_orange1"),
+            unit_ref = GMUI.CreateUnitReference(camp_instance),
+        }
+
+        GenerateDelaySequence(0.5)
+        GenerateDialogueSequence({ DialogueData.AnnieReturnFromFirstMissionP3 })
+        GeneratePanSequence(hero_position, camp_position)
+        GenerateDelaySequence(1)
+        Core.Event.SendPresentationEvent("NewOffscreenIndicator", data_pass)
+        GeneratePanSequence(camp_position, hero_position)
+
+        SequenceManager.Instance:LoadAction({
+            StartAction = function(data)
+                FocusHero()
+                EnablePlayerControl()
+            end,
+            CompletionCondition = function(data)
+                return true
+            end,
+        })
+
+        SequenceManager.Instance:LoadAction({
+            CompletionCondition = function(data)
+                return not FSM:IsCurrentState(FSM.States.Camp)
+            end,
+            CompletionAction = function(data)
+                ---LOG: Start Second Run Completed
+                Log.Tutorial.StartSecondRunCompleted()
+                MetaData.Modify(META_DATA.start_second_run, 1)
+                MetaData.Modify(META_DATA.jorian_unlocked, 1)
+                Core.Event.SendPresentationEvent("DestroyOffscreenIndictor", data_pass.unit_ref)
+            end,
+        })
+    end
+
+    return start_tutorial
+end
+
+local function MetaCheckJorianStart()
+    local start_tutorial = MetaData.Get(META_DATA.jorian_unlocked) == 1 and MetaData.Get(META_DATA.jorian_played) == 0
+
+    if start_tutorial then
+        -- Swap Hero
+        -- ChangeHero("Jorian")
+
+        -- Validate that we have a Hero first.
+        local hero = Hero.Fetch(PLAYER.Player1)
+        local hero_position = hero:GetPosition()
+
+        local camp_object = CampManager.Instance:FindObjectByUnitName("Raid")
+        local camp_instance = camp_object.instance
+        local camp_position = camp_object:GetPosition()
+
+        local data_pass = {
+            background_image = DCEI.Texture("general_icon_wildsurvivor_eventpanel_dot_orange1"),
+            unit_ref = GMUI.CreateUnitReference(camp_instance),
+        }
+
+        -- Sequence: Wait for the Hero to be validated and swap to Jorian
+        SequenceManager.Instance:LoadAction({
+            CompletionCondition = function(data)
+                return hero:IsUnitAlive()
+            end,
+            CompletionAction = function(data)
+                ChangeHero("Jorian", true)
+            end,
+        })
+
+        -- Sequence: Disable Player Control when Jorian gets Validated
+        SequenceManager.Instance:LoadAction({
+            CompletionCondition = function(data)
+                return hero:IsUnitAlive()
+            end,
+            CompletionAction = function(data)
+                DisablePlayerControl()
+
+                -- Update the Hero Position
+                hero_position = hero:GetPosition()
+
+                -- Continue Sequence with Updated Position
+                GenerateDelaySequence(0.5)
+                GenerateDialogueSequence({ DialogueData.JorianUnlockedP1 })
+                GenerateDialogueSequence({ DialogueData.JorianUnlockedP2 })
+                GeneratePanSequence(hero_position, camp_position)
+                GenerateDelaySequence(1)
+                Core.Event.SendPresentationEvent("NewOffscreenIndicator", data_pass)
+                GeneratePanSequence(camp_position, hero_position)
+
+                SequenceManager.Instance:LoadAction({
+                    StartAction = function(data)
+                        FocusHero()
+                        EnablePlayerControl()
+                    end,
+                    CompletionCondition = function(data)
+                        return true
+                    end,
+                })
+
+                SequenceManager.Instance:LoadAction({
+                    CompletionCondition = function(data)
+                        return not FSM:IsCurrentState(FSM.States.Camp)
+                    end,
+                    CompletionAction = function(data)
+                        MetaData.Modify(META_DATA.jorian_played, 1)
+                        Core.Event.SendPresentationEvent("DestroyOffscreenIndictor", data_pass.unit_ref)
+                    end,
+                })
+            end,
+        })
+    end
+
+    return start_tutorial
+end
+
+---TODO: Add to meta check
+local function CheckReviewInvite()
+    if _Dev then
+        return
+    end
+
+    local user_data = GetUserData()
+    Help.Log("User Data", nil, user_data)
+
+    -- Exit if the user has already been prompted for a review invite.
+    if user_data.review_invite then
+        return
+    end
+
+    -- No Hunt Attempts recorded yet
+    if not user_data.hunt_attempts then
+        return
+    end
+
+    -- Exit if the player has not made 3 Hunt Attempts yet
+    if user_data.hunt_attempts < 3 then
+        return
+    end
+
+    user_data.review_invite = true
+    -- DCEI.Save.Set("user_data", Json.encode(user_data))
+    -- DCEI.Save.Commit()
+
+    ReviewInviteManager.StartReviewInviteFlow()
+end
+
+---TODO: Set this up in a table
+local CAMP_TUTORIALS = {
+    MetaCheckFirstHeroUpgrade,
+    MetaCheckStartSecondRun,
+    MetaCheckJorianStart,
+}
+
+local function CampTutorialsCheck()
+    -- if _Dev then
+    --     return false
+    -- end
+
+    -- Prevent activating multiple Tutorials
+    if _MetaTutorialInProgress then
+        return
+    end
+
+    _MetaTutorialInProgress = true
+
+    for _, tutorial in ipairs(CAMP_TUTORIALS) do
+        if tutorial() then
+            return
+        end
+    end
+
+    -- Didn't find a Tutorial
+    _MetaTutorialInProgress = false
+    return
+end
+
+---============================================================================
+---!SECTION: Local Functions - Meta Checks (Tutorials in Camp)
+---SECTION: Local Functions - Registered Event Callbacks
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Registered Event Callbacks
+---SECTION: Local Functions - Setup
+---============================================================================
+
+local function ResetStateVariables()
+    -- Reset Map
+    if _Map then
+        _Map:Reset()
+    end
+    _Map = nil
+
+    -- Reset PropManager
+    if _PropManager then
+        _PropManager:Reset()
+    end
+    _PropManager = nil
+
+    -- Reset SequenceManager
+    SequenceManager.Instance:Reset()
+    _MetaTutorialInProgress = false
+    _PreMetaTransition = false
+end
+
+---Initialize Game Mode
+local function Initialize()
+    -- Clear all Units
+    StageHelper.RemoveAllUnits()
+
+    -- Reset Player Stats
+    StageHelper.InitializeTrackedStats()
+
+    -- Clear Cached Data
+    CommonDataAccess.Clear()
+
+    -- Setup Tiles
+    -- local tile_data = Biome.TILE_DATA
+    local tile_data = Core.Table.DeepCopy(Biome.TILE_DATA)
+    tile_data.LoadDistance = 6
+    _Map = TileMap.New(tile_data)
+
+    -- Player Setup
+    StageHelper.SetupPlayerCount(1)
+
+    -- UI
+    StageHelper.ResetUI()
+    UiHelper.SetGameTimerActive(false)
+    UiHelper.SetPauseButtonActive(false)
+    UiHelper.SetGameUIActive(false)
+
+    Core.Event.SendPresentationEvent("Camp.Overlay.Show")
+end
+
+---============================================================================
+---!SECTION: Local Functions - Setup
+---SECTION: Local Functions - Tick Rates
+---============================================================================
+
+local function RunSequenceManager()
+    SequenceManager.Instance:Update()
+end
+
+-- Spawns a new Hero at the Camp Object's position based on the saved data.
+local function CheckHeroSelect(delta)
+    -- Check if Hero has a unit
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    -- Get Saved Selected Hero
+    local save_data = GetSaveData()
+    local selected_hero = save_data.player.hero
+
+    -- Check Heroes for the Unit Type
+    local hero_type
+    for _, hero_data in ipairs(Heroes) do
+        if hero_data.Name == selected_hero then
+            hero_type = hero_data.Unit
+            break
+        end
+    end
+
+    -- Exit if no hero type was found
+    if not hero_type then
+        Help.Error("Could not find the hero type for the selected hero: " .. selected_hero)
+        return
+    end
+
+    -- Request the selected hero from the CampManager
+    local camp_object = CampManager.Instance:FindObjectByUnitType(hero_type)
+
+    if not camp_object then
+        Help.Error("Could not find the camp object for the hero type: " .. hero_type)
+        return
+    end
+
+    -- Get the camp object position
+    local position = camp_object:GetPosition()
+    camp_object:RemoveInstance()
+
+    -- Spawn the Hero at the cached position
+    SpawnHero(selected_hero, position)
+end
+
+---Update Player Movement
+---@param delta Time
+local function UpdatePlayerMovement(delta)
+    local player_id = PLAYER.Player1
+
+    local hero = Hero.Fetch(player_id)
+
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    hero:Update()
+
+    local joystick = Joystick.Fetch(player_id)
+    joystick:MoveUnit(hero.unit, true)
+end
+
+---Update Camp
+---@param delta Time
+local function UpdateCamp(delta)
+    local hero = Hero.Fetch(PLAYER.Player1)
+
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    CampManager.Instance:Update(delta, hero)
+end
+
+---Updates the Map Tiles based on the hero's position.
+---@param delta number
+local function UpdateMap(delta)
+    local tile_index = Vector2.Zero()
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if hero:IsUnitAlive() then
+        local hero_position = hero:GetPosition()
+        tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+    end
+
+    _Map:Update(tile_index)
+end
+
+---Every 0.25 Seconds - Helps the UI be less jittery.
+---Updates Player Stats
+---NOTE: Make sure to record one final time prior to leaving the State.
+---@param delta number | nil
+local function UpdatePlayerStats(delta)
+    StageHelper.UpdatePlayerStats()
+end
+
+---============================================================================
+---!SECTION: Local Functions - Tick Rates
+---SECTION: Local Functions - Developer
+---============================================================================
+
+local function AutoStart()
+    local hero_unit = Hero.Fetch(PLAYER.Player1).unit
+    local zeppelin_position = Vector2.New(5, 5)
+    DCEI.SetUnitPosition2D(hero_unit, zeppelin_position.x, zeppelin_position.y)
+    DCEI.Move(hero_unit, zeppelin_position.x, zeppelin_position.y) -- Prevent the unit from trying to move to their previous position.
+end
+
+local function TestMode()
+    FSM:Transition(FSM.States.Test, {})
+end
+
+local function GenerateTestEquipment()
+    local item = EquipmentGenerator.NewItem({}, EQUIPMENT_QUALITY.Common)
+    Help.Log("Item Generated", nil, item)
+
+    Core.Event.SendPresentationEvent("DataManager.AddEquipment", item)
+end
+
+---============================================================================
+---!SECTION: Local Functions - Developer
+---SECTION: Local Functions - Extras
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Extras
+---SECTION: Registered Functions
+---============================================================================
+
+local _TickRateUpdates = {
+    {
+        Interval = 1,
+        Function = CheckHeroSelect,
+    },
+    {
+        Interval = 1,
+        Function = UpdatePlayerMovement,
+    },
+    {
+        Interval = 1,
+        Function = UpdateMap,
+    },
+    {
+        Interval = 1,
+        Function = UpdateCamp,
+    },
+    {
+        Interval = 1,
+        Function = CampTutorialsCheck,
+    },
+    {
+        Interval = 1,
+        Function = RunSequenceManager,
+    },
+    {
+        Interval = 0.25 / TICK_RATE,
+        Function = UpdatePlayerStats,
+    },
+}
+
+---Un/Register Tick Rate Dependent Functions
+---@param unsubscribe boolean | nil
+local function SubscribeTickRates(unsubscribe)
+    if not unsubscribe then
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Subscribe(entry.Interval, entry.Function)
+        end
+    else
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Unsubscribe(entry.Interval, entry.Function)
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Registered Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    _SaveDataUpdated = true
+    _UserDataUpdated = true
+
+    -- Clear Game
+    StageHelper.RemoveAllUnits()
+
+    -- Reset State Variables
+    ResetStateVariables()
+
+    -- Initialize Game Mode
+    Initialize()
+
+    -- Training Dummy
+    -- local instance = Elites.Spawn(Elites.Types.TrainingDummy, TRAINING_DUMMY_POSITION, {})
+    -- DCEI.SetUnitRotationEuler(instance, 0, 270, 0)
+
+    -- Setup Camp
+    CampManager.Instance:Reset()
+    CampManager.Instance:LoadCampData(CampData)
+
+    -- Engine Props
+    DCEI.LoadPropLayer("Camp", true)
+
+    -- Prop Manager
+    _PropManager = PropManager.New(5.12)
+    function _PropManager:GetWorldPositionFromTileIndex(r, c)
+        return Vector2.Zero()
+    end
+    function _PropManager:GetTileIndexFromWorldPosition(position)
+        return position
+    end
+
+    for _, data in ipairs(CampPropData) do
+        _PropManager:InjectNewProp(data.Type, data.Position, data.Scale)
+    end
+    _PropManager:Load(0, 0, true)
+
+    -- Exit if Pre Meta Check to prevent Camp from showing
+    local pre_meta_check = PreMetaCheck()
+    if pre_meta_check then
+        _PreMetaTransition = true
+        return
+    end
+
+    -- FadeIn
+    if _Dev and _Dev.Extra and _Dev.Extra.instant_transitions then
+        UiHelper.FadeIn(0)
+        return
+    end
+
+    UiHelper.FadeIn()
+end
+
+function State:OnEnter()
+    if _PreMetaTransition then
+        return
+    end
+
+    -- Subscribe to Tick Rates
+    TickRate:ResetTick()
+    SubscribeTickRates()
+
+    -- Review Invite Check
+    CheckReviewInvite()
+
+    if _Dev then
+        _Dev.Events.Register("Time Skip", AutoStart)
+        _Dev.Events.Register("Victory", TestMode)
+
+        local function GenerateTestEquipment()
+            ---TESTING: Equipment Generator
+            -- local item = EquipmentGenerator.NewItem({
+            --     Hero = SURVIVOR.Annie,
+            --     SlotType = EQUIPMENT_SLOT.Weapon,
+            --     EquipmentTags = { EQUIPMENT_TAG.Offensive },
+            -- }, EQUIPMENT_QUALITY.Common)
+            -- Help.Log("Item Generated", nil, item)
+
+            local item = EquipmentGenerator.NewItem()
+            Help.Log("Item Generated", nil, item)
+
+            item = EquipmentGenerator.UpgradeItem(item)
+            Help.Log("Item Upgraded", nil, item)
+
+            -- for i = 1, 10, 1 do
+            --     local quality = Help.RandomInteger(1, 4) -- Random Quality (common, magic, rare, epic)
+            --     local item = EquipmentGenerator.NewItem(nil, quality, 1 + i / 10)
+            --     Help.Log("Item Upgraded", nil, item)
+            -- end
+
+            Core.Event.SendPresentationEvent("DataManager.AddEquipment", item)
+        end
+
+        _Dev.Events.Register("Gain Random Equipment", GenerateTestEquipment)
+    end
+end
+
+function State:OnGameUpdate(delta) end
+
+function State:OnTransitionExit()
+    -- Unsubscribe from Tick Rates
+    SubscribeTickRates(true)
+
+    -- Hide Camp Overlay
+    Core.Event.SendPresentationEvent("Camp.Overlay.Hide")
+
+    -- Transition
+    if _Dev and _Dev.Extra and _Dev.Extra.instant_transitions then
+        return
+    end
+
+    if _PreMetaTransition then
+        return
+    end
+
+    StageHelper.GameOverSlowTimeAndZoom(2, 60, 30, function()
+        UiHelper.FadeOut(1)
+    end)
+end
+
+function State:OnExit()
+    Hero.Fetch(PLAYER.Player1):Reset()
+
+    -- Reset Game Speed back to Normal
+    Help.SetGameSpeed(1)
+
+    -- Remove all Camp Objects
+    CampManager.Instance:Reset()
+
+    _PropManager:Reset()
+
+    DCEI.UnloadPropLayer("Camp")
+
+    -- Clear
+    StageHelper.RemoveAllUnits()
+
+    if _Dev then
+        _Dev.Events.Unregister("Time Skip", AutoStart)
+        _Dev.Events.Unregister("Victory", TestMode)
+        _Dev.Events.Register("Gain Random Equipment", GenerateTestEquipment)
+    end
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: Developer
+---============================================================================
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

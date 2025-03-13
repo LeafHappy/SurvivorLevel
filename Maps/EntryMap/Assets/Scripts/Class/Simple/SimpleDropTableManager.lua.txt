@@ -1,0 +1,61 @@
+local Help = require("Help")
+
+local SimpleDropTableManager = {}
+
+---@type table<string, integer>
+local _DropTables = {
+    -- Example Data
+    -- ["SmallExperience"] = 1,
+    -- ["SmoothExperienceChance"] = 2,
+}
+
+local _QuickLootPools = {}
+
+local _CurrentIndex = 1
+
+---comment
+---@param key string
+---@param items table<WeightedEffect>
+local function AddNewDropTable(key, items)
+    Help.Log("Adding New Drop Table", _CurrentIndex, items)
+    DCEI.RegisterWeightedLootPool(_CurrentIndex, { items = items })
+    _DropTables[key] = _CurrentIndex
+    _CurrentIndex = _CurrentIndex + 1
+end
+
+---comment
+---@param hostile_drop_table SimpleDropTableData
+---@return table<integer>
+local function GetUnitLootPools(hostile_drop_table)
+    -- Check for QuickLootPools
+    -- if _QuickLootPools[hostile_drop_table.key] then
+    --     return _QuickLootPools[hostile_drop_table.key]
+    -- end
+
+    local loot_pools = {}
+    for _, data in pairs(hostile_drop_table) do
+        if not _DropTables[data.key] then
+            AddNewDropTable(data.key, data.items)
+        end
+
+        table.insert(loot_pools, _DropTables[data.key])
+    end
+
+    -- Cache the Loot Pools
+    -- _QuickLootPools[hostile_drop_table.key] = loot_pools
+
+    return loot_pools
+end
+
+---comment
+---@param unit Unit
+---@param drop_table SimpleDropTableData
+function SimpleDropTableManager.ApplyDropTableToUnit(unit, drop_table)
+    -- Help.Log("Received Drop Table", nil, drop_table)
+    local loot_pools = GetUnitLootPools(drop_table)
+
+    -- Help.Log("Loot Pools", nil, loot_pools)
+    DCEI.SetUnitLootPools(unit, loot_pools)
+end
+
+return SimpleDropTableManager

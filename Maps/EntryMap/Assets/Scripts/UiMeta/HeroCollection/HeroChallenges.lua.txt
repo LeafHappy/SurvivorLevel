@@ -1,0 +1,177 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local PopupManager = require("UiMeta/Popup/PopupManager")
+
+-- DATA
+local DataManager = require("UiMeta/DataManager")
+local GameStats = require("SharedData/GameStats")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local HeroChallenges = {}
+
+-- VARIABLES
+local challenge_layouts = {}
+
+-- LOCAL FUNCTIONS
+local function ClaimReward(hero_name, challenge_index, reward_data)
+    -- Get layout
+    local layout = challenge_layouts[challenge_index]
+    if not layout then
+        return
+    end
+
+    -- Set as claimed
+    DataManager.ClaimHeroChallengeReward(hero_name, challenge_index, reward_data)
+    layout.state.is_claimed = true
+end
+
+local function CreateKillsChallengeEntry(challenge_data)
+    local layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/ChallengesPopup/Item",
+        parent = HeroChallenges.layout.Content,
+    })
+
+    local unit_data = GameStats[challenge_data.unit_key]
+
+    local description = "Kill " .. challenge_data.amount .. " " .. unit_data.DisplayName .. "s"
+    if challenge_data.ability_name then
+        description = description .. " using the " .. challenge_data.ability_name .. " ability"
+    end
+    layout.state.sub_objective_text = description
+    layout.state.main_objective_text = challenge_data.display_name
+
+    return layout
+end
+
+local function CreateAbilityDamageChallengeEntry(challenge_data)
+    local layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/ChallengesPopup/Item",
+        parent = HeroChallenges.layout.Content,
+    })
+
+    local description = "Deal " .. challenge_data.amount .. " damage using the " .. challenge_data.ability_name .. " ability"
+    layout.state.sub_objective_text = description
+    layout.state.main_objective_text = challenge_data.display_name
+
+    return layout
+end
+
+local function CreateAbilityUsesChallengeEntry(challenge_data)
+    local layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/ChallengesPopup/Item",
+        parent = HeroChallenges.layout.Content,
+    })
+
+    local description = "Use " .. challenge_data.ability_name .. " " .. challenge_data.amount .. " times"
+    layout.state.sub_objective_text = description
+    layout.state.main_objective_text = challenge_data.display_name
+
+    return layout
+end
+
+local function SetupRewardsOnLayout(layout, reward_data)
+    local text = ""
+    local is_add_perk = reward_data.add_perk
+    if is_add_perk then
+        text = "Unlock " .. reward_data.add_perk
+    end
+
+    layout.state.reward_text = text
+end
+
+local function UpdateProgressBar(hero_name, challenge_index)
+    local layout = challenge_layouts[challenge_index]
+    if not layout then
+        return
+    end
+
+    local challenge_save_data = DataManager.GetChallengeSaveData(hero_name, challenge_index) or {}
+    local progress = challenge_save_data and challenge_save_data.progress or 0
+    layout.state.current_progress = progress
+    layout.state.is_claimed = challenge_save_data.is_claimed or false
+end
+
+local function CreateChallengeEntry(hero_name, challenge_index, entry_data)
+    local challenge_type = entry_data.type
+    local reward_data = entry_data.rewards
+    local challenge_data = entry_data.challenge
+
+    -- Create layout by type
+    local layout = {}
+    if challenge_type == HERO_CHALLENGE_TYPE.Kills then
+        layout = CreateKillsChallengeEntry(challenge_data)
+    elseif challenge_type == HERO_CHALLENGE_TYPE.AbilityDamage then
+        layout = CreateAbilityDamageChallengeEntry(challenge_data)
+    elseif challenge_type == HERO_CHALLENGE_TYPE.AbilityUses then
+        layout = CreateAbilityUsesChallengeEntry(challenge_data)
+    end
+
+    -- Set universal states
+    layout.state.max_progress = challenge_data.amount
+
+    -- Store for referencing later
+    table.insert(challenge_layouts, layout)
+
+    -- Create rewards on layout
+    SetupRewardsOnLayout(layout, reward_data)
+
+    -- Initialize progress bar data
+    UpdateProgressBar(hero_name, challenge_index)
+
+    -- Set click callback
+    DCEI.SetOnClickCallback(layout.Frame, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ClaimReward(hero_name, challenge_index, reward_data)
+    end)
+end
+
+-- METHODS
+function HeroChallenges.Create()
+    local layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection/ChallengesPopup",
+        parent = ui.z3.Lower,
+    })
+
+    -- Hide to make sure it doesn't show by default
+    layout:Hide()
+
+    -- Setup popup animations
+    local args = {
+        popup_frame = layout.Background,
+        mask_layout = ui.camp.overlay.meta_mask,
+    }
+    PopupManager.ApplyPopupAnimations(layout, args)
+
+    HeroChallenges.layout = layout
+
+    DCEI.SetOnClickCallback(layout.close.Frame, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        layout:Hide()
+    end)
+
+    return layout
+end
+
+function HeroChallenges.CreateChallenges(hero_name)
+    -- Clear any old challenges
+    for _, challenge_layout in ipairs(challenge_layouts) do
+        challenge_layout:Destroy()
+    end
+    challenge_layouts = {}
+
+    -- Create new challenges    
+    local hero_data = DataManager.GetCardData(hero_name)
+    local challenges = hero_data.ChallengeData
+    for challenge_index, entry_data in ipairs(challenges) do
+        CreateChallengeEntry(hero_name, challenge_index, entry_data)
+    end
+end
+
+-- EXPORT
+return HeroChallenges

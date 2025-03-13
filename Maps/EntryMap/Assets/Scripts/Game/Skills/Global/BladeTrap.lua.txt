@@ -1,0 +1,336 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Blade Trap"),
+
+    -- Behavior
+    LearnedMaim = DCEI.Behavior("Skill - Blade Trap - Learned - Maim"),
+    LearnedSeekingBlades = DCEI.Behavior("Skill - Blade Trap - Learned - Seeking Blades"),
+    SeekingBlades = DCEI.Behavior("Skill - Blade Trap - Seeking Blades"),
+
+    -- Effects
+    Trigger = DCEI.Effect("Skill - Blade Trap - Trigger"),
+    OnEnter = DCEI.Effect("Skill - Blade Trap - OnEnter"),
+    Damage = DCEI.Effect("Skill - Blade Trap - Damage"),
+    Slow = DCEI.Effect("Skill - Blade Trap - Slow"),
+    Stagger = DCEI.Effect("Skill - Blade Trap - Stagger"),
+
+    -- Extras
+    SeekingBladesScan = DCEI.Effect("Skill - Blade Trap - Seeking Blades - Scan"),
+    SeekingBladesTrigger = DCEI.Effect("Skill - Blade Trap - Seeking Blades - Trigger"),
+
+    -- Units
+    Projectile = DCEI.Unit("Skill - Blade Trap - Projectile"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@class BladeTrapProjectileData
+---@field instance_id string
+---@field player_id PLAYER
+---@field instance Unit
+---@field target_position Vector2
+---@field speed number
+---@field duration number
+
+---@type table<PLAYER, BladeTrapProjectileData>
+local _Projectiles = {}
+
+local SPAWN_OFFSET_DISTANCE = 0.50
+local MODEL_SCALE = 0.75
+local MODEL_SCALE_TIME = 0.25
+local MIN_DISTANCE = 0.50
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param data BladeTrapProjectileData
+local function OnProjectileDeath(data)
+    _Projectiles[data.player_id][data.instance_id] = nil
+end
+
+---comment
+---@param hero Hero
+---@param instance Unit
+local function TryApplyMaim(hero, instance)
+    -- Check if Hero has behavior
+    local is_learned = Help.UnitHasBehavior(hero.unit, REF.LearnedMaim)
+
+    if not is_learned then
+        return
+    end
+
+    -- Apply Maim to instance
+    Core.Unit.SetBehaviorCount(instance, REF.LearnedMaim, 1)
+end
+
+---comment
+---@param hero Hero
+---@param instance Unit
+local function TryApplySeekingBlades(hero, instance)
+    -- Check if Hero has behavior
+    local is_learned = Help.UnitHasBehavior(hero.unit, REF.LearnedSeekingBlades)
+
+    if not is_learned then
+        return
+    end
+
+    -- Apply Seeking Blade to the instance
+    Core.Unit.SetBehaviorCount(instance, REF.SeekingBlades, 1)
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+---@return Unit
+local function SpawnProjectile(hero, target_position)
+    local hero_position = hero:GetPosition()
+    local spawn_position = Vector2.MoveTowards(hero_position, target_position, SPAWN_OFFSET_DISTANCE)
+    local target_direction = Vector2.Normalized(target_position - spawn_position)
+
+    local instance = DCEI.CreateUnit(
+        TEAM.Friendly,
+        hero.player_id,
+        REF.Projectile,
+        spawn_position.x,
+        spawn_position.y,
+        target_direction.x,
+        target_direction.y
+    )
+
+    -- Get Skill Tags
+    local tags = hero:GetInheritedTags(SKILL_TAG.BladeTrap)
+
+    -- Get needed Stats
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+    local health = hero:GetStat(STAT.ProjectileHealth, tags)
+
+    -- Model Size
+    Help.SetModelScale(instance, size * MODEL_SCALE, MODEL_SCALE_TIME, Ease.OutCubic)
+
+    -- Collision Size
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    -- Collision Effects
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start | CollisionTiming.Continue, frequency),
+    }
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    -- Projectile Health
+    SimpleUnit.ModifyHealth(instance, health)
+
+    -- Upgrades
+    TryApplyMaim(hero, instance)
+    TryApplySeekingBlades(hero, instance)
+
+    -- Setup Projectile Data
+    local instance_id = Core.Unit.GetId(instance)
+    local speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+    local duration = hero:GetStat(STAT.SkillDuration, tags)
+
+    -- Insert into Projectile Table
+    _Projectiles[hero.player_id][instance_id] = {
+        instance_id = instance_id,
+        player_id = hero.player_id,
+        instance = instance,
+        target_position = target_position,
+        speed = speed,
+        duration = duration,
+    }
+
+    -- Subscribe to Death Event
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        OnProjectileDeath(_Projectiles[hero.player_id][instance_id])
+    end, true)
+
+    return instance
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local position = hero:GetPosition()
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.BladeTrap)
+
+    local count = hero:GetStat(STAT.ProjectileCount, tags)
+    local range = hero:GetStat(STAT.SkillRange, tags)
+
+    for i = 1, count do
+        local angle = Help.RandomNumber(0, 360)
+        local distance = Help.RandomNumber(range * MIN_DISTANCE, range)
+
+        local target_position = position + Vector2.NewFromAngle(angle) * distance
+
+        SpawnProjectile(hero, target_position)
+    end
+end
+
+---comment
+---@param data BladeTrapProjectileData
+local function UpdateProjectile(data)
+    -- Update Duration
+    data.duration = data.duration - TICK_RATE
+    if data.duration <= 0 then
+        DCEI.KillUnit(data.instance)
+        return
+    end
+
+    local position = Vector2.UnitPosition(data.instance)
+
+    -- Move the Projectile
+    local move_position = Vector2.MoveTowards(position, data.target_position, data.speed * TICK_RATE)
+    DCEI.SetUnitPosition2DWithInterpolation(data.instance, move_position.x, move_position.y)
+end
+
+local function HeroUpdateLoop(hero)
+    -- Move all of my projectiles
+    local projectiles = _Projectiles[hero.player_id]
+
+    for _, projectile_data in pairs(projectiles) do
+        UpdateProjectile(projectile_data)
+    end
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Cleanup Projectiles
+    local projectiles = _Projectiles[hero.player_id]
+
+    if projectiles then
+        for _, projectile_data in pairs(_Projectiles[hero.player_id]) do
+            DCEI.KillUnit(projectile_data.instance)
+        end
+    end
+
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnUpdateEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _Projectiles[hero.player_id] = nil
+end
+
+---comment
+---@param ctx EffectContext
+local function OnSeekingBladesTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    -- Check for instance
+    local instance_id = Core.Unit.GetId(ctx.caster)
+    local instance_data = _Projectiles[player_id] and _Projectiles[player_id][instance_id]
+
+    if not instance_data then
+        return
+    end
+
+    local target_position = Vector2.UnitPosition(ctx.target)
+    instance_data.target_position = target_position
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.SeekingBladesScan, EJS.AreaSearch.Radius),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Multiplier, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        _Projectiles[hero.player_id] = {}
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    -- Hookup Update Loop
+    -- Prevent multiple subscriptions
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+DCEI.TriggerAddEffectEvent(REF.SeekingBladesTrigger, OnSeekingBladesTrigger, true)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

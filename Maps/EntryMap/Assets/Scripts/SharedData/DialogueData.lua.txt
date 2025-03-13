@@ -1,0 +1,48 @@
+---@class DialogueData
+---@field title string
+---@field image string
+---@field messages table<string>
+
+---@type table<string, DialogueData>
+local DialogueData = {
+    AnnieReturnFromFirstMissionP1 = {
+        title = "Annie",
+        image = DCEI.Texture("modern_icon_hero_bighead_annie_wildsurvivor"),
+        messages = {
+            "I need to get stronger.",
+        },
+    },
+    AnnieReturnFromFirstMissionP2 = {
+        title = "Annie",
+        image = DCEI.Texture("modern_icon_hero_bighead_annie_wildsurvivor"),
+        messages = {
+            "Let's check out this new structure.",
+        },
+    },
+    AnnieReturnFromFirstMissionP3 = {
+        title = "Annie",
+        image = DCEI.Texture("modern_icon_hero_bighead_annie_wildsurvivor"),
+        messages = {
+            "I feel stronger already.",
+            "Time to head out.",
+        },
+    },
+
+    JorianUnlockedP1 = {
+        title = "Annie",
+        image = DCEI.Texture("modern_icon_hero_bighead_annie_wildsurvivor"),
+        messages = {
+            "I'm glad you decided to join us.",
+            "Good luck on your next mission.",
+        },
+    },
+    JorianUnlockedP2 = {
+        title = "Jorian",
+        image = DCEI.Texture("modern_icon_hero_bighead_bjornnson_wildsurvivor"),
+        messages = {
+            "Time to get to work.",
+        },
+    },
+}
+
+return DialogueData

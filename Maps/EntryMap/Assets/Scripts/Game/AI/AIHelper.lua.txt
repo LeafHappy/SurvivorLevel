@@ -1,0 +1,558 @@
+-- ================================================================================================
+-- SECTION: Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local GMUI = require("GMUI")
+
+local Vector2 = require("Class/Vector2")
+
+local EJS = require("Data/EJS")
+local Colors = require("Data/Colors")
+local Ease = require("Data/Ease")
+
+local LootData = require("Data/SimpleUnits/LootData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION: Libraries
+-- SECTION: Variables
+-- ================================================================================================
+
+local DEFAULT_INDICATOR_TIME = 1.5
+
+local REF = {
+    -- Common Behaviors
+    ActorScale = DCEI.Behavior("Actor - Size"),
+    Stagger = DCEI.Behavior("Stagger"),
+    Temporary = DCEI.Behavior("Temporary - Remove"),
+
+    -- Markers/VFX
+    Explosion = DCEI.Unit("Boss - Explosion"),
+    Marker = DCEI.Unit("Target Marker"),
+    PhaseVFX = DCEI.Unit("Boss - Phase Increase - VFX"),
+
+    -- Loot
+    LootProjectileUnit = DCEI.Unit("Generic - Loot - Projectile"),
+    LootProjectileLaunch = DCEI.Effect("Generic - Loot - Projectile - Launch"),
+
+    -- Rage
+    RageEffects = DCEI.Effect("Boss - Rage Effects"),
+    RageDamageInput = DCEI.Effect("Boss - Rage - Damage Input"),
+    RageDamageOutput = DCEI.Effect("Boss - Rage - Damage Output"),
+
+    -- Stagger
+    StaggerApplied = DCEI.Effect("Boss - Apply Stagger Stun"),
+
+    -- Extras
+    SmokeTrail = DCEI.Unit("Boss - Generic Smoke Trail"),
+}
+
+local AIHelper = {}
+
+-- ================================================================================================
+-- !SECTION: Variables
+-- SECTION: Helper
+-- ================================================================================================
+
+---Applies the "Actor - Size" Behavior to the Unit for them to use/inherit from.
+---NOTE: Required for Explosions to set their Area Damage.
+---@param unit Unit
+---@param size number | nil Default: 1
+---@return Unit | nil
+local function SetActorSize(unit, size)
+    -- Unit Validation
+    if not Help.ValidateUnit(unit) then
+        return nil
+    end
+
+    size = size or 1
+
+    local stacks = size * 100
+    DCEI.ApplyBehaviorToSelf(unit, REF.ActorScale, stacks)
+    return unit
+end
+
+---Kills the provided Unit after a given duration.
+---@param unit Unit
+---@param duration number | nil Default: 3
+---@param callback function | nil
+function AIHelper.AddDeathTimer(unit, duration, callback)
+    duration = duration or 3
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(duration)
+
+    function timer:Action()
+        -- Unit Validation
+        if not Help.ValidateUnit(unit) then
+            return
+        end
+
+        -- Callback Check
+        if callback then
+            callback()
+        end
+
+        -- Destroy
+        DCEI.KillUnit(unit)
+    end
+end
+
+---Calls the provided function a certain number of times to generate a position within the provided bounds.
+---If the number of attempts is exceeded, the position is clamped to the nearest point within the bounds.
+---@param fun function
+---@param attempts integer
+---@param min Vector2
+---@param max Vector2
+---@return Vector2
+function AIHelper.RerollPositionAttempt(fun, attempts, min, max)
+    local position = fun()
+    local reroll_attempts = attempts
+    while not Vector2.IsInsideBounds(position, min, max) and reroll_attempts > 0 do
+        position = fun()
+        reroll_attempts = reroll_attempts - 1
+    end
+
+    if not Vector2.IsInsideBounds(position, min, max) then
+        position = Vector2.NearestPositionInsideBounds(position, min, max)
+    end
+
+    return position
+end
+
+---Spawns a Smoke Trail that you can attach to Boss units.
+---@param position Vector2
+---@return Unit
+function AIHelper.SpawnSmokeTrail(position)
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.SmokeTrail, position.x, position.y)
+    return instance
+end
+
+-- ================================================================================================
+-- !SECTION: Helper
+-- SECTION: Loot
+-- ================================================================================================
+
+---Spawn a Small Health Potion nearby.
+---@param position Vector2
+function AIHelper.DropSmallHealthPotion(position)
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.LootProjectileUnit, position.x, position.y)
+
+    local loot_position = position + Vector2.RandomRange(3, 4)
+    DCEI.CreateEffectAtPosition(REF.LootProjectileLaunch, instance, loot_position.x, loot_position.y)
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        LootData.SmallPotion:SpawnSyncStationary(PLAYER.Terrain, TEAM.Terrain, loot_position)
+    end)
+end
+
+---Spawn a Large Health Potion nearby.
+---@param position Vector2
+function AIHelper.DropLargeHealthPotion(position)
+    local instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.LootProjectileUnit, position.x, position.y)
+
+    local loot_position = position + Vector2.RandomRange(3, 4)
+    DCEI.CreateEffectAtPosition(REF.LootProjectileLaunch, instance, loot_position.x, loot_position.y)
+
+    DCEI.TriggerAddUnitDiedEvent(instance, function()
+        LootData.Potion:SpawnSyncStationary(PLAYER.Terrain, TEAM.Terrain, loot_position)
+    end)
+end
+
+-- ================================================================================================
+-- !SECTION: Loot
+-- SECTION: Player Damage Intake (Rage)
+-- ================================================================================================
+
+---comment
+---@param ai AIHandler
+function AIHelper.ApplyRage(ai)
+    if not ai:ValidateSelfAndTarget() then
+        return
+    end
+
+    ai.Data.RageIntake = ai.Data.RageIntake + 0.01
+    ai.Data.RageOutput = ai.Data.RageOutput + 0.01
+
+    -- Input (Damage Taken by Boss)
+    DCEI.SetEffectFieldValueForPlayer(
+        PLAYER.Hostile,
+        REF.RageDamageInput,
+        EJS.DamageIntake.Additive,
+        ai.Data.RageIntake
+    )
+
+    -- Output (Damage Dealt by Boss)
+    DCEI.SetEffectFieldValueForPlayer(
+        PLAYER.Hostile,
+        REF.RageDamageOutput,
+        EJS.DamageIntake.Additive,
+        ai.Data.RageOutput
+    )
+
+    -- Effect is applied automatically via Behavior
+    DCEI.CreateEffectAtUnit(REF.RageEffects, ai.Data.Target, ai.unit, ai.unit)
+end
+
+-- ================================================================================================
+-- !SECTION: Player Damage Intake (Rage)
+-- SECTION: Indicator
+-- ================================================================================================
+
+---Spawn a Phase Increase VFX at the given location.
+---@param position Vector2
+function AIHelper.SpawnPhaseVFX(position)
+    DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.PhaseVFX, position.x, position.y)
+end
+
+---Performs the Callback after a given delay.
+---@param delay number
+---@param Callback function
+function AIHelper.DelayedEvent(delay, Callback)
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(delay)
+    function timer:Action()
+        if Callback then
+            Callback()
+        end
+    end
+end
+
+---NOTE: Spawn Actor - Actor Events don't seem to work properly for timing.
+---TODO: See if we can use Create Actor Action for Dynamic Markers.
+---Spawn a Marker for 1 Second at the given Position.
+---@param unit Unit
+---@param position Vector2
+---@param Callback function | nil
+function AIHelper.SpawnMarker(unit, position, Callback)
+    local effect = DCEI.Effect("Boss - Spawn Position Marker (1s)")
+
+    DCEI.CreateEffectAtPosition(effect, unit, position.x, position.y)
+
+    if Callback then
+        AIHelper.DelayedEvent(1, Callback)
+    end
+end
+
+---Spawn a Red Indicator at the given position.
+---NOTE: Setting the Scale to 0 defaults to 1
+---NOTE: Will not scale twice if starting and ending scales are the same.
+---@param position Vector2
+---@param scale number | nil Default: 1
+---@param duration number | nil Default: 2
+function AIHelper.SpawnIndicator(position, scale, duration, prevent_death)
+    scale = scale or 1
+    duration = duration or 2
+
+    local indicator = Help.SpawnIndicator(position)
+
+    Help.SetTintColor(indicator, Colors.Hex.Red, duration)
+    Help.SetModelScale(indicator, scale)
+
+    if not prevent_death then
+        AIHelper.AddDeathTimer(indicator, duration)
+    end
+
+    return indicator
+end
+
+---NOTE: Do not use when generating many indicators (can be heavy on Unit & VFX usage).
+---Spawns 2 Red Indicators at the given position.
+---Static Indicator starts at the total scale.
+---Dynamic Indicator grows to the total scale.
+---@param position Vector2
+---@param scale number
+---@param duration number
+---@return Unit
+---@return Unit
+function AIHelper.SpawnTimedIndicators(position, scale, duration)
+    local static_indicator = AIHelper.SpawnIndicator(position, scale, nil, true)
+    AIHelper.AddDeathTimer(static_indicator, duration)
+
+    local dynamic_indicator = AIHelper.SpawnIndicator(position, 0.01, scale, true)
+    Help.SetModelScale(dynamic_indicator, scale, duration)
+    AIHelper.AddDeathTimer(dynamic_indicator, duration)
+
+    return static_indicator, dynamic_indicator
+end
+
+-- ================================================================================================
+-- !SECTION: Indicator
+-- SECTION: Explosion
+-- ================================================================================================
+
+---Generates an Explosion at the given location.
+---@param position Vector2
+---@param size number | nil Default: 1
+---@return Unit
+function AIHelper.SpawnExplosion(position, size)
+    size = size or 1
+
+    local explosion = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.Explosion, position.x, position.y)
+    SetActorSize(explosion, size)
+
+    return explosion
+end
+
+---Spawn an Indicator. After the provided delay, remove the Indicator and spawn an Explosion.
+---@param position Vector2
+---@param size number | nil
+---@param explosion_time number | nil Default: 3
+---@param show_grow_time boolean | nil Creates 2 Indicators.
+function AIHelper.SpawnDelayedExplosion(position, size, explosion_time, show_grow_time)
+    size = size or 1
+    explosion_time = explosion_time or DEFAULT_INDICATOR_TIME
+
+    local indicator = AIHelper.SpawnIndicator(position, size)
+    AIHelper.AddDeathTimer(indicator, explosion_time, function()
+        AIHelper.SpawnExplosion(position, size)
+    end)
+
+    if show_grow_time then
+        local indicator = AIHelper.SpawnIndicator(position, 0.01, size, explosion_time)
+        AIHelper.AddDeathTimer(indicator, explosion_time)
+    end
+end
+
+function AIHelper.PatternCallback(patterns, time_between_waves, callback)
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(time_between_waves)
+
+    local pattern = table.remove(patterns, 1)
+
+    function timer:Action()
+        callback(pattern)
+
+        if #patterns > 0 then
+            AIHelper.PatternCallback(patterns, time_between_waves, callback)
+        end
+    end
+end
+
+---Generates a set of delayed explosions based on a table of Vector2's.
+---@param pattern table<Vector2>
+---@param radius number | nil
+---@param radius_increase number | nil
+---@param explosion_time number | nil
+function AIHelper.SpawnExplosionsFromPattern(pattern, radius, radius_increase, explosion_time)
+    radius = radius or 1
+    radius_increase = radius_increase or 0
+
+    for i = 1, #pattern do
+        local position = table.remove(pattern, 1)
+        AIHelper.SpawnDelayedExplosion(position, radius + (i - 1) * radius_increase, explosion_time)
+    end
+end
+
+---Generates a set of delayed explosions based on a table of Vector2's.
+---@param pattern table<Vector2>
+---@param spawn_delay number
+---@param radius number | nil
+---@param radius_increase number | nil
+---@param explosion_time number | nil
+function AIHelper.SpawnExplosionsFromPatternWithDelay(pattern, spawn_delay, radius, radius_increase, explosion_time)
+    radius = radius or 1
+    radius_increase = radius_increase or 0
+
+    local timer = Core.Timer.Game.New()
+    timer:SetDuration(spawn_delay)
+
+    function timer:Action()
+        local position = table.remove(pattern, 1)
+        AIHelper.SpawnDelayedExplosion(position, radius, explosion_time)
+
+        if #pattern > 0 then
+            AIHelper.SpawnExplosionsFromPatternWithDelay(
+                pattern,
+                spawn_delay,
+                radius + radius_increase,
+                radius_increase,
+                explosion_time
+            )
+        end
+    end
+end
+
+-- ================================================================================================
+-- !SECTION: Explosion
+-- SECTION: Pattern
+-- ================================================================================================
+
+---Generate 2 half-circles.
+---@param position Vector2
+---@param count integer
+---@param distance number
+---@return table<Vector2>
+---@return table<Vector2>
+function AIHelper.GenerateLeftRightHalfCircles(position, count, distance, starting_angle)
+    local left = {}
+    local right = {}
+
+    local gap_size = 180 / count
+    starting_angle = starting_angle or 45 -- "North" from Camera Offset
+
+    local offset
+    for i = 1, count do
+        offset = Vector2.NewFromAngle(starting_angle - gap_size / 2 + i * gap_size) * distance
+        table.insert(left, position + offset)
+
+        offset = Vector2.NewFromAngle(starting_angle + gap_size / 2 - i * gap_size) * distance
+        table.insert(right, position + offset)
+    end
+
+    return left, right
+end
+
+---Generates a Spiral
+---@param position Vector2
+---@param count integer
+---@param starting_angle number
+---@param angle_step number
+---@param starting_distance number
+---@param distance_step number
+---@return table<Vector2>
+function AIHelper.GenerateSpiral(position, count, starting_angle, angle_step, starting_distance, distance_step)
+    local pattern = {}
+
+    local offset
+    local distance
+    for i = 0, count - 1 do
+        distance = starting_distance + i * distance_step
+        offset = Vector2.NewFromAngle(starting_angle + i * angle_step)
+        table.insert(pattern, position + offset * distance)
+    end
+
+    return pattern
+end
+
+-- ================================================================================================
+-- !SECTION: Pattern
+-- SECTION: Stagger
+-- ================================================================================================
+
+---@type table<UnitInstance, table<number, number>>
+local StaggerDrain = {}
+
+---Update Stagger Meter
+---@param ai AIHandler
+local function UpdateOverheadStagger(ai)
+    local fill_amount = 0
+
+    local unit_id = GMUI.CreateUnitReference(ai.unit)
+
+    if StaggerDrain[unit_id] then
+        local data = StaggerDrain[unit_id]
+        fill_amount = data.time_remaining / data.time_max
+
+        data.time_remaining = data.time_remaining - TICK_RATE
+        if data.time_remaining <= 0 then
+            fill_amount = 0
+            StaggerDrain[unit_id] = nil
+        end
+    else
+        local stagger_stacks = DCEI.GetUnitBehaviorStackCount(ai.unit, REF.Stagger)
+        fill_amount = stagger_stacks / ai.stagger
+    end
+
+    local data = {
+        unit = GMUI.CreateUnitReference(ai.unit),
+        fill_amount = fill_amount,
+    }
+
+    Core.Event.SendPresentationEvent("StatusBarManager.UpdateOverheadStagger", data)
+end
+
+---comment
+---@param ai AIHandler
+function AIHelper.RegisterOverheadStaggerUpdate(ai)
+    local timer = Core.Timer.Game.New()
+
+    function timer:Tick()
+        if not ai:ValidateUnit() then
+            self:Destroy()
+            return
+        end
+
+        UpdateOverheadStagger(ai)
+    end
+end
+
+---comment
+---@param ai AIHandler
+local function UpdateBossStagger(ai)
+    local fill_amount = 0
+
+    local unit_id = GMUI.CreateUnitReference(ai.unit)
+
+    -- How do we get the Stagger Duration?
+    if StaggerDrain[unit_id] then
+        local data = StaggerDrain[unit_id]
+        fill_amount = data.time_remaining / data.time_max
+
+        data.time_remaining = data.time_remaining - TICK_RATE
+        if data.time_remaining <= 0 then
+            fill_amount = 0
+            StaggerDrain[unit_id] = nil
+        end
+    else
+        local stagger_stacks = DCEI.GetUnitBehaviorStackCount(ai.unit, REF.Stagger)
+        fill_amount = stagger_stacks / ai.stagger
+    end
+
+    Core.Event.SendPresentationEvent("Game.UpdateBossStagger", fill_amount)
+end
+
+---comment
+---@param ai AIHandler
+function AIHelper.RegisterBossStaggerUpdate(ai)
+    local timer = Core.Timer.Game.New()
+
+    function timer:Tick()
+        if not ai:ValidateUnit() then
+            self:Destroy()
+            return
+        end
+
+        UpdateBossStagger(ai)
+    end
+end
+
+---comment
+---@param ctx EffectContext
+local function OnStaggerAppliedEvent(ctx)
+    local unit = ctx.source
+    local unit_id = GMUI.CreateUnitReference(unit)
+
+    local stagger_time = DCEI.GetEffectHookFieldValue(EJS.ApplyBehavior.Duration)
+
+    StaggerDrain[unit_id] = {
+        time_remaining = stagger_time,
+        time_max = stagger_time,
+    }
+end
+
+DCEI.TriggerAddEffectHookEvent(REF.StaggerApplied, OnStaggerAppliedEvent)
+
+-- ================================================================================================
+-- !SECTION: Stagger
+-- SECTION: Hostile Game Triggers
+-- ================================================================================================
+
+local REF = {
+    BoomerExplosionTrigger = DCEI.Effect("Hostile - Boomer - Explosion - Trigger"),
+}
+
+DCEI.TriggerAddEffectEvent(REF.BoomerExplosionTrigger, function(ctx)
+    local unit = ctx.source
+    local position = Vector2.UnitPosition(unit)
+
+    AIHelper.SpawnDelayedExplosion(position, 2, 2, true)
+end)
+
+-- ================================================================================================
+-- !SECTION: Hostile Game Triggers
+-- ================================================================================================
+
+return AIHelper

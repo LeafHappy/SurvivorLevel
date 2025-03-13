@@ -1,0 +1,278 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+local Colors = require("Data/Colors")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Heatwave"),
+
+    -- Behaviors
+
+    -- Effects
+    Scan = DCEI.Effect("Skill - Heatwave - Scan"),
+    Success = DCEI.Effect("Skill - Heatwave - Success"),
+    ExplosionEffects = DCEI.Effect("Skill - Heatwave - Explosion Effects"),
+    ImpactAreaAll = DCEI.Effect("Skill - Heatwave - Impact Area - All"),
+    ImpactAreaHostile = DCEI.Effect("Skill - Heatwave - Impact Area - Hostile"),
+
+    AreaDamage = DCEI.Effect("Skill - Heatwave - Area Damage"),
+    Break = DCEI.Effect("Skill - Heatwave - Break"),
+
+    -- Collision Effects
+
+    -- VFX
+    ExplosionVFX = DCEI.Effect("Skill - Heatwave - Explosion VFX"),
+
+    -- Unit
+    Telegraph = DCEI.Unit("Skill - Heatwave - Telegraph"),
+
+    -- Filter
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+
+---@type table<PLAYER, number>
+local _AvailableTimer = {}
+
+---@class HeatwaveData
+---@field player_id integer
+---@field inner_telegraph UnitInstance
+---@field outer_telegraph UnitInstance
+---@field detonation_time number
+---@field total_time number
+---@field size number
+
+---@type table<PLAYER, HeatwaveData>
+local _HeatwaveData = {}
+
+local EXPLOSION_MODEL_SCALE = 0.40
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---@param ctx EffectContext
+local function OnSuccess(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    -- local tags = hero:GetInheritedTags(SkillData.Heatwave.Key)
+    local attack_speed = hero:GetAbilityCooldown(SkillData.Heatwave)
+    _AvailableTimer[player_id] = attack_speed * 2
+end
+
+---comment
+---@param hero Hero
+---@param position Vector2
+---@return HeatwaveData
+local function GenerateHeatwaveData(hero, position)
+    local heatwave_data = _HeatwaveData[hero.player_id]
+
+    if heatwave_data then
+        return heatwave_data
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.Heatwave.Key)
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    local cooldown = hero:GetStat(STAT.Cooldown, tags)
+
+    -- local outer = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Telegraph, position.x, position.y)
+    local inner = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Telegraph, position.x, position.y)
+
+    _HeatwaveData[hero.player_id] = {
+        player_id = hero.player_id,
+        -- outer_telegraph = outer,
+        inner_telegraph = inner,
+        detonation_time = cooldown,
+        total_time = cooldown,
+        size = size,
+    }
+
+    return _HeatwaveData[hero.player_id]
+end
+
+---@param hero Hero
+local function RemoveHeatwaveData(hero)
+    local heatwave_data = _HeatwaveData[hero.player_id]
+    if not heatwave_data then
+        return
+    end
+
+    -- DCEI.RemoveUnit(heatwave_data.outer_telegraph)
+    DCEI.RemoveUnit(heatwave_data.inner_telegraph)
+    _HeatwaveData[hero.player_id] = nil
+end
+
+---@param hero Hero
+---@param position Vector2
+local function UpdateTelegraphs(hero, position)
+    local heatwave_data = _HeatwaveData[hero.player_id]
+    if not heatwave_data then
+        return
+    end
+
+    -- Move the Outer Telegraph
+    -- local outer = heatwave_data.outer_telegraph
+    -- if Help.ValidateUnit(outer) then
+    --     DCEI.SetUnitPosition2DWithInterpolation(outer, position.x, position.y)
+    --     Help.SetModelScale(outer, heatwave_data.size)
+    -- end
+
+    -- Move and Scale the Inner Telegraph
+    local inner = heatwave_data.inner_telegraph
+    if Help.ValidateUnit(inner) then
+        local ratio = 1 - (heatwave_data.detonation_time / heatwave_data.total_time)
+        ratio = Help.Clamp(ratio, 0, 1)
+        local scale = Help.Lerp(0.01, heatwave_data.size, ratio)
+        Help.SetModelScale(inner, scale)
+        DCEI.SetUnitPosition2DWithInterpolation(inner, position.x, position.y)
+
+        local is_ready = heatwave_data.detonation_time <= 0
+        if is_ready then
+            Help.SetTintColor(inner, Colors.Hex.Green)
+        else
+            Help.SetTintColor(inner, Colors.Hex.Red)
+        end
+    end
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero)
+    -- Check if hero is in combat
+    local is_in_combat = hero:IsInCombat()
+
+    if not is_in_combat then
+        RemoveHeatwaveData(hero)
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local heatwave_data = GenerateHeatwaveData(hero, hero_position)
+
+    local distance_traveled = hero:GetTravelDistance()
+    heatwave_data.detonation_time = heatwave_data.detonation_time - TICK_RATE
+
+    if distance_traveled <= 0 and heatwave_data.detonation_time <= 0 then
+        heatwave_data.detonation_time = heatwave_data.total_time
+        -- Remove Telegraph
+        -- RemoveHeatwaveData(hero)
+
+        -- Detonate
+        DCEI.CreateEffectAtSelf(REF.ExplosionEffects, hero.unit)
+    end
+
+    UpdateTelegraphs(hero, hero_position)
+end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    RemoveHeatwaveData(hero)
+    _Heroes[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.CastRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactAreaAll, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.ImpactAreaHostile, EJS.AreaSearch.Radius),
+
+        EffectPath.New(REF.ExplosionVFX, EJS.Actor.Scale, nil, EXPLOSION_MODEL_SCALE),
+    },
+    -- [STAT.Damage] = {
+    --     EffectPath.New(REF.Damage, EJS.Damage.Value),
+    -- },
+    [STAT.Break] = {
+        EffectPath.New(REF.Break, EJS.DamageIntake.Unscaled),
+    },
+    [STAT.DebuffDuration] = {
+        EffectPath.New(REF.Break, EJS.DamageIntake.Duration),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.Heatwave.Key)
+
+    -- Manual Damage Calculation
+    local damage = hero:GetStat(STAT.Damage, tags)
+    local area_damage_multiplier = hero:GetStat(STAT.AreaDamage, tags)
+    local area_damage_final = damage * area_damage_multiplier
+
+    hero:SetEffectValue(REF.AreaDamage, EJS.Damage.Value, area_damage_final)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Success, OnSuccess, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

@@ -1,0 +1,242 @@
+local LootData = require("Data/SimpleUnits/LootData")
+
+local Help = require("Help")
+
+---@class CameraSettings
+---@field DistanceModifier number
+
+---@class HuntData.DifficultySettings
+---@field Fixed table<number, table<Modifier>>
+---@field Periodic table<number, table<Modifier>>
+
+---@class HuntData.FixedHostiles
+---@field Type HostileData
+---@field Count number
+---@field FormationType FORMATION_TYPE
+---@field Properties table<string, any>
+---@field Modifiers table<number, Modifier>
+---@field SimpleDropTable table<SimpleDropTableData> | nil
+---@field WarningSettings EventData.WarningSettings
+---@field Target string
+
+---@class HuntData.Elite
+---@field Type Elite
+---@field DropTable DropTable
+---@field Modifiers table<Modifier>
+---@field WarningSettings EventData.WarningSettings
+
+---@class HuntData.Boss
+---@field Type Boss
+---@field DropTable DropTable
+---@field Modifiers table<Modifier>
+
+---@class HuntData.Event
+---@field Options table<EventData>
+-- -@field SpawnSettings EventData.SpawnSettings
+
+---@class HuntData
+---@field Duration integer
+---@field Biome Biome
+---@field Register table<HostileData, table<SimpleDropTableData>> Register Hostiles with Drop Tables
+---@field CameraSettings table<Time, CameraSettings>
+---@field DifficultySettings HuntData.DifficultySettings
+---@field Periodic table<Time, HuntData.FixedHostiles> Periodic Spawn Data
+---@field Fixed table<Time, HuntData.FixedHostiles> Fixed Spawn Times for Hostiles
+---@field Elite table<Time, HuntData.Elite> Fixed Spawn Times for Elites
+---@field Boss table<Time, HuntData.Boss> Fixed Spawn Times for Bosses
+---@field Crate DropTable Drop Table for Crates
+---@field FixedStageEvents table<Time, HuntData.Event | table<HuntData.Event>> Fixed Stage Events
+---@field GameEventData table<GameEventData | GameEventSequenceData> Game Events
+
+--[[
+---@field AccumulatedLoot table<Time, DropTable> Adds Loot to the Loot Pool to be dropped (somehow)
+---@field Events table<Time, Event> Events that occur at specific times
+]]
+
+local hunt_data_references = {
+    [1] = require("Data/Modes/Hunt/HuntData_01"),
+    [2] = require("Data/Modes/Hunt/HuntData_02"),
+    [3] = require("Data/Modes/Hunt/HuntData_03"),
+    [4] = require("Data/Modes/Hunt/HuntData_04"),
+    [5] = require("Data/Modes/Hunt/HuntData_05"),
+    [6] = require("Data/Modes/Hunt/HuntData_06"),
+    [7] = require("Data/Modes/Hunt/HuntData_07"),
+    [8] = require("Data/Modes/Hunt/HuntData_08"),
+    [9] = require("Data/Modes/Hunt/HuntData_09"),
+    [10] = require("Data/Modes/Hunt/HuntData_10"),
+}
+
+---@class HuntDataManager
+local HuntDataManager = {}
+
+-- ---Returns the Stage Level Data
+-- ---@param stage_level integer
+-- ---@param stage_difficulty integer
+-- ---@return HuntData
+-- function HuntDataManager.GetData(stage_level, stage_difficulty)
+--     if not hunt_data_references[stage_level] or not hunt_data_references[stage_level][stage_difficulty] then
+--         Help.Error("Invalid Stage Level", stage_level)
+
+--         -- Backup to the last stage
+--         stage_level = #hunt_data_references
+--         stage_difficulty = #hunt_data_references[stage_level]
+--     end
+
+--     return hunt_data_references[stage_level][stage_difficulty]
+-- end
+
+---Returns the Stage Level Data
+---@param stage_level integer
+---@return HuntData
+function HuntDataManager.GetData(stage_level)
+    if not hunt_data_references[stage_level] then
+        Help.Error("Invalid Stage Level", stage_level)
+        stage_level = #hunt_data_references
+    end
+
+    return hunt_data_references[stage_level]
+end
+
+-- ---Returns the last Boss and its Spawn Time
+-- ---@param stage_level integer
+-- ---@param stage_difficulty integer
+-- ---@return integer Time
+-- ---@return HuntData.Boss BossSpawnData
+-- function HuntDataManager.GetFinalBoss(stage_level, stage_difficulty)
+--     local stage_data = HuntDataManager.GetData(stage_level, stage_difficulty)
+
+--     local boss_list = stage_data.Boss
+--     local last_boss_time = 0
+--     local last_boss_data = nil
+
+--     for time, boss_data in pairs(boss_list) do
+--         if time > last_boss_time then
+--             last_boss_time = time
+--             last_boss_data = boss_data
+--         end
+--     end
+
+--     return last_boss_time, last_boss_data
+-- end
+
+---Returns the last Boss and its Spawn Time
+---@param stage_level integer
+---@return integer Time
+---@return HuntData.Boss BossSpawnData
+function HuntDataManager.GetFinalBoss(stage_level)
+    local stage_data = HuntDataManager.GetData(stage_level)
+
+    local boss_list = stage_data.Boss
+    local last_boss_time = 0
+    local last_boss_data = nil
+
+    for time, boss_data in pairs(boss_list) do
+        if time > last_boss_time then
+            last_boss_time = time
+            last_boss_data = boss_data
+        end
+    end
+
+    return last_boss_time, last_boss_data
+end
+
+local meta_resource_pass = {}
+
+-- ---Returns all the Rewards (Gold/MetaResource) for the Game after the specified Time.
+-- ---TODO: Pass in the Hero so its all handled here (instead of partially in Hunt Game Mode)
+-- ---@param stage_level integer
+-- ---@param stage_difficulty integer
+-- ---@param game_time Time
+-- ---@return table<Effect, integer> Rewards
+-- function HuntDataManager.GetRewards(stage_level, stage_difficulty, game_time)
+--     ---@type HuntData
+--     local stage_data = HuntDataManager.GetData(stage_level, stage_difficulty)
+
+--     local rewards = {}
+
+--     --- Helper function to process rewards from a given spawn time and drop table
+--     ---@param spawn_time Time
+--     ---@param drop_table DropTable
+--     ---@param game_time Time
+--     ---@param rewards table<Effect, integer>
+--     local function ProcessRewards(spawn_time, drop_table, game_time, rewards)
+--         -- Check to see if the spawn time is in the future
+--         if spawn_time >= game_time then
+--             -- Randomly select items from the Drop Table
+--             local selected_items = Help.GetItemsFromDropTable(drop_table)
+
+--             for key, selected_item in pairs(selected_items) do
+--                 if meta_resource_pass[selected_item] then
+--                     rewards[meta_resource_pass[selected_item]] = (rewards[meta_resource_pass[selected_item]] or 0) + 1
+--                 end
+--             end
+--         end
+--     end
+
+--     -- Loop through all Elites
+--     for spawn_time, elite_data in pairs(stage_data.Elite) do
+--         ProcessRewards(spawn_time, elite_data.DropTable, game_time, rewards)
+--     end
+
+--     -- Loop through all Bosses
+--     for spawn_time, boss_data in pairs(stage_data.Boss) do
+--         ProcessRewards(spawn_time, boss_data.DropTable, game_time, rewards)
+--     end
+
+--     -- Loop through all Accumulated Loot
+--     -- for spawn_time, drop_table in pairs(stage_data.AccumulatedLoot) do
+--     --     ProcessRewards(spawn_time, drop_table, game_time, rewards)
+--     -- end
+
+--     return rewards
+-- end
+
+---Returns all the Rewards (Gold/MetaResource) for the Game after the specified Time.
+---TODO: Pass in the Hero so its all handled here (instead of partially in Hunt Game Mode)
+---@param stage_level integer
+---@param game_time Time
+---@return table<Effect, integer> Rewards
+function HuntDataManager.GetRewards(stage_level, game_time)
+    ---@type HuntData
+    local stage_data = HuntDataManager.GetData(stage_level)
+
+    local rewards = {}
+
+    --- Helper function to process rewards from a given spawn time and drop table
+    ---@param spawn_time Time
+    ---@param drop_table DropTable
+    ---@param game_time Time
+    ---@param rewards table<Effect, integer>
+    local function ProcessRewards(spawn_time, drop_table, game_time, rewards)
+        -- Check to see if the spawn time is in the future
+        if spawn_time >= game_time then
+            -- Randomly select items from the Drop Table
+            local selected_items = Help.GetItemsFromDropTable(drop_table)
+
+            for key, selected_item in pairs(selected_items) do
+                if meta_resource_pass[selected_item] then
+                    rewards[meta_resource_pass[selected_item]] = (rewards[meta_resource_pass[selected_item]] or 0) + 1
+                end
+            end
+        end
+    end
+
+    -- Loop through all Elites
+    -- for spawn_time, elite_data in pairs(stage_data.Elite) do
+    --     ProcessRewards(spawn_time, elite_data.DropTable, game_time, rewards)
+    -- end
+
+    -- Loop through all Bosses
+    for spawn_time, boss_data in pairs(stage_data.Boss) do
+        ProcessRewards(spawn_time, boss_data.DropTable, game_time, rewards)
+    end
+
+    -- Loop through all Accumulated Loot
+    -- for spawn_time, drop_table in pairs(stage_data.AccumulatedLoot) do
+    --     ProcessRewards(spawn_time, drop_table, game_time, rewards)
+    -- end
+
+    return rewards
+end
+
+return HuntDataManager

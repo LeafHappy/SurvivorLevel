@@ -1,0 +1,91 @@
+---@class _SkillData
+---@field Name string
+---@field Cache table<STAT, table<EffectPath>>
+---@field Override function<Hero>
+
+---@type table<string, _SkillData>
+local _SkillData = {
+    -- ================================================================================================
+    -- SECTION -- Camp Skills
+    -- ================================================================================================
+
+    ArcherTowerRank_01 = require("Game/Skills/Camp/ArcherTowerRank_01"),
+    ArcherTowerRank_02 = require("Game/Skills/Camp/ArcherTowerRank_02"),
+
+    -- ================================================================================================
+    -- !SECTION -- Camp Skills
+    -- SECTION -- Active Skills (Survivor)
+    -- ================================================================================================
+
+    ---ANCHOR: Generic
+    ChopTree = require("Game/Skills/Survivor/ChopTree"),
+    MineStone = require("Game/Skills/Survivor/MineStone"),
+    Shovel = require("Game/Skills/Survivor/Shovel"),
+
+    ---ANCHOR: Annie
+    MarkedForDeath = require("Game/Skills/Survivor/MarkedForDeath"),
+    Strafe = require("Game/Skills/Survivor/Strafe"),
+    Marksmanship = require("Game/Skills/Survivor/Marksmanship"),
+
+    SpeedForce = require("Game/Skills/Survivor/SpeedForce"),
+
+    ---ANCHOR: Jorian
+    FrostGuard = require("Game/Skills/Survivor/FrostGuard"),
+
+    -- ================================================================================================
+    -- !SECTION -- Active Skills (Survivor)
+    -- SECTION -- Active Skills (Stage)
+    -- ================================================================================================
+
+    -- Physical + Attack
+    Boomerang = require("Game/Skills/Global/Boomerang"),
+    Bash = require("Game/Skills/Global/Bash"),
+
+    -- Physical + Summon
+    GuardianShield = require("Game/Skills/GuardianShield"),
+    Chakram = require("Game/Skills/Global/Chakram"),
+    -- BladeTrap = require("Game/Skills/Global/BladeTrap"),
+
+    -- Fire + Attack
+    Fireball = require("Game/Skills/Global/Fireball"),
+    Heatwave = require("Game/Skills/Global/Heatwave"),
+    MagmaOrb = require("Game/Skills/Global/MagmaOrb"),
+
+    -- Cold
+    IceBarrage = require("Game/Skills/Global/IceBarrage"),
+    IceRupture = require("Game/Skills/Global/IceRupture"),
+    Frostfang = require("Game/Skills/Global/Frostfang"),
+
+    -- FrostBlast = require("Game/Skills/Global/FrostBlast"),
+
+    -- Shock
+    TeslaField = require("Game/Skills/Global/TeslaField"),
+    LightningStrike = require("Game/Skills/Global/LightningStrike"),
+    StaticRemnants = require("Game/Skills/Global/StaticRemnants"),
+
+    -- LightningStorm = require("Game/Skills/Global/LightningStorm"),
+
+    -- ================================================================================================
+    -- !SECTION -- Active Skills (Stage)
+    -- SECTION -- Passive Skills
+    -- ================================================================================================
+
+    ---ANCHOR: Hero Unique Passive Skills
+
+    -- OrbitalShield = require("Game/Skills/OrbitalShield"),
+    -- Frostnova = require("Game/Skills/Frostnova"),
+    -- FrostPillar = require("Game/Skills/FrostPillar"),
+
+    -- ================================================================================================
+    -- !SECTION -- Passive Skills
+    -- SECTION -- Consumables
+    -- ================================================================================================
+
+    HealthPotion = require("Game/Skills/HealthPotion"),
+
+    -- ================================================================================================
+    -- !SECTION -- Consumables
+    -- ================================================================================================
+}
+
+return _SkillData

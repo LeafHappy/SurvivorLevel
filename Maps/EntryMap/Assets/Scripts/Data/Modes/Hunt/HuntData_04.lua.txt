@@ -1,0 +1,399 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+    Time-Key Tables
+        Many tables use a Time-Key to indicate when a certain event should occur.
+        Each Key is Unique, as in, you cannot have multiple of the same Key (like [1] and [1]) in the table.
+
+        Example:
+            [1] = {} -- Occurs after 1 second of Game Time.
+            [30] = {} -- Occurs after 30 seconds of Game Time.
+            [100] = {} -- Occurs after 100 seconds of Game Time.
+        
+        Places where Time-Key is used:
+            - Periodic Data
+                - Spawn Rates
+                - Timed Modifiers
+            - Fixed Data
+            - Elite Data
+            - Boss Data
+            - Loot Data
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local Conditions = require("Data/Events/ConditionData")
+
+local EventSpawnData = require("Data/EventData/EventSpawnData")
+local EventEliteData = require("Data/EventData/EventEliteData")
+local EventStructureData = require("Data/EventData/EventStructureData")
+
+local StandardHuntEvents = require("Data/Modes/Hunt/StandardHuntEvents")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Forest = require("Data/Biomes/Forest")
+local Thicket = require("Data/Biomes/Thicket")
+local Swamp = require("Data/Biomes/Swamp")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Initialize
+---============================================================================
+
+---@type HuntData
+local Data = {}
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Biome
+---============================================================================
+
+Data.Biome = Thicket
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Camera Settings
+---============================================================================
+
+Data.CameraSettings = {
+    [120] = {
+        DistanceModifier = 0.50,
+    },
+    [240] = {
+        DistanceModifier = 0.50,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Camera Settings
+-- SECTION -- Difficulty Settings
+---============================================================================
+
+Data.DifficultySettings = {
+    -- Stage 4
+    Fixed = {
+        [1] = { -- Starting
+            Modifier.New(STAT.StageDensity, 80, SCALING.Scaled), -- Base Density
+            Modifier.New(STAT.StageDensity, 0.40, SCALING.Additive), -- 10% Increase per Stage
+
+            Modifier.New(STAT.Count, 0.40, SCALING.Additive), -- 10% Increase per Stage
+
+            Modifier.New(STAT.Health, 1.80, SCALING.Multiplier), -- 20% Increase per Stage
+            Modifier.New(STAT.Thorns, 1.80, SCALING.Multiplier), -- 20% Increase per Stage
+
+            Modifier.New(STAT.MinionHealth, 1.80, SCALING.Multiplier), -- 20% Increase per Stage
+            Modifier.New(STAT.MinionDamage, 1.80, SCALING.Multiplier), -- 20% Increase per Stage
+
+            Modifier.New(STAT.MoveSpeed, 0.08, SCALING.Additive), -- 2% Increase per Stage
+
+            -- Boss Modifiers
+            Modifier.New(STAT.StaggerResistance, 0.80, SCALING.Additive), -- 20% Increase per Stage
+            Modifier.New(STAT.AddedStaggerResistance, 0.80, SCALING.Additive), -- 20% Increase per Stage
+        },
+    },
+    Periodic = {
+        [10] = {
+            Modifier.New(STAT.Count, 0.10, SCALING.Additive, { SKILL_TAG.Spawning }),
+        },
+        [30] = {
+            Modifier.New(STAT.Health, 1.05, SCALING.Multiplier),
+            Modifier.New(STAT.Thorns, 1.05, SCALING.Multiplier),
+
+            Modifier.New(STAT.MinionHealth, 1.05, SCALING.Multiplier),
+            Modifier.New(STAT.MinionDamage, 1.05, SCALING.Multiplier),
+        },
+        [60] = {
+            Modifier.New(STAT.StageDensity, 10, SCALING.Scaled),
+        },
+        [120] = {
+            Modifier.New(STAT.MoveSpeed, 0.01, SCALING.Additive),
+        },
+    },
+}
+
+---============================================================================
+-- !SECTION -- Difficulty Settings
+-- SECTION -- Event Data
+---============================================================================
+
+-- =======================================================================================
+-- ANCHOR: Hostile Spawning
+-- =======================================================================================
+
+local Random_Walkers_v1 = {
+    EventTypeOptions = {
+        EventSpawnData.RandomWalker,
+    },
+    Conditions = {
+        Conditions.StageDensity,
+        Conditions.GameTimeAbove_10,
+
+        Conditions.EventCooldown_1,
+        Conditions.StageDensityPercentageUnder_25,
+    },
+}
+
+local Random_Walkers_v2 = {
+    EventTypeOptions = {
+        EventSpawnData.RandomWalker,
+    },
+    Conditions = {
+        Conditions.StageDensity,
+        Conditions.GameTimeAbove_10,
+
+        Conditions.EventCooldown_2,
+        Conditions.StageDensityPercentageUnder_50,
+    },
+}
+
+local Random_Banshees = {
+    EventTypeOptions = {
+        EventSpawnData.RandomBanshee,
+    },
+    Conditions = {
+        Conditions.StageDensity,
+        Conditions.GameTimeAbove_60,
+
+        Conditions.EventCooldown_3,
+        Conditions.StageDensityPercentageOver_25,
+        Conditions.StageDensityPercentageUnder_75,
+    },
+}
+
+local Banshee_Surge = {
+    EventTypeOptions = {
+        EventSpawnData.BansheeSurge,
+    },
+    Conditions = {
+        Conditions.StageDensity,
+        Conditions.GameTimeAbove_120,
+
+        Conditions.EventCooldown_10,
+        Conditions.StageDensityPercentageOver_50,
+    },
+}
+
+local Marauder_Fill = {
+    EventTypeOptions = {
+        EventSpawnData.MarauderPack_v1,
+    },
+    Conditions = {
+        Conditions.StageDensity,
+        Conditions.GameTimeAbove_200,
+
+        Conditions.EventCooldown_5,
+        Conditions.StageDensityPercentageUnder_50,
+    },
+}
+
+---@type GameEventData
+local BruteEnclosure = {
+    EventTypeOptions = {
+        {
+            Hostile = HostileData.Brute,
+            Pattern = {
+                FormationType = FORMATION_TYPE.Enclosure,
+                Properties = {
+                    [EnclosureProperties.target] = "TargetPass",
+                    [EnclosureProperties.radius] = 15,
+                },
+            },
+            -- Pattern = {
+            --     FormationType = FORMATION_TYPE.EnclosureSequence,
+            --     Properties = {
+            --         [EnclosureSequenceProperties.enclosure_properties] = {
+            --             [EnclosureProperties.target] = "TargetPass",
+            --             [EnclosureProperties.radius] = 20,
+            --             [EnclosureProperties.gap_size] = 10,
+            --         },
+            --         [EnclosureSequenceProperties.enclosure_manipulators] = {
+            --             [EnclosureSequenceManipulators.starting_angle] = 1,
+            --             [EnclosureSequenceManipulators.gap_size] = 1,
+            --             [EnclosureSequenceManipulators.radius] = 2,
+            --         },
+            --     },
+            -- },
+            Modifiers = {
+                -- Modifier.New(STAT.SequenceCount, 1, SCALING.Scaled),
+                -- Modifier.New(STAT.SequenceFrequency, 1, SCALING.Scaled),
+
+                Modifier.New(STAT.Count, 30, SCALING.Scaled),
+                -- Modifier.New(STAT.IncreasedCount, 10, SCALING.Scaled),
+
+                -- Modifier.New(STAT.Health, 5.00, SCALING.Multiplier),
+            },
+            SimpleDropTable = {
+                SimpleDropTableData.GuaranteedSmallExperience,
+                SimpleDropTableData.SmoothExperience,
+            },
+        },
+    },
+    Conditions = {
+        -- Conditions.GameTime_1, ---TESTING
+        Conditions.BossNotActive,
+        Conditions.Every120Seconds,
+    },
+    WarningSettings = {
+        Message = "Enclosure Alert!",
+        Duration = 5,
+    },
+}
+
+-- =======================================================================================
+-- ANCHOR: Elite Spawning
+-- =======================================================================================
+
+Data.StartingNightshade = {
+    EventTypeOptions = EventEliteData.Nightshade,
+    Conditions = {
+        Conditions.GameTime_10,
+        Conditions.BossNotActive,
+    },
+    WarningSettings = {
+        Message = "You are being Hunted.",
+        Duration = 5,
+    },
+}
+
+Data.PeriodicNightshade = {
+    EventTypeOptions = EventEliteData.Nightshade,
+    Conditions = {
+        Conditions.EventCooldown_90,
+    },
+}
+
+-- =======================================================================================
+-- ANCHOR: Structure Spawning
+-- =======================================================================================
+
+-- =======================================================================================
+-- ANCHOR: Event Sequence
+-- =======================================================================================
+
+-- =======================================================================================
+-- ANCHOR: Game Event Container
+-- =======================================================================================
+
+Data.GameEventData = {
+    -- Stage 4 Events
+    Random_Walkers_v1,
+    Random_Walkers_v2,
+    Random_Banshees,
+    Banshee_Surge,
+    Marauder_Fill,
+
+    BruteEnclosure,
+
+    -- Elite Spawns
+    Data.StartingNightshade,
+    Data.PeriodicNightshade,
+
+    -- Standard Events
+    StandardHuntEvents.Standard_Walkers_01,
+    StandardHuntEvents.Standard_Walkers_02,
+    StandardHuntEvents.Standard_Walkers_03,
+    StandardHuntEvents.Standard_Walkers_04,
+    StandardHuntEvents.Standard_Walkers_05,
+    StandardHuntEvents.Standard_Walkers_06,
+    StandardHuntEvents.Standard_Walkers_07,
+
+    StandardHuntEvents.Standard_Runners_01,
+    StandardHuntEvents.Standard_Runners_02,
+    StandardHuntEvents.Standard_Runners_03,
+    StandardHuntEvents.Standard_Runners_04,
+    StandardHuntEvents.Standard_Runners_05,
+    StandardHuntEvents.Standard_Runners_06,
+
+    StandardHuntEvents.Standard_Marauders_01,
+    StandardHuntEvents.Standard_Marauders_02,
+    StandardHuntEvents.Standard_Marauders_03,
+    StandardHuntEvents.Standard_Marauders_04,
+
+    -- StandardHuntEvents.StandardBansheeRush_Every120, -- Standard Event every 2 minutes
+
+    -- Nearby Destructibles (Crates)
+    StandardHuntEvents.NearbyDestructibles,
+
+    -- Emergency Potions (Structure)
+    StandardHuntEvents.EmergencyPotions,
+
+    -- Relic Hunt Sequence (Structure --> Elite)
+    StandardHuntEvents.RelicHuntSequenceRepeating,
+}
+
+---============================================================================
+-- !SECTION -- Event Data
+-- SECTION -- Boss Data
+---============================================================================
+
+Data.Boss = {
+    [240] = {
+        Type = Bosses.Types.SkeletonKing,
+        -- Difficulty = 100,
+        DropTable = DropTables.Boss102,
+        Modifiers = {
+            Modifier.New(STAT.Health, 0.50, SCALING.Multiplier), -- How much Health the Boss has.
+            -- Modifier.New(STAT.Thorns, 1.50, SCALING.Multiplier), -- How much damage the Boss does when it comes into contact with the player.
+            -- Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Multiplier), -- How fast the Boss is.
+            -- Modifier.New(STAT.CollisionSize, 1.25, SCALING.Multiplier), -- How big the Boss is.
+            -- Modifier.New(STAT.StaggerResistance, 1.15, SCALING.Multiplier), -- How resistant the Boss is to Stagger.
+            -- Modifier.New(STAT.AddedStaggerResistance, 0.35, SCALING.Multiplier), -- The amount of increased resistance to Stagger added after being Staggered.
+
+            -- Modifier.New(STAT.MinionHealth, 2.00, SCALING.Multiplier), -- How much Health the Boss's Minions have.
+            -- Modifier.New(STAT.MinionDamage, 1.00, SCALING.Multiplier), -- How much damage the Boss's Minions do.
+            -- Modifier.New(STAT.MinionSpeed, 1.20, SCALING.Multiplier), -- How fast the Boss's Minions are.
+        },
+        WarningSettings = {
+            Message = "Mini-Boss Alert!",
+            Duration = 5,
+        },
+    },
+    [480] = {
+        Type = Bosses.Types.Knight,
+        -- Difficulty = 100,
+        DropTable = DropTables.Boss101,
+        Modifiers = {
+            Modifier.New(STAT.Health, 1.40, SCALING.Multiplier), -- How much Health the Boss has.
+            Modifier.New(STAT.Armor, 20, SCALING.Scaled), -- How much Flat Damage Reduction the Boss has.
+            Modifier.New(STAT.Armor, 0.20, SCALING.Additive), -- How much Percentage Damage Reduction the Boss has.
+
+            -- Modifier.New(STAT.Health, 60.00, SCALING.Multiplier), -- How much Health the Boss has.
+            -- Modifier.New(STAT.Thorns, 1.50, SCALING.Multiplier), -- How much damage the Boss does when it comes into contact with the player.
+            -- Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Multiplier), -- How fast the Boss is.
+            -- Modifier.New(STAT.CollisionSize, 1.25, SCALING.Multiplier), -- How big the Boss is.
+            -- Modifier.New(STAT.StaggerResistance, 1.15, SCALING.Multiplier), -- How resistant the Boss is to Stagger.
+            -- Modifier.New(STAT.AddedStaggerResistance, 0.35, SCALING.Multiplier), -- The amount of increased resistance to Stagger added after being Staggered.
+
+            -- Modifier.New(STAT.MinionHealth, 2.00, SCALING.Multiplier), -- How much Health the Boss's Minions have.
+            -- Modifier.New(STAT.MinionDamage, 1.00, SCALING.Multiplier), -- How much damage the Boss's Minions do.
+            -- Modifier.New(STAT.MinionSpeed, 1.20, SCALING.Multiplier), -- How fast the Boss's Minions are.
+        },
+        WarningSettings = {
+            Message = "Boss Incoming!",
+            Duration = 5,
+        },
+    },
+}
+
+---============================================================================
+-- !SECTION -- Boss Data
+---============================================================================
+
+return Data

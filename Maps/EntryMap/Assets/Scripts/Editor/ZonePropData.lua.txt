@@ -1,0 +1,275 @@
+local PropData = require("Map/PropData")
+
+---@class PropItemSettings
+---@field PropSeries table<string>
+---@field PropData string
+---@field DestroyedPlaceholder string
+---@field RespawnTime number
+---@field SpawnImmediately boolean | nil
+
+---@class ZonePropData:ZoneItemData
+---@field Settings PropItemSettings
+
+---@type table<ZonePropData>
+local data = {
+    -- TreeDegrade01 = { -- Multiple Zone Status Handling
+    --     Key = "TreeDegrade01",
+    --     Icon = DCEI.Texture("prop_wildsurvivor_tree03"), -- Displayed in the Editor UI
+    --     GhostPlacement = DCEI.Unit("Editor - Ghost - Tree Degrade - 01"), -- The Unit that will follow the cursor
+    --     Settings = { -- Settings that the Prop Instance Tracker will use (injected into PropZone)
+    --         [ZONE_STATUS.Occupied] = {
+    --             PropData = PropData.TreeDegrade05.Key,
+    --             SpawnImmediately = true,
+    --         },
+    --         [ZONE_STATUS.Cleansed] = {
+    --             PropSeries = {
+    --                 PropData.TreeDegrade01.Key,
+    --                 PropData.TreeDegrade02.Key,
+    --                 PropData.TreeDegrade03.Key,
+    --                 PropData.TreeDegrade04.Key,
+    --             },
+    --             DestroyedPlaceholder = PropData.TreeDegrade05.Key,
+    --             RespawnTime = 30,
+    --             SpawnImmediately = true,
+    --         },
+    --     },
+    -- },
+    TreeDegrade01 = {
+        Key = "TreeDegrade01",
+        Icon = DCEI.Texture("prop_wildsurvivor_tree03"), -- Displayed in the Editor UI
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Tree Degrade - 01"), -- The Unit that will follow the cursor
+        Settings = { -- Settings that the Prop Instance Tracker will use (injected into PropZone)
+            PropSeries = {
+                PropData.TreeDegrade01.Key,
+                PropData.TreeDegrade02.Key,
+                PropData.TreeDegrade03.Key,
+                PropData.TreeDegrade04.Key,
+            },
+            DestroyedPlaceholder = PropData.TreeDegrade05.Key,
+            RespawnTime = 30,
+            SpawnImmediately = true,
+        },
+    },
+    Flower01 = {
+        Key = "Flower01",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Flower - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("prop_wildsurvivor_flower01"),
+        Settings = {
+            PropData = PropData.Flower01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    Flower02 = {
+        Key = "Flower02",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Flower - 02"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("prop_wildsurvivor_flower02"),
+        Settings = {
+            PropData = PropData.Flower02.Key,
+            SpawnImmediately = true,
+        },
+    },
+    DirtPatch01 = {
+        Key = "DirtPatch01",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Dirt Patch - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("terrain_tile_wildsurvivor_grass02"),
+        Settings = {
+            PropData = PropData.DirtPatch01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    DirtPatch02 = {
+        Key = "DirtPatch02",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Dirt Patch - 02"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("terrain_tile_wildsurvivor_map2_grass02"),
+        Settings = {
+            PropData = PropData.DirtPatch02.Key,
+            SpawnImmediately = true,
+        },
+    },
+    Stone01 = {
+        Key = "Stone01",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Stone - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("wildcastle_prop_castle_level0_stone1"),
+        Settings = {
+            PropSeries = {
+                PropData.Stone01.Key,
+                PropData.Stone02.Key,
+                PropData.Stone03.Key,
+                PropData.Stone04.Key,
+            },
+            -- DestroyedPlaceholder = PropData.TreeDegrade05.Key,
+            RespawnTime = 30,
+            SpawnImmediately = true,
+        },
+    },
+    DigSpot01 = {
+        Key = "DigSpot01",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Dig Spot - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("2d_wildcastle2_background_elemental_prop_rune_physical"),
+        Settings = {
+            PropData = PropData.DigSpot01.Key,
+            SpawnImmediately = true,
+            RespawnTime = 30,
+        },
+    },
+    Pumpkin01 = {
+        Key = "Pumpkin01",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Pumpkin - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_icon_mapleleafpumpkin_rank8_merge2"),
+        Settings = {
+            PropData = PropData.Pumpkin01.Key,
+            SpawnImmediately = true,
+            RespawnTime = 30,
+        },
+    },
+
+    Barrel01 = {
+        Key = "Barrel01",
+        GhostPlacement = DCEI.Unit("Prop - Barrel - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_land1__barrel_survival"),
+        Settings = {
+            PropData = PropData.Barrel01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    GasPump01 = {
+        Key = "GasPump01",
+        GhostPlacement = DCEI.Unit("Prop - Gas Pump - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_land1_pump1_survival"),
+        Settings = {
+            PropData = PropData.GasPump01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    GasPump02 = {
+        Key = "GasPump02",
+        GhostPlacement = DCEI.Unit("Prop - Gas Pump - 02"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_land1_pump2_survival"),
+        Settings = {
+            PropData = PropData.GasPump02.Key,
+            SpawnImmediately = true,
+        },
+    },
+    DirtGroundHole03 = {
+        Key = "DirtGroundHole03",
+        GhostPlacement = DCEI.Unit("Prop - Dirt Ground Hole - 03"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_hole3_survival"),
+        Settings = {
+            PropData = PropData.DirtGroundHole03.Key,
+            SpawnImmediately = true,
+        },
+    },
+    OvergrownRV01 = {
+        Key = "OvergrownRV01",
+        GhostPlacement = DCEI.Unit("Prop - Overgrown RV - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_land1_prop4_survival"),
+        Settings = {
+            PropData = PropData.OvergrownRV01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    PumpkinField01 = {
+        Key = "PumpkinField01",
+        GhostPlacement = DCEI.Unit("Prop - Pumpkin Field - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_pumpkinfield_survival"),
+        Settings = {
+            PropData = PropData.PumpkinField01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    RV01 = {
+        Key = "RV01",
+        GhostPlacement = DCEI.Unit("Prop - RV - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_brokenrv_survival"),
+        Settings = {
+            PropData = PropData.RV01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    Sandbags01 = {
+        Key = "Sandbags01",
+        GhostPlacement = DCEI.Unit("Prop - Sandbags - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_cover3_survival"),
+        Settings = {
+            PropData = PropData.Sandbags01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    Sandbags02 = {
+        Key = "Sandbags02",
+        GhostPlacement = DCEI.Unit("Prop - Sandbags - 02"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_cover4_survival"),
+        Settings = {
+            PropData = PropData.Sandbags02.Key,
+            SpawnImmediately = true,
+        },
+    },
+    Tire01 = {
+        Key = "Tire01",
+        GhostPlacement = DCEI.Unit("Prop - Tire - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_tire1_survival"),
+        Settings = {
+            PropData = PropData.Tire01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    Tire02 = {
+        Key = "Tire02",
+        GhostPlacement = DCEI.Unit("Prop - Tire - 02"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_tire2_survival"),
+        Settings = {
+            PropData = PropData.Tire02.Key,
+            SpawnImmediately = true,
+        },
+    },
+    TrafficBlockade01 = {
+        Key = "TrafficBlockade01",
+        GhostPlacement = DCEI.Unit("Prop - Traffic Blockade - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_yellowroadblock_survival"),
+        Settings = {
+            PropData = PropData.TrafficBlockade01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    TrafficCone01 = {
+        Key = "TrafficCone01",
+        GhostPlacement = DCEI.Unit("Prop - Traffic Cone - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_land2_prop_survival"),
+        Settings = {
+            PropData = PropData.TrafficCone01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    TrafficCone02 = {
+        Key = "TrafficCone02",
+        GhostPlacement = DCEI.Unit("Prop - Traffic Cone - 02"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_land2_prop2_survival.png"),
+        Settings = {
+            PropData = PropData.TrafficCone02.Key,
+            SpawnImmediately = true,
+        },
+    },
+    WoodenRailing01 = {
+        Key = "WoodenRailing01",
+        GhostPlacement = DCEI.Unit("Prop - Wooden Railing - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_woodenrailing_survival"),
+        Settings = {
+            PropData = PropData.WoodenRailing01.Key,
+            SpawnImmediately = true,
+        },
+    },
+    WoodenRailing02 = {
+        Key = "WoodenRailing02",
+        GhostPlacement = DCEI.Unit("Prop - Wooden Railing - 02"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_woodenrailing_survival"),
+        Settings = {
+            PropData = PropData.WoodenRailing02.Key,
+            SpawnImmediately = true,
+        },
+    },
+
+    -- Stone: vfx_2d_wildcastle2_stone_missile
+    -- DigSpot:
+}
+
+return data

@@ -1,0 +1,30 @@
+{
+    "settings": {
+        "registryDependencies": [
+            {
+                "identifier": "Core",
+                "version": "^1.0.0"
+            },
+            {
+                "identifier": "GMUI",
+                "version": "^1.0.0"
+            },
+            {
+                "identifier": "Bank",
+                "version": "^1.0.0"
+            },
+            {
+                "identifier": "Meta",
+                "version": "^1.0.0"
+            },
+            {
+                "identifier": "DFServer",
+                "version": "^0.1.0"
+            },
+            {
+                "identifier": "DFShop",
+                "version": "^0.1.0"
+            }
+        ]
+    }
+}

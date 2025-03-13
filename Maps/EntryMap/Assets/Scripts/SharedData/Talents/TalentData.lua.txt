@@ -1,0 +1,123 @@
+local Modifier = require("SharedData/Class/Modifier")
+
+local TalentData = {}
+
+---@class Talent
+---@field Key string
+---@field Icon string
+---@field DisplayName string
+---@field Description string
+---@field Modifier Modifier
+---@field ModifierTarget MODIFIER_TARGET
+
+---@type table<Talent>
+TalentData.Talents = {
+    -- {
+    --     Key = "gold_income",
+    --     Icon = DCEI.Texture("talent_bonus_gold_pocketquest"),
+    --     DisplayName = "Gold Income",
+    --     Description = "Gain a boost to your gold income",
+    --     Modifier = Modifier.New(STAT.GoldIncome, 1, SCALING.Scaled),
+    --     ModifierTarget = MODIFIER_TARGET.Camp,
+    -- },
+    -- {
+    --     Key = "exp_income",
+    --     Icon = DCEI.Texture("talent_bonus_xp_pocketquest"),
+    --     DisplayName = "Experience Boost",
+    --     Description = "Gain a boost to your experience gain",
+    --     Modifier = Modifier.New(STAT.ExperienceMultiplier, 0.10, SCALING.Scaled),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    -- {
+    --     Key = "cool_down_reduction",
+    --     Icon = DCEI.Texture("talent_skill_cooldown"),
+    --     DisplayName = "Cool Down Reduction",
+    --     Description = "Reduce cool down time on your abilities",
+    --     Modifier = Modifier.New(STAT.AttackSpeed, 0.10, SCALING.Scaled),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    -- {
+    --     Key = "range",
+    --     Icon = DCEI.Texture("cartoon_icon_thumbnail_archeryrange_castle2"),
+    --     DisplayName = "Range",
+    --     Description = "Increase range of your attacks",
+    --     Modifier = Modifier.New(STAT.SkillRange, 0.10, SCALING.Additive),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    -- {
+    --     Key = "move_speed",
+    --     Icon = DCEI.Texture("cartoon_icon_trinket_speed_boots_mergewar"),
+    --     DisplayName = "Move Speed",
+    --     Description = "Increase the speed you move",
+    --     Modifier = Modifier.New(STAT.MoveSpeed, 0.10, SCALING.Additive),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    -- {
+    --     Key = "archer_attack",
+    --     Icon = DCEI.Texture("talent_archer_damage"),
+    --     DisplayName = "Archer Attack",
+    --     Description = "Improves archers attack damage",
+    --     Modifier = Modifier.New(STAT.Damage, 0.20, SCALING.Additive, { SKILL_TAG.Archer }),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    -- {
+    --     Key = "archer_attack_speed",
+    --     Icon = DCEI.Texture("talent_archer_attack_speed"),
+    --     DisplayName = "Archer Attack Speed",
+    --     Description = "Improves the rate your archers attack at",
+    --     Modifier = Modifier.New(STAT.AttackSpeed, 0.20, SCALING.Scaled, { SKILL_TAG.Archer }),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    {
+        Key = "hero_damage",
+        Icon = DCEI.Texture("general_icon_prestige_talent_summon_castle"),
+        DisplayName = "Hero Damage",
+        Description = "Gain a boost to your hero's damage",
+        Modifier = Modifier.New(STAT.Damage, 0.30, SCALING.Additive),
+        ModifierTarget = MODIFIER_TARGET.Hero,
+    },
+    -- {
+    --     Key = "hero_health",
+    --     Icon = DCEI.Texture("general_icon_prestige_talent_summon_life5_castle"),
+    --     DisplayName = "Hero Health",
+    --     Description = "Gain a boost to your hero's health",
+    --     Modifier = Modifier.New(STAT.Health, 0.20, SCALING.Additive),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    -- {
+    --     Key = "hero_regen",
+    --     Icon = DCEI.Texture("general_icon_prestige_talent_summon_time5_castle"),
+    --     DisplayName = "Hero Regen",
+    --     Description = "Gain a boost to your hero's health regeneration",
+    --     Modifier = Modifier.New(STAT.HealthRegeneration, 1, SCALING.Scaled),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+    -- {
+    --     Key = "base_health",
+    --     Icon = DCEI.Texture("talent_castle_defense"),
+    --     DisplayName = "Base Health",
+    --     Description = "Increase your buildings health",
+    --     Modifier = Modifier.New(STAT.Health, 0.10, SCALING.Additive),
+    --     ModifierTarget = MODIFIER_TARGET.Camp,
+    -- },
+    -- {
+    --     Key = "projectile_speed",
+    --     Icon = DCEI.Texture("talent_range_bonus"),
+    --     DisplayName = "Projectile Speed",
+    --     Description = "Increase speed of fired projectiles",
+    --     Modifier = Modifier.New(STAT.ProjectileSpeed, 0.10, SCALING.Additive),
+    --     ModifierTarget = MODIFIER_TARGET.Hero,
+    -- },
+}
+
+---@return Talent
+function TalentData.GetTalent(key)
+    for _, talent in ipairs(TalentData.Talents) do
+        if talent.Key == key then
+            return talent
+        end
+    end
+    return TalentData.Talents[1]
+end
+
+return TalentData

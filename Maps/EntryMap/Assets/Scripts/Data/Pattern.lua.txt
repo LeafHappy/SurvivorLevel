@@ -1,0 +1,151 @@
+local Vector2 = require("Class/Vector2")
+
+local Pattern = {}
+
+---Generates a number (n) of positions on a line segment between a and b.
+---@param a Vector2
+---@param b Vector2
+---@param count integer
+---@return table<Vector2>
+function Pattern.Line(a, b, count)
+    local t = {}
+    for i = 1, count do
+        local ratio = (i - 1) / (count - 1)
+        table.insert(t, Vector2.Lerp(a, b, ratio))
+    end
+    return t
+end
+
+---Generates evenly-spaced positions on the edge of an ellipse.
+---@param origin Vector2
+---@param width number | nil Default: 1
+---@param height number | nil Default: 1
+---@param count integer | nil Default: 1
+---@param starting_rotation number | nil Default: 0 (Right)
+---@param ending_rotation number | nil Default: 6.28 (Complete Circle)
+---@return table<Vector2>
+function Pattern.EllipseEdge(origin, width, height, count, starting_rotation, ending_rotation)
+    width = width or 1
+    height = height or 1
+    count = count or 1
+    starting_rotation = starting_rotation or 0
+    ending_rotation = ending_rotation or (2 * math.pi)
+
+    local t = {}
+
+    -- Check if complete circle
+    if ending_rotation % (2 * math.pi) == 0 then
+        local angle_step = (ending_rotation - starting_rotation) / count
+        for i = 0, count - 1 do
+            local angle = starting_rotation + angle_step * i
+            table.insert(t, origin + Vector2.New(width * math.cos(angle), height * math.sin(angle)))
+        end
+    else
+        local angle_step = (ending_rotation - starting_rotation) / (count - 1)
+
+        for i = 0, count - 1 do
+            local angle = starting_rotation + angle_step * i
+            table.insert(t, origin + Vector2.New(width * math.cos(angle), height * math.sin(angle)))
+        end
+    end
+
+    return t
+end
+
+---Generates an set of positions in the shape of an arrow.
+---@param origin Vector2 Center position of the Arrow.
+---@param width number The Width of the Arrow
+---@param density number | nil Default: 2 (number of positions created per 1 distance)
+---@param angle number | nil Default: 0 (Right)
+---@return table<Vector2>
+function Pattern.Arrow(origin, width, density, angle)
+    density = density or 2
+    angle = angle or 0
+
+    local back_position = Vector2.New(origin.x - width / 2, origin.y)
+    local front_position = Vector2.New(origin.x + width / 2, origin.y)
+    local count = math.floor(width * density)
+    local t = Pattern.Line(back_position, front_position, count)
+
+    local point = t[#t]
+    local top_line = Pattern.Line(point, Vector2.RotateAround(origin, -45, point), count / 2)
+    table.remove(top_line, 1) -- Prevent Overlap on Point
+    for i = 1, #top_line do
+        table.insert(t, top_line[i])
+    end
+
+    local bot_line = Pattern.Line(point, Vector2.RotateAround(origin, 45, point), count / 2)
+    table.remove(bot_line, 1) -- Prevent Overlap on Point
+    for i = 1, #bot_line do
+        table.insert(t, bot_line[i])
+    end
+
+    local r = {}
+    for i = 1, #t do
+        table.insert(r, Vector2.RotateAround(t[i], angle, origin))
+    end
+
+    return r
+end
+
+---Generates a grid of evenly spaced positions.
+---@param origin Vector2
+---@param x_count integer
+---@param y_count integer
+---@param x_spacing number
+---@param y_spacing number
+---@return table<Vector2>
+function Pattern.Grid(origin, x_count, y_count, x_spacing, y_spacing)
+    local starting_position = origin - Vector2.New((x_count - 1) * x_spacing / 2, (y_count - 1) * y_spacing / 2)
+
+    local t = {}
+    for i = 1, x_count do
+        local x = (i - 1) * x_spacing
+        for j = 1, y_count do
+            local y = (j - 1) * y_spacing
+            table.insert(t, starting_position + Vector2.New(x, y))
+        end
+    end
+    return t
+end
+
+Pattern.Random = {}
+
+---Generates a random set of points inside of an ellipse.
+---@param origin Vector2
+---@param count integer
+---@param angle number | nil
+---@param width number| nil
+---@param height number| nil
+---@param distance number| nil
+---@param offset number| nil
+---@param radius number| nil
+---@return table<Vector2>
+function Pattern.Random.PointsInEllipse(origin, count, angle, width, height, distance, offset, radius)
+    angle = angle or 0
+    width = width or 1
+    height = height or 1
+    distance = distance or 0
+    offset = offset or 0
+    radius = radius or 1
+
+    local t = {}
+    for i = 1, count, 1 do
+        local a = DCEI.Random(0, 1) * math.pi * 2
+        local r = math.sqrt(DCEI.Random(0, 1) * radius)
+        local v = Vector2.New((height * math.cos(a) * r) + distance, (width * math.sin(a) * r) + offset)
+
+        table.insert(t, origin + Vector2.RotateAround(v, angle))
+    end
+
+    return t
+end
+
+---Generates a random position on a line segment from a to b.
+---@param a Vector2
+---@param b Vector2
+function Pattern.Random.Line(a, b)
+    return Vector2.Lerp(a, b, DCEI.Random(0, 1))
+end
+
+return Pattern

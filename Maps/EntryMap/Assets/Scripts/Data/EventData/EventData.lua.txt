@@ -1,0 +1,33 @@
+---@class EventData
+---@field SpawnSettings EventData.SpawnSettings
+---@field AppliedBehaviors table<Behavior>
+---@field DeathSettings EventData.DeathSettings
+---@field DisplaySettings EventData.DisplaySettings
+---@field WarningSettings EventData.WarningSettings
+---@field EffectTriggers table<Effect>
+
+-- See what is shared between the different EventData types
+
+---@class EventData.SpawnSettings
+---@field BaseSpawnPositionType EVENT_SPAWN_BASE
+---@field Offset nil | Vector2 Fixed Offset from the Base Spawn Position
+---@field Distance nil | number | Vector2 Random Spawn Position away from the Base Spawn Position
+
+---@class EventData.DeathSettings
+---@field Delay number The Delay before triggering DeathEffects (typically for animation purposes)
+---@field DeathEffects table<Effect> Effects to trigger on Death
+---@field DropTable DropTable The Drop Table to use for Loot
+
+---@class EventData.DisplaySettings
+---@field ModelScale number The Scale of the Model
+---@field ShowOffscreenIndicator boolean Show the Offscreen Indicator
+---@field Icon Texture The Icon to display on the Offscreen Indicator
+---@field ShowHealth boolean Show the Health Bar
+
+---@class EventData.WarningSettings
+---@field Message string
+---@field Duration number
+
+local Data = {}
+
+return Data

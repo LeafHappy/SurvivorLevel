@@ -1,0 +1,223 @@
+---@class SkillTagData
+---@field Icon string
+---@field HideInPauseMenu boolean | nil
+
+---@table<SkillTagData>
+local SkillTagData = {
+    Default = {
+        HideInPauseMenu = true,
+        Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+        DisplayName = "Unknown",
+    },
+
+    ---============================================================================
+    -- SECTION -- Delivery Types (Type 1)
+    ---============================================================================
+
+    [SKILL_TAG.Attack] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        DisplayName = "Attack",
+    },
+    [SKILL_TAG.Aura] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_aura_survivor"),
+        DisplayName = "Aura",
+    },
+    [SKILL_TAG.Cooldown] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_cooldown_survivor"),
+        DisplayName = "Cooldown",
+    },
+    [SKILL_TAG.Summon] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_summon_survivor"),
+        DisplayName = "Summon",
+    },
+    [SKILL_TAG.Trigger] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_trigger_survivor"),
+        DisplayName = "Trigger",
+    },
+
+    ---============================================================================
+    -- !SECTION -- Delivery Types (Type 1)
+    -- SECTION -- Damage Types (Type 2)
+    ---============================================================================
+
+    [SKILL_TAG.Physical] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_physical_survivor"),
+        DisplayName = "Physical",
+    },
+    [SKILL_TAG.Fire] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_fire_survivor"),
+        DisplayName = "Fire",
+    },
+    [SKILL_TAG.Cold] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_cold_survivor"),
+        DisplayName = "Cold",
+    },
+    [SKILL_TAG.Shock] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_shock_survivor"),
+        DisplayName = "Shock",
+    },
+    [SKILL_TAG.Toxic] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_toxic_survivor"),
+        DisplayName = "Toxic",
+    },
+    [SKILL_TAG.Void] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_void_survivor"),
+        DisplayName = "Void",
+    },
+
+    ---============================================================================
+    -- !SECTION -- Damage Types (Type 2)
+    -- SECTION -- Active Skill Types (Type 3)
+    ---============================================================================
+
+    -- New
+    [SKILL_TAG.MarkedForDeath] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_marked_death_survivor"),
+        DisplayName = "Marked for Death",
+    },
+    [SKILL_TAG.Strafe] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_strafe_survivor"),
+        DisplayName = "Strafe",
+    },
+    [SKILL_TAG.IceBarrage] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_barrage_survivor"),
+        DisplayName = "Ice Barrage",
+    },
+    [SKILL_TAG.GuardianShield] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
+        DisplayName = "Guardian Shield",
+    },
+    [SKILL_TAG.Fireball] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+        DisplayName = "Fireball",
+    },
+    [SKILL_TAG.Heatwave] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_flamebreak_survivor"),
+        DisplayName = "Heatwave",
+    },
+    [SKILL_TAG.TeslaField] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_chilling_presence_survivor"),
+        DisplayName = "Tesla Field",
+    },
+    [SKILL_TAG.LightningStrike] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_lightning_storm_survivor"),
+        DisplayName = "Lightning Strike",
+    },
+    [SKILL_TAG.Bash] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_bash_survivor"),
+        DisplayName = "Bash",
+    },
+    [SKILL_TAG.Boomerang] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+        DisplayName = "Boomerang",
+    },
+    [SKILL_TAG.MagmaOrb] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_magma_orb_survivor"),
+        DisplayName = "Magma Orb",
+    },
+    [SKILL_TAG.IceBarrage] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_barrage_survivor"),
+        DisplayName = "Ice Barrage",
+    },
+    [SKILL_TAG.IceRupture] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+        DisplayName = "Ice Rupture",
+    },
+    [SKILL_TAG.GlacialExpansion] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
+        DisplayName = "Ice Rupture",
+    },
+    [SKILL_TAG.Frostfang] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_frostfang_survivor"),
+        DisplayName = "Frostfang",
+    },
+    [SKILL_TAG.Hibernation] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_frostfang_survivor"),
+        DisplayName = "Frostfang",
+    },
+    [SKILL_TAG.StaticRemnants] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_static_remnants_survivor"),
+        DisplayName = "Static Remnants",
+    },
+    [SKILL_TAG.Chakram] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_chakram2_survivor"),
+        DisplayName = "Chakram",
+    },
+
+    -- Old
+
+    [SKILL_TAG.BladeTrap] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+        DisplayName = "Blade Trap",
+    },
+    [SKILL_TAG.ScarletArrow] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_scarlet_arrow_survivor"),
+        DisplayName = "Scarlet Arrow",
+    },
+    [SKILL_TAG.OrbitalShield] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+        DisplayName = "Orbital Shield",
+    },
+    [SKILL_TAG.Boomerang] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_boomerang_survivor"),
+        DisplayName = "Boomerang",
+    },
+    [SKILL_TAG.Pyroclasm] = {
+        Icon = DCEI.Texture("cartoon_icon_skill_pyroclasm_survivor"),
+        DisplayName = "Pyroclasm",
+    },
+
+    ---============================================================================
+    -- !SECTION -- Active Skill Types (Types 3)
+    -- SECTION -- Mechanic / Thematic (Type 4)
+    ---============================================================================
+
+    -- New
+    [SKILL_TAG.Area] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_aura_survivor"),
+        DisplayName = "Area",
+    },
+
+    -- Current
+
+    [SKILL_TAG.Precision] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_precision_survivor"),
+        DisplayName = "Precision",
+    },
+    [SKILL_TAG.Trap] = {
+        Icon = DCEI.Texture("skill_tag_trap"),
+        DisplayName = "Trap",
+    },
+    [SKILL_TAG.Resolve] = {
+        Icon = DCEI.Texture("skill_tag_resolve"),
+        DisplayName = "Resolve",
+    },
+    [SKILL_TAG.Fury] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_fury_survivor"),
+        DisplayName = "Fury",
+    },
+    [SKILL_TAG.Explosive] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_explosive_survivor"),
+        DisplayName = "Explosive",
+    },
+    [SKILL_TAG.Travel] = {
+        Icon = DCEI.Texture("cartoon_icon_tag_delivery_survivor"),
+        DisplayName = "Travel",
+    },
+
+    -- Others (old)
+    [SKILL_TAG.Burst] = {
+        Icon = DCEI.Texture("skill_tag_burst"),
+        DisplayName = "Burst",
+    },
+    [SKILL_TAG.Recharge] = {
+        Icon = DCEI.Texture("skill_tag_recharge"),
+        DisplayName = "Recharge",
+    },
+
+    ---============================================================================
+    -- !SECTION -- Mechanic / Thematic (Type 4)
+    ---============================================================================
+}
+
+return SkillTagData

@@ -1,0 +1,308 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.IceBarrage = {
+    Key = "IceBarrage",
+
+    -- UI Information
+    DisplayName = "Ice Barrage",
+    ShortDescription = "Release a series of ice forwards.",
+    Icon = DCEI.Texture("cartoon_icon_skill_ice_barrage_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.IceBarrage,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Ice Barrage"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 3.00, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.ProjectileCount, 12, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.Frequency, 0.0625, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+
+                -- Projectile
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.ProjectileSpeed, 16.00, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.SkillSize, 0.35, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.SkillRange, 8, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+
+                -- Impact
+                Modifier.New(STAT.Damage, 15, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.CriticalMultiplier, 1.50, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.SlowEffectiveness, 0.10, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.SlowDuration, 3, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+                Modifier.New(STAT.Stagger, 1, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+
+                -- Reset Extras
+                Modifier.New(STAT.Break, 0, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.IceBarrage] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.IceBarrage,
+
+            -- Exposed Tags
+            SKILL_TAG.Cold,
+            SKILL_TAG.Attack,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.Permafrost = {
+    Key = "Permafrost",
+
+    -- UI Information
+    DisplayName = "Permafrost",
+    ShortDescription = "Cold Skills gain Increased Damage.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_timemagehero_skill_frostshield"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Cold,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.IceBarrage,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.20, SCALING.Additive, { SKILL_TAG.Cold }),
+                -- Modifier.New(STAT.SlowDuration, 0.20, SCALING.Additive, { SKILL_TAG.Cold }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ColdShoulder = {
+    Key = "ColdShoulder",
+
+    -- UI Information
+    DisplayName = "Cold Shoulder",
+    ShortDescription = "Attack Skills gain increased Speed.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_skill_chill"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Attack,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.IceBarrage,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                -- Modifier.New(STAT.CriticalChance, 0.05, SCALING.Scaled, { SKILL_TAG.Attack }),
+                Modifier.New(STAT.ProjectileSpeed, 0.15, SCALING.Additive, { SKILL_TAG.Attack }),
+                -- Modifier.New(STAT.ProjectileDistance, 0.10, SCALING.Additive, { SKILL_TAG.Attack }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+-- Gain +1 Projectile per Cold Skill Tag Level
+-- Launches half of the projectiles in the opposite direction
+-- Projectiles have a 20% Chance to Riccochet off of enemies.
+
+Data.IceFracture = {
+    Key = "IceFracture",
+
+    -- UI Information
+    DisplayName = "Ice Fracture",
+    ShortDescription = "Ice Barrage Projectiles have a Chance to Riccochet.",
+    Icon = DCEI.Texture("cartoon_icon_skill_ice_barrage_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.IceBarrage,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.IceBarrage,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Chance, 0.33, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- Data.Frostbite = {
+--     Key = "Frostbite",
+
+--     -- UI Information
+--     DisplayName = "Frostbite",
+--     ShortDescription = "Ice Barrage Projectiles cause enemies to take more damage.",
+--     Icon = DCEI.Texture("cartoon_icon_skill_ice_barrage_survivor"),
+
+--     -- Skill Information
+--     MaxLevel = 1,
+--     Type = SKILL_TYPE.Unique,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.IceBarrage,
+--     },
+--     Requirements = {
+--         {
+--             Tag = SKILL_TAG.IceBarrage,
+--         },
+--     },
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {
+--                 Modifier.New(STAT.Break, 2, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+--                 Modifier.New(STAT.DebuffDuration, 3, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+--             },
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {},
+--     RemoveStatInheritance = {},
+-- }
+
+Data.SnowPiercer = {
+    Key = "SnowPiercer",
+
+    -- UI Information
+    DisplayName = "Snow Piercer",
+    ShortDescription = "Ice Barrage Projectiles can hit an additional target.",
+    Icon = DCEI.Texture("cartoon_icon_skill_ice_barrage_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.IceBarrage,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.IceBarrage,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.IceBarrage }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

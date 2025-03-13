@@ -1,0 +1,39 @@
+--LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local ui = GMUI.ui
+
+-- SCRIPTS
+local FlyingRewards = require("UiMeta/FlyingRewards")
+local PostGameRewards = require("UiMeta/PostGameRewards")
+local DataManager = require("UiMeta/DataManager")
+local StageData = require("SharedData/Stages/StageData")
+
+-- MODULE
+local layout = GMUI.LazyLayout.New({
+    name = "Meta/DebugPanel",
+    parent = ui.z3.Upper,
+})
+
+-- LAYOUT FUNCTIONS
+function layout:Initialize()
+    -- Setup dev buttons
+    DCEI.SetOnClickCallback(self.Reset, function() 
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        DataManager.SetCurrentStage(4)
+        DataManager.Save()
+    end)
+
+    DCEI.SetOnClickCallback(self.SpawnGold, function() 
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        FlyingRewards.SpawnRewards(TRACKED_STATS.Gold, 20, 100)
+    end)
+    DCEI.SetOnClickCallback(self.SpawnGems, function() 
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        FlyingRewards.SpawnRewards(TRACKED_STATS.Gems, 20, 100)
+    end)
+    layout:Show()
+end
+
+-- EXPORT
+return layout

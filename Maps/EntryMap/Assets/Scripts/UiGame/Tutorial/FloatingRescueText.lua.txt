@@ -1,0 +1,48 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- LOCAL VARIABLES
+local floating_texts = {}
+
+-- LOCAL FUNCTIONS
+local function NewFloatingRescueText(_, unit)
+    local layout = GMUI.Layout.New({
+        name = "Tutorial/FloatingRescueText",
+    })
+    table.insert(floating_texts, layout)
+
+    -- attach layout to the given unit
+    local options = {
+        center_at_unit_top = true,
+        offset = { up = 1.2 },
+    }
+    DCEI.AttachFrameToUnit(layout.Frame, unit, options)
+
+    -- start looping animation
+    local k1, k2 = -10, 10
+    local duration = 1
+    local ease = "InOutSine"
+    local anim = DCEI.AnimateFrameVerticalOffset(layout.Anchor, k1, k2, duration, ease)
+    DCEI.SetFrameAnimationLoops(anim, -1, "Yoyo")
+end
+
+local function ClearFloatingRescueText()
+    for _, layout in ipairs(floating_texts) do
+        -- fade out text quickly
+        local k1, k2 = 1, 0
+        local duration = 0.1
+        local ease = "Linear"
+        DCEI.AnimateFrameAlpha(layout.Frame, k1, k2, duration, ease)
+
+        -- then destroy the layout
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            layout:Destroy()
+        end, duration)
+    end
+    floating_texts = {}
+end
+
+-- EVENTS
+Core.Event.RegisterPresentationEvent("UiGame.Tutorial.NewFloatingRescueText", NewFloatingRescueText)
+Core.Event.RegisterPresentationEvent("UiGame.Tutorial.ClearFloatingRescueText", ClearFloatingRescueText)

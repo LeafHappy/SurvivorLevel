@@ -1,0 +1,115 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- DATA
+local QuestData = require("Meta/Quest/QuestData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+---@class QuestGuide
+local QuestGuide = {}
+local is_initialized = false
+local quest_entries = {}
+
+-- CONSTANTS
+local FINISHED = -1
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---@param quest_data QuestLine
+---@param is_complete boolean
+local function CreateQuestEntry(quest_data, is_complete)
+    local quest_entry = GMUI.Layout.New({
+        name = "Meta/QuestGuide/Entry",
+        parent = QuestGuide.layout.List,
+    })
+
+    quest_entry.state.display_name = quest_data.display_name
+    quest_entry.state.is_completed = is_complete
+
+    table.insert(quest_entries, quest_entry)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function QuestGuide.Initialize()
+    if is_initialized then
+        return
+    end
+
+    QuestGuide.layout = GMUI.Layout.New({
+        name = "Meta/QuestGuide",
+        parent = GMUI.ui.z2.Lower,
+    })
+
+    -- Setup close button
+    DCEI.SetOnClickCallback(QuestGuide.layout.close.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        QuestGuide.layout:Hide()
+    end)
+
+    -- Setup clicking outside to close
+    DCEI.SetOnClickOutsideCallback(QuestGuide.layout.Popup, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        QuestGuide.layout:Hide()
+    end)
+
+    is_initialized = true
+end
+
+---@param quest_save_data table
+function QuestGuide.Open(quest_save_data)
+    if not is_initialized then
+        QuestGuide.Initialize()
+    end
+
+    for _, entry in ipairs(quest_entries) do
+        entry:Destroy()
+    end
+    quest_entries = {}
+
+    for key, data in pairs(quest_save_data) do
+        if key == "quest_queue" then
+            -- Show queue?
+        else
+            local quest_data = QuestData.GetQuestData(key)
+            if quest_data then
+                local is_complete = data.step == FINISHED
+                CreateQuestEntry(quest_data, is_complete)
+            end
+        end
+    end
+
+    QuestGuide.layout:Show()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Meta.QuestGuide.Open", QuestGuide.Open)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return QuestGuide

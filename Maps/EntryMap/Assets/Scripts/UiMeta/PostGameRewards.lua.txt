@@ -1,0 +1,108 @@
+-- LIBARARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local ui = GMUI.ui
+local UiHelper = GMUI.UiHelper
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local DataManager = require("UiMeta/DataManager")
+local FlyingRewards = require("UiMeta/FlyingRewards")
+local Queue = require("Class/Queue")
+local StageData = require("SharedData/Stages/StageData")
+local ResourceDisplay = require("UiCamp/ResourceDisplay")
+
+-- CONSTANTS
+local INPUT_KEY = "post_game_rewards_animation"
+
+-- MODULE
+local PostGameRewards = {}
+local stages = Queue.New()
+local local_rewards = {}
+
+-- Plays next stage in queue. If empty, hide ui
+local function AdvanceStage()
+    if stages:Length() <= 0 then
+        PostGameRewards.Hide()
+        return
+    end
+
+    local stage = stages:PopLeft()
+    stage()
+end
+
+local function SpawnFlyingRewards()
+    local reward_data = local_rewards or {}
+
+    -- Animate each rewards explosion
+    local reward_delay = 0.5
+    local iteration = 0
+    for reward, amount in pairs(reward_data) do
+        -- Schedule new reward animation
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            FlyingRewards.SpawnRewards(reward, amount, 100)
+        end, reward_delay * iteration)
+
+        -- Increment current iteration
+        iteration = iteration + 1
+    end
+
+    -- After all rewards, step the animation stage
+    local duration = reward_delay * iteration
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        AdvanceStage()
+    end, duration)
+end
+
+function PostGameRewards.UpdateBossProgress()
+    -- Check if we should unlock next difficulty of stage
+    local selected_stage = DataManager.GetSelectedStage()
+    local current_difficulty = DataManager.GetCurrentDifficulty(selected_stage)
+    local selected_difficulty = DataManager.GetSelectedDifficulty(selected_stage)
+    if selected_difficulty >= current_difficulty then
+        local next_difficulty = current_difficulty + 1
+        DataManager.SetCurrentDifficulty(selected_stage, next_difficulty)
+    end
+
+    -- Check if we should unlock next stage
+    local current_stage = DataManager.GetCurrentStage()
+    if selected_stage >= current_stage then
+        -- Set stage progression to next stage
+        local next_stage = selected_stage + 1
+        DataManager.SetCurrentStage(next_stage)
+    end
+end
+
+-- Order. Event : Condition
+-- 1. Boss poster destroyed : next boss defeated
+-- 2. Flying rewards : rewards earned
+-- 3. New boss poster created : next boss defeated
+function PostGameRewards.Show(rewards)
+    GMUI.InputState.BlockUserInput(INPUT_KEY)
+
+    -- Clear old animation stages
+    stages:Clear()
+    local_rewards = rewards or {}
+
+    -- Add flying rewards animation if we have rewards
+    if rewards then
+        stages:PushRight(SpawnFlyingRewards)
+    end
+
+    -- Step to first stage
+    AdvanceStage()
+end
+
+function PostGameRewards.Hide()
+    GMUI.InputState.UnblockUserInput(INPUT_KEY)
+
+    if PostGameRewards.is_victory then
+        PostGameRewards.UpdateBossProgress()
+    end
+
+    -- Check to start trophy road tutorial
+    -- ui.camp.trophy_road.TryPlayTrophyRoadTutorial()
+end
+
+-- EXPORT
+return PostGameRewards

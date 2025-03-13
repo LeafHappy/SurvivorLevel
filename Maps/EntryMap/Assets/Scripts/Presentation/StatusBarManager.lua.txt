@@ -1,0 +1,161 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local Help = require("UiHelp")
+
+-- MODULE
+local StatusBarManager = {}
+
+-- CONSTANTS
+local LOW_HEALTH = { r = 0.97, g = 0.17, b = 0.06, a = 1 }
+local MODERATE_HEALTH = { r = 0.97, g = 0.94, b = 0.07, a = 1 }
+local FULL_HEALTH = { r = 0.52, g = 0.97, b = 0.06, a = 1 }
+
+local PLAYER_HEALTH_GRADIENT = {
+    LOW_HEALTH,
+    LOW_HEALTH,
+    MODERATE_HEALTH,
+    FULL_HEALTH,
+    FULL_HEALTH,
+}
+
+-- LOCAL VARIABLES
+local status_bars = {}
+
+-- LOCAL FUNCTIONS
+local function Remap(value, current_min, current_max, new_min, new_max)
+    return new_min + (value - current_min) * (new_max - new_min) / (current_max - current_min)
+end
+
+local function ColorLerp(color1, color2, fraction)
+    return {
+        r = Core.Math.Lerp(color1.r, color2.r, fraction),
+        g = Core.Math.Lerp(color1.g, color2.g, fraction),
+        b = Core.Math.Lerp(color1.b, color2.b, fraction),
+        a = Core.Math.Lerp(color1.a, color2.a, fraction),
+    }
+end
+
+local function GradientLerp(colors, fraction)
+    if #colors == 2 then
+        return ColorLerp(colors[1], colors[2], fraction)
+    else
+        local chunks = #colors - 1
+        local chunk_fraction = 1 / chunks
+        local target_chunk = math.min(1 + math.floor(fraction / chunk_fraction), chunks)
+
+        local color1 = colors[target_chunk]
+        local color2 = colors[target_chunk + 1]
+
+        local chunk_start = chunk_fraction * (target_chunk - 1)
+        local chunk_end = chunk_fraction * target_chunk
+        local remap = Remap(fraction, chunk_start, chunk_end, 0, 1)
+
+        return GradientLerp({ color1, color2 }, remap)
+    end
+end
+
+local function GetHealthBarColor(fraction)
+    return GradientLerp(PLAYER_HEALTH_GRADIENT, fraction)
+    -- local r = Core.Math.Lerp(LOW_HEALTH.r, FULL_HEALTH.r, fraction)
+    -- local g = Core.Math.Lerp(LOW_HEALTH.g, FULL_HEALTH.g, fraction)
+    -- return { r = r, g = g, b = 0.06, a = 1 }
+end
+
+local function OnPresentationUpdate()
+    for unit_ref, status_data in pairs(status_bars) do
+        local unit = status_data.unit
+        if unit and DCEI.UnitIsAlive(unit) then
+            -- check to update status bars with dynamic color
+            local use_dynamic_color = status_data.has_dynamic_color
+            if use_dynamic_color then
+                local current, max = DCEI.GetHealth(unit), DCEI.GetMaxHealth(unit)
+                local fraction = current / max
+                local color = GetHealthBarColor(fraction)
+                DCEI.SetFrameImageColor(status_data.layout.Fill, color)
+            end
+        else
+            -- destroy the status bar if its unit is dead
+            status_bars[unit_ref].layout:Destroy()
+            status_bars[unit_ref] = nil
+        end
+    end
+end
+
+local function CreateStatusBar(unit_ref, xml_name)
+    local layout = GMUI.Layout.New({ name = xml_name })
+
+    -- attach status bar to unit
+    local unit = GMUI.GetUnitFromUnitReference(unit_ref)
+    local args = { center_at_unit_origin = true, offset = { up = 2.0 } }
+    DCEI.AttachFrameToUnit(layout.Frame, unit, args)
+
+    -- bind health bar to unit
+    DCEI.BindUnitData(unit_ref, unit)
+    DCEI.SetFrameImageFillAmountExpression(layout.Mask, unit_ref .. ".Health.Fraction")
+
+    -- track status bar so we can update it on presentation update
+    status_bars[unit_ref] = { unit = unit, layout = layout }
+
+    return status_bars[unit_ref]
+end
+
+-- MODULE FUNCTIONS
+function StatusBarManager.NewHeroStatus(unit_ref)
+    local xml_name = "Common/StatusBar"
+    local new_status_bar = CreateStatusBar(unit_ref, xml_name)
+    new_status_bar.has_dynamic_color = true
+end
+
+function StatusBarManager.NewEnemyStatus(unit_ref)
+    local xml_name = "Common/StatusBar/Enemy"
+    CreateStatusBar(unit_ref, xml_name)
+end
+
+function StatusBarManager.NewEliteStatus(unit_ref)
+    local xml_name = "Common/StatusBar/Elite"
+    CreateStatusBar(unit_ref, xml_name)
+end
+
+function StatusBarManager.NewBossStatus(unit_ref)
+    local xml_name = "Common/StatusBar/Enemy"
+    CreateStatusBar(unit_ref, xml_name)
+end
+
+function StatusBarManager.NewEventStatus(unit_ref)
+    local xml_name = "Common/StatusBar/Event"
+    CreateStatusBar(unit_ref, xml_name)
+end
+
+function StatusBarManager.UpdateOverheadStagger(data)
+    if not status_bars[data.unit] then
+        return
+    end
+
+    local unit_ref = data.unit
+    local layout = status_bars[unit_ref].layout
+    DCEI.SetFrameImageFillAmount(layout.Stagger.Mask, data.fill_amount)
+end
+
+function StatusBarManager.ClearEventStatus(unit_ref)
+    if status_bars[unit_ref] then
+        status_bars[unit_ref].layout:Destroy()
+        status_bars[unit_ref] = nil
+    end
+end
+
+-- REGISTER EVENTS
+Core.Event.RegisterPresentationEvent("StatusBarManager.NewHeroStatus", StatusBarManager.NewHeroStatus)
+Core.Event.RegisterPresentationEvent("StatusBarManager.NewEnemyStatus", StatusBarManager.NewEnemyStatus)
+Core.Event.RegisterPresentationEvent("StatusBarManager.NewEliteStatus", StatusBarManager.NewEliteStatus)
+Core.Event.RegisterPresentationEvent("StatusBarManager.NewEventStatus", StatusBarManager.NewEventStatus)
+Core.Event.RegisterPresentationEvent("StatusBarManager.UpdateOverheadStagger", StatusBarManager.UpdateOverheadStagger)
+
+Core.Event.RegisterPresentationEvent("StatusBarManager.ClearEventStatus", StatusBarManager.ClearEventStatus)
+
+-- TRIGGERS
+DCEI.TriggerAddUpdateEvent(OnPresentationUpdate)
+
+-- EXPORT
+return StatusBarManager

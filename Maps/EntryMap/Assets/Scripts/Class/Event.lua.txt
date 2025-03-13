@@ -1,0 +1,69 @@
+---
+---### Observer Pattern
+---Used to generate Events that can be un/subscribed to.
+---
+---##### Example Usage (standard)
+---```lua
+---local OnEvent = Event.New()
+---
+---local function Print()
+---    DCEI.LogMessage("Message")
+---end
+---
+---OnEvent:Subscribe(Print)
+---OnEvent()
+---```
+---##### Example Usage (parameter)
+---```lua
+---local OnEvent = Event.New()
+---
+---local function Print(message)
+---    DCEI.LogMessage(message)
+---end
+---
+---OnEvent:Subscribe(Print)
+---OnEvent("Passed Message")
+---```
+---@class Event
+---@field _subscribers table
+---@operator call : function
+local Event = {}
+Event.__index = Event
+
+---Create a new Event.
+---@return Event
+function Event.New()
+    local self = setmetatable({}, Event)
+    self._subscribers = {}
+
+    return self
+end
+
+---Subscribe a Function to this Event.
+---NOTE: Functions can only be subscribed once.
+---@param fun any
+function Event:Subscribe(fun)
+    self._subscribers[fun] = true
+    return fun
+end
+
+---Unsubscribe a Function from this Event.
+---@param fun any
+function Event:Unsubscribe(fun)
+    self._subscribers[fun] = nil
+end
+
+---Calls all subscribed Functions.
+---@param ... unknown
+function Event:__call(...)
+    for fun, _ in pairs(self._subscribers) do
+        fun(...)
+    end
+end
+
+---Removes all Subscribers from this Event.
+function Event:Clear()
+    self._subscribers = {}
+end
+
+return Event

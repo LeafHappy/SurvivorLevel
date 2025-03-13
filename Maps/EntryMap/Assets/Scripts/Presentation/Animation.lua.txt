@@ -1,0 +1,385 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local AnimationBasic = require("Presentation/AnimationBasic")
+
+-- MODULE
+local Animation = {}
+
+-- FUNCTIONS
+-- ANCHOR Helpers
+local function CreateStar(end_pos, start_pos, offset_duration)
+    -- Create star ui
+    local star_layout = GMUI.Layout.New({
+        name = "Meta/Star",
+    })
+
+    -- Set starting position
+    local empty_offset = { right = 0, up = 0, front = 0 }
+    DCEI.MoveFrameToCanvasPosition(star_layout.Frame, start_pos, empty_offset)
+
+    DCEI.WaitForUiUpdateToComplete(function()
+        -- Scale image up to make it pop in
+        local k1 = { x = 0, y = 0, z = 0 }
+        local k2 = { x = 1, y = 1, z = 1 }
+        local duration = 0.25
+        local ease = "OutBack"
+        DCEI.AnimateFrameScale(star_layout.Frame, k1, k2, duration, ease)
+
+        -- Calculate offsets
+        local layout_pos = DCEI.GetFrameCanvasPosition3D(star_layout.Frame)
+        local offset = {
+            x = end_pos.x - layout_pos.x,
+            y = end_pos.y - layout_pos.y,
+        }
+        star_layout.offset = offset
+
+        -- Animate offsets towards target
+        local duration = offset_duration or 0.1875
+        local ease = "InCubic"
+        DCEI.AnimateFrameHorizontalOffset(star_layout.Anchor, 0, offset.x, duration, "Linear")
+        DCEI.AnimateFrameVerticalOffset(star_layout.Anchor, 0, offset.y, duration, ease)
+
+        -- Reset to final position and remove all offsets so it moves to display frame correct
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            DCEI.MoveFrameToCanvasPosition(star_layout.Frame, end_pos, empty_offset)
+            DCEI.SetFrameHorizontalOffsetInParent(star_layout.Anchor, 0)
+            DCEI.SetFrameVerticalOffsetInParent(star_layout.Anchor, 0)
+        end, duration)
+    end)
+
+    return star_layout
+end
+
+local function GetStarExplosionOffsets(stars_to_spawn)
+    local function AddOffsetForCount(offsets, on_count, radius, count)
+        local x = radius * math.cos(((on_count * 2 * math.pi) / count))
+        local y = radius * math.sin(((on_count * 2 * math.pi) / count))
+        table.insert(offsets, { x, y })
+    end
+
+    local max_stars_inner = 10
+    local offsets = {}
+
+    -- space points evenly around edge of circle
+    local r = 0.5 -- a decent offset radius
+    local count = math.min(stars_to_spawn, max_stars_inner)
+
+    for n = 0, count - 1 do
+        AddOffsetForCount(offsets, n, r, count)
+    end
+
+    -- create 2nd ring if max inner stars exceeded
+    if count == max_stars_inner then
+        count = stars_to_spawn - max_stars_inner
+        r = 0.875
+
+        for n = 0, count - 1 do
+            AddOffsetForCount(offsets, n, r, count)
+        end
+    end
+
+    return offsets
+end
+
+-- ANCHOR Simple Animations
+-- SLIDE
+function Animation.SlideHorizontal(frame, args)
+    args = args or {}
+
+    local d1 = args.start_pos or -200
+    local d2 = args.end_pos or 200
+    local duration = args.duration or 1.75
+    local ease = args.ease or "InSine"
+
+    local animation = DCEI.AnimateFrameHorizontalOffset(frame, d1, d2, duration, ease)
+    return animation
+end
+
+-- FADE
+function Animation.FadeIn(frame, duration)
+    return AnimationBasic.FadeIn(frame, duration)
+end
+
+function Animation.FadeOut(frame, duration)
+    return AnimationBasic.FadeOut(frame, duration)
+end
+
+-- POP
+function Animation.PopIn(frame, args)
+    return AnimationBasic.PopIn(frame, args)
+end
+
+function Animation.PopOut(frame, args)
+    return AnimationBasic.PopOut(frame, args)
+end
+
+-- STRETCH
+function Animation.StretchIn(frame, args)
+    return AnimationBasic.StretchIn(frame, args)
+end
+
+-- ANCHOR Complex Animations
+function Animation.PopAndFadeIn(frame)
+    AnimationBasic.FadeIn(frame)
+
+    local k1, k2 = -62, 0
+    local duration = 0.25
+    local ease = "OutSine"
+
+    DCEI.AnimateFrameVerticalOffset(frame, k1, k2, duration, ease)
+end
+
+function Animation.DropAndFadeOut(frame)
+    local k1, k2 = 0, -62
+    local duration = 0.25
+    local ease = "OutSine"
+
+    DCEI.AnimateFrameVerticalOffset(frame, k1, k2, duration, ease)
+    AnimationBasic.FadeOut(frame)
+end
+
+function Animation.TextFadeLoop(frame, args)
+    args = args or {}
+
+    local k1, k2 = 1, 0.25
+    local duration = 1.25
+    local ease = "InOutSine"
+    local anim = DCEI.AnimateFrameAlpha(frame, k1, k2, duration, ease)
+
+    local loops = -1
+    local loop_type = "Yoyo"
+    DCEI.SetFrameAnimationLoops(anim, loops, loop_type)
+end
+
+function Animation.RotationLoop(frame, args)
+    args = args or {}
+
+    local start_rot = args.start_rot or 0
+    local end_rot = args.start_rot or 15
+    local k1 = { x = 0, y = 0, z = start_rot }
+    local k2 = { x = 0, y = 0, z = end_rot }
+    local duration = args.duration or 0.75
+    local ease = args.ease or "Linear"
+    local anim = DCEI.AnimateFrameRotation(frame, k1, k2, duration, ease)
+
+    local loops = args.loop_count or -1
+    local loop_type = args.loop_type or "Incremental"
+    DCEI.SetFrameAnimationLoops(anim, loops, loop_type)
+end
+
+function Animation.StarExplosionAtFrame(frame, args)
+    args = args or {}
+
+    -- Create stars for explosion
+    local stars = {}
+    local star_amount = args.amount or 12
+    local max_multiplier = 280
+    local min_multiplier = 180
+
+    local offsets = GetStarExplosionOffsets(star_amount)
+    for _, offset in ipairs(offsets) do
+        if not DCEI.IsFrameActive(frame) then
+            goto continue
+        end
+
+        -- Get target position from frame and calculate the offset
+        local target_pos = DCEI.GetFrameCanvasPosition3D(frame)
+        local offset_multiplier = math.random(min_multiplier, max_multiplier)
+        local offset_pos = {
+            x = target_pos.x + (offset[1] * offset_multiplier),
+            y = target_pos.y + (offset[2] * offset_multiplier),
+        }
+
+        -- Get a random duration
+        local min_duration = 0.2
+        local max_duration = 0.5
+        local duration = math.random()
+        duration = math.max(duration, min_duration)
+        duration = math.min(duration, max_duration)
+
+        -- Create the star ui and add to list
+        local star = CreateStar(offset_pos, target_pos, duration)
+        star.duration = duration
+        table.insert(stars, star)
+
+        ::continue::
+    end
+
+    -- Move all star ui elements
+    local delay = 0.125
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        for _, star in pairs(stars) do
+            local duration = star.duration
+            AnimationBasic.FadeOut(star.Frame, duration)
+
+            GMUI.RunFunctionAfterTimeElapsed(function()
+                star:Destroy()
+            end, duration)
+        end
+    end, delay)
+end
+
+function Animation.Impact(frame, args)
+    args = args or {}
+
+    local start_size = args.start_size or 1
+    local final_size = args.final_size or 1.3
+    local k1 = { x = start_size, y = start_size, z = start_size }
+    local k2 = { x = final_size, y = final_size, z = final_size }
+    local duration = args.duration or 0.125
+    local ease = "OutSine"
+
+    local anim = DCEI.AnimateFrameScale(frame, k1, k2, duration, ease)
+    DCEI.SetFrameAnimationLoops(anim, 2, "Yoyo")
+end
+
+function Animation.HoverLoop(frame, args)
+    args = args or {}
+
+    local start_size = args.start_size or 1
+    local final_size = args.final_size or 1.025
+    local k1 = { x = start_size, y = start_size, z = start_size }
+    local k2 = { x = final_size, y = final_size, z = final_size }
+    local duration = args.duration or 1.25
+    local ease = "InOutSine"
+
+    local anim_scale = DCEI.AnimateFrameScale(frame, k1, k2, duration, ease)
+    local loops = args.loops or -1
+    DCEI.SetFrameAnimationLoops(anim_scale, loops, "Yoyo")
+
+    local k1, k2 = 0, args.end_height or 8
+    local ease = "InOutSine"
+
+    local anim_bob = DCEI.AnimateFrameVerticalOffset(frame, k1, k2, duration, ease)
+    local loops = args.loops or -1
+    DCEI.SetFrameAnimationLoops(anim_bob, loops, "Yoyo")
+
+    return anim_scale, anim_bob
+end
+
+function Animation.ShakeLoop(frame, args)
+    args = args or {}
+
+    local duration = args.duration or 0.125
+    local start_rot = args.start_rot or -2
+    local end_rot = args.end_rot or 2
+    local k1 = { x = 0, y = 0, z = start_rot }
+    local k2 = { x = 0, y = 0, z = end_rot }
+    local ease = "Linear"
+    local anim = DCEI.AnimateFrameRotation(frame, k1, k2, duration, ease)
+
+    DCEI.SetFrameAnimationLoops(anim, 2, "Yoyo")
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        local k1 = { x = 0, y = 0, z = 0 }
+        DCEI.AnimateFrameRotation(frame, k1, k1, 0, ease)
+    end, duration * 2)
+end
+
+function Animation.ShakeFrame(frame, args)
+    args = args or {}
+
+    local loops = args.loop_count or 10
+    local duration = args.duration or 1.25
+    local loop_duration = duration / loops
+    args.duration = loop_duration
+
+    for i = 0, loops do
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            Animation.ShakeLoop(frame, args)
+        end, loop_duration * i)
+    end
+end
+
+function Animation.TextOverTime(text_frame, args)
+    args = args or {}
+
+    local end_value = args.end_value or 1
+    local start_value = args.start_value or 0
+
+    -- Set target to start_value
+    DCEI.SetTextFrameText(text_frame, tostring(start_value))
+
+    local duration = args.duration or 0.25
+    local interval = args.interval or 0.04
+
+    for step = 0, duration - interval, interval do
+        -- Get next step value
+        local display_value = Core.Math.Lerp(start_value, end_value, step / duration)
+
+        if args.do_round then
+            display_value = math.floor(display_value)
+        end
+
+        -- Make sure to set to end value if at or over duration
+        if step >= duration then
+            display_value = end_value
+        end
+
+        -- Schedule setting text
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            local text = display_value or "0"
+
+            -- Run through any custom formatting functions
+            if args.formatting then
+                text = args.formatting(display_value)
+                text = text or "0"
+            end
+
+            -- Set target to display_value
+            DCEI.SetTextFrameText(text_frame, tostring(text))
+        end, step)
+    end
+
+    -- Make sure to set to end value when done
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        local text = end_value or "0"
+
+        -- Run through any custom formatting functions
+        if args.formatting then
+            text = args.formatting(end_value)
+        end
+
+        -- Set target to display_value
+        DCEI.SetTextFrameText(text_frame, tostring(text))
+    end, duration)
+end
+
+function Animation.ValueOverTime(set_callable, args)
+    args = args or {}
+
+    local end_value = args.end_value or 1
+    local start_value = args.start_value or 0
+
+    local duration = args.duration or 0.25
+    local interval = args.interval or 0.04
+
+    for step = 0, duration - interval, interval do
+        -- Get next step value
+        local display_value = Core.Math.Lerp(start_value, end_value, step / duration)
+
+        if args.do_round then
+            display_value = math.floor(display_value)
+        end
+
+        -- Make sure to set to end value if at or over duration
+        if step >= duration then
+            display_value = end_value
+        end
+
+        -- Schedule setting value
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            set_callable(display_value)
+        end, step)
+    end
+
+    -- Make sure to set to end value when done
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        set_callable(end_value)
+    end, duration)
+end
+
+-- EXPORT
+return Animation

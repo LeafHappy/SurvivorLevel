@@ -1,0 +1,64 @@
+-- DATA
+local ChestRarityData = {}
+
+---ANCHOR: Common Chest
+ChestRarityData.common = {
+    index = "common",
+    display_name = "Common",
+    items = {
+        min = 3,
+        max = 3,
+    },
+    possible_rewards = {
+        common_card = {
+            index = "common_card",
+            type = "card",
+            chance = 1,
+            quantity_min = 1,
+            quantity_max = 5,
+        },
+        gold = {
+            index = "gold",
+            type = "resource",
+            chance = 1,
+            quantity_min = 25,
+            quantity_max = 50,
+        },
+    },
+}
+
+---ANCHOR: Legendary Chest
+ChestRarityData.legendary = {
+    index = "legendary",
+    display_name = "Legendary",
+    items = {
+        min = 6,
+        max = 6,
+    },
+    possible_rewards = {
+        common_card = {
+            index = "common_card",
+            type = "card",
+            chance = 1,
+            quantity_min = 5,
+            quantity_max = 10,
+        },
+        gold = {
+            index = "gold",
+            type = "resource",
+            chance = 1,
+            quantity_min = 100,
+            quantity_max = 200,
+        },
+        -- gems = {
+        --     index = "gems",
+        --     type = "resource",
+        --     chance = 0.25,
+        --     quantity_min = 5,
+        --     quantity_max = 25,
+        -- },
+    },
+}
+
+-- EXPORT
+return ChestRarityData

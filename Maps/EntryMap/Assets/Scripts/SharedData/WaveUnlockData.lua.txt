@@ -1,0 +1,24 @@
+local Data = {
+    [1] = {
+        META_DATA.meat_grinder,
+    },
+    [2] = {
+        META_DATA.archer_tower_rank_1,
+    },
+    [3] = {
+        META_DATA.masonry_unlocked,
+    },
+    [4] = {
+        META_DATA.treasury_slot,
+        META_DATA.talents,
+    },
+    [5] = {
+        META_DATA.first_talent_offer,
+        META_DATA.second_talent_offer,
+    },
+    [6] = {
+        META_DATA.shop_slot,
+    },
+}
+
+return Data

@@ -1,0 +1,224 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Json = require("json")
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- DATA
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local DataManager = require("UiMeta/DataManager")
+local MaterialInventory = require("Meta/MaterialInventory")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Local Data
+---============================================================================
+
+local ui = GMUI.ui
+
+local HeroMeta = {}
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Functions
+---============================================================================
+
+---Get the calculated stat value based on the hero's level.
+---@param hero_data HeroData
+---@param level integer
+---@param stat STAT
+---@return integer
+function HeroMeta.GetStatCalculation(hero_data, level, stat)
+    -- Validate the stat exists
+    local base = hero_data.StartingStats[stat] or 0
+    local increase = hero_data.MetaStats[stat] or 0
+
+    return base + increase * (level - 1)
+end
+
+---Get the next increase in hero's stat.
+---@param hero_data HeroData
+---@param stat STAT
+---@return integer
+function HeroMeta.GetStatIncrease(hero_data, stat)
+    return hero_data.MetaStats[stat] or 0
+end
+
+---@return boolean
+function HeroMeta.CanLevelUpHero(hero_name, hero_meta)
+    local hero_data = DataManager.GetCardData(hero_name)
+
+    local cost_data = hero_data.LevelUpCost[hero_meta.level]
+    local needed_gold = 0
+    for _, material in pairs(cost_data) do
+        if material.id == "gold" then
+            needed_gold = material.amount
+        else
+            local material_save_data = MaterialInventory.GetMaterialData(material.id)
+            local current_materials = material_save_data and material_save_data.amount or 0
+            if not (current_materials >= material.amount) then
+                return false
+            end
+        end
+    end
+
+    local current_gold = DataManager.GetGold()
+    local has_enough_gold = current_gold >= needed_gold
+    return has_enough_gold
+end
+
+---@param hero_data HeroData
+---@return boolean
+function HeroMeta.CanRankUpHero(hero_data, hero_meta)
+    -- Get rank we are trying to go to
+    local next_rank = hero_meta.rank + 1
+
+    -- Make sure we have another rank to gain
+    if #hero_data.RankData < next_rank then
+        return false
+    end
+
+    -- Check rank requirements
+    local requirements = hero_data.RankData[next_rank].requirements
+    if requirements then
+        -- Check hero level
+        local hero_level = hero_meta.level
+        if requirements.hero_level and requirements.hero_level > hero_level then
+            return false
+        end
+    end
+
+    -- Check if we have enough of the required materials
+    local needed_materials = hero_data.RankData[next_rank].cost
+    local needed_gold = 0
+    for _, material in pairs(needed_materials) do
+        if material.id == "gold" then
+            needed_gold = material.amount
+        else
+            local material_save_data = MaterialInventory.GetMaterialData(material.id)
+            local current_materials = material_save_data and material_save_data.amount or 0
+            if not (current_materials >= material.amount) then
+                return false
+            end
+        end
+    end
+
+    -- Check if we have enough gold
+    local current_gold = DataManager.GetGold()
+    local has_enough_gold = current_gold >= needed_gold
+
+    -- Return true if we have enough
+    return has_enough_gold
+end
+
+-- Tries to level up passed hero and returns if successful or not
+---@return boolean level_up_success
+function HeroMeta.TryLevelUpHero(hero_name)
+    -- early escape if hero is not unlocked
+    if not DataManager.IsCardUnlocked(hero_name) then
+        return false
+    end
+
+    local hero_data = DataManager.GetCardData(hero_name)
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+
+    -- Make sure we meet all costs
+    local cost_data = hero_data.LevelUpCost[hero_meta.level]
+    for _, cost in pairs(cost_data) do
+        if not MaterialInventory.HasEnoughOfMaterial(cost) then
+            return false
+        end
+    end
+
+    -- Remove materials needed
+    for _, material in pairs(cost_data) do
+        if material.id == "gold" then
+            DataManager.AddGold(-material.amount)
+        else
+            DataManager.IncrementMaterial(material.id, -material.amount)
+        end
+    end
+
+    -- Currency Met, Upgrade the Hero
+    hero_meta.level = hero_meta.level + 1
+
+    -- Logging
+    Core.Event.SendSimulationEvent("Log.Meta.HeroLevel", {
+        hero = hero_name,
+        level = hero_meta.level,
+    })
+
+    -- save and update main page level ui
+    DataManager.Save()
+    ui.HomeData.EquippedHero.Level = "Level " .. DataManager.GetHeroLevel(DataManager.save_data.player.hero)
+
+    return true
+end
+
+-- Tries to rank up passed hero and returns if successful or not
+---@return boolean rank_up_success
+function HeroMeta.TryRankUpHero(hero_name)
+    -- early escape if hero is not unlocked
+    if not DataManager.IsCardUnlocked(hero_name) then
+        return false
+    end
+
+    -- Get hero data
+    local hero_data = DataManager.GetCardData(hero_name)
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+
+    -- Get rank we are trying to go to
+    local next_rank = hero_meta.rank + 1
+
+    -- Check rank requirements
+    local requirements = hero_data.RankData[next_rank].requirements
+    if requirements then
+        -- Check hero level
+        local hero_level = hero_meta.level
+        if requirements.hero_level and requirements.hero_level > hero_level then
+            local message = "Hero needs to be level " .. tostring(requirements.hero_level) .. " to star up!"
+            DCEI.ShowFeedbackMessage(message)
+            return false
+        end
+    end
+
+    -- Check if we have enough of the required materials
+    local material_cost = hero_data.RankData[next_rank].cost
+    for _, material in pairs(material_cost) do
+        -- Escape here if we don't have enough of something
+        if not MaterialInventory.HasEnoughOfMaterial(material) then
+            return false
+        end
+    end
+
+    -- Remove materials needed
+    for _, material in pairs(material_cost) do
+        if material.id == "gold" then
+            DataManager.AddGold(-material.amount)
+        else
+            DataManager.IncrementMaterial(material.id, -material.amount)
+        end
+    end
+
+    -- Currency met, upgrade the hero
+    hero_meta.rank = hero_meta.rank + 1
+
+    -- save
+    DataManager.Save()
+
+    return true
+end
+
+---============================================================================
+---!SECTION: Functions
+---============================================================================
+
+return HeroMeta

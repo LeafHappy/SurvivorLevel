@@ -1,0 +1,156 @@
+-- LIBRARIES
+local Core = require("Core:Shared")
+
+--[[
+    About
+        A set of 20 "Distinct" colors plus Black/White.
+
+    Notes
+        Colors from: https://sashamaps.net/docs/resources/20-colors/
+        Create your own distinct color sets: https://mokole.com/palette.html
+    
+    TODO
+        ColorLerp
+]]
+
+local Colors = {}
+
+---Create a Color using RGBA.
+---@param r number
+---@param g number
+---@param b number
+---@param a number
+---@return table
+function Colors.RGBA(r, g, b, a)
+    return { r = r, g = g, b = b, a = a }
+end
+
+---Converts a Hex to RGBA.
+---@param hex string
+---@return table
+function Colors.HexToRGBA(hex)
+    local base = 255
+    local rgba_list = Core.Color.HexToRGBA(hex)
+    return { r = rgba_list[1] / base, g = rgba_list[2] / base, b = rgba_list[3] / base, a = rgba_list[4] / base }
+end
+
+local function NumToStr(number)
+    return string.format("%02x", number)
+end
+
+function Colors.ToString(hex)
+    return "#" .. NumToStr(hex.r) .. NumToStr(hex.g) .. NumToStr(hex.b) .. NumToStr(hex.a)
+end
+
+---@class ColorOne
+---@field r number [0 - 1]
+---@field g number [0 - 1]
+---@field b number [0 - 1]
+---@field a number [0 - 1]
+
+---@type table<ColorOne>
+Colors.One = {}
+Colors.One.Red = Colors.RGBA(0.9, 0.1, 0.29, 1)
+Colors.One.Green = Colors.RGBA(0.24, 0.71, 0.29, 1)
+Colors.One.Yellow = Colors.RGBA(1, 0.88, 0.1, 1)
+Colors.One.Blue = Colors.RGBA(0, 0.51, 0.78, 1)
+Colors.One.Orange = Colors.RGBA(0.96, 0.51, 0.19, 1)
+Colors.One.Purple = Colors.RGBA(0.57, 0.12, 0.71, 1)
+Colors.One.Cyan = Colors.RGBA(0.27, 0.94, 0.94, 1)
+Colors.One.Magenta = Colors.RGBA(0.94, 0.2, 0.9, 1)
+Colors.One.Lime = Colors.RGBA(0.82, 0.96, 0.24, 1)
+Colors.One.Pink = Colors.RGBA(0.98, 0.75, 0.83, 1)
+Colors.One.Teal = Colors.RGBA(0, 0.5, 0.5, 1)
+Colors.One.Lavender = Colors.RGBA(0.86, 0.75, 1, 1)
+Colors.One.Brown = Colors.RGBA(0.67, 0.43, 0.16, 1)
+Colors.One.Beige = Colors.RGBA(1, 0.98, 0.78, 1)
+Colors.One.Maroon = Colors.RGBA(0.5, 0, 0, 1)
+Colors.One.Mint = Colors.RGBA(0.67, 1, 0.76, 1)
+Colors.One.Olive = Colors.RGBA(0.5, 0.5, 0, 1)
+Colors.One.Apricot = Colors.RGBA(1, 0.84, 0.71, 1)
+Colors.One.Navy = Colors.RGBA(0, 0, 0.5, 1)
+Colors.One.Grey = Colors.RGBA(0.5, 0.5, 0.5, 1)
+Colors.One.White = Colors.RGBA(1, 1, 1, 1)
+Colors.One.Black = Colors.RGBA(0, 0, 0, 1)
+
+Colors.One.Transparent_Red = Colors.RGBA(0.9, 0.1, 0.29, 0)
+Colors.One.Transparent_Green = Colors.RGBA(0.24, 0.71, 0.29, 0)
+Colors.One.Transparent_Yellow = Colors.RGBA(1, 0.88, 0.1, 0)
+Colors.One.Transparent_Blue = Colors.RGBA(0, 0.51, 0.78, 0)
+Colors.One.Transparent_Orange = Colors.RGBA(0.96, 0.51, 0.19, 0)
+Colors.One.Transparent_Purple = Colors.RGBA(0.57, 0.12, 0.71, 0)
+Colors.One.Transparent_Cyan = Colors.RGBA(0.27, 0.94, 0.94, 0)
+Colors.One.Transparent_Magenta = Colors.RGBA(0.94, 0.2, 0.9, 0)
+Colors.One.Transparent_Lime = Colors.RGBA(0.82, 0.96, 0.24, 0)
+Colors.One.Transparent_Pink = Colors.RGBA(0.98, 0.75, 0.83, 0)
+Colors.One.Transparent_Teal = Colors.RGBA(0, 0.5, 0.5, 0)
+Colors.One.Transparent_Lavender = Colors.RGBA(0.86, 0.75, 1, 0)
+Colors.One.Transparent_Brown = Colors.RGBA(0.67, 0.43, 0.16, 0)
+Colors.One.Transparent_Beige = Colors.RGBA(1, 0.98, 0.78, 0)
+Colors.One.Transparent_Maroon = Colors.RGBA(0.5, 0, 0, 0)
+Colors.One.Transparent_Mint = Colors.RGBA(0.67, 1, 0.76, 0)
+Colors.One.Transparent_Olive = Colors.RGBA(0.5, 0.5, 0, 0)
+Colors.One.Transparent_Apricot = Colors.RGBA(1, 0.84, 0.71, 0)
+Colors.One.Transparent_Navy = Colors.RGBA(0, 0, 0.5, 0)
+Colors.One.Transparent_Grey = Colors.RGBA(0.5, 0.5, 0.5, 0)
+Colors.One.Transparent_White = Colors.RGBA(1, 1, 1, 0)
+Colors.One.Transparent_Black = Colors.RGBA(0, 0, 0, 0)
+
+---@class ColorHex
+---@field r number [0 - 255]
+---@field g number [0 - 255]
+---@field b number [0 - 255]
+
+---@type table<ColorHex>
+Colors.Hex = {}
+Colors.Hex.Red = Colors.RGBA(230, 25, 75, 255)
+Colors.Hex.Green = Colors.RGBA(60, 180, 75, 255)
+Colors.Hex.Yellow = Colors.RGBA(255, 225, 25, 255)
+Colors.Hex.Blue = Colors.RGBA(0, 130, 200, 255)
+Colors.Hex.Orange = Colors.RGBA(245, 130, 48, 255)
+Colors.Hex.Purple = Colors.RGBA(145, 30, 180, 255)
+Colors.Hex.Cyan = Colors.RGBA(70, 240, 240, 255)
+Colors.Hex.Magenta = Colors.RGBA(240, 50, 230, 255)
+Colors.Hex.Lime = Colors.RGBA(210, 245, 60, 255)
+Colors.Hex.Pink = Colors.RGBA(250, 190, 212, 255)
+Colors.Hex.Teal = Colors.RGBA(0, 128, 128, 255)
+Colors.Hex.Lavender = Colors.RGBA(220, 190, 255, 255)
+Colors.Hex.Brown = Colors.RGBA(170, 110, 40, 255)
+Colors.Hex.Beige = Colors.RGBA(255, 250, 200, 255)
+Colors.Hex.Maroon = Colors.RGBA(128, 0, 0, 255)
+Colors.Hex.Mint = Colors.RGBA(170, 255, 195, 255)
+Colors.Hex.Olive = Colors.RGBA(128, 128, 0, 255)
+Colors.Hex.Apricot = Colors.RGBA(255, 215, 180, 255)
+Colors.Hex.Navy = Colors.RGBA(0, 0, 128, 255)
+Colors.Hex.Grey = Colors.RGBA(128, 128, 128, 255)
+Colors.Hex.White = Colors.RGBA(255, 255, 255, 255)
+Colors.Hex.Black = Colors.RGBA(0, 0, 0, 255)
+
+Colors.Hex.Transparent_Red = Colors.RGBA(230, 25, 75, 0)
+Colors.Hex.Transparent_Green = Colors.RGBA(60, 180, 75, 0)
+Colors.Hex.Transparent_Yellow = Colors.RGBA(255, 225, 25, 0)
+Colors.Hex.Transparent_Blue = Colors.RGBA(0, 130, 200, 0)
+Colors.Hex.Transparent_Orange = Colors.RGBA(245, 130, 48, 0)
+Colors.Hex.Transparent_Purple = Colors.RGBA(145, 30, 180, 0)
+Colors.Hex.Transparent_Cyan = Colors.RGBA(70, 240, 240, 0)
+Colors.Hex.Transparent_Magenta = Colors.RGBA(240, 50, 230, 0)
+Colors.Hex.Transparent_Lime = Colors.RGBA(210, 245, 60, 0)
+Colors.Hex.Transparent_Pink = Colors.RGBA(250, 190, 212, 0)
+Colors.Hex.Transparent_Teal = Colors.RGBA(0, 128, 128, 0)
+Colors.Hex.Transparent_Lavender = Colors.RGBA(220, 190, 255, 0)
+Colors.Hex.Transparent_Brown = Colors.RGBA(170, 110, 40, 0)
+Colors.Hex.Transparent_Beige = Colors.RGBA(255, 250, 200, 0)
+Colors.Hex.Transparent_Maroon = Colors.RGBA(128, 0, 0, 0)
+Colors.Hex.Transparent_Mint = Colors.RGBA(170, 255, 195, 0)
+Colors.Hex.Transparent_Olive = Colors.RGBA(128, 128, 0, 0)
+Colors.Hex.Transparent_Apricot = Colors.RGBA(255, 215, 180, 0)
+Colors.Hex.Transparent_Navy = Colors.RGBA(0, 0, 128, 0)
+Colors.Hex.Transparent_Grey = Colors.RGBA(128, 128, 128, 0)
+Colors.Hex.Transparent_White = Colors.RGBA(255, 255, 255, 0)
+Colors.Hex.Transparent_Black = Colors.RGBA(0, 0, 0, 0)
+
+-- Additional Colors
+Colors.One.WS_Gray = Colors.RGBA(0.3, 0.35, 0.4, 1)
+Colors.One.WS_Gray_Transparent = Colors.RGBA(0.3, 0.35, 0.4, 0)
+
+return Colors

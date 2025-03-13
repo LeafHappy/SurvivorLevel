@@ -1,0 +1,194 @@
+-- TROPHY ROAD REWARDS
+local reward_data = {
+    {
+        trophies_needed = 1,
+        items = {
+            {
+                key = "c_common",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 2,
+        items = {
+            {
+                key = "s_jorian",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 3,
+        items = {
+            {
+                key = "p_shrines",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 6,
+        items = {
+            {
+                key = "s_erik",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 8,
+        items = {
+            {
+                key = "c_common",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 10,
+        items = {
+            {
+                key = "c_common",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 14,
+        items = {
+            {
+                key = "c_common",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 18,
+        items = {
+            {
+                key = "c_legendary",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 20,
+        items = {
+            {
+                key = "s_ghost",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 22,
+        items = {
+            {
+                key = "c_rare",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 24,
+        items = {
+            {
+                key = "c_rare",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 26,
+        items = {
+            {
+                key = "c_common",
+                value = 1,
+            },
+        },
+    },
+    -- {
+    --     trophies_needed = 30,
+    --     items = {
+    --         {
+    --             key = "s_amber",
+    --             value = 1,
+    --         },
+    --     },
+    -- },
+    {
+        trophies_needed = 36,
+        items = {
+            {
+                key = "c_common",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 45,
+        items = {
+            {
+                key = "c_common",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 50,
+        items = {
+            {
+                key = "c_legendary",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 60,
+        items = {
+            {
+                key = "c_legendary",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 70,
+        items = {
+            {
+                key = "c_legendary",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 80,
+        items = {
+            {
+                key = "c_legendary",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 90,
+        items = {
+            {
+                key = "c_legendary",
+                value = 1,
+            },
+        },
+    },
+    {
+        trophies_needed = 100,
+        items = {
+            {
+                key = "c_legendary",
+                value = 1,
+            },
+        },
+    },
+}
+
+return reward_data

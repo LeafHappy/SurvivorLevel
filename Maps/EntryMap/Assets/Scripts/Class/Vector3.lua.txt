@@ -1,0 +1,92 @@
+-- ANCHOR: Initialization
+
+---@class Vector3
+---@field x number
+---@field y number
+---@field z number
+---@operator unm: Vector3
+---@operator add(Vector3): Vector3
+---@operator sub(Vector3): Vector3
+---@operator mul(number): Vector3
+---@operator div(number): Vector3
+---@operator idiv(number): Vector3
+---@operator mod(number): Vector3
+---@operator pow(number): Vector3
+local Vector3 = {}
+Vector3.__index = Vector3
+
+---Creates a new vector with the given (x, y, z) components.
+---@param x number | nil Default: 0
+---@param y number | nil Default: 0
+---@param z number | nil Default: 0
+---@return Vector3
+function Vector3.New(x, y, z)
+    local self = setmetatable({}, Vector3)
+    self.x = x or 0
+    self.y = y or 0
+    self.z = z or 0
+
+    return self
+end
+
+-- ANCHOR: Metatable Methods
+
+---Returns a formatted string for this vector.
+---@return string
+function Vector3:__tostring() return string.format("> Vector3: (%f, %f, %f)", self.x, self.y, self.z) end
+
+---Returns true if the given vector is exactly equal to this vector.
+---@param vector Vector3
+---@return boolean
+function Vector3:__eq(vector) return self.x == vector.x and self.y == vector.y and self.z == vector.z end
+
+---Inverts the vector values.
+---@return Vector3
+function Vector3:__unm() return Vector3.New(-self.x, -self.y, -self.z) end
+
+---Adds two vectors.
+---@param vector Vector3
+---@return Vector3
+function Vector3:__add(vector) return Vector3.New(self.x + vector.x, self.y + vector.y, self.z + vector.z) end
+
+---Subtracts one vector from another.
+---@param vector Vector3
+---@return Vector3
+function Vector3:__sub(vector) return Vector3.New(self.x - vector.x, self.y - vector.y, self.z - vector.z) end
+
+---Multiplies a vector by a number.
+---@param value number
+---@return Vector3
+function Vector3:__mul(value) return Vector3.New(self.x * value, self.y * value, self.z * value) end
+
+---Divides a vector by a number.
+---@param value number
+---@return Vector3
+function Vector3:__div(value) return Vector3.New(self.x / value, self.y / value, self.z / value) end
+
+---Divides a vector by an integer.
+---@param value integer
+---@return Vector3
+function Vector3:__idiv(value) return Vector3.New(math.floor(self.x / value), math.floor(self.y / value), math.floor(self.z / value)) end
+
+---Applies a modulo to the vector values.
+---@param value number
+---@return Vector3
+function Vector3:__mod(value) return Vector3.New(self.x % value, self.y % value, self.z % value) end
+
+---Applies a power to the vector values.
+---@param value number
+---@return Vector3
+function Vector3:__pow(value) return Vector3.New(self.x ^ value, self.y ^ value, self.z ^ value) end
+
+-- ANCHOR: Static Properties
+
+---Shorthand for writing Vector3.New(0, 0).
+---@return Vector3
+function Vector3.Zero() return Vector3.New(0, 0, 0) end
+
+---Shorthand for writing Vector3.New(1, 1).
+---@return Vector3
+function Vector3.One() return Vector3.New(1, 1, 1) end
+
+return Vector3

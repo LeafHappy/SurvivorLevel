@@ -1,0 +1,44 @@
+---@alias LuaReference any
+
+---@alias UnitType string
+
+---@alias UnitReference string
+
+---@alias Time number Game Time that has passed in seconds
+---@alias Chance number [0.00 - 1.00]
+
+---@class Float2
+---@field x number
+---@field y number
+
+---@class EffectContext
+---@field caster Unit
+---@field source Unit
+---@field target Unit
+---@field target_location Float2
+---@field damage_source_type string
+---@field damage_source_name string
+---@field return_value number
+
+---@class GameModeContext
+---@field game_mode_id string
+---@field stage integer
+---@field difficulty integer
+---@field hero_name string
+---@field hero_level integer
+---@field consumables_active boolean
+---@field starting_upgrades table<SkillData>
+---@field optional_upgrades table<SkillData>
+---@field featured_skills table<SkillData>
+---@field meta_equipment_modifiers table<Modifier>
+---@field tutorials table<string, boolean>
+
+---@alias UnitId string
+
+---@alias Effect string
+
+---@param effect Effect | string
+---@return Effect | string
+function DCEI.Effect(effect)
+    return effect
+end

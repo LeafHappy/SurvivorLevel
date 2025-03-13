@@ -1,0 +1,196 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Release a series of Chakram that rotate around you.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Starblast"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Weapon - Starblast - Projectile"),
+
+    -- Trigger
+    Trigger = DCEI.Effect("Weapon - Starblast - Trigger"),
+
+    -- Effects
+    Scan = DCEI.Effect("Weapon - Starblast - Scan"),
+    Fallback = DCEI.Effect("Weapon - Starblast - Scan - Fallback"),
+
+    OnEnter = DCEI.Effect("Weapon - Starblast - OnEnter"),
+    Damage = DCEI.Effect("Weapon - Starblast - Damage"),
+
+    DeathVFX = DCEI.Effect("Weapon - Starblast - Death VFX"),
+    ImpactArea = DCEI.Effect("Weapon - Starblast - Impact Area"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+local MODEL_SCALE = 0.5
+
+local IMPACT_AREA_FACTOR = 1.5
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---Start a timer and move the Projectile
+---@param instance Unit
+---@param target_position Vector2
+---@param speed number
+local function SetProjectileMover(instance, target_position, speed)
+    local timer = Core.Timer.Game.New()
+
+    function timer:Tick()
+        -- Validate instance
+        if not Help.ValidateUnit(instance) then
+            self:Destroy()
+            return
+        end
+
+        local position = Vector2.UnitPosition(instance)
+        local delta = speed * TICK_RATE
+
+        -- Check if we've reached the target position.
+        if Vector2.Magnitude(target_position - position) < delta then
+            DCEI.RemoveUnit(instance)
+            self:Destroy()
+            return
+        end
+
+        local next_position = position:MoveTowards(target_position, delta)
+        DCEI.SetUnitPosition2DWithInterpolation(instance, next_position.x, next_position.y)
+    end
+end
+
+---comment
+---@param hero Hero
+---@param position Vector2
+---@param target_position Vector2
+---@return Unit
+local function SpawnProjectile(hero, position, target_position)
+    local facing_direction = target_position - position
+    local instance = DCEI.CreateUnit(
+        TEAM.Friendly,
+        hero.player_id,
+        REF.Projectile,
+        position.x,
+        position.y,
+        facing_direction.x,
+        facing_direction.y
+    )
+
+    local size = hero:GetStat(STAT.SkillSize, REF.Ability)
+    Help.SetModelScale(instance, size * MODEL_SCALE, 0.15, Ease.OutSine)
+
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start | CollisionTiming.Continue, 1),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    return instance
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local caster = ctx.caster
+    local player_id = DCEI.GetUnitPlayerId(caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    -- Stats
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, REF.Ability)
+    local projectile_range = hero:GetStat(STAT.SkillRange, REF.Ability)
+
+    -- Projectile Setup Information
+    local spawn_position = hero:GetPosition()
+
+    local target = ctx.target
+    local target_position = Vector2.UnitPosition(target)
+    local travel_position = spawn_position + Vector2.Normalized(target_position - spawn_position) * projectile_range
+
+    -- Spawn Projectile
+    local instance = SpawnProjectile(hero, spawn_position, target_position)
+
+    -- Apply Projectile Mover
+    SetProjectileMover(instance, travel_position, projectile_speed)
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _Upgrade
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillRange] = {
+        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius),
+        EffectPath.New(REF.Fallback, EJS.AreaSearch.Radius),
+    },
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.DeathVFX, EJS.Actor.Scale),
+        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.Radius, nil, IMPACT_AREA_FACTOR),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

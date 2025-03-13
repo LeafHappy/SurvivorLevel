@@ -1,0 +1,106 @@
+-- LIBRARIES
+local Core = require("Core")
+
+local Help = require("Help")
+
+local CDA = {}
+
+local _Data = {}
+
+local function IsTable(value)
+	return type(value) == "table"
+end
+
+-- Clear all Data
+function CDA.Clear()
+	_Data = {}
+end
+
+---Sets the provided path data to the value.
+---@param path string
+---@param value any
+---@return any
+function CDA.Set(path, value)
+	local split_path = path:split("%.")
+
+	local data = _Data
+	for index, key in ipairs(split_path) do
+		-- Reached the end - Set the Value
+		if index == #split_path then
+			if IsTable(data[key]) then
+				Help.Warn("Overwriting Table", path, data[key])
+			end
+
+			data[key] = value
+			return value
+		else
+			-- If key is nil, Create a Table
+			if data[key] == nil then
+				data[key] = {}
+			end
+
+			-- Continue to the next key
+			data = data[key]
+		end
+	end
+end
+
+---Gets the value from the provided path.
+---@param path string
+---@return any
+function CDA.Get(path)
+	local split_path = path:split("%.")
+
+	local data = _Data
+	for index, key in ipairs(split_path) do
+		if index == #split_path then -- Reached the end
+			return data[key]
+		elseif data[key] == nil then -- Key does not exist
+			return nil
+		else -- Continue to the next key
+			data = data[key]
+		end
+	end
+
+	return data
+end
+
+---Adds the current value to the path's value.
+---@param path string
+---@param value number | string
+---@param force_create boolean | nil Default: nil
+---@return number | string | nil
+function CDA.Modify(path, value, force_create)
+	local old_value = CDA.Get(path)
+
+	if old_value == nil and force_create then
+		CDA.Set(path, value)
+		return value
+	end
+
+	-- Invalid Path Given
+	if old_value == nil or IsTable(old_value) then
+		Help.Warn("Attempted to Modify an Invalid Path", path)
+		return nil
+	end
+
+	-- Invalid Type Comparison
+	if type(old_value) ~= type(value) then
+		local message =
+			string.format("Invalid Type Comparison: [%s]:[%s]", tostring(type(old_value)), tostring(type(value)))
+		Help.Warn(message)
+		return nil
+	end
+
+	local new_value
+	if type(old_value) == "string" then
+		new_value = old_value .. value
+	elseif type(old_value) == "number" then
+		new_value = old_value + value
+	end
+
+	CDA.Set(path, new_value)
+	return new_value
+end
+
+return CDA

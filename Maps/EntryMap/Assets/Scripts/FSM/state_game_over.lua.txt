@@ -1,0 +1,227 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core")
+
+-- SCRIPTS
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New(Help.GetStateName())
+
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Joystick = require("Class/Joystick")
+
+-- local RunSummaryHelper = require("Game/RunSummaryHelper")
+-- local UiHelper = require("Game/UiHelper")
+-- local Spawner = require("Game/Spawner")
+local Hero = require("Game/Hero")
+local Log = require("Game/Log")
+
+local Events = require("Game/Events")
+
+-- local ResourceData = require("SharedData/MetaResources/ResourceData")
+-- local EquipmentTranslationData = require("SharedData/GearData/EquipmentTranslationData")
+
+local UiHelper = require("Game/UiHelper")
+local StageHelper = require("Game/StageHelper")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Functions
+---============================================================================
+
+local function DisableJoystick()
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+end
+
+local function GetHuntTrophiesEarned(trophy_total)
+    local bosses_killed = StageHelper.GetTrackedStat("Boss Kills") or 0
+    return bosses_killed
+end
+
+local function GetGameModeTrophiesEarned(game_mode, trophy_total)
+    if game_mode == "Hunt" then
+        return GetHuntTrophiesEarned(trophy_total)
+    end
+
+    return 0
+end
+
+local function GetGameStats()
+    local stats = {}
+
+    stats = StageHelper.GetTrackedStats()
+
+    -- General
+    stats["Game Time"] = CommonDataAccess.Get("game_time")
+
+    ---TESTING: Fake Game Stats
+    -- stats["Basic Kills"] = 485971
+    -- stats["Boss Kills"] = 521
+    -- stats["Event"] = 171
+    -- stats["Reaper"] = 48
+    -- stats["Knight"] = 6
+    -- stats["Giant"] = 1
+    -- stats["Skeleton King"] = 11
+    -- stats["Fulminyx"] = 3
+    -- stats["Alchemist"] = 4
+    -- stats["Shieldbearer"] = 7
+    -- stats["Meditation Fountain"] = 1
+    -- stats["Hall of Life"] = 15
+    -- stats["Stoneguard"] = 3
+    -- stats["Tavern"] = 6
+    -- stats["Scarlet Arrow"] = 460
+    -- stats["Frozen Axe"] = 2106
+    -- stats["Solar Crest"] = 216498
+    -- stats["Chakram"] = 9879
+    -- stats["Chilling Presence"] = 161984
+    -- stats["Pyroclasm"] = 112
+    -- stats["Starblast"] = 1695109
+    -- stats["Ice Rupture"] = 5478991
+    -- stats["Hydra"] = 5506
+    -- stats["Flamebreak"] = 9684
+    -- stats["Skull"] = 1
+    -- stats["Golem"] = 2
+    -- stats["Elite Kills"] = 3
+
+    return stats
+end
+
+local function GenerateGameStats(victory)
+    local game_mode = CommonDataAccess.Get("game_mode")
+
+    local stats = StageHelper.GetTrackedStats()
+    stats.game_time = CommonDataAccess.Get("game_time")
+    stats.is_victory = victory
+    stats.hero = CommonDataAccess.Get("hero_name")
+    stats.stage_level = CommonDataAccess.Get("stage_level")
+    stats.stage_difficulty = CommonDataAccess.Get("stage_difficulty")
+    stats.game_mode = game_mode
+    stats.rewards = {}
+
+    -- local stats = {}
+
+    -- local game_mode = CommonDataAccess.Get("game_mode")
+    -- local current_total_trophies = CommonDataAccess.Get("current_total_trophies") or 0
+    -- local trophies_earned = GetGameModeTrophiesEarned(game_mode, current_total_trophies)
+
+    -- stats.is_victory = victory
+    -- stats.hero = CommonDataAccess.Get("hero_name")
+    -- stats.game_mode = game_mode
+    -- stats.trophy_earned = trophies_earned
+    -- stats.trophy_total = current_total_trophies + trophies_earned
+
+    stats.game_stats = GetGameStats()
+    -- -- Help.Log("Game Stats", nil, stats.game_stats)
+
+    stats.achievements = StageHelper.GetTrackedStats()
+    stats.achievements["Survival Time"] = stats.game_time
+
+    -- Gold
+    if stats.game_stats["Gold"] then
+        table.insert(stats.rewards, { key = "gold", value = stats.game_stats["Gold"]})
+    end
+
+    -- Gems
+    if stats.game_stats["Gems"] then
+        table.insert(stats.rewards, { key = "gems", value = stats.game_stats["Gems"]})
+    end
+
+    -- stats.rewards.t_trophy = trophies_earned
+
+    -- -- Check EquipmentTranslationData for the hero
+    -- local converted_equipment_data = EquipmentTranslationData.Get(stats.game_stats, stats.hero)
+    -- Help.Log("Converted Equipment Data", nil, converted_equipment_data)
+
+    -- -- Add the converted_equipment_data to the rewards
+    -- for key, value in pairs(converted_equipment_data) do
+    --     stats.rewards[key] = value
+    -- end
+
+    -- Help.Log("Game Stats", nil, stats)
+
+    return stats
+end
+
+local function SubmitGameResultsLog(victory, trophies_earned)
+    local game_stats = StageHelper.GetTrackedStats()
+    -- Help.Log("Game Stats", nil, game_stats)
+
+    local game_log = {}
+
+    game_log.is_victory = victory
+    game_log.trophies_earned = trophies_earned
+
+    game_log.game_mode = CommonDataAccess.Get("game_mode")
+    game_log.stage_level = CommonDataAccess.Get("stage_level")
+    game_log.hero_name = CommonDataAccess.Get("hero")
+    game_log.hero_meta_level = CommonDataAccess.Get("hero_meta_level")
+    game_log.hero_level = CommonDataAccess.Get("hero_level")
+    game_log.game_length = CommonDataAccess.Get("game_time")
+
+    game_log.kills = StageHelper.GetTrackedStat("Basic Kills")
+    game_log.bosses_defeated = StageHelper.GetTrackedStat("Boss Kills")
+    game_log.events_collected = StageHelper.GetTrackedStat("Event")
+
+    game_log.attempts = CommonDataAccess.Get("attempts")
+    game_log.session_attempts = CommonDataAccess.Get("session_attempts")
+
+    -- game_log.kills = math.floor(CommonDataAccess.Get("kills") or 0)
+    -- game_log.bosses_defeated = CommonDataAccess.Get("bosses_defeated")
+    -- game_log.events_collected = CommonDataAccess.Get("events_collected")
+
+    Log.Game.End(game_log)
+end
+
+---TODO [11/8]: Hookup/Pass to Presentation/Save Data
+local function PassDataToPresentation(stats)
+    Help.Log("Game Results", nil, stats)
+
+    -- SubmitGameResultsLog(stats.is_victory, stats.trophy_earned)
+    Core.Event.SendPresentationEvent("StartGameResults", stats)
+end
+
+local function Continue()
+    FSM:Transition(FSM.States.Camp)
+end
+
+Core.Event.RegisterSimulationEvent("Continue", Continue)
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: State Functions
+---============================================================================
+
+-- Timer
+function State:OnTransitionEnter()
+    UiHelper.ClearObjectives()
+    StageHelper.UpdatePlayerStats(true) -- Make sure to Record 1 Final Time.
+    DisableJoystick()
+end
+
+function State:OnEnter()
+    local stats = GenerateGameStats(self.data.Victory)
+    PassDataToPresentation(stats)
+end
+
+function State:OnExit()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:Reset()
+    CommonDataAccess.Clear()
+    -- Hero.Fetch(PLAYER.Player1):ResetLog()
+end
+
+function State:OnGameUpdate() end
+function State:OnTransitionExit() end
+
+---============================================================================
+---!SECTION: State Functions
+---============================================================================
+
+return State

@@ -1,0 +1,253 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local SkillData = require("SharedData/Skills/SkillData")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Skill - Ice Rupture"),
+
+    -- Behaviors
+    SkillSize = DCEI.Behavior("Skill - Ice Rupture - Skill Size"),
+
+    -- Cast Effects
+    Scan = DCEI.Effect("Skill - Ice Rupture - Scan"),
+    Trigger = DCEI.Effect("Skill - Ice Rupture - Trigger"),
+
+    -- Impact Effects
+    CastEffects = DCEI.Effect("Skill - Ice Rupture - Cast Effects"),
+    ImpactArea = DCEI.Effect("Skill - Ice Rupture - Impact Area"),
+    Damage = DCEI.Effect("Skill - Ice Rupture - Damage"),
+    Slow = DCEI.Effect("Skill - Ice Rupture - Slow"),
+
+    -- VFX
+    SpawnVFX = DCEI.Effect("Skill - Ice Rupture - Spawn VFX"),
+
+    -- Glacial Expansion
+    DamageBoost = DCEI.Effect("Skill - Ice Rupture - Damage Boost"),
+}
+
+---@type table<PLAYER, Hero>
+local _Heroes = {}
+local _IceRuptureData = {}
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+local function OnProjectileSpawn()
+    local instance = DCEI.TriggeringUnit
+    local player_id = DCEI.GetUnitPlayerId(instance)
+    local hero = _Heroes[player_id]
+end
+
+---comment
+---@param hero Hero
+---@param angle number
+local function SpawnIceRuptureAtAngle(hero, position, angle, distance, i_count)
+    local tags = hero:GetInheritedTags(SkillData.IceRupture.Key)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+
+    local glacial_expansion_increase =
+        hero.Attributes:GetStatScaling(STAT.SkillSize, SCALING.Additive, { SKILL_TAG.GlacialExpansion })
+
+    local skill_size_adjusted = skill_size * (1 + glacial_expansion_increase * i_count)
+
+    local direction = Vector2.NewFromAngle(angle)
+
+    local spawn_position = position + (direction * distance)
+
+    local instance = Help.CreateEffect(hero.player_id, REF.CastEffects, spawn_position)
+
+    local skill_size_stacks = math.floor(skill_size_adjusted * 100)
+    Core.Unit.SetBehaviorCount(instance, REF.SkillSize, skill_size_stacks)
+
+    for i = 1, i_count - 1 do
+        DCEI.CreateEffectAtSelf(REF.DamageBoost, instance)
+    end
+end
+
+---comment
+---@param hero Hero
+---@param target_position Vector2
+local function CastTypeDefault(hero, target_position)
+    local tags = hero:GetInheritedTags(SkillData.IceRupture.Key)
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+    local count = hero:GetStat(STAT.Count, tags)
+
+    local position = Vector2.UnitPosition(hero.unit)
+    local angle = Vector2.AngleBetween(position, target_position)
+
+    local condition = function()
+        return Help.ValidateUnit(hero.unit)
+    end
+
+    local action = function(i_count)
+        local distance = skill_size * i_count * 1.5
+        SpawnIceRuptureAtAngle(hero, position, angle, distance, i_count)
+    end
+
+    Help.PeriodicGameTimer(count, frequency, condition, action, true)
+end
+
+---comment
+---@param hero Hero
+local function CastTypeIceLocked(hero)
+    -- Make sure Ice Locked Data is initialized
+    if not _IceRuptureData[hero.player_id] then
+        _IceRuptureData[hero.player_id] = 90
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.IceRupture.Key)
+    local frequency = hero:GetStat(STAT.Frequency, tags)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+    local count = hero:GetStat(STAT.Count, tags)
+
+    local position = Vector2.UnitPosition(hero.unit)
+    local angle = _IceRuptureData[hero.player_id]
+
+    local condition = function()
+        return Help.ValidateUnit(hero.unit)
+    end
+
+    local action = function(i_count)
+        local distance = skill_size * i_count * 1.5
+        SpawnIceRuptureAtAngle(hero, position, angle, distance, i_count)
+    end
+
+    Help.PeriodicGameTimer(count, frequency, condition, action, true)
+
+    _IceRuptureData[hero.player_id] = (_IceRuptureData[hero.player_id] - 45) % 360
+end
+
+---comment
+---@param ctx EffectContext
+local function OnTrigger(ctx)
+    local player_id = DCEI.GetUnitPlayerId(ctx.caster)
+
+    ---@type Hero
+    local hero = _Heroes[player_id]
+
+    local target = ctx.target
+
+    local learned_ice_locked = hero:IsSkillLearned(SkillData.IceLocked.Key)
+
+    if learned_ice_locked then
+        CastTypeIceLocked(hero)
+    else
+        local target_position = Vector2.UnitPosition(target)
+        CastTypeDefault(hero, target_position)
+    end
+end
+
+---comment
+---@param hero Hero
+local function HeroUpdateLoop(hero) end
+
+---comment
+---@param hero Hero
+local function UnsubscribeFromHeroEvents(hero)
+    -- Unsubscribe from Hero Events
+    hero.OnUpdateEvent:Unsubscribe(HeroUpdateLoop)
+    hero.OnRemoveEvent:Unsubscribe(UnsubscribeFromHeroEvents)
+
+    -- Clear Data
+    _Heroes[hero.player_id] = nil
+    _IceRuptureData[hero.player_id] = nil
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.CriticalChance] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalChance),
+    },
+    [STAT.CriticalMultiplier] = {
+        EffectPath.New(REF.Damage, EJS.Damage.CriticalMultiplier),
+    },
+    [STAT.SlowEffectiveness] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Additive, nil, -1),
+    },
+    [STAT.SlowDuration] = {
+        EffectPath.New(REF.Slow, EJS.Slow.Duration),
+    },
+    [STAT.DamageBoost] = {
+        EffectPath.New(REF.DamageBoost, EJS.DamageOutput.Additive),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    -- Initialize Skill for Player
+    if not _Heroes[hero.player_id] then
+        _Heroes[hero.player_id] = hero
+        _IceRuptureData[hero.player_id] = 90
+
+        -- Hookup Update Loop
+        hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
+        hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
+    end
+
+    local tags = hero:GetInheritedTags(SkillData.IceRupture.Key)
+    local skill_size = hero:GetStat(STAT.SkillSize, tags)
+    local count = hero:GetStat(STAT.Count, tags)
+
+    local effective_cast_range = (skill_size * 1.5) + (skill_size * count)
+    hero:SetEffectValue(REF.Scan, EJS.AreaSearch.Radius, effective_cast_range)
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+DCEI.TriggerAddEffectEvent(REF.Trigger, OnTrigger, true)
+-- DCEI.TriggerAddUnitSpawnEvent(REF.ProjectileFilter, OnProjectileSpawn)
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

@@ -1,0 +1,166 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Native Passive
+-- ================================================================================================
+
+-- Data.Marksmanship = {
+--     Key = "Marksmanship",
+
+--     -- UI Information
+--     DisplayName = "Marksmanship",
+--     ShortDescription = "Increases Range and Critical Chance of all Skills.",
+--     Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+--     SecondaryIcon = DCEI.Texture("icon_arrowtower_skill_criticalstrike"),
+
+--     -- Skill Information
+--     MaxLevel = 3,
+--     Type = SKILL_TYPE.Passive,
+--     AppliedSkillTagLevels = {
+--         SKILL_TAG.Global,
+--     },
+--     Requirements = {},
+--     Applications = {
+--         FirstLevelOnly = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--         EveryLevel = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {
+--                 Modifier.New(STAT.CastRange, 0.15, SCALING.Additive),
+--                 Modifier.New(STAT.ProjectileDistance, 0.15, SCALING.Additive),
+--                 Modifier.New(STAT.CriticalChance, 0.10, SCALING.Scaled),
+--             },
+--         },
+--         EveryLevelAfterFirst = {
+--             Abilities = {},
+--             Behaviors = {},
+--             Modifiers = {},
+--         },
+--     },
+--     ApplyStatInheritance = {},
+--     RemoveStatInheritance = {},
+-- }
+
+-- ================================================================================================
+-- ANCHOR -- Optional Passives
+-- ================================================================================================
+
+Data.Scavenger = {
+    Key = "Scavenger",
+
+    -- UI Information
+    DisplayName = "Scavenger",
+    ShortDescription = "Increases Pickup Range.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_centaurbarracks_skill_charge"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.PickupRange, 0.20, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.EvasiveManeuvers = {
+    Key = "EvasiveManeuvers",
+
+    -- UI Information
+    DisplayName = "Evasive Maneuvers",
+    ShortDescription = "Increases Movement Speed.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_beetlewarrior_skill05"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.MoveSpeed, 0.05, SCALING.Additive),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.SpeedForce = {
+    Key = "SpeedForce",
+
+    -- UI Information
+    DisplayName = "Speed Force",
+    ShortDescription = "Projectile Speed Increases Damage.",
+    Icon = DCEI.Texture("cartoon_icon_hexagon_button_green_mergewar"),
+    SecondaryIcon = DCEI.Texture("icon_dogbountyhunter_skill_fullmetaljacket"),
+
+    -- Skill Information
+    MaxLevel = 3,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {},
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.ProjectileSpeedToDamage, 0.20, SCALING.Scaled),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

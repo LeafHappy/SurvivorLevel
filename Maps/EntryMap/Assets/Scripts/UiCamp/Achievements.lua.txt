@@ -1,0 +1,350 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local DataManager = require("UiMeta/DataManager")
+local ResourceDisplay = require("UiCamp/ResourceDisplay")
+local AchievementData = require("SharedData/AchievementData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local Animation = require("Presentation/Animation")
+local FlyingRewards = require("UiMeta/FlyingRewards")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local Achievements = {}
+local item_layouts = {}
+local separator_layouts = {}
+Achievements.is_initialized = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function GetFormattedDamage(value)
+    local suffixes = { "", "k", "M", "B", "T" }
+    local suffixIndex = 1
+    while value >= 1000 and suffixIndex < #suffixes do
+        value = value / 1000
+        suffixIndex = suffixIndex + 1
+    end
+    value = math.floor(value * 100) / 100
+
+    -- Remove Trailing Zeros
+    local stripped = string.format("%.2f", value):gsub("%.?0+$", "")
+    return string.format("%s%s", stripped, suffixes[suffixIndex])
+end
+
+---@return Layout | nil, number | nil
+local function GetFirstClaimable()
+    for index, item_layout in ipairs(item_layouts) do
+        if item_layout.state.can_claim then
+            return item_layout, index
+        end
+    end
+end
+
+local function AnimateScrollToItem(item_layout, index)
+    if not item_layout then
+        return
+    end
+
+    local scroll = Achievements.layout.ItemScroll
+    local total_height = DCEI.GetFrameHeight(Achievements.layout.Items) - DCEI.GetFrameHeight(scroll)
+
+    -- Get distance added by all items
+    local item_margin = 20 -- Bottom margin of item
+    local item_height = DCEI.GetFrameHeight(item_layout.Frame) + item_margin
+    local item_distance = item_height * (index - 1)
+
+    -- Get distance added by separator items (category titles)
+    local divider_margin = 20 -- Bottom margin of separator
+    local divider_height = DCEI.GetFrameHeight(separator_layouts[1].Frame) + divider_margin
+    local divider_distance = divider_height * (item_layout.separator_count - 1)
+
+    local start_pos = DCEI.GetScrollFrameScrollPosition(scroll)
+    local end_pos = math.min(item_distance + divider_distance, total_height) -- Don't scroll past bottom
+    local duration = 0.5
+    local ease = "InOutSine"
+    DCEI.AnimateFrameScrollPosition(scroll, start_pos, end_pos, duration, ease)
+end
+
+local function DisplayMaxedItem(item_layout, item_data)
+    local state = item_layout.state
+    state.reward_icon = DCEI.Texture("cartoon_icon_check_mark_green_castle2")
+    state.can_claim = false
+    state.sub_objective_text = "Completed!"
+    state.frame_color = AchievementData.Colors[item_data.Type].item
+    state.icon = item_data.Icon
+    state.main_objective_text = item_data.MainObjectiveText
+
+    -- Disable unneeded frames
+    DCEI.SetFrameActive(item_layout.RewardAmount, false)
+    DCEI.SetFrameActive(item_layout.ProgressBar, false)
+    DCEI.SetFrameActive(item_layout.FrameFx, false)
+    DCEI.SetFrameActive(item_layout.IconFx, false)
+
+    -- Stop animations
+    if item_layout.bar_fx_animation then
+        DCEI.StopFrameAnimation(item_layout.bar_fx_animation)
+    end
+    if item_layout.icon_fx_animation then
+        DCEI.StopFrameAnimation(item_layout.icon_fx_animation)
+    end
+    if item_layout.frame_fx_animation then
+        DCEI.StopFrameAnimation(item_layout.frame_fx_animation)
+    end
+end
+
+local function UpdateItemState(item_layout, item_data)
+    -- update state: max_progress, reward_type, reward_amount, reward_icon, can_claim
+    local state = item_layout.state
+    local level = DataManager.GetAchievementLevel(item_data.Name)
+    local max_level = #AchievementData.Breakpoints[item_data.Type]
+
+    -- Break here if at max and setup for that display
+    if level > max_level then
+        DisplayMaxedItem(item_layout, item_data)
+        return
+    end
+
+    local breakpoint = AchievementData.Breakpoints[item_data.Type][level]
+    state.max_progress = breakpoint.required
+    state.current_progress = DataManager.GetAchievementValue(item_data.Name)
+    state.reward_type = breakpoint.reward.type
+    state.reward_amount = breakpoint.reward.amount
+    state.reward_icon = ResourceData[breakpoint.reward.type].icon
+    state.can_claim = (state.current_progress >= state.max_progress) and level <= max_level
+
+    -- Display Formatting
+    state.sub_objective_text = string.format(item_data.SubObjectiveText, GetFormattedDamage(state.max_progress))
+    state.frame_color = AchievementData.Colors[item_data.Type].item
+    state.icon = item_data.Icon
+    state.main_objective_text = item_data.MainObjectiveText
+    state.sub_objective_text = string.format(item_data.SubObjectiveText, breakpoint.required)
+
+    -- Setup animations for claim
+    if state.can_claim then
+        item_layout.bar_fx_animation = item_layout.bar_fx_animation or Animation.SlideHorizontal(item_layout.BarFx)
+        item_layout.icon_fx_animation = item_layout.icon_fx_animation or Animation.SlideHorizontal(item_layout.IconFx)
+        item_layout.frame_fx_animation = item_layout.frame_fx_animation or Animation.FadeIn(item_layout.FrameFx, 1.5)
+
+        DCEI.SetFrameAnimationLoops(item_layout.bar_fx_animation, -1, "Restart")
+        DCEI.SetFrameAnimationLoops(item_layout.icon_fx_animation, -1, "Restart")
+        DCEI.SetFrameAnimationLoops(item_layout.frame_fx_animation, -1, "Yoyo")
+    end
+end
+
+local function CreateItem(item_data)
+    local item_layout = GMUI.Layout.New({
+        name = "Meta/Achievements/Item",
+        parent = Achievements.layout.Items,
+    })
+
+    item_layout.separator_count = #separator_layouts
+    UpdateItemState(item_layout, item_data)
+
+    DCEI.SetOnClickCallback(item_layout.ClaimButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local state = item_layout.state
+        local level = DataManager.GetAchievementLevel(item_data.Name)
+        local breakpoint = AchievementData.Breakpoints[item_data.Type][level]
+
+        -- these return statements should never be hit but double-checking
+        local max_level = #AchievementData.Breakpoints[item_data.Type]
+        if level > max_level then
+            return
+        end
+
+        if DataManager.GetAchievementValue(item_data.Name) < breakpoint.required then
+            return
+        end
+
+        ---LOG: Achievement Reward Claimed
+        Core.Event.SendSimulationEvent("Log.Achievement.RewardClaimed", {
+            achievement = item_data.Name,
+            requirement = breakpoint.required,
+            level = level,
+            reward = {
+                type = state.reward_type,
+                amount = state.reward_amount,
+            },
+        })
+
+        -- Set animation flag and value
+        local old_value = DataManager.GetInventoryItem(state.reward_type)
+        ResourceDisplay.SetStartAnimationValue(state.reward_type, old_value)
+
+        DataManager.AddAchievementLevel(item_data.Name, 1)
+        DataManager.AddInventoryResource(state.reward_type, state.reward_amount, true)
+        DataManager.Save()
+
+        -- Fly animation
+        local start_location = DCEI.GetFrameCanvasPosition3D(item_layout.ClaimButton)
+        FlyingRewards.SpawnRewards(state.reward_type, state.reward_amount, 40, start_location)
+        Animation.StarExplosionAtFrame(item_layout.ClaimButton)
+
+        -- update state: max_progress, reward_type, reward_amount, reward_icon, can_claim
+        UpdateItemState(item_layout, item_data)
+
+        DCEI.WaitForUiUpdateToComplete(function()
+            -- Stay on self if can still claim
+            if item_layout.state.can_claim then
+                return
+            end
+
+            -- Scroll to next claimable
+            local c_layout, c_index = GetFirstClaimable()
+            AnimateScrollToItem(c_layout, c_index)
+        end)
+    end)
+
+    table.insert(item_layouts, item_layout)
+end
+
+local function ClearLayouts()
+    for _, item_layout in ipairs(item_layouts) do
+        item_layout:Destroy()
+    end
+    item_layouts = {}
+
+    for _, separator_layout in ipairs(separator_layouts) do
+        separator_layout:Destroy()
+    end
+    separator_layouts = {}
+end
+
+local function CreateSeparator(item_type)
+    local separator_layout = GMUI.Layout.New({
+        name = "Meta/Achievements/Separator",
+        parent = Achievements.layout.Items,
+    })
+
+    local state = separator_layout.state
+    state.frame_color = AchievementData.Colors[item_type].separator
+    state.text = item_type
+
+    table.insert(separator_layouts, separator_layout)
+end
+
+local function SetupAchievementItems()
+    -- read in from shared data file, add items to lists
+    -- create item layout for each item in list
+    local order = {
+        ACHIEVEMENT_TYPES.TimeSurvived,
+        ACHIEVEMENT_TYPES.NormalEnemies,
+        ACHIEVEMENT_TYPES.EliteEnemies,
+        ACHIEVEMENT_TYPES.BossEnemies,
+        ACHIEVEMENT_TYPES.Damage,
+        ACHIEVEMENT_TYPES.UniversalDamage,
+        ACHIEVEMENT_TYPES.ArtifactDamage,
+    }
+
+    for _, achievement_type in ipairs(order) do
+        -- create separator first
+        CreateSeparator(achievement_type)
+
+        -- create items
+        local type_data = AchievementData.DataByType[achievement_type]
+        for _, item in ipairs(type_data) do
+            CreateItem(item)
+        end
+    end
+end
+
+---@param callback function
+local function GiveAuthority(data, callback)
+    Achievements.Open(callback)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function Achievements.Initialize()
+    if Achievements.is_initialized then
+        return
+    end
+
+    -- Create layout
+    Achievements.layout = GMUI.Layout.New({
+        name = "Meta/Achievements",
+        parent = ui.z3.Lower,
+    })
+    ui.camp.achievements = Achievements.layout
+
+    -- Initialize popup animations
+    local args = {
+        popup_frame = Achievements.layout.Background,
+        mask_layout = ui.camp.overlay.meta_mask,
+    }
+    PopupManager.ApplyPopupAnimations(Achievements.layout, args)
+
+    -- Setup close button
+    DCEI.SetOnClickCallback(Achievements.layout.close.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Achievements.layout:Hide()
+    end)
+
+    -- Setup clicking outside to close
+    DCEI.SetOnClickOutsideCallback(Achievements.layout.Background, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Achievements.layout:Hide()
+    end)
+
+    Achievements.is_initialized = true
+end
+
+function Achievements.Open(callback)
+    if not Achievements.is_initialized then
+        Achievements.Initialize()
+        Achievements.layout:HideActual()
+    end
+
+    function Achievements.layout:OnHide()
+        -- ui.home.reward_container.achievements_button.state.notify = AchievementRewardAvailable()
+        GMUI.RunSimulationCallback(callback)
+    end
+
+    DCEI.WaitForUiUpdateToComplete(function()
+        ClearLayouts()
+        SetupAchievementItems()
+        Achievements.layout:Show()
+
+        -- Wait until items are created then scroll to first claimable
+        DCEI.WaitForUiUpdateToComplete(function()
+            local item, index = GetFirstClaimable()
+            AnimateScrollToItem(item, index)
+        end)
+    end)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.Achievements", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return Achievements

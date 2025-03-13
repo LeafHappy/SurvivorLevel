@@ -1,0 +1,116 @@
+--[[
+    RankedList
+    
+    About
+        Has to keep 2 lists:
+            Index
+            Rank
+]]
+
+local RankedList = {}
+RankedList.__index = RankedList
+
+function RankedList.New()
+    local self = setmetatable({}, RankedList)
+    self:Reset()
+    return self
+end
+
+function RankedList:Reset()
+    self.Entry = {}
+    self.Ranked = {}
+    self.count = 0
+end
+
+function RankedList:CreateEntry(data)
+    self.count = self.count + 1
+    local Node = {
+        Id = self.count,
+        Rank = self.count,
+        Score = 0,
+        Data = data or {},
+    }
+
+    self.Entry[self.count] = Node
+    self.Ranked[self.count] = Node
+
+    return self.count
+end
+
+function RankedList:RemoveEntry(id)
+    local rank = self:GetEntry(id).Rank
+    table.remove(self.Entry, id)
+    table.remove(self.Ranked, rank)
+
+    self.count = self.count - 1
+end
+
+function RankedList:IncreaseScore(id, score)
+    local entry = self:GetEntry(id)
+    entry.Score = entry.Score + score
+
+    -- Compare Rank to the next Higher Ranked Entry
+    local rank_change = 0
+    local higer_ranked_entry = self:GetRank(entry.Rank - 1)
+    while
+        entry.Rank > 1 -- Not Top Ranked
+        and higer_ranked_entry -- Nil
+        and entry.Score > higer_ranked_entry.Score -- Score is Higher
+    do
+        rank_change = rank_change + 1
+
+        self:RankSwap(entry, higer_ranked_entry)
+        higer_ranked_entry = self:GetRank(entry.Rank - 1)
+    end
+
+    return rank_change
+end
+
+function RankedList:DecreaseScore(id, score)
+    local entry = self:GetEntry(id)
+    entry.Score = entry.Score - score
+
+    -- Compare Rank to the next Lower Ranked Entry
+    local rank_change = 0
+    local lower_ranked_entry = self:GetRank(entry.Rank + 1)
+    while
+        entry.Rank < self.count -- Not Bottom Ranked
+        and lower_ranked_entry -- Nil
+        and entry.Score < lower_ranked_entry.Score -- Score is Lower
+    do
+        rank_change = rank_change + 1
+
+        self:RankSwap(entry, lower_ranked_entry)
+        lower_ranked_entry = self:GetRank(entry.Rank + 1)
+    end
+
+    return rank_change
+end
+
+---Swaps the Ranked position of 2 Nodes.
+---@param entry1 any
+---@param entry2 any
+---@private
+function RankedList:RankSwap(entry1, entry2)
+    local rank = entry1.Rank
+
+    entry1.Rank = entry2.Rank
+    entry2.Rank = rank
+
+    self.Ranked[entry1.Rank] = entry1
+    self.Ranked[entry2.Rank] = entry2
+end
+
+function RankedList:GetEntry(id)
+    return self.Entry[id]
+end
+
+function RankedList:GetRank(rank)
+    return self.Ranked[rank]
+end
+
+function RankedList:GetCount()
+    return self.count
+end
+
+return RankedList

@@ -1,0 +1,74 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local PopupManager = require("UiMeta/Popup/PopupManager")
+local DataManager = require("UiMeta/DataManager")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Meta/ItemUnlock",
+    parent = ui.z3.Lower,
+})
+
+-- LOCAL FUNCTIONS
+local function GenerateHeroCamera()
+    local hero_camera = layout.RewardHero
+
+    local width = 500
+    local height = 500
+
+    local camera_frame = DCEI.CreateCameraFrame(hero_camera)
+    DCEI.SetFrameSize(camera_frame, width, height)
+    DCEI.SetCameraFrameViewportSize(camera_frame, 1000, 1000)
+    DCEI.SetCameraFrameViewportWorldPosition(camera_frame, 50, 1.0, 48.25)
+    DCEI.SetCameraFrameViewportRotation(camera_frame, 15, 0, 0)
+end
+
+local function SetHero(hero_name)
+    local heroData = DataManager.GetCardData(hero_name)
+    Core.Event.SendSimulationEvent("UpdateItemUnlockCameraHero", heroData.Unit)
+end
+
+local function SetData(item_name)
+    local state = layout.state
+    local item = ResourceData[item_name]
+    if not item then
+        DCEI.LogError("ItemUnlock.lua.txt - ITEM NOT FOUND: " .. item_name)
+        return
+    end
+    if item.type == "HERO" then
+        SetHero(item.display_name)
+    end
+    state.type = item.type
+    state.icon = item.icon
+    state.name = item.display_name
+    state.info = item.description or ""
+end
+
+-- LAYOUT METHODS
+
+function layout:Initialize()
+    -- Initialize popup animations
+    PopupManager.ApplyPopupAnimations(self, { popup_frame = self.Frame })
+
+    GenerateHeroCamera()
+
+    DCEI.SetOnClickCallback(self.ClickToContinue, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Hide()
+    end)
+end
+
+function layout:Open(item_name)
+    SetData(item_name)
+    self:Show()
+end
+
+-- EXPORT
+return layout

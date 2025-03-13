@@ -1,0 +1,401 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local Json = require("json")
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local ResourceDisplay = require("UiCamp/ResourceDisplay")
+local StarUpPopup = require("UiMeta/HeroCollection/StarUpPopup")
+local HeroChallenges = require("UiMeta/HeroCollection/HeroChallenges")
+local HeroMeta = require("Meta/HeroMeta")
+
+-- DATA
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local DataManager = require("UiMeta/DataManager")
+local MaterialInventory = require("Meta/MaterialInventory")
+local MetaSkillSelector = require("SharedData/MetaSkillSelector")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Local Data
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+---@class ShrineOfBlessing
+local ShrineOfBlessing = {}
+ShrineOfBlessing.animation_values = {}
+ShrineOfBlessing.is_initialized = false
+
+-- VARIABLES
+local level_up_cost_items = {}
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+local function GenerateHeroCamera()
+    local hero_camera = ui.hero_collection.upper_panel.HeroCamera
+
+    local width = 400
+    local height = 400
+
+    local camera_frame = DCEI.CreateCameraFrame(hero_camera)
+    DCEI.SetFrameSize(camera_frame, width, height)
+    DCEI.SetCameraFrameViewportSize(camera_frame, 1000, 1000)
+    DCEI.SetCameraFrameViewportWorldPosition(camera_frame, 997.75, 1.25, 998.75)
+    DCEI.SetCameraFrameViewportRotation(camera_frame, 35, 85, 0)
+end
+
+local function AnimateStatsOvertime(hero_meta, hero_data)
+    local health = HeroMeta.GetStatCalculation(hero_data, hero_meta.level, STAT.Health)
+    local weapon_damage = math.floor(HeroMeta.GetStatCalculation(hero_data, hero_meta.level, STAT.Damage) * 100)
+    local selected_hero = ShrineOfBlessing.selected_hero
+
+    local state = ui.hero_collection.upper_panel.state
+    local duration = 0.5
+    local hp_anim_value = ShrineOfBlessing.animation_values[selected_hero][STAT.Health]
+    local wd_anim_value = ShrineOfBlessing.animation_values[selected_hero][STAT.Damage]
+
+    if hp_anim_value and hp_anim_value > 0 then
+        Animation.ValueOverTime(function(display_value)
+            local difference = health - display_value
+            state.HealthIncrement = " + " .. tostring(difference)
+
+            state.Health = display_value
+
+            Animation.Impact(ui.hero_collection.upper_panel.hp.Icon)
+        end, {
+            duration = duration,
+            end_value = health,
+            start_value = hp_anim_value,
+            do_round = true,
+        })
+
+        ShrineOfBlessing.animation_values[selected_hero][STAT.Health] = 0
+    end
+
+    if wd_anim_value and wd_anim_value > 0 then
+        Animation.ValueOverTime(function(display_value)
+            local difference = weapon_damage - display_value
+            state.DamageIncrement = " + " .. tostring(difference)
+
+            state.Damage = display_value
+
+            Animation.Impact(ui.hero_collection.upper_panel.weapon_damage.Icon)
+        end, {
+            duration = duration,
+            end_value = weapon_damage,
+            start_value = wd_anim_value,
+            do_round = true,
+        })
+
+        ShrineOfBlessing.animation_values[selected_hero][STAT.Damage] = 0
+    end
+
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        DCEI.WaitForUiUpdateToComplete(function()
+            ShrineOfBlessing.UpdateUIData(hero_meta, hero_data)
+        end)
+    end, duration)
+end
+
+local function HasStatAnimationValues(selected_hero)
+    local has_animation_value = false
+
+    local animation_values = ShrineOfBlessing.animation_values[selected_hero] or {}
+    for _, value in pairs(animation_values) do
+        if value > 0 then
+            has_animation_value = true
+            break
+        end
+    end
+
+    return has_animation_value
+end
+
+local function UpdateLevelUpCost(hero_data, hero_meta)
+    for _, item in ipairs(level_up_cost_items) do
+        item:Destroy()
+    end
+    level_up_cost_items = {}
+
+    local cost_data = hero_data.LevelUpCost[hero_meta.level]
+    for _, material in pairs(cost_data) do
+        local material_save_data = MaterialInventory.GetMaterialData(material.id)
+        local current_materials = material_save_data and material_save_data.amount or 0
+        local icon = ResourceData[material.id].icon
+        local new_item = GMUI.Layout.New({
+            name = "Meta/HeroCollection/LevelUpCost",
+            parent = ShrineOfBlessing.layout.LevelUpButton,
+        })
+
+        table.insert(level_up_cost_items, new_item)
+
+        new_item.state.icon = icon
+        new_item.state.cost = material.amount
+        new_item.state.can_afford = current_materials >= material.amount
+    end
+end
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Methods
+---============================================================================
+
+---@return Layout
+function ShrineOfBlessing.Create()
+    ShrineOfBlessing.layout = GMUI.Layout.New({
+        name = "Meta/HeroCollection",
+        parent = ui.z3.Lower,
+    })
+    ui.camp.shrine_of_blessing = ShrineOfBlessing.layout
+
+    function ShrineOfBlessing.layout:OnShow()
+        -- Make sure frame is active on open
+        if not DCEI.IsFrameActive(ShrineOfBlessing.layout.Frame) then
+            DCEI.SetFrameActive(ShrineOfBlessing.layout.Frame, true)
+        end
+
+        -- select the equipped hero
+        local hero_data = DataManager.GetCardData(DataManager.save_data.player.hero)
+        local hero_meta = DataManager.save_data.heroes[DataManager.save_data.player.hero]
+        ShrineOfBlessing.selected_hero = hero_data.Name
+
+        -- this needs to happen AFTER hero items/layouts are created
+        ShrineOfBlessing.UpdateUIData(hero_meta, hero_data)
+    end
+
+    ShrineOfBlessing.layout.hero_challenges = HeroChallenges.Create()
+
+    return ShrineOfBlessing.layout
+end
+
+function ShrineOfBlessing.Initialize()
+    if ShrineOfBlessing.is_initialized then
+        return
+    end
+
+    ui.hero_collection = ShrineOfBlessing.Create()
+
+    local layout = ShrineOfBlessing.layout
+    local upper_panel = layout.upper_panel
+
+    -- Initialize star popup
+    layout.star_popup = StarUpPopup.Create()
+    StarUpPopup.Initialize(ShrineOfBlessing)
+
+    DCEI.SetOnClickCallback(upper_panel.HeroContainer, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local hero_data = DataManager.GetCardData(ShrineOfBlessing.selected_hero)
+        StarUpPopup.Open(hero_data)
+    end)
+    DCEI.SetOnClickCallback(upper_panel.challenges_button.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        local hero_name = ShrineOfBlessing.selected_hero
+        HeroChallenges.CreateChallenges(hero_name)
+        layout.hero_challenges:Show()
+    end)
+    DCEI.SetOnClickCallback(layout.close.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        layout:Hide()
+    end)
+
+    -- Update level up button
+    DCEI.SetOnClickCallback(layout.LevelUpButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        -- Spend materials and level up hero (if able)
+        local hero_name = DataManager.save_data.player.hero
+        ShrineOfBlessing.OnHeroLevelUpPressed(hero_name)
+    end)
+
+    -- Create hero display
+    GenerateHeroCamera()
+
+    -- Make sure it's hidden on init
+    DCEI.SetFrameActive(layout.Frame, false)
+    ShrineOfBlessing.is_initialized = true
+end
+
+function ShrineOfBlessing.PlayUpgradeAnimation(after_animation_callback)
+    GMUI.InputState.BlockUserInput("playing_upgrade_animation")
+
+    -- Fade rays in
+    local upgrade_rays = ui.hero_collection.upper_panel.UpgradeRays
+    local duration = 0.75
+    Animation.FadeIn(upgrade_rays, duration)
+
+    -- Grow rays
+    Animation.PopIn(upgrade_rays, {
+        ease = "OutSine",
+    })
+
+    -- After rays grow
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        -- Fade rays out
+        Animation.FadeOut(upgrade_rays, 1)
+
+        -- Flash screen and star explosion for impact
+        local upgrade_mask = ui.hero_collection.upgrade_mask.Frame
+        Animation.FadeOut(upgrade_mask, duration)
+        Animation.StarExplosionAtFrame(ui.hero_collection.upper_panel.HeroCamera)
+
+        -- Run callback to update everything after the animation is done
+        after_animation_callback()
+        GMUI.InputState.UnblockUserInput("playing_upgrade_animation")
+    end, duration)
+end
+
+function ShrineOfBlessing.UpgradeUpdate(hero_data, hero_meta)
+    -- Reset upgrade state
+    ui.hero_collection.state.can_upgrade = HeroMeta.CanLevelUpHero(hero_data.Name, hero_meta)
+
+    -- Reset increment text
+    local state = ui.hero_collection.upper_panel.state
+    state.HealthIncrement = ""
+    state.DamageIncrement = ""
+
+    -- Escape early as we only want cards that are unlocked
+    if not DataManager.IsCardUnlocked(hero_data.Name) then
+        return
+    end
+
+    -- Show upgrade increment if we have enough shards (even if not enough gold)
+    if HeroMeta.CanLevelUpHero(hero_data.Name, hero_meta) then
+        -- Update increment text
+        state.HealthIncrement = " + " .. HeroMeta.GetStatIncrease(hero_data, STAT.Health)
+        state.DamageIncrement = " + " .. math.floor(HeroMeta.GetStatIncrease(hero_data, STAT.Damage) * 100)
+    end
+end
+
+---@param hero_meta any
+---@param hero_data HeroData
+function ShrineOfBlessing.UpdateUIData(hero_meta, hero_data)
+    -- update upper panel
+    local state = ui.hero_collection.upper_panel.state
+    state.HeroName = hero_data.Name
+    state.HeroLevel = "Lv " .. hero_meta.level
+    ShrineOfBlessing.layout.upper_panel.stars:Update(hero_meta.rank)
+
+    -- Get stat calculations
+    local health = HeroMeta.GetStatCalculation(hero_data, hero_meta.level, STAT.Health)
+    local weapon_damage = math.floor(HeroMeta.GetStatCalculation(hero_data, hero_meta.level, STAT.Damage) * 100)
+
+    -- Update stats for upper panel to show selected hero's stats
+    local selected_hero = ShrineOfBlessing.selected_hero
+    if HasStatAnimationValues(selected_hero) then
+        AnimateStatsOvertime(hero_meta, hero_data)
+    else
+        state.Health = health
+        state.Damage = weapon_damage
+    end
+
+    -- Update the can upgrade visuals
+    ShrineOfBlessing.UpgradeUpdate(hero_data, hero_meta)
+
+    -- Update description state
+    ShrineOfBlessing.layout.state.Description = hero_data.Description
+
+
+    -- Update level up cost
+    UpdateLevelUpCost(hero_data, hero_meta)
+    ShrineOfBlessing.layout.upper_panel.state.can_rank_up = HeroMeta.CanRankUpHero(hero_data, hero_meta)
+
+    Core.Event.SendSimulationEvent("UpdateHeroCollectionCameraHero", hero_data.Unit)
+end
+
+function ShrineOfBlessing.OnHeroLevelUpPressed(hero_name)
+    -- Get pre-level up data
+    local hero_data = DataManager.GetCardData(hero_name)
+    local hero_meta = DataManager.save_data.heroes[hero_name]
+    local animation_values = ShrineOfBlessing.animation_values[hero_name] or {}
+
+    -- Set animation values to pre-level up data
+    animation_values[STAT.Health] = HeroMeta.GetStatCalculation(hero_data, hero_meta.level, STAT.Health)
+    animation_values[STAT.Damage] =
+        math.floor(HeroMeta.GetStatCalculation(hero_data, hero_meta.level, STAT.Damage) * 100)
+    ShrineOfBlessing.animation_values[hero_name] = animation_values
+
+    local old_value = DataManager.GetGold()
+    ResourceDisplay.SetStartAnimationValue("gold", old_value)
+
+    -- Try to level up hero
+    local level_up_success = HeroMeta.TryLevelUpHero(hero_name)
+    if not level_up_success then
+        return
+    end
+
+    -- Play Animation if successful
+    ShrineOfBlessing.PlayUpgradeAnimation(function()
+        ShrineOfBlessing.UpdateUIData(hero_meta, hero_data)
+
+        -- Update hero tab
+        ui.hero_collection.star_popup.hero_tab.Update(hero_data)
+    end)
+end
+
+function ShrineOfBlessing.OnHeroRankUpPressed(hero_name)
+    -- Set animation values
+    local old_value = DataManager.GetGold()
+    ResourceDisplay.SetStartAnimationValue("gold", old_value)
+
+    -- Try to rank up hero
+    local rank_up_success = HeroMeta.TryRankUpHero(hero_name)
+    if not rank_up_success then
+        return
+    end
+
+    -- Play Animation
+    ShrineOfBlessing.PlayUpgradeAnimation(function()
+        local hero_data = DataManager.GetCardData(hero_name)
+        local hero_meta = DataManager.save_data.heroes[hero_name]
+        ShrineOfBlessing.UpdateUIData(hero_meta, hero_data)
+    end)
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Event Functions
+---============================================================================
+
+---@param callback function
+local function GiveAuthority(data, callback)
+    Help.Log("Shrine of Blessing Event Data", nil, data)
+    if not ShrineOfBlessing.is_initialized then
+        ShrineOfBlessing.Initialize()
+    end
+
+    DCEI.WaitForUiUpdateToComplete(function()
+        ShrineOfBlessing.layout:Show()
+    end)
+
+    function ShrineOfBlessing.layout.OnHide()
+        GMUI.RunSimulationCallback(callback, data)
+    end
+end
+
+---============================================================================
+---!SECTION: Event Functions
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.ShrineOfBlessing", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return ShrineOfBlessing

@@ -1,0 +1,117 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- OFFSCREEN INDICATOR
+local OffscreenIndicatorManager = {}
+OffscreenIndicatorManager.unit_indicator_lookup = {}
+
+-- LOCAL FUNCTIONS
+local function DelayedAnimation(frame, delay, k1, k2, duration, ease)
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        DCEI.AnimateFrameScale(frame, k1, k2, duration, ease)
+    end, delay)
+end
+
+---Start an Animation Sequence.
+---@param frame Layout
+---@param duration number
+---@param keys table<Vector3>
+---@param ease table<Ease>
+local function StartAnimationSequence(frame, duration, keys, ease)
+    local animation_duration = duration / (#keys - 1)
+
+    for i = 1, #keys - 1 do
+        local delay = animation_duration * (i - 1)
+        DelayedAnimation(frame, delay, keys[i], keys[i + 1], animation_duration, ease[(i - 1) % 2 + 1])
+    end
+end
+
+local function AnimateCreate(frame)
+    local duration = 2
+    local keys = {
+        { x = 0, y = 0, z = 0 },
+        { x = 3, y = 3, z = 3 },
+        { x = 1, y = 1, z = 1 },
+    }
+    local ease = {
+        "OutCubic",
+        "InCubic",
+    }
+
+    StartAnimationSequence(frame, duration, keys, ease)
+end
+
+local function AnimateEmphasize(frame)
+    local duration = 3
+    local keys = {
+        { x = 1, y = 1, z = 1 },
+        { x = 2, y = 2, z = 2 },
+        { x = 1, y = 1, z = 1 },
+        { x = 2, y = 2, z = 2 },
+        { x = 1, y = 1, z = 1 },
+        { x = 2, y = 2, z = 2 },
+        { x = 1, y = 1, z = 1 },
+    }
+    local ease = {
+        "OutCubic",
+        "InCubic",
+    }
+
+    StartAnimationSequence(frame, duration, keys, ease)
+end
+
+local function NewOffscreenIndicator(data)
+    local indicator_layout = GMUI.Layout.New({
+        name = "Common/OffscreenIndicator",
+    })
+
+    -- animate on creation
+    AnimateCreate(indicator_layout.Frame)
+
+    -- attach indicator to unit
+    local unit_ref = data.unit_ref
+    local unit = GMUI.GetUnitFromUnitReference(unit_ref)
+    DCEI.AttachOffscreenUnitIndicatorFrame(indicator_layout.Frame, unit, indicator_layout.Pointer)
+
+    local background_image = data.background_image
+    if background_image then
+        DCEI.SetFrameImage(indicator_layout.Background, background_image)
+    end
+
+    local background_color = data.background_color
+    if background_color then
+        DCEI.SetFrameImageColor(indicator_layout.Background, background_color)
+    end
+
+    -- store indicator layout
+    OffscreenIndicatorManager.unit_indicator_lookup[unit_ref] = indicator_layout
+end
+
+local function DestroyOffscreenIndictor(unit_ref)
+    local indicator_layout = OffscreenIndicatorManager.unit_indicator_lookup[unit_ref]
+    if indicator_layout then
+        indicator_layout:Destroy()
+        OffscreenIndicatorManager.unit_indicator_lookup[unit_ref] = nil
+    end
+end
+
+local function AnimateAllIndicators()
+    for _, layout in pairs(OffscreenIndicatorManager.unit_indicator_lookup) do
+        AnimateEmphasize(layout.Frame)
+    end
+end
+
+-- Trigger Animation on Frame
+local function AnimateOffscreenIndicator(unit_ref)
+    local layout = OffscreenIndicatorManager.unit_indicator_lookup[unit_ref]
+    AnimateEmphasize(layout.Frame)
+end
+
+-- REGISTER EVENTS
+Core.Event.RegisterPresentationEvent("NewOffscreenIndicator", NewOffscreenIndicator)
+Core.Event.RegisterPresentationEvent("DestroyOffscreenIndictor", DestroyOffscreenIndictor)
+Core.Event.RegisterPresentationEvent("AnimateOffscreenIndicator", AnimateOffscreenIndicator)
+Core.Event.RegisterPresentationEvent("AnimateAllIndicators", AnimateAllIndicators)
+
+return OffscreenIndicatorManager

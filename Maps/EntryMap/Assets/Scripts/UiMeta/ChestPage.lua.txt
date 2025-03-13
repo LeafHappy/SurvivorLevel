@@ -1,0 +1,498 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+local json = require("json")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+local ChestData = require("SharedData/ChestData")
+local DataManager = require("UiMeta/DataManager")
+local ResourceDisplay = require("UiCamp/ResourceDisplay")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+-- HELPERS
+local ui = GMUI.ui
+
+--#region CONSTANTS
+local SOUNDS = {
+    FILL_SCREEN = DCEI.Sound("cloudrabbit_bunnyhop_wildsurvivor"),
+    CHEST_DROP = DCEI.Sound("surfer_eruption_land_wildsurvivor"),
+    CHEST_OPEN = {
+        OPEN_SOUND = DCEI.Sound("prop_castledoor_open_wildsurvivor"),
+        REWARDS = DCEI.Sound("sfx_divinecommand_launch_wildsurvivor"),
+    },
+    GLOW_EFFECT = DCEI.Sound("ramhammer_soulburn_on_wildsurvivor"),
+}
+
+local TICK_RATE = 0.0625
+local ANIM_DURATIONS = {
+    CHEST_DROP = {
+        TOTAL_TIME = 6 * TICK_RATE,
+        DROP_TIME = 6 * TICK_RATE,
+        FADE_DURATION = 3 * TICK_RATE,
+    },
+    GLOW = {
+        FADE_IN = 4 * TICK_RATE,
+        DELAY_AFTER_GLOW = 3 * TICK_RATE,
+    },
+    CHEST_OPEN = {
+        UP_DURATION = 2 * TICK_RATE,
+        DOWN_DURATION = 1 * TICK_RATE,
+        CHEST_GLOW = {
+            FADE_DURATION = 2 * TICK_RATE,
+            SCALE_INTERVAL = 16 * TICK_RATE,
+        },
+        CHEST_OPEN_WAIT = 8 * TICK_RATE,
+    },
+}
+
+local ANIMATION_PHASES = {
+    "start",
+    "middle",
+    "finish",
+}
+--#endregion
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Meta/ChestOpen",
+    parent = ui.z2.Upper,
+})
+
+-- LOCAL FUNCTIONS
+-- ANCHOR Chest Animations
+local function InitializeChestGlowAnimation(chest_page_layout)
+    -- Get frames
+    local chest_glow = chest_page_layout.ChestGlow
+    local chest_rays = chest_page_layout.GlowRays
+
+    -- Animate alpha
+    local duration = ANIM_DURATIONS.CHEST_OPEN.CHEST_GLOW.FADE_DURATION
+    local ease = "OutCubic"
+    DCEI.AnimateFrameAlpha(chest_glow, 0, 1, duration, ease)
+    DCEI.SetFrameAlpha(chest_page_layout.GlowRays, 0.2)
+
+    -- Animate glow rotation
+    local k1 = { z = 0 }
+    local k2 = { z = 1 }
+    local duration = ANIM_DURATIONS.CHEST_OPEN.CHEST_GLOW_DURATION
+    local ease = "Linear"
+    -- local rotate_anim = DCEI.AnimateFrameRotation(chest_rays, k1, k2, duration, ease)
+
+    -- Animate glow scale
+    local k1 = { x = 1, y = 1, z = 1 }
+    local k2 = { x = 1.25, y = 1.25, z = 1.25 }
+    local duration = ANIM_DURATIONS.CHEST_OPEN.CHEST_GLOW.SCALE_INTERVAL
+    local ease = "Linear"
+    local scale_anim = DCEI.AnimateFrameScale(chest_rays, k1, k2, duration, ease)
+
+    -- Start animation loops
+    DCEI.SetFrameAnimationLoops(scale_anim, -1, "Yoyo")
+    -- DCEI.SetFrameAnimationLoops(rotate_anim, -1, "Incremental")
+end
+
+local function ChestOpenAnimation(chest_page_layout, up_time, down_time)
+    local v_offset_ground = 0
+    local v_offset_air = 50
+    local ease = "OutQuint"
+
+    -- small jump up animation
+    DCEI.AnimateFrameVerticalOffset(chest_page_layout.ChestIcon, v_offset_ground, v_offset_air, up_time, ease)
+
+    -- after up anim, immediately play down anim
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        DCEI.AnimateFrameVerticalOffset(chest_page_layout.ChestIcon, v_offset_air, v_offset_ground, down_time, ease)
+
+        -- Play a small shake animation
+        Animation.ShakeLoop(chest_page_layout.ChestIcon)
+
+        -- add pulse anim after chest drops
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            --upon landing, change to open icon
+            DCEI.SetFrameImage(chest_page_layout.ChestIcon, chest_page_layout.chest_icon_open)
+
+            -- pulse icon after delay
+            Animation.Impact(chest_page_layout.ChestIcon)
+            Animation.StarExplosionAtFrame(chest_page_layout.ChestIcon)
+
+            --play open sound
+            DCEI.PlaySound(SOUNDS.CHEST_OPEN.OPEN_SOUND)
+
+            InitializeChestGlowAnimation(chest_page_layout)
+        end, down_time)
+    end, up_time)
+end
+
+local function DropChestAnimation(chest_page_layout, drop_duration, fade_in_duration)
+    local v_offset_start = 600
+    local v_offset_end = 0
+    local ease = "InQuart"
+
+    DCEI.AnimateFrameVerticalOffset(chest_page_layout.ChestIcon, v_offset_start, v_offset_end, drop_duration, ease)
+    DCEI.AnimateFrameAlpha(chest_page_layout.ChestIcon, 0, 1, fade_in_duration, ease)
+
+    DCEI.TriggerAddTimerEventElapsed(function()
+        -- play sound after dropping
+        DCEI.PlaySound(SOUNDS.CHEST_DROP)
+    end, drop_duration, false, false)
+end
+
+-- ANCHOR Reward Animations
+local function CreateNewRewardLayout(parent_layout, item)
+    local new_reward = GMUI.LazyLayout.New({
+        name = "Meta/ItemUnlock",
+        parent = parent_layout.reward_container,
+    })
+
+    local function GenerateHeroCamera()
+        local hero_camera = new_reward.RewardHero
+        local width = 500
+        local height = 500
+        local camera_frame = DCEI.CreateCameraFrame(hero_camera)
+        DCEI.SetFrameSize(camera_frame, width, height)
+        DCEI.SetCameraFrameViewportSize(camera_frame, 1000, 1000)
+        DCEI.SetCameraFrameViewportWorldPosition(camera_frame, 49.0, 0.5, 49.0)
+        DCEI.SetCameraFrameViewportRotation(camera_frame, 0, 45, 0)
+    end
+
+    local function SetHero(hero_name)
+        local heroData = DataManager.GetCardData(hero_name)
+        Core.Event.SendSimulationEvent("UpdateItemUnlockCameraHero", heroData.Unit)
+    end
+
+    local function SetData(item_name)
+        local state = new_reward.state
+        local item = ResourceData[item_name]
+
+        if not item then
+            DCEI.LogError("ItemUnlock.lua.txt - ITEM NOT FOUND: " .. item_name)
+            return
+        end
+
+        if item.type == "HERO" then
+            SetHero(item.display_name)
+        end
+
+        state.type = item.type
+        state.icon = item.icon
+        state.name = item.display_name
+        state.info = ""
+    end
+
+    GenerateHeroCamera()
+    SetData(item.key)
+
+    return new_reward
+end
+
+local function CreateBigRewardLayout(parent_layout, item)
+    local new_reward = GMUI.Layout.New({
+        name = "Meta/ChestOpen/ChestRewardBig",
+        parent = parent_layout.reward_container,
+    })
+
+    local image_frame = new_reward.Icon
+    local quantity_frame = new_reward.Quantity
+    local label_frame = new_reward.Label
+
+    local itemDef = ResourceData[item.key]
+    DCEI.SetFrameImage(image_frame, itemDef.icon)
+    DCEI.SetTextFrameText(quantity_frame, "+" .. tostring(item.value))
+    DCEI.SetTextFrameText(label_frame, itemDef.display_name)
+
+    return new_reward
+end
+
+local function CreateHeroLayout(parent_layout, item)
+    local new_reward = GMUI.Layout.New({
+        name = "Meta/ChestOpen/HeroReward",
+        parent = parent_layout.reward_container,
+    })
+
+    local itemDef = ResourceData[item.key]
+    local state = new_reward.hero_card.state
+    state.HeroName = itemDef.display_name
+    state.HeroIcon = itemDef.icon
+    state.HeroLevel = DataManager.GetHeroLevel(itemDef.display_name)
+    state.Quantity = "+" .. tostring(item.value)
+    state.New = item.new or false
+
+    return new_reward
+end
+
+local function ShowReward(parent_layout, item)
+    -- Remove old reward layout if there is one
+    if parent_layout.chest_reward then
+        parent_layout.chest_reward:Destroy()
+    end
+
+    -- Create new reward layout based on type
+    local chest_reward
+    if item.new then
+        chest_reward = CreateNewRewardLayout(parent_layout, item)
+    else
+        if item.key:sub(1, 2) == "s_" then
+            chest_reward = CreateHeroLayout(parent_layout, item)
+        else
+            chest_reward = CreateBigRewardLayout(parent_layout, item)
+        end
+    end
+    parent_layout.chest_reward = chest_reward
+
+    -- Play reward animations
+    Animation.FadeIn(chest_reward.Frame)
+    Animation.Impact(chest_reward.Frame)
+    Animation.HoverLoop(chest_reward.Icon)
+    Animation.StarExplosionAtFrame(parent_layout.Frame)
+
+    -- Play sound
+    DCEI.PlaySound(SOUNDS.CHEST_OPEN.REWARDS)
+end
+
+-- ANCHOR Summary Functions
+local function CreateSummaryHeroItem(parent, item)
+    local new_reward = GMUI.Layout.New({
+        name = "Meta/ChestOpen/SummaryPage/HeroItem",
+        parent = parent,
+    })
+
+    local itemDef = ResourceData[item.key]
+
+    local state = new_reward.state
+    state.HeroName = itemDef.display_name
+    state.HeroIcon = itemDef.icon
+    state.HeroLevel = DataManager.GetHeroLevel(itemDef.display_name)
+    state.Quantity = "+" .. tostring(item.value)
+    state.New = item.new or false
+
+    return new_reward
+end
+
+local function CreateSummaryRewardItem(parent, item)
+    local new_reward = GMUI.Layout.New({
+        name = "Meta/ChestOpen/SummaryPage/RewardItem",
+        parent = parent,
+    })
+
+    local image_frame = new_reward.Icon
+    local quantity_frame = new_reward.Quantity
+
+    local itemDef = ResourceData[item.key]
+    DCEI.SetFrameImage(image_frame, itemDef.icon)
+    DCEI.SetTextFrameText(quantity_frame, tostring(item.value))
+
+    return new_reward
+end
+
+local function PopulateSummaryPage(summary_layout, items)
+    -- Validate item layouts
+    summary_layout.item_layouts = summary_layout.item_layouts or {}
+
+    -- Clear old items
+    for _, item in ipairs(summary_layout.item_layouts) do
+        item:Destroy()
+    end
+
+    -- Block input while animation is playing
+    GMUI.InputState.BlockUserInput("playing_chest_summary_animation")
+
+    -- Schedule animations for each item
+    local interval_delay = 0.15
+    for i, item in ipairs(items) do
+        -- Calculate delay
+        local delay = (i - 1) * interval_delay
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            local new_item
+            if item.key:sub(1, 2) == "s_" then
+                new_item = CreateSummaryHeroItem(summary_layout.Content, item)
+            else
+                new_item = CreateSummaryRewardItem(summary_layout.Content, item)
+            end
+
+            -- Play impact animation and sound
+            Animation.Impact(new_item.Frame)
+            DCEI.PlaySound(SOUNDS.CHEST_OPEN.REWARDS)
+
+            -- Store for easy reference
+            table.insert(summary_layout.item_layouts, new_item)
+        end, delay)
+    end
+
+    -- Unblock input after summary done
+    local delay = interval_delay * #items
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        GMUI.InputState.UnblockUserInput("playing_chest_summary_animation")
+    end, delay)
+
+    -- Animate banner in
+    Animation.FadeIn(summary_layout.Banner)
+end
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    -- Setup tap callbacks
+    DCEI.SetOnClickCallback(self.ContinueButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:TapToContinue()
+    end)
+
+    DCEI.SetOnClickCallback(self.SkipButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:SkipAll()
+    end)
+end
+
+function layout:ShowChestPage(rarity, rewards, showing_results)
+    self.items = rewards
+    self.index = 1
+
+    -- Flag that we are on results of game
+    self.showing_results = showing_results
+
+    -- Block input during animation to keep from sequence breaks
+    GMUI.InputState.BlockUserInput("playing_chest_show_animation")
+
+    -- Setup page for animations
+    self:SetupForAnimation(rarity)
+
+    -- Pop and fade page in
+    self:Show()
+    Animation.PopAndFadeIn(self.Frame)
+
+    -- Animate chest dropping in
+    local drop_time = ANIM_DURATIONS.CHEST_DROP.DROP_TIME
+    local fade_duration = ANIM_DURATIONS.CHEST_DROP.FADE_DURATION
+    DropChestAnimation(self, drop_time, fade_duration)
+
+    -- Wait for chest to drop before showing glow
+    local total_chest_duration = ANIM_DURATIONS.CHEST_DROP.TOTAL_TIME
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        -- Fade in glow
+        local fade_duration = ANIM_DURATIONS.GLOW.FADE_IN
+        Animation.FadeIn(self.ChestGlow, fade_duration)
+
+        -- Play glow sound
+        DCEI.PlaySound(SOUNDS.GLOW_EFFECT)
+
+        -- Allow user to continue
+        GMUI.InputState.UnblockUserInput("playing_chest_show_animation")
+    end, total_chest_duration)
+end
+
+function layout:OpenChest()
+    -- Block input when opening
+    GMUI.InputState.BlockUserInput("playing_chest_open_animation")
+
+    -- Play fill sound
+    DCEI.PlaySound(SOUNDS.FILL_SCREEN)
+
+    -- Animate the chest opening
+    local up_time = ANIM_DURATIONS.CHEST_OPEN.UP_DURATION
+    local down_time = ANIM_DURATIONS.CHEST_OPEN.DOWN_DURATION
+    local wait_time = ANIM_DURATIONS.CHEST_OPEN.CHEST_OPEN_WAIT
+    ChestOpenAnimation(self, up_time, down_time)
+
+    -- Wait for animation then set chest as open and run end callback
+    local total_time = up_time + down_time + wait_time
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        self.chest_open = true
+
+        -- Unblock input after done opening
+        GMUI.InputState.UnblockUserInput("playing_chest_open_animation")
+        self:TapToContinue()
+    end, total_time)
+end
+
+function layout:CloseChest()
+    -- Play drop and fade animation
+    Animation.DropAndFadeOut(self.Frame)
+
+    -- Block input during animation to keep from sequence breaks
+    GMUI.InputState.BlockUserInput("playing_chest_close_animation")
+
+    -- Wait for animation then hide and unblock input
+    local delay = 0.35
+    GMUI.RunFunctionAfterTimeElapsed(function()
+        self:Hide()
+        GMUI.InputState.UnblockUserInput("playing_chest_close_animation")
+
+        -- Try open next chest if in results page (calling presentation function)
+        if self.showing_results then
+            StepGameResultsChests()
+        end
+    end, delay)
+end
+
+function layout:IncrementAnimationPhase()
+    self.phase_index = self.phase_index + 1
+    self.state.animation_phase = ANIMATION_PHASES[self.phase_index]
+end
+
+function layout:SkipAll()
+    self.phase_index = #ANIMATION_PHASES
+    self.state.animation_phase = ANIMATION_PHASES[self.phase_index]
+    PopulateSummaryPage(self.summary_page, self.items)
+end
+
+function layout:ShowNextReward()
+    -- Update rewards remaining text
+    local items_remaining_text = tostring(#self.items - self.index)
+    DCEI.SetTextFrameText(self.ItemsRemaining, items_remaining_text)
+
+    if self.index <= #self.items then
+        ShowReward(self, self.items[self.index])
+    else
+        PopulateSummaryPage(self.summary_page, self.items)
+        self:IncrementAnimationPhase()
+    end
+    self.index = self.index + 1
+end
+
+function layout:TapToContinue()
+    -- 1. Open Chest
+    if not self.chest_open then
+        self:OpenChest()
+
+    -- 2. Move to next phase instantly
+    elseif self.phase_index == 1 then
+        self:IncrementAnimationPhase()
+        self:TapToContinue()
+
+    -- 3. Show rewards until they are empty
+    elseif self.phase_index == 2 then
+        self:ShowNextReward()
+
+    -- 4. Close Chest
+    elseif self.phase_index == 3 then
+        self:CloseChest()
+    end
+end
+
+function layout:SetupForAnimation(rarity)
+    -- Set state to current phase
+    self.phase_index = 1
+    self.state.animation_phase = ANIMATION_PHASES[self.phase_index]
+    self.chest_open = false
+
+    -- Hide frames for animation
+    DCEI.SetFrameAlpha(self.ChestIcon, 0)
+    DCEI.SetFrameAlpha(self.ChestGlow, 0)
+    DCEI.SetFrameAlpha(self.GlowRays, 0)
+
+    -- Store current product related chest sprites
+    self.chest_icon_closed = ChestData.rarity_display_data[rarity].closed_icon
+    self.chest_icon_open = ChestData.rarity_display_data[rarity].opened_icon
+    DCEI.SetFrameImage(self.ChestIcon, self.chest_icon_closed)
+
+    -- Setup ray rotation animation
+    Animation.RotationLoop(self.GlowRays)
+
+    -- Setup chest 'float' animation
+    Animation.HoverLoop(self.ChestIcon)
+
+    -- Tap to continue loop
+    Animation.TextFadeLoop(self.TipTextStart)
+    Animation.TextFadeLoop(self.TipTextEnd)
+end
+
+return layout

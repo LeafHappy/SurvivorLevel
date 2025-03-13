@@ -1,0 +1,311 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Data
+---============================================================================
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- LAYOUT
+local Layout = GMUI.Layout.New({
+    name = "Game",
+    parent = ui.z1.Lower,
+})
+
+local objectives_data = {}
+
+---@type table<TRACKED_STATS, integer>
+local _GameStatsData = {
+    -- [TRACKED_STATS.BasicKills] = 100,
+}
+
+local _GameStatsLayout = {}
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+local function SetConsumableActive(status)
+    Layout:SetConsumableActive(status)
+end
+
+local function SetConsumableIcon(icon)
+    Layout:SetConsumableIcon(icon)
+end
+
+local function SetConsumableFillAmount(fill_amount)
+    Layout:SetConsumableFillAmount(fill_amount)
+end
+
+local function UpdateBossStagger(fill_amount)
+    Layout:UpdateBossStagger(fill_amount)
+end
+
+local function UpdateGameStatLayout(stat)
+    --
+    local index = DisplayedGameStats[stat].Priority
+    local layout = Help.GenerateLayoutRef("Game/Stat", Layout.GameStatsContainer, _GameStatsLayout, index)
+
+    layout.state.icon = DisplayedGameStats[stat].Icon
+    layout.state.value = _GameStatsData[stat]
+
+    return layout
+end
+
+---comment
+---@param stat TRACKED_STATS
+---@param value integer
+local function SetGameStat(stat, value)
+    if not _GameStatsData[stat] then
+        _GameStatsData[stat] = 0
+    end
+
+    _GameStatsData[stat] = value
+
+    -- Check if we have a Layout for this stat
+    UpdateGameStatLayout(stat)
+
+    -- Need to Fix Order when a new stat is added.
+end
+
+---Increases the value of a game stat.
+---@param passed_stats table<TRACKED_STATS, integer>
+local function UpdateGameStats(passed_stats)
+    for key, value in pairs(passed_stats) do
+        SetGameStat(key, value)
+    end
+end
+
+local function ResetGameStats()
+    for key, _ in pairs(_GameStatsData) do
+        _GameStatsData[key] = 0
+    end
+
+    for _, layout in pairs(_GameStatsLayout) do
+        layout:Destroy()
+    end
+
+    _GameStatsLayout = {}
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout Functions
+---============================================================================
+
+function Layout:SetTimeActive(flag)
+    DCEI.SetFrameActive(self.TimeContainer, flag)
+
+    -- animate timer on show
+    if flag then
+        local k1 = { x = 0, y = 0, z = 0 }
+        local k2 = { x = 1, y = 1, z = 1 }
+        local duration = 0.2
+        local ease = "OutBack"
+        DCEI.AnimateFrameScale(self.TimeContainer, k1, k2, duration, ease)
+    end
+end
+
+function Layout:SetTime(time)
+    local text = Core.String.FormatTimeMinutes(time, 0)
+    DCEI.SetTextFrameText(self.Time, text)
+end
+
+-- function Layout:SetKillCounter(count)
+--     local text = tostring(count)
+--     DCEI.SetTextFrameText(self.kills.Label, text)
+-- end
+
+-- function Layout:SetKillCounterActive(flag)
+--     DCEI.SetFrameActive(self.kills.Frame, flag)
+-- end
+
+-- function Layout:SetCrystalCounter(count)
+--     local text = tostring(count)
+--     DCEI.SetTextFrameText(self.crystals.Label, text)
+-- end
+
+-- function Layout:SetCrystalCounterActive(flag)
+--     DCEI.SetFrameActive(self.crystals.Frame, flag)
+-- end
+
+function Layout:SetConsumableActive(status)
+    DCEI.SetFrameActive(self.Consumable.Frame, status)
+end
+
+function Layout:SetConsumableIcon(icon)
+    DCEI.SetFrameImage(self.Consumable.Icon, icon)
+end
+
+function Layout:SetConsumableFillAmount(fill_amount)
+    DCEI.SetFrameImageFillAmount(self.Consumable.Meter.Fill, fill_amount)
+end
+
+---
+function Layout:HookupBossHealth(data)
+    local unit = GMUI.GetUnitFromUnitReference(data.unit_ref)
+    DCEI.BindUnitData("boss", unit)
+    DCEI.SetFrameImageFillAmountExpression(self.boss.bar.Fill, "boss.Health.Fraction", false)
+
+    local display_name = data.display_name
+    DCEI.SetTextFrameText(self.boss.DisplayLabel, display_name)
+
+    self.boss:Show()
+end
+
+function Layout:UpdateBossStagger(fill_amount)
+    DCEI.SetFrameImageFillAmount(self.boss.Stagger.Fill, fill_amount)
+end
+
+function Layout:SetStageInfo(text)
+    DCEI.SetTextFrameText(self.StageInfoLabel, tostring(text))
+end
+
+function Layout:HideObjectives()
+    self.objective:Hide()
+end
+
+function Layout:ModifyObjectives(data)
+    self.objective:Show()
+
+    -- Check to see if we have that key Frame
+    local target_frame = objectives_data[data.key]
+
+    if not target_frame then
+        -- Create a new Frame
+        objectives_data[data.key] = GMUI.LazyLayout.New({
+            name = "Game/Objective/Item",
+            parent = self.objective.Frame,
+        })
+
+        target_frame = objectives_data[data.key]
+    end
+
+    -- Set State Information
+    local state = target_frame.state
+    state.display_text = data.information
+    state.text_color = data.color
+
+    target_frame:Update()
+end
+
+function Layout:ClearObjectives()
+    for key, frame in pairs(objectives_data) do
+        frame:Destroy()
+    end
+
+    objectives_data = {}
+
+    -- Not really sure why this isn't actually hiding it.
+    -- self.objective:Hide()
+end
+
+function Layout:SetPauseButtonEnabled(flag)
+    DCEI.SetFrameActive(self.PauseButton, flag)
+end
+
+---ANCHOR: Try Buttons
+
+---Enable/Disable the Try Buttons.
+---@param status boolean
+function Layout:SetTryButtonsActive(status)
+    DCEI.SetFrameActive(self.TryButtons.Frame, status)
+end
+
+---============================================================================
+---!SECTION: Layout Functions
+---SECTION: Layout Overrides
+---============================================================================
+
+-- LAYOUT METHODS
+function Layout:Initialize()
+    -- since this layout isn't lazy, we call Initialize manually before export
+    self:OnShow()
+
+    -- callbacks
+    DCEI.SetOnClickCallback(self.PauseButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ui.game.pause_menu:Show()
+    end)
+
+    DCEI.SetOnClickCallback(self.TryButtons.Level.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Core.Event.SendSimulationEvent("HeroLevel")
+    end)
+
+    DCEI.SetOnClickCallback(self.TryButtons.Artifact.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Core.Event.SendSimulationEvent("HeroArtifactPoint")
+    end)
+
+    -- DCEI.SetOnClickCallback(self.TestButtons.ToggleSpawning.Button, function()
+    DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+    --     local state = self.TestButtons.ToggleSpawning.state
+    --     state.is_active = not state.is_active
+
+    --     Core.Event.SendSimulationEvent("ToggleSpawning", state.is_active)
+    -- end)
+
+    -- self:SetTestActive(false)
+end
+
+-- function layout:SetTestActive(flag)
+--     DCEI.SetFrameActive(self.TestButtons.Frame, flag)
+-- end
+
+function Layout:OnShow()
+    self.boss:Hide()
+end
+
+function Layout:OnHide()
+    self.leaderboard:Hide()
+    self.perk_select:Hide()
+end
+
+---============================================================================
+---!SECTION: Layout Overrides
+---SECTION: Event Functions
+---============================================================================
+
+local function ShowOverlay()
+    Layout:Show()
+end
+
+local function HideOverlay()
+    Layout:Hide()
+end
+
+---============================================================================
+---!SECTION: Event Functions
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Game.SetConsumableActive", SetConsumableActive)
+Core.Event.RegisterPresentationEvent("Game.SetConsumableIcon", SetConsumableIcon)
+Core.Event.RegisterPresentationEvent("Game.SetConsumableFillAmount", SetConsumableFillAmount)
+Core.Event.RegisterPresentationEvent("Game.UpdateBossStagger", UpdateBossStagger)
+Core.Event.RegisterPresentationEvent("Game.UpdateGameStats", UpdateGameStats)
+Core.Event.RegisterPresentationEvent("Game.ResetGameStats", ResetGameStats)
+
+Core.Event.RegisterPresentationEvent("Game.Overlay.Show", ShowOverlay)
+Core.Event.RegisterPresentationEvent("Game.Overlay.Hide", HideOverlay)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+-- EXPORT
+Layout:Initialize()
+return Layout

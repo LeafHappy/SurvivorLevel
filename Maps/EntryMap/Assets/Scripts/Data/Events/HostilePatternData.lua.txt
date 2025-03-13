@@ -1,0 +1,250 @@
+local Modifiers = require("SharedData/Class/Modifier")
+
+---@class HostilePatternData
+---@field FormationType FORMATION_TYPE
+---@field Properties table
+---@field Modifiers table<Modifier>
+
+---@type table<HostilePatternData>
+local Data = {}
+
+-- Spawns form the North East, traveling South West.
+Data.DirectionalNorthEast = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 10,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = 45,
+    },
+}
+
+-- Spawns form the South East, traveling North West.
+Data.DirectionalSouthEast = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 10,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = 135,
+    },
+}
+
+-- Spawns form the South West, traveling North East.
+Data.DirectionalSouthWest = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 10,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = 225,
+    },
+}
+
+-- Spawns form the North West, traveling South East.
+Data.DirectionalNorthWest = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 10,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = 315,
+    },
+}
+
+-- Spawns enemies from the North that travel South.
+Data.DirectionalNorth = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 15,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = 90,
+        [StreamProperties.move_angle_range] = 0,
+    },
+}
+
+-- Spawns enemies from the South that travel North.
+Data.DirectionalSouth = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 15,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = 270,
+        [StreamProperties.move_angle_range] = 0,
+    },
+}
+
+Data.RandomAround = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 3,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.follow_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = "RandomAnglePass",
+        [StreamProperties.spawn_angle_range] = 360,
+    },
+}
+
+Data.HeatmapBalancing = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 5,
+        [StreamProperties.distance] = 18,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.follow_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = "HeatmapBalancing",
+        [StreamProperties.spawn_angle_range] = 90,
+    },
+}
+
+Data.StandardWalkerPack = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 5,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.follow_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = "RandomAnglePass",
+        [StreamProperties.spawn_angle_range] = 180,
+    },
+}
+
+Data.RunnerPackAround = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 10,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        -- [StreamProperties.spawn_angle] = "RandomCardinalPass",
+        [StreamProperties.spawn_angle] = 90, -- Above, moving Down
+        [StreamProperties.spawn_angle_range] = 60,
+        [StreamProperties.move_angle_range] = 10,
+    },
+}
+
+Data.StandardRunnerPack = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 15,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = 90, -- Above, moving Down
+        [StreamProperties.spawn_angle_range] = 90,
+        [StreamProperties.move_angle_range] = 30,
+    },
+}
+
+Data.StandardBansheeStream = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 5,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.follow_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = "RandomAnglePass",
+        [StreamProperties.spawn_angle_range] = 90,
+    },
+}
+
+Data.StandardEnclosure = {
+    FormationType = FORMATION_TYPE.Enclosure,
+    Properties = {
+        [EnclosureProperties.target] = "TargetPass",
+        [EnclosureProperties.radius] = 20,
+    },
+}
+
+Data.EnclosureGap_90 = {
+    FormationType = FORMATION_TYPE.Enclosure,
+    Properties = {
+        [EnclosureProperties.target] = "TargetPass",
+        [EnclosureProperties.radius] = 20,
+        [EnclosureProperties.gap_size] = 90,
+    },
+}
+
+Data.EnclosureGap_45 = {
+    FormationType = FORMATION_TYPE.Enclosure,
+    Properties = {
+        [EnclosureProperties.target] = "TargetPass",
+        [EnclosureProperties.radius] = 20,
+        [EnclosureProperties.gap_size] = 45,
+    },
+}
+
+Data.DeathSwarm = {
+    FormationType = FORMATION_TYPE.Stream,
+    Properties = {
+        [StreamProperties.width] = 10,
+        [StreamProperties.distance] = 20,
+        [StreamProperties.anchor_target] = "TargetPass",
+        [StreamProperties.spawn_angle] = "RandomAnglePass",
+        [StreamProperties.center_point_as_move_direction] = true,
+        [StreamProperties.spawn_angle_range] = 360,
+        [StreamProperties.move_angle_range] = 45,
+    },
+}
+
+-- Spawns 50 waves of runners in a spiral pattern.
+-- Lasts 20 seconds.
+Data.DeathSwarmSequence = {
+    FormationType = FORMATION_TYPE.StreamSequence,
+    Properties = {
+        -- [StreamSequenceProperties.sequence_count] = 50,
+        -- [StreamSequenceProperties.sequence_spawn_rate] = 0.40,
+        [StreamSequenceProperties.stream_properties] = {
+            [StreamProperties.distance] = 20,
+            [StreamProperties.width] = 3,
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = 0, -- Right
+            [StreamProperties.spawn_angle_range] = 30,
+            [StreamProperties.move_angle_range] = 5,
+        },
+        [StreamSequenceProperties.stream_manipulators] = {
+            [StreamSequenceManipulators.width] = 0.12,
+            [StreamSequenceManipulators.distance] = 0.05,
+            [StreamSequenceManipulators.spawn_angle] = 10, -- Counter-Clockwise
+            [StreamSequenceManipulators.spawn_angle_range] = 0,
+            [StreamSequenceManipulators.move_angle_range] = 0.08,
+        },
+    },
+}
+
+Data.BansheeDeathSwarm_1 = {
+    FormationType = FORMATION_TYPE.StreamSequence,
+    Properties = {
+        [StreamSequenceProperties.stream_properties] = {
+            [StreamProperties.distance] = 20,
+            [StreamProperties.width] = 10,
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+            [StreamProperties.spawn_angle_range] = 30,
+        },
+        [StreamSequenceProperties.stream_manipulators] = {
+            [StreamSequenceManipulators.spawn_angle] = 10, -- Counter-Clockwise
+        },
+    },
+}
+
+Data.BansheeDeathSwarm_2 = {
+    FormationType = FORMATION_TYPE.StreamSequence,
+    Properties = {
+        [StreamSequenceProperties.stream_properties] = {
+            [StreamProperties.distance] = 20,
+            [StreamProperties.width] = 10,
+            [StreamProperties.anchor_target] = "TargetPass",
+            [StreamProperties.follow_target] = "TargetPass",
+            [StreamProperties.spawn_angle] = "RandomAnglePass",
+            [StreamProperties.spawn_angle_range] = 30,
+        },
+        [StreamSequenceProperties.stream_manipulators] = {
+            [StreamSequenceManipulators.spawn_angle] = -10, -- Clockwise
+        },
+    },
+}
+
+return Data

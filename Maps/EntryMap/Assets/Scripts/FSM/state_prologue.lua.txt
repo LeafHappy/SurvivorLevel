@@ -1,0 +1,714 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+
+    3 Parts
+    
+    - Introduction -
+    Player is free to move around, needs to travel upwards to meet the "horde".
+
+    - Horde -
+    Player must retreat back down while killing enemies.
+
+    - Overrun -
+    Throns is overrun, player must "retreat".
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- Libraries
+local Core = require("Core")
+local GMUI = require("GMUI")
+local Json = require("json")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New(Help.GetStateName())
+
+-- Classes
+local CommonDataAccess = require("Class/CommonDataAccess")
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local Joystick = require("Class/Joystick")
+local Camera = require("Class/FollowCamera")
+local Experience = require("Class/Experience")
+local TileMap = require("Class/TileMap")
+local PropManager = require("Class/PropManager")
+local PerlinNoise = require("Class/PerlinNoise")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+local Event = require("Class/Event")
+
+-- Data
+-- local HuntData = require("Data/Modes/HuntData")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local TileData = require("Data/TileData")
+local PropData = require("Map/PropData")
+local HostileData = require("Data/SimpleUnits/HostileData")
+
+-- Shared Data
+local LootData = require("Data/SimpleUnits/LootData")
+local Modifier = require("SharedData/Class/Modifier")
+local SkillData = require("SharedData/Skills/SkillData")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Bosses = require("Game/AI/Bosses")
+local Elites = require("Game/AI/Elites")
+local StageEvents = require("Game/Events/StageEvents")
+
+-- Directors
+local CreditDirector = require("Game/Directors/Credits")
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Hunt Data Manager
+local HuntDataManager = require("Data/Modes/Hunt/HuntDataManager")
+
+-- Debug
+local _Dev = require("_Dev")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: CONSTANTS
+---============================================================================
+
+-- TICK RATE
+local TICK_RATE = TICK_RATE or 0.0625
+
+local MAP_CENTER = Vector2.New(0, 0)
+
+local PLAYER_SPAWN_POSITION = Vector2.New(0, 0)
+
+-- Player Movement Constraints
+local HORIZONTAL_BOUNDS = 2.5
+local BOTTOM_BOUNDS = -10
+
+local STARTING_UPGRADES = {
+    SkillData.Strafe.Key,
+    SkillData.PrologueStartingUpgrade.Key,
+}
+local OPTIONAL_UPGRADES = {
+    SkillData.PrologueStrafeVolley.Key,
+    -- SkillData.Trickshot.Key,
+    -- SkillData.QuickDraw.Key,
+}
+
+---============================================================================
+---!SECTION: CONSTANTS
+---SECTION: Local Variables
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Stage Generation
+---============================================================================
+
+local TILE_CASTLE_FLOOR = SimpleUnits.Helpers.RegisterTerrain(TileData.Castle.Floor)
+local TILE_CASTLE_WALL = SimpleUnits.Helpers.RegisterTerrain(TileData.Castle.Wall)
+local WALL_DISTANCE = 3.5
+local FLOOR_SIZE = Vector2.New(2.8, 1.6)
+
+local FLOOR_STARTING_Y = -9
+
+local BOTTOM_WALL_STARTING_Y = -11
+local SIDE_WALL_STARTING_Y = -14
+local SIDE_WALL_HEIGHT = 7
+
+-- local FLOOR_OPTIONS = {
+--     end_scale = Vector3.One(),
+--     end_position = Vector3.New(0, -0.5, 0),
+-- }
+
+local BOTTOM_WALL_OPTIONS = {
+    end_scale = Vector3.One(),
+    rotation_axis = Vector3.New(0, -1, 0),
+    end_degree = 180,
+}
+
+local LEFT_WALL_OPTIONS = {
+    end_scale = Vector3.One(),
+    rotation_axis = Vector3.New(0, -1, 0),
+    end_degree = 90,
+}
+
+local RIGHT_WALL_OPTIONS = {
+    end_scale = Vector3.One(),
+    rotation_axis = Vector3.New(0, -1, 0),
+    end_degree = -90,
+}
+
+local function GenerateFloor(position)
+    local instance = TILE_CASTLE_FLOOR:SpawnSync(PLAYER.Terrain, TEAM.Terrain, position)
+    -- DCEI.ApplyTransformAnimationToSimpleUnit(instance, FLOOR_OPTIONS)
+end
+
+local function GenerateBottomWall(y_position)
+    local position = Vector2.New(0, y_position)
+    local instance = TILE_CASTLE_WALL:SpawnSync(PLAYER.Terrain, TEAM.Terrain, position)
+    DCEI.ApplyTransformAnimationToSimpleUnit(instance, BOTTOM_WALL_OPTIONS)
+end
+
+local function GenerateLeftAndRightWalls(y_position)
+    -- Generate Left Wall
+    local position = Vector2.New(-WALL_DISTANCE, y_position)
+    local left_instance = TILE_CASTLE_WALL:SpawnSync(PLAYER.Terrain, TEAM.Terrain, position)
+    DCEI.ApplyTransformAnimationToSimpleUnit(left_instance, LEFT_WALL_OPTIONS)
+
+    -- Generate Right Wall
+    local position = Vector2.New(WALL_DISTANCE, y_position)
+    local right_instance = TILE_CASTLE_WALL:SpawnSync(PLAYER.Terrain, TEAM.Terrain, position)
+    DCEI.ApplyTransformAnimationToSimpleUnit(right_instance, RIGHT_WALL_OPTIONS)
+end
+
+local function GenerateMap()
+    -- Generate Floors
+    local horizontal_count = 2
+    local vertical_count = 65
+    local starting_x_position = -(FLOOR_SIZE.x * horizontal_count) / 2
+
+    for i = 0, horizontal_count, 1 do
+        for j = 0, vertical_count, 1 do
+            local position =
+                Vector2.New(starting_x_position + (i * FLOOR_SIZE.x), (j - 1) * FLOOR_SIZE.y + FLOOR_STARTING_Y)
+            GenerateFloor(position)
+        end
+    end
+
+    -- Generate Walls
+    local vertical_count = 15
+
+    GenerateBottomWall(BOTTOM_WALL_STARTING_Y)
+    for i = 1, vertical_count do
+        GenerateLeftAndRightWalls(SIDE_WALL_STARTING_Y + (i * SIDE_WALL_HEIGHT))
+    end
+end
+
+---============================================================================
+---!SECTION: Stage Generation
+---SECTION: Local Functions - Library
+---============================================================================
+
+local function FollowCamera(delta)
+    local player_id = PLAYER.Player1
+    local hero = Hero.Fetch(player_id)
+    local camera = Camera.Fetch(player_id)
+
+    local hero_position = hero:GetPosition()
+    hero_position.x = 0
+    local camera_position = camera:GetPosition()
+    local target_position = Vector2.Lerp(camera_position, hero_position, delta)
+
+    -- Clamp Camera -y position
+    target_position.y = math.max(target_position.y, 0)
+
+    DCEI.SetCameraFocusSmoothOvertimeForPlayer(player_id, target_position.x, target_position.y, delta)
+end
+
+local _DollyCameraY = 0
+local DOLLY_CAMERA_SPEED = 1
+
+local function DollyTrackCamera(delta)
+    _DollyCameraY = _DollyCameraY - DOLLY_CAMERA_SPEED * delta
+
+    local player_id = PLAYER.Player1
+    local hero = Hero.Fetch(player_id)
+    local camera = Camera.Fetch(player_id)
+
+    local camera_position = camera:GetPosition()
+    camera_position.y = _DollyCameraY
+
+    DCEI.SetCameraFocusSmoothOvertimeForPlayer(player_id, camera_position.x, camera_position.y, delta)
+end
+
+local STARTING_JOYSTICK_TOP_BOUNDS = 1
+local _JoystickTopBounds = 0
+local JOYSTICK_TOP_BOUNDS_SHRINK_RATE = 0.10
+
+function LockMovementToCamera(delta)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    local camera_position = camera:GetPosition()
+
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+
+    local bottom_bounds = camera_position.y - 10
+
+    _JoystickTopBounds = _JoystickTopBounds - JOYSTICK_TOP_BOUNDS_SHRINK_RATE * delta
+    local top_bounds = camera_position.y + _JoystickTopBounds
+
+    joystick:SetUnitBounds(-HORIZONTAL_BOUNDS, HORIZONTAL_BOUNDS, bottom_bounds, top_bounds)
+end
+
+---Game Over
+---@param is_victory boolean
+local function GameOver(is_victory)
+    if not FSM:IsCurrentState(State) then
+        return
+    end
+
+    -- Disable Game UI
+    UiHelper.SetGameUIActive(false)
+
+    -- Disable Joystick
+    Joystick.Fetch(PLAYER.Player1):SetActive(false)
+
+    -- Transition
+    FSM:Transition(FSM.States.Meta, { Victory = is_victory })
+end
+
+---============================================================================
+---!SECTION: Local Functions - Library
+---SECTION: Local Functions - Helpers
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Helpers
+---SECTION: Stage Events
+---============================================================================
+
+local _EventPosition = 0
+
+---@class StageSequenceData
+---@field StartAction function Only occurs once when the event is started.
+---@field ContinuousAction function Occurs every frame until the Condition is met.
+---@field Condition function
+---@field CompletionAction function
+
+---@type table<StageSequenceData>
+local _StageEvents = {
+    -- First Event is a Placeholder to allow the first real event to trigger their Start Action.
+    [1] = {
+        -- StartAction = function() end,
+        -- ContinuousAction = function(delta) end,
+        -- Condition = function() end,
+        -- CompletionAction = function() end,
+    },
+    [2] = { -- Movement Tutorial
+        StartAction = function()
+            Help.Log("Starting Movement Tutorial")
+
+            Joystick.Fetch(PLAYER.Player1):SetActive(true)
+            GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Show")
+        end,
+        ContinuousAction = function(delta)
+            FollowCamera(delta)
+        end,
+        Condition = function()
+            local joystick = Joystick.Fetch(PLAYER.Player1)
+            return Vector2.Magnitude(joystick.axes) > 0.1
+        end,
+        CompletionAction = function()
+            Help.Log("Movement Tutorial Completed")
+            GMUI.SendUiLayoutCommand("ui.game.movement_tutorial", "Hide")
+        end,
+    },
+    [3] = { -- Player has moved up a certain distance.
+        StartAction = function()
+            Help.Log("Starting Hero Traveled North")
+
+            -- Set Objective Test
+            UiHelper.ModifyObjectives("Main", "Investigate the disturbance.", "#eeaa00ff")
+        end,
+        ContinuousAction = function(delta)
+            FollowCamera(delta)
+        end,
+        Condition = function()
+            local hero = Hero.Fetch(PLAYER.Player1)
+            local hero_position = hero:GetPosition()
+            return hero_position.y > 3
+        end,
+        CompletionAction = function()
+            local hero = Hero.Fetch(PLAYER.Player1)
+            local target = hero.unit
+            local spawn_position = Vector2.UnitPosition(target) + Vector2.Up() * 15
+
+            local instance = SpawnDirector.Instance:SpawnFollow(HostileData.Walker, spawn_position, target)
+        end,
+    },
+    [4] = { -- Start Spawning Walkers
+        StartAction = function()
+            Help.Log("Starting Walker Spawns")
+
+            -- Register Walker
+            SpawnDirector.Instance:AddNewUnit(HostileData.PrologueWalker)
+        end,
+        ContinuousAction = function(delta)
+            FollowCamera(delta)
+
+            local game_time = CommonDataAccess.Get("game_time")
+            if game_time % 1 == 0 then
+                local hero = Hero.Fetch(PLAYER.Player1)
+                local target = hero.unit
+                local spawn_position = Vector2.UnitPosition(target)
+                    + Vector2.Up() * 15
+                    + Vector2.Right() * Help.RandomNumber(-3, 3)
+
+                local instance = SpawnDirector.Instance:SpawnFollow(HostileData.PrologueWalker, spawn_position, target)
+            end
+        end,
+        Condition = function()
+            local hero = Hero.Fetch(PLAYER.Player1)
+            local hero_position = hero:GetPosition()
+            return hero_position.y > 25
+        end,
+        -- CompletionAction = function() end,
+    },
+    [5] = { -- Camera Pan & Lock to Show the Horde
+        StartAction = function()
+            -- Register Brutes
+            SpawnDirector.Instance:AddNewUnit(HostileData.PrologueBrute)
+
+            -- Spawn Brutes
+            local camera_position = Camera.Fetch(PLAYER.Player1):GetPosition()
+            local base_position = camera_position + Vector2.Up() * 15
+
+            for i = 1, 20 do
+                local position = base_position + Vector2.Up() * 2 + Vector2.RandomSquare(2.5, 2.5)
+                SpawnDirector.Instance:SpawnDirection(HostileData.PrologueBrute, position, Vector2.Down())
+            end
+
+            -- Spawn Walkers
+            for i = 1, 100, 1 do
+                local position = base_position + Vector2.Up() * 3 + Vector2.RandomSquare(2.5, 5)
+                SpawnDirector.Instance:SpawnDirection(HostileData.PrologueWalker, position, Vector2.Down())
+            end
+
+            -- Set Camera Position to a Fixed Position of y = 30
+            local fixed_position = Vector2.New(0, 30)
+            local transition_time = 2.5
+            DCEI.SetCameraFocusSmoothOvertimeForPlayer(
+                PLAYER.Player1,
+                fixed_position.x,
+                fixed_position.y,
+                transition_time
+            )
+        end,
+        -- ContinuousAction = function(delta) end,
+        Condition = function()
+            local camera = Camera.Fetch(PLAYER.Player1)
+            local camera_position = camera:GetPosition()
+            return camera_position.y >= 30
+        end,
+        -- CompletionAction = func1tion() end,
+    },
+    [6] = { -- Start Horde Phase
+        StartAction = function()
+            _DollyCameraY = 30
+            _JoystickTopBounds = STARTING_JOYSTICK_TOP_BOUNDS
+        end,
+        ContinuousAction = function(delta)
+            DollyTrackCamera(delta)
+            LockMovementToCamera(delta)
+
+            local camera_position = Camera.Fetch(PLAYER.Player1):GetPosition()
+            local base_position = camera_position + Vector2.Up() * 15
+
+            local position = base_position + Vector2.Up() * 5 + Vector2.RandomSquare(2.5, 10)
+            SpawnDirector.Instance:SpawnDirection(HostileData.PrologueWalker, position, Vector2.Down())
+        end,
+        Condition = function()
+            return _DollyCameraY <= 0
+        end,
+        -- CompletionAction = function() end,
+    },
+    [7] = { -- Stage Complete
+        StartAction = function()
+            GameOver(true)
+        end,
+        -- ContinuousAction = function(delta) end,
+        -- Condition = function() end,
+        -- CompletionAction = function() end,
+    },
+}
+
+---comment
+---@param delta Time
+local function CheckEventOrder(delta)
+    local event = _StageEvents[_EventPosition]
+
+    -- Error Check for when no additional events are available
+    if not event then
+        return
+    end
+
+    if (event.Condition and event.Condition()) or not event.Condition then
+        -- Check for Event Completion Action
+        if event.CompletionAction then
+            event.CompletionAction()
+        end
+
+        -- Update Event Position
+        _EventPosition = _EventPosition + 1
+
+        -- Check for Next Event's Start Action
+        local next_event = _StageEvents[_EventPosition]
+        if next_event and next_event.StartAction then
+            next_event.StartAction()
+        end
+    elseif event.ContinuousAction then
+        -- Check for Event Continuous Action
+        event.ContinuousAction(delta)
+    end
+end
+
+---============================================================================
+---!SECTION: Stage Events
+---SECTION: Local Functions - Registered Event Callbacks
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Registered Event Callbacks
+---SECTION: Local Functions - Setup
+---============================================================================
+
+local function ResetStateVariables()
+    -- Reset Event Position
+    _EventPosition = 1
+
+    SpawnDirector.Instance = nil
+
+    -- -- Reset Map
+    -- if _Map then
+    --     _Map:Reset()
+    -- end
+    -- _Map = nil
+
+    -- -- Reset PropManager
+    -- if _PropManager then
+    --     _PropManager:Reset()
+    -- end
+    -- _PropManager = nil
+
+    -- _CreditDirector = nil
+    -- SpawnDirector.Instance = nil
+
+    -- _BossInstance = nil
+
+    -- _AccumulatedLoot = {}
+end
+
+local CAMERA_STARTING_DISTANCE = 3
+local CAMERA_TARGET_DISTANCE = 8
+local CAMERA_TRANSITION_TIME = 3
+
+---Initialize Game Mode
+local function Initialize()
+    -- Reset Player Stats
+    StageHelper.InitializeTrackedStats()
+
+    -- Clear Cached Data
+    CommonDataAccess.Clear()
+    CommonDataAccess.Set("game_time", 0)
+
+    -- Setup Tiles
+
+    -- Player Setup
+    StageHelper.SetupPlayerCount(1)
+
+    -- Hero Setup
+    local hero_name = SURVIVOR.Annie
+    local player_id = PLAYER.Player1
+    local hero = Hero.Fetch(player_id)
+    hero:Reset()
+    hero:SpawnHero(PLAYER_SPAWN_POSITION, hero_name, 0, STARTING_UPGRADES, OPTIONAL_UPGRADES)
+
+    -- Camera Setup
+    local camera = Camera.Fetch(player_id)
+    camera:SetSize(CAMERA_STARTING_DISTANCE)
+    camera:SetSize(CAMERA_TARGET_DISTANCE, CAMERA_TRANSITION_TIME)
+
+    -- Experience
+    StageHelper.SetupGlobalExperience()
+
+    local experience = Experience.Fetch(PLAYER.Player1)
+    function experience:OnLevelIncreased()
+        Hero.Fetch(PLAYER.Player1):GainLevel(HERO_POINT.Heroic)
+
+        -- Update UI
+        UiHelper.SetLevel(experience:GetLevel())
+        UiHelper.LevelAnimation()
+    end
+
+    -- Set Joystick Active
+    local joystick = Joystick.Fetch(player_id)
+    joystick:SetActive(true)
+    joystick:SetUnitBounds(-HORIZONTAL_BOUNDS, HORIZONTAL_BOUNDS, BOTTOM_BOUNDS)
+
+    -- UI
+    StageHelper.ResetUI()
+    UiHelper.SetGameTimerActive(false)
+    UiHelper.SetPauseButtonActive(false)
+    UiHelper.SetGameUIActive(true)
+
+    -- UiHelper.ModifyObjectives
+
+    -- Generate Map
+    GenerateMap()
+end
+
+---============================================================================
+---!SECTION: Local Functions - Setup
+---SECTION: Local Functions - Core
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Setup
+---SECTION: Local Functions - Tutorial
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Tutorial
+---SECTION: Local Functions - Spawning
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Spawning
+---SECTION: Local Functions - Tick Rates
+---============================================================================
+
+-- Update the Game Time
+local function UpdateGameTime(delta)
+    local game_time = CommonDataAccess.Modify("game_time", delta)
+end
+
+---Update Player Movement
+---@param delta Time
+local function UpdatePlayerMovement(delta)
+    local player_id = PLAYER.Player1
+
+    local hero = Hero.Fetch(player_id)
+
+    if not Help.ValidateUnit(hero.unit) then
+        return
+    end
+
+    hero:Update()
+
+    local joystick = Joystick.Fetch(player_id)
+    joystick:MoveUnit(hero.unit, true)
+end
+
+---Every 0.25 Seconds - Helps the UI be less jittery.
+---Updates Player Stats
+---NOTE: Make sure to record one final time prior to leaving the State.
+---@param delta number | nil
+local function UpdatePlayerStats(delta)
+    StageHelper.UpdatePlayerStats()
+end
+
+---============================================================================
+---!SECTION: Local Functions - Tick Rates
+---SECTION: Local Functions - Developer
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Developer
+---SECTION: Local Functions - Extras
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions - Extras
+---SECTION: Registered Functions
+---============================================================================
+
+local _TickRateUpdates = {
+    {
+        Interval = 1,
+        Function = CheckEventOrder,
+    },
+    {
+        Interval = 1,
+        Function = UpdateGameTime,
+    },
+    {
+        Interval = 1,
+        Function = UpdatePlayerMovement,
+    },
+    -- {
+    --     Interval = 1,
+    --     Function = UpdatePlayerCamera,
+    -- },
+    {
+        Interval = 0.25 / TICK_RATE,
+        Function = UpdatePlayerStats,
+    },
+}
+
+---Un/Register Tick Rate Dependent Functions
+---@param unsubscribe boolean | nil
+local function SubscribeTickRates(unsubscribe)
+    if not unsubscribe then
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Subscribe(entry.Interval, entry.Function)
+        end
+    else
+        for _, entry in pairs(_TickRateUpdates) do
+            TickRate:Unsubscribe(entry.Interval, entry.Function)
+        end
+    end
+end
+
+---============================================================================
+---!SECTION: Registered Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    -- Reset State Variables
+    ResetStateVariables()
+
+    -- Initialize Game Mode
+    Initialize()
+
+    -- FadeIn
+    UiHelper.FadeIn()
+end
+
+function State:OnEnter()
+    -- Subscribe to Tick Rates
+    TickRate:ResetTick()
+    SubscribeTickRates()
+end
+
+function State:OnGameUpdate(delta) end
+
+function State:OnTransitionExit()
+    -- Unsubscribe from Tick Rates
+    SubscribeTickRates(true)
+
+    DCEI.Wait(1)
+
+    -- Transition
+    StageHelper.GameOverSlowTimeAndZoom(3, 60, 40, function()
+        UiHelper.FadeOut(1)
+    end)
+end
+
+function State:OnExit()
+    Hero.Fetch(PLAYER.Player1):Reset()
+
+    -- Reset Game Speed back to Normal
+    Help.SetGameSpeed(1)
+
+    -- Clear
+    StageHelper.RemoveAllUnits()
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: Developer
+---============================================================================
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

@@ -1,0 +1,84 @@
+local DefaultSavedData = {
+    version = 7,
+    currency = {
+        gems = 0,
+    },
+    heroes = {
+        Annie = {
+            level = 1,
+            rank = 0,
+            trophies = {},
+            equipment = {
+                weapon = 0,
+                consumable = 0,
+                ring = 0,
+                head = 0,
+                chest = 0,
+                boot = 0,
+            },
+            challenges = {},
+        },
+    },
+    quests = {},
+    meta_inventory = {
+        global_id = 0,
+        equipment = {},
+        materials = {},
+    },
+    player = {
+        hero = "Annie", -- The Hero selected.
+        mode = "Hunt", -- The selected game mode.
+    },
+    trophy_road = {
+        claimed = {},
+    },
+    achievements = {
+        levels = {},
+        current_values = {},
+        shown_achievements = {},
+    },
+    shop = {
+        next_rotation = 0,
+        ad_buttons = {},
+        daily_shop = {
+            {
+                type = "c_rare",
+                level = 1,
+            },
+            {
+                type = "s_annie",
+                level = 1,
+            },
+            {
+                type = "gems",
+                level = 1,
+            },
+        },
+    },
+    cumulative_ads = {
+        items = {
+            [1] = {},
+            [2] = {},
+            [3] = {},
+            [4] = {},
+            [5] = {},
+            [6] = {},
+        },
+        current_day = 0,
+        time_until_refresh = 0,
+        current_progress = 0,
+        max_progress = 10,
+    },
+    stage_progress = {
+        current_stage = 1,
+        selected_stage = 1,
+        stages = {
+            [1] = {
+                current_difficulty = 1,
+                selected_difficulty = 1,
+            },
+        },
+    },
+}
+
+return DefaultSavedData

@@ -1,0 +1,468 @@
+---============================================================================
+---SECTION: About
+---============================================================================
+--[[
+    About
+    
+    Allows the player to "Try" out the Hero in a sandbox Stage.
+
+
+    ---TODO [8/22]: UI
+    ---Add a UI that allows the player to:
+        -- Select Upgrades (Force Level)
+        -- Reset Level (Remove all Upgrades)
+        -- Set Difficulty of Enemies
+]]
+---============================================================================
+---!SECTION: About
+---SECTION: Libraries
+---============================================================================
+
+-- SCRIPTS
+local Core = require("Core")
+
+-- State Scripts
+local GameState = require("Class/GameState")
+local Help = require("Help")
+local State = GameState.New("Try")
+
+-- Classes
+local Vector2 = require("Class/Vector2")
+local CommonDataAccess = require("Class/CommonDataAccess")
+local TileMap = require("Class/TileMap")
+local FogOfWar = require("Class/FogOfWar")
+local Experience = require("Class/Experience")
+local Joystick = require("Class/Joystick")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local DamageAffinity = require("Class/Simple/DamageAffinity")
+
+-- Data
+local Pattern = require("Data/Pattern")
+local HostileData = require("Data/SimpleUnits/HostileData")
+local SimpleUnits = require("SharedData/SimpleUnits")
+local Biome = require("Data/Biomes/Try")
+
+-- Shared Data
+local Modifier = require("SharedData/Class/Modifier")
+
+-- Game
+local StageHelper = require("Game/StageHelper")
+local UiHelper = require("Game/UiHelper")
+local Log = require("Game/Log")
+local Hero = require("Game/Hero")
+local Events = require("Game/Events")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+-- Directors
+local SpawnDirector = require("Game/Directors/Spawn")
+
+-- Debug
+local _Dev = require("_Dev")
+
+-- What was this here for?
+-- local testing_data = require("FSM/Testing/testing_data")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Variables
+---============================================================================
+
+local TICK_RATE = TICK_RATE or 0.0625
+
+local TRAINING_DUMMY_POSITION = Vector2.New(0, 10)
+
+local STATIONARY_RANGE = {
+    min = Vector2.New(-3, 6),
+    max = Vector2.New(3, 6),
+}
+
+-- ANCHOR: Stage Properties
+local FOG_STARTING_SIZE = 40
+
+local UNIT_LIST = {
+    HostileData.Runner,
+    HostileData.Banshee,
+    HostileData.Walker,
+    HostileData.Marauder,
+    HostileData.Boomer,
+    HostileData.Brute,
+}
+
+---ANCHOR: Internal Properties
+
+---@type TileMap
+local _Map = nil
+
+---@type FogOfWar
+local _Fog = nil
+
+local _GameTime = 0
+local _Difficulty = 0
+
+local _StationaryPositions = {}
+local _StationaryUnits = {}
+
+local _FakeBoss = nil
+
+---============================================================================
+---!SECTION: Local Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function Reset()
+    _GameTime = 0
+    _Difficulty = 0
+    _StationaryPositions = {}
+    _StationaryUnits = {}
+
+    DCEI.ResetPlayerStats()
+    CommonDataAccess.Set("kills", 0)
+    CommonDataAccess.Set("game_mode", State.name)
+
+    -- Reset Map
+    if _Map then
+        _Map:Reset()
+    end
+    _Map = nil
+
+    -- Reset Fog of War
+    if _Fog then
+        _Fog:_ClearFogOfWar()
+    end
+    _Fog = nil
+end
+
+---Setup Players based on run_start_context
+---@param ctx GameModeContext
+local function SetupPlayers(ctx)
+    StageHelper.SetupPlayerCount(1)
+    StageHelper.SetupPlayerHero(
+        PLAYER.Player1,
+        ctx.hero_name,
+        ctx.hero_level,
+        Vector2.Zero(),
+        ctx.starting_upgrades,
+        ctx.optional_upgrades
+    )
+
+    ---TESTING: Multiple Heroes / Size Comparison Test
+    -- StageHelper.SetupPlayerHero(1, "Annie", ctx.hero_meta_level, Vector2.Zero(), ctx.upgrades)
+    -- StageHelper.SetupPlayerHero(2, "Erik", ctx.hero_meta_level, Vector2.Quadrant(4), ctx.upgrades)
+    -- StageHelper.SetupPlayerHero(3, "Jorian", ctx.hero_meta_level, Vector2.Quadrant(2), ctx.upgrades)
+    -- StageHelper.SetupPlayerHero(4, "Ghost", ctx.hero_meta_level, Vector2.Quadrant(4) * 2, ctx.upgrades)
+    -- StageHelper.SetupPlayerHero(5, "Amber", ctx.hero_meta_level, Vector2.Quadrant(2) * 2, ctx.upgrades)
+end
+
+local function SpawnTrainingDummy()
+    Elites.Spawn(Elites.Types.TrainingDummy, TRAINING_DUMMY_POSITION, {})
+
+    -- SimpleUnit.ModifyHealth(instance, 1000000000)
+    -- SimpleUnit.ModifyArmor(instance, ARMOR_TYPES.Default)
+    -- SimpleUnit.ModifyCollision(instance, CollisionLayers.Hostile, CollisionLayers.None, 0.60)
+    -- SimpleUnit.ModifyMass(instance, 1000000)
+
+    -- DCEI.SetUnitSimpleTag(instance, { value = SIMPLE_TAG.Hostile })
+end
+
+local function RegisterUnits(difficulty)
+    for i = 1, #UNIT_LIST do
+        SpawnDirector.Instance:AddNewUnit(UNIT_LIST[i])
+    end
+end
+
+local function CheckStationaryUnits()
+    if #_StationaryPositions < #UNIT_LIST then
+        for i = 1, #UNIT_LIST do
+            _StationaryPositions[i] =
+                Vector2.Lerp(STATIONARY_RANGE.min, STATIONARY_RANGE.max, (i - 1) / (#UNIT_LIST - 1))
+        end
+    end
+
+    for i = 1, #UNIT_LIST do
+        -- Check if we have a stored unit and determine if they're still alive.
+        if _StationaryUnits[i] then
+            local unit_exists = DCEI.SimpleUnitExists(_StationaryUnits[i])
+
+            if not unit_exists then
+                _StationaryUnits[i] = nil
+            end
+        end
+
+        -- Spawn if we don't find a unit.
+        if not _StationaryUnits[i] then
+            if _StationaryUnits[i] == nil then
+                _StationaryUnits[i] = SpawnDirector.Instance:SpawnStationary(UNIT_LIST[i], _StationaryPositions[i])
+
+                local instance = _StationaryUnits[i]
+                DCEI.ApplyTransformAnimationToSimpleUnit(instance, {
+                    end_scale = { x = 10, y = 10, z = 10 },
+                    end_seconds = 0,
+                })
+
+                DCEI.ApplyTintColorAnimationToSimpleUnit(instance, {
+                    start_tint_color = { x = 0, y = 0, z = 0 },
+                    end_tint_color = { x = 1, y = 1, z = 1 },
+                    start_alpha = 1,
+                    end_alpha = 1,
+                    start_seconds = 1,
+                    end_seconds = 4,
+                })
+            end
+        end
+    end
+end
+
+local function PeriodicSpawns()
+    -- local spawn_position = Vector2.Quadrant(1) * 1.5
+    -- local move_direction = Vector2.Random()
+    -- SpawnDirector.Instance:SpawnSyncDirection(UNIT_LIST[2], spawn_position, move_direction)
+
+    local initial_position = Vector2.New(-20, 10)
+    local random_offset = Vector2.RandomInside(3)
+    local spawn_position = initial_position + random_offset
+
+    -- Walkers
+    local facing = Vector2.Quadrant(4)
+    SpawnDirector.Instance:SpawnDirection(UNIT_LIST[1], spawn_position, facing)
+
+    initial_position = Vector2.New(20, 10)
+    random_offset = Vector2.RandomInside(3)
+    spawn_position = initial_position + random_offset
+
+    -- HazmatSKull
+    local facing = Vector2.Quadrant(3)
+    SpawnDirector.Instance:SpawnDirection(UNIT_LIST[3], spawn_position, facing)
+end
+
+Core.Event.RegisterSimulationEvent("HeroLevel", function()
+    Experience.Fetch(PLAYER.Player1):GainLevel()
+end)
+
+Core.Event.RegisterSimulationEvent("HeroArtifactPoint", function()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    hero:ModifyUpgradePoints(HERO_POINT.Heroic, 1)
+end)
+
+local function GameOver()
+    if not FSM:IsCurrentState(State) then
+        return
+    end
+
+    Joystick.Fetch(PLAYER.Player1):Toggle()
+    FSM:Transition(FSM.States.Camp, { is_return = true })
+end
+
+local function AutoDefeat()
+    local hero = Hero.Fetch(PLAYER.Player1)
+    DCEI.KillUnit(hero.unit)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: State Functions
+---============================================================================
+
+function State:OnTransitionEnter()
+    ---@type GameModeContext
+    self.data = self.data
+
+    DamageAffinity.Instance:Reset()
+
+    StageHelper.RemoveAllUnits()
+    Reset()
+    SetupPlayers(self.data)
+    StageHelper.SetupGlobalExperience()
+    StageHelper.InitializeTrackedStats()
+
+    -- Setup UI
+    StageHelper.ResetUI()
+    UiHelper.SetGameUIActive(true)
+    UiHelper.SetGameTimerActive(false)
+    UiHelper.SetTryButtonsActive(true)
+
+    -- Map
+    _Map = TileMap.New(Biome.TILE_DATA)
+    _Map:Update(Vector2.Zero())
+
+    -- Fog of War
+    _Fog = FogOfWar.New(Vector2.Zero(), FOG_STARTING_SIZE, FOG_STARTING_SIZE)
+
+    -- Register Units
+    RegisterUnits(_Difficulty)
+
+    -- Logging
+    -- Log.GameStart(State.name, 0, self.data.hero, self.data.hero_level)
+
+    -- Mask Fade
+    UiHelper.FadeIn()
+end
+
+function State:OnEnter()
+    -- StaticSpawn()
+    SpawnTrainingDummy()
+
+    ---TESTING: Simple Unit Sizes
+    CheckStationaryUnits()
+
+    ---TESTING: Transform Animation on Hostile
+    -- local instance = SpawnDirector.Instance:SpawnSyncStationary(HostileData.Walker, Vector2.New(5, 0))
+    -- DCEI.ApplyTransformAnimationToSimpleUnit(instance, {
+    --     end_scale = { x = 10, y = 10, z = 10 },
+    --     end_seconds = 0,
+    -- })
+
+    -- for key, value in pairs(Elites.Types) do
+    --     local spawn_position = Vector2.Random() * 5
+    --     local elite_instance = Elites.Spawn(value, spawn_position, 10)
+    -- end
+
+    -- for key, value in pairs(Bosses.Types) do
+    --     local spawn_position = Vector2.Random() * 5
+    --     local boss_instance = Bosses.Spawn(value, spawn_position, 10)
+    -- end
+
+    -- for key, value in pairs(SimpleUnits.Data) do
+    -- 	-- Spawn all simple units in a random position
+    -- 	local spawn_position = Vector2.Random() * 5
+    -- 	SpawnDirector.Instance:AddNewUnit(value, value.Type)
+    -- 	SpawnDirector.Instance:SpawnSyncStationary(value.Type, spawn_position)
+    -- end
+
+    ---TESTING: Elite
+    -- local spawn_position = Vector2.Quadrant(1, true) * 5
+    -- local elite_type = Elites.Types.Golem
+    -- local elite_instance = Elites.Spawn(elite_type, spawn_position, 10)
+
+    ---TESTING: Boss
+    -- local spawn_position = Vector2.Up() * 3
+    -- local boss_type = Bosses.Types.Reaper
+    -- local boss_instance = Bosses.Spawn(boss_type, spawn_position, 10)
+    -- Bosses.ApplyOverheadHealthbar(boss_instance)
+    -- Bosses.ApplyOnScreenHealthBar(boss_instance, boss_type.Data.Name)
+    -- Bosses.ApplyOffscreenIndicator(boss_instance, DCEI.Texture("fantasy_icon_mob_boss_skeletonking_wildsurvivor"))
+
+    ---TESTING: Simple Unit Formation Testing
+    -- local target = Hero.GetRandomTarget()
+    -- local delay = 5
+
+    -- DCEI.TriggerAddTimerEventElapsed(function()
+    --     local target_position = Vector2.UnitPosition(target)
+
+    --     -- SpawnDirector.Instance:SpawnStream(HostileData.Runner, 100, {
+    --     --     [StreamProperties.spawn_angle] = Core.Random.GetNumber(0, 360),
+    --     --     [StreamProperties.spawn_angle_range] = 30,
+    --     --     [StreamProperties.anchor_target] = target,
+    --     --     [StreamProperties.move_angle_range] = 30,
+    --     -- })
+
+    --     -- SpawnDirector.Instance:SpawnEnclosure(HostileData.Runner, 30, {
+    --     --     [EnclosureProperties.target] = target,
+    --     --     -- [EnclosureProperties.offset] = target_position,
+    --     --     [EnclosureProperties.gap_size] = 90,
+    --     --     [EnclosureProperties.move_angle_modifier] = 1,
+    --     -- })
+    -- end, delay)
+
+    ---TESTING: New Unit Type Testing
+    -- local target = Hero.GetRandomTarget()
+    -- local simple_unit = SimpleUnits.Helpers.QuickRegister(HostileData.Gargoyle)
+    -- for i = 1, 25 do
+    --     local position = Vector2.Random() * Core.Random.GetNumber(5, 25)
+    --     simple_unit:SpawnSync(PLAYER.Hostile, TEAM.Hostile, position, target)
+    -- end
+
+    if _Dev then
+        _Dev.Events.Register("Defeat", AutoDefeat)
+    end
+end
+
+function State:OnGameUpdate()
+    DamageAffinity.Instance:Update()
+
+    ---NOTE: Blessing Test
+    -- if _GameTime == 1.5 then
+    --     Events.SpawnHeroSkillPoint(Vector2.Quadrant(3, true) * 3)
+    -- end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    if not hero:IsUnitAlive() then
+        ---NOTE: Changed to Meta (rather than Try) due to bug causing Level 1 Weapons to be re-added to Upgrade Pool
+        GameOver()
+        return
+    end
+
+    -- Increment Game Timer
+    _GameTime = _GameTime + TICK_RATE
+
+    -- 1 Second Check
+    if _GameTime % 3 == 0 then
+        CheckStationaryUnits()
+
+        -- local stage_time = CommonDataAccess.Modify("stage.time", 1)
+        -- GMUI.SendUiLayoutCommand("ui.game", "SetTime", stage_time)
+    end
+
+    if _GameTime % 1 == 0 then
+        PeriodicSpawns()
+    end
+
+    -- Common Player Actions
+    StageHelper.PlayerUpdate()
+    StageHelper.UpdatePlayerStats(true)
+
+    -- Cache Hero Position
+    local hero_position = hero:GetPosition()
+
+    local tile_index = _Map:GetTileIndexFromWorldPosition(hero_position)
+    _Map:Update(tile_index)
+
+    if _Fog:IsPositionInFog(hero_position) and _GameTime % 1 == 0 then
+        Help.CreateEffect(1, DCEI.Effect("Out of Bounds - Damage"), hero.unit, hero.unit)
+    end
+
+    StageHelper.SetSimpleUnitBounds(Vector2.Zero(), FOG_STARTING_SIZE * 1.5)
+
+    if _GameTime % 1 == 0 and _Fog:IsPositionInFog(hero_position) then
+        DCEI.ApplyBehaviorToSelf(hero.unit, DCEI.Behavior("Out of Bounds"))
+    end
+end
+
+function State:OnTransitionExit() end
+
+function State:OnExit()
+    if Help.ValidateUnit(_FakeBoss) then
+        DCEI.RemoveUnit(_FakeBoss)
+    end
+
+    for _, player_id in pairs(PLAYER) do
+        local hero = Hero.Fetch(player_id)
+        if hero then
+            hero:Reset()
+        end
+    end
+
+    -- local hero = Hero.Fetch(PLAYER.Player1)
+    -- hero:Reset()
+
+    Reset()
+    StageHelper.RemoveAllUnits()
+
+    UiHelper.ResetDeveloperText()
+
+    if _Dev then
+        _Dev.Events.Unregister("Defeat", AutoDefeat)
+    end
+end
+
+---============================================================================
+---!SECTION: State Functions
+---SECTION: Developer
+---============================================================================
+
+---============================================================================
+---!SECTION: Developer
+---============================================================================
+
+return State

@@ -1,0 +1,110 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    -- ANCHOR -- Description --
+
+    A generic object pooling system that allows you to override
+    common functionality such as creation, storing, and fetching.
+
+    -- TODO
+        Classify with annotations.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- ================================================================================================
+
+local ObjectPooling = {}
+ObjectPooling.__index = ObjectPooling
+
+-- ANCHOR -- New --
+function ObjectPooling.New()
+    local self = setmetatable({}, ObjectPooling)
+    self.pool = {}
+
+    return self
+end
+
+-- ANCHOR -- Fetch --
+-- Returns an available pooled object
+-- @Callback OnFetch(obj)
+function ObjectPooling:Fetch()
+    if #self.pool == 0 then
+        self:Create()
+    end
+
+    local obj = self.pool[1]
+    table.remove(self.pool, 1)
+    return self:OnFetch(obj)
+end
+
+-- ANCHOR -- Store --
+-- Stores an object back into the pool
+-- @Callback OnStore(obj)
+function ObjectPooling:Store(obj)
+    local ro = self:OnStore(obj)
+
+    if ro then
+        table.insert(self.pool, obj)
+    end
+end
+
+-- ANCHOR -- Create --
+-- Creates an object and stores it
+function ObjectPooling:Create()
+    local obj = self:Object()
+    assert(obj, '> ObjectPooling: No object was created! Must override "this:Object()"')
+    self:Store(obj)
+end
+
+-- ANCHOR -- Clear --
+-- Removes all objects from pooling
+-- @Callback OnRemove
+function ObjectPooling:Clear()
+    while #self.pool > 0 do
+        local obj = table.remove(self.pool, 1)
+        self:OnRemove(obj)
+    end
+end
+
+-- ANCHOR -- Set --
+-- Sets the pooled objects to the given value
+-- Only checks values currently stored in the pool
+-- @Callback OnRemove
+function ObjectPooling:Set(value)
+    while #self.pool > value do
+        local obj = table.remove(self.pool, 1)
+        self:OnRemove(obj)
+    end
+
+    while #self.pool < value do
+        self:Create()
+    end
+end
+
+-- ANCHOR -- Object Override --
+
+---Must return an obj that you want as a basis for your object pool.
+function ObjectPooling:Object()
+    -- return ?
+end
+
+-- ANCHOR -- Callbacks --
+
+---Called on every Fetch(obj), must return the obj
+---@param obj any
+---@return any
+function ObjectPooling:OnFetch(obj)
+    return obj
+end
+
+---Called on every Store(obj), must return the obj
+---@param obj any
+---@return any
+function ObjectPooling:OnStore(obj)
+    return obj
+end
+
+function ObjectPooling:OnRemove(obj) end
+
+return ObjectPooling

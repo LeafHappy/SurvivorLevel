@@ -1,0 +1,575 @@
+---TODO: Setup Stat Positive/Negative Rules and Colors
+---TODO: First Level Conditional - Some Stats should just be Neutral (White) like Cooldown
+---TODO: Tooltips - Can display tooltips for stats.
+------------- Example: Armor Break = Causes enemies to take increased damage from all sources.
+
+local Core = require("Core:Shared")
+
+---@class StatData
+---@field DisplayName string
+---@field DisplayConversion table<SCALING, ScalingFormat>
+---@field Hidden boolean
+
+---@class ScalingFormat
+---@field Format NUMBER_FORMAT
+
+---NOTE: Do we need a suffix? (e.g. Attack Time, Slow Duration (s))
+---NOTE: Do we also need to distinguish between Starting (base Stats) and Every Level (stat modifiers)?
+
+---@table<StatData>
+local StatData = {
+    [STAT.BaseAttackTime] = {
+        DisplayName = "Attack Time",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Format = NUMBER_FORMAT.Decimal,
+                Reversed = true,
+            },
+        },
+        Hidden = true,
+    },
+    [STAT.AttackSpeed] = {
+        DisplayName = "Attack Speed",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                -- Prefix = {
+                --     Positive = "+",
+                --     Negative = "-",
+                -- },
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.HealthRegeneration] = {
+        DisplayName = "Health Regen",
+    },
+    [STAT.ProjectileSpeed] = {
+        DisplayName = "Proj. Speed",
+    },
+    [STAT.CastRange] = {
+        DisplayName = "Cast Range",
+        Hidden = true,
+    },
+    [STAT.SkillSize] = {
+        DisplayName = "Size",
+    },
+    [STAT.SkillDuration] = {
+        DisplayName = "Duration",
+    },
+    [STAT.ProjectileCount] = {
+        DisplayName = "Proj. Count",
+    },
+    [STAT.Count] = {
+        DisplayName = "Count",
+    },
+    [STAT.TargetCount] = {
+        DisplayName = "Targets",
+    },
+    [STAT.RequiredStacks] = {
+        DisplayName = "Req. Stacks",
+    },
+    [STAT.RequiredTravelDistance] = {
+        DisplayName = "Req. Distance",
+        DisplayConversion = {
+            [SCALING.Additive] = {
+                Prefix = {
+                    Positive = "-",
+                    Negative = "+",
+                },
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+                Reversed = true,
+            },
+            [SCALING.Multiplier] = {
+                Prefix = {
+                    Positive = "-",
+                    Negative = "+",
+                },
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.PercentBaseOne,
+            },
+        },
+    },
+    [STAT.CriticalChance] = {
+        DisplayName = "Crit. Chance",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.CriticalMultiplier] = {
+        DisplayName = "Crit. Damage",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.Break] = {
+        DisplayName = "Break",
+    },
+    [STAT.Exposed] = {
+        DisplayName = "Exposed",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.DamageBoost] = {
+        DisplayName = "*Damage",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.DebuffDuration] = {
+        DisplayName = "Duration",
+    },
+    [STAT.SlowEffectiveness] = {
+        DisplayName = "Slow",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.SlowDuration] = {
+        DisplayName = "Slow Duration",
+    },
+    [STAT.Stagger] = {
+        DisplayName = "Stagger",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Format = NUMBER_FORMAT.Integer,
+            },
+        },
+    },
+    [STAT.SkillRange] = {
+        DisplayName = "Range",
+    },
+    [STAT.SummonLimit] = {
+        DisplayName = "Limit",
+    },
+    [STAT.ExperienceMultiplier] = {
+        DisplayName = "Experience",
+    },
+    [STAT.PickupRange] = {
+        DisplayName = "Pickup Range",
+    },
+    [STAT.Damage] = {
+        DisplayName = "Damage",
+    },
+    [STAT.MoveSpeed] = {
+        DisplayName = "Move Speed",
+    },
+    [STAT.Armor] = {
+        DisplayName = "Armor",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Format = NUMBER_FORMAT.Integer,
+                -- Reversed = true,
+            },
+        },
+    },
+    [STAT.Cooldown] = {
+        DisplayName = "Cooldown",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Prefix = {
+                    Positive = "-",
+                    Negative = "+",
+                },
+                Reversed = true,
+            },
+            [SCALING.Additive] = {
+                Prefix = {
+                    Positive = "-",
+                    Negative = "+",
+                },
+                Reversed = true,
+            },
+        },
+    },
+    [STAT.Health] = {
+        DisplayName = "Health",
+    },
+    [STAT.Healing] = {
+        DisplayName = "Healing",
+    },
+    [STAT.AreaDamage] = {
+        DisplayName = "Area Damage",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.Frequency] = {
+        DisplayName = "Frequency",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Reversed = true,
+            },
+            [SCALING.Multiplier] = {
+                Format = NUMBER_FORMAT.PercentBaseOne,
+                Reversed = true,
+            },
+        },
+    },
+    [STAT.ConversionRate] = {
+        DisplayName = "Conversion",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.ProjectileHealth] = {
+        DisplayName = "Pierce",
+    },
+    [STAT.Chance] = {
+        DisplayName = "Chance",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+
+    [STAT.PierceDamage] = {
+        DisplayName = "Pierce Damage",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+
+    ---ANCHOR: Damage Conversions
+    [STAT.ProjectileSpeedToDamage] = {
+        DisplayName = "Speed > Damage",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+    [STAT.ExperienceMultiplier] = {
+        DisplayName = "Experience",
+        DisplayConversion = {
+            [SCALING.Scaled] = {
+                Suffix = {
+                    Positive = "%",
+                    Negative = "%",
+                },
+                Format = NUMBER_FORMAT.Percent,
+            },
+        },
+    },
+}
+
+local DEFAULT_CONVERSION = {
+    [SCALING.Scaled] = {
+        Prefix = {
+            Positive = "+",
+            Negative = "-",
+        },
+        Suffix = {
+            Positive = "",
+            Negative = "",
+        },
+        Format = NUMBER_FORMAT.Decimal,
+        Reversed = false,
+    },
+    [SCALING.Additive] = {
+        Prefix = {
+            Positive = "+",
+            Negative = "-",
+        },
+        Suffix = {
+            Positive = "%",
+            Negative = "%",
+        },
+        Format = NUMBER_FORMAT.Percent,
+        Reversed = false,
+    },
+    [SCALING.Multiplier] = {
+        Prefix = {
+            Positive = "+",
+            Negative = "-",
+        },
+        Suffix = {
+            Positive = "%",
+            Negative = "%",
+        },
+        Format = NUMBER_FORMAT.PercentBaseOne,
+        Reversed = false,
+    },
+    [SCALING.Unscaled] = {
+        Prefix = {
+            Positive = "+",
+            Negative = "-",
+        },
+        Suffix = {
+            Positive = "",
+            Negative = "",
+        },
+        Format = NUMBER_FORMAT.Decimal,
+        Reversed = false,
+    },
+}
+StatData.DEFAULT_CONVERSION = DEFAULT_CONVERSION
+
+---comment
+---@param text string
+local function SplitTextAndCapitalize(text)
+    local final = ""
+    for i = 1, #text do
+        local char = text:sub(i, i)
+        if (i ~= 1) and (text:upper() == char) then
+            final = final .. " " .. char
+        else
+            final = final .. char
+        end
+    end
+
+    return final
+end
+
+---comment
+---@param value number
+---@return string
+local function ConvertToDecimal(value)
+    local unstripped = string.format("%.2f", math.abs(value))
+    -- Remove trailing zeroes
+    local stripped = unstripped:gsub("%.?0+$", "")
+    -- Remove decimal place if at the end
+    local final = stripped:gsub("%.$", "")
+
+    return final
+end
+
+---comment
+---@param value number
+---@return string
+local function ConvertToPercent(value)
+    return string.format("%.0f", math.abs(value * 100))
+end
+
+---comment
+---@param value number
+---@return string
+local function ConvertToPercentBaseOne(value)
+    value = value - 1
+    return string.format("%.0f", math.abs(value * 100))
+end
+
+---comment
+---@param value number
+---@return string
+local function ConvertToInteger(value)
+    return string.format("%.0f", math.abs(value))
+end
+
+local POSITIVE_COLOR = "<color=#00ee00>"
+local NEGATIVE_COLOR = "<color=#ee0000>"
+local END_COLOR = "</color>"
+
+local VALUE_SIZE = "<size=20>"
+local END_SIZE = "</size>"
+
+-- Replaces keys of table with keys of table2
+local function RecursiveDepthKeyReplace(table, table2)
+    for key, value in pairs(table) do
+        if type(value) == "table" and table2[key] then
+            RecursiveDepthKeyReplace(value, table2[key])
+        else
+            table[key] = table2[key] or value
+        end
+    end
+end
+
+---Converts a Modifier to a Text String
+---@param modifier Modifier
+---@return string
+function StatData.ConvertModifierToText(modifier)
+    local stat_data = StatData[modifier.stat]
+
+    if not stat_data then
+        return "N/A"
+    end
+
+    -- Configure display name
+    local display_name = SplitTextAndCapitalize(stat_data.DisplayName)
+
+    -- Compare Scaling Type
+    local display_value = ""
+
+    -- Check if hidden
+    if stat_data.Hidden then
+        return ""
+    end
+
+    local display_formatting = Core.Table.DeepCopy(DEFAULT_CONVERSION[modifier.scaling])
+    local display_overrides = stat_data.DisplayConversion and stat_data.DisplayConversion[modifier.scaling]
+
+    if display_overrides then
+        RecursiveDepthKeyReplace(display_formatting, display_overrides)
+    end
+
+    if display_formatting.Format == NUMBER_FORMAT.Decimal then
+        display_value = ConvertToDecimal(math.abs(modifier.value))
+    elseif display_formatting.Format == NUMBER_FORMAT.Percent then
+        display_value = ConvertToPercent(math.abs(modifier.value))
+    elseif display_formatting.Format == NUMBER_FORMAT.Integer then
+        display_value = ConvertToInteger(math.abs(modifier.value))
+    elseif display_formatting.Format == NUMBER_FORMAT.PercentBaseOne then
+        display_value = ConvertToPercentBaseOne(math.abs(modifier.value))
+    else
+        display_value = tostring(math.abs(modifier.value))
+    end
+
+    local adjusted_value = display_formatting.Format == NUMBER_FORMAT.PercentBaseOne and modifier.value - 1
+        or modifier.value
+
+    local is_positive = adjusted_value > 0
+
+    -- Check if Reversed
+    if display_formatting.Reversed then
+        is_positive = not is_positive
+    end
+
+    -- Add Prefix and Suffix
+    if is_positive then
+        display_value = display_formatting.Prefix.Positive .. display_value .. display_formatting.Suffix.Positive
+    else
+        display_value = display_formatting.Prefix.Negative .. display_value .. display_formatting.Suffix.Negative
+    end
+
+    -- Can check if flipped based on conditions
+    if is_positive then
+        display_value = POSITIVE_COLOR .. display_value .. END_COLOR
+    else
+        display_value = NEGATIVE_COLOR .. display_value .. END_COLOR
+    end
+
+    display_value = VALUE_SIZE .. display_value .. END_SIZE
+
+    return display_name .. ": " .. display_value
+end
+
+---Converts a ModifierData to a Text String
+---@param modifier_data ModifierData
+---@return string
+function StatData.ConvertModifierDataToText(modifier_data)
+    local stat_data = StatData[modifier_data.Stat]
+
+    if not stat_data then
+        return "N/A"
+    end
+
+    -- Configure display name
+    local display_name = SplitTextAndCapitalize(stat_data.DisplayName)
+
+    -- Compare Scaling Type
+    local display_value = ""
+    local display_formatting = Core.Table.DeepCopy(DEFAULT_CONVERSION[modifier_data.Scaling])
+    local display_overrides = stat_data.DisplayConversion and stat_data.DisplayConversion[modifier_data.Scaling]
+
+    if display_overrides then
+        RecursiveDepthKeyReplace(display_formatting, display_overrides)
+    end
+
+    if display_formatting.Format == NUMBER_FORMAT.Decimal then
+        display_value = ConvertToDecimal(math.abs(modifier_data.Value))
+    elseif display_formatting.Format == NUMBER_FORMAT.Percent then
+        display_value = ConvertToPercent(math.abs(modifier_data.Value))
+    elseif display_formatting.Format == NUMBER_FORMAT.Integer then
+        display_value = ConvertToInteger(math.abs(modifier_data.Value))
+    elseif display_formatting.Format == NUMBER_FORMAT.PercentBaseOne then
+        display_value = ConvertToPercentBaseOne(math.abs(modifier_data.Value))
+    else
+        display_value = tostring(math.abs(modifier_data.Value))
+    end
+
+    local adjusted_value = display_formatting.Format == NUMBER_FORMAT.PercentBaseOne and modifier_data.Value - 1
+        or modifier_data.Value
+
+    local is_positive = adjusted_value > 0
+
+    -- Check if Reversed
+    if display_formatting.Reversed then
+        is_positive = not is_positive
+    end
+
+    -- Add Prefix and Suffix
+    if is_positive then
+        display_value = display_formatting.Prefix.Positive .. display_value .. display_formatting.Suffix.Positive
+    else
+        display_value = display_formatting.Prefix.Negative .. display_value .. display_formatting.Suffix.Negative
+    end
+
+    -- Can check if flipped based on conditions
+    if is_positive then
+        display_value = POSITIVE_COLOR .. display_value .. END_COLOR
+    else
+        display_value = NEGATIVE_COLOR .. display_value .. END_COLOR
+    end
+
+    return display_name .. ": " .. display_value
+end
+
+return StatData

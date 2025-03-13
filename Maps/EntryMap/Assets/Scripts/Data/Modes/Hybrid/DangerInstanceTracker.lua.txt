@@ -1,0 +1,249 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+local EJS = require("Data/EJS")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local SpawnDirector = require("Game/Directors/Spawn")
+
+local Event = require("Class/Event")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Data
+---============================================================================
+
+local REF = {}
+
+---@type table<string, SimpleUnit>
+local REGISTERED_UNITS = {}
+
+---============================================================================
+-- !SECTION -- Local Data
+-- SECTION -- Initialize
+---============================================================================
+
+---@class DangerInstanceTracker
+---@field HostileData HostileData
+---@field Position Vector2
+---@field RespawnTime number | nil
+---@field Instance SimpleUnitInstance | nil
+---@field EstimatedPosition Vector2
+---@field RoamDestination Vector2
+---@field IsActive boolean
+---@field OnKilledEvent Event
+local DangerInstanceTracker = {}
+DangerInstanceTracker.__index = DangerInstanceTracker
+
+-- Position
+-- Unit Type
+-- Instance
+-- State (Alive, Dead, Chasing, Retreating, etc.)
+-- IsRespawn
+-- RespawnTime
+-- IsActive
+
+---TODO: Change Position to Tile Position + Offset (or offset range)
+---comment
+---@param hostile_data HostileData
+---@param position Vector2
+---@param respawn_time number | nil
+---@param spawn_immediately boolean | nil
+---@return DangerInstanceTracker
+function DangerInstanceTracker.New(hostile_data, position, respawn_time, spawn_immediately)
+    ---@type DangerInstanceTracker
+    local self = setmetatable({}, DangerInstanceTracker)
+
+    self:Reset()
+    self.HostileData = hostile_data
+    self.Position = position
+    self.RespawnTime = respawn_time
+
+    self.EstimatedPosition = position
+    self.RoamDestination = position
+
+    if spawn_immediately then
+        self:ForceSpawn()
+        -- self.Timer = self.RespawnTime
+    end
+
+    return self
+end
+
+function DangerInstanceTracker:Reset()
+    ---TODO: Remove Instance if one exists
+
+    self.IsActive = false
+    self.Instance = nil
+
+    self.Timer = 0
+
+    self.OnKilledEvent = Event.New()
+end
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Local Functions
+---============================================================================
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Internal Functions
+---============================================================================
+
+function DangerInstanceTracker:_ValidateUnit()
+    if self.Instance == nil then
+        return
+    end
+
+    local unit_exists = DCEI.SimpleUnitExists(self.Instance)
+
+    if not unit_exists then
+        self.Instance = nil
+        self.OnKilledEvent(self)
+    end
+end
+
+---comment
+function DangerInstanceTracker:_CheckSpawnInstance()
+    if Help.ValidateSimpleUnit(self.Instance) then
+        return
+    end
+
+    if not self.RespawnTime then
+        return
+    end
+
+    if self.Timer < self.RespawnTime then
+        self.Timer = self.Timer + TICK_RATE
+        return
+    end
+    self.Timer = 0
+
+    self.Instance = SpawnDirector.Instance:SpawnStationary(self.HostileData, self.Position)
+end
+
+---Move to a random location near spawn point
+function DangerInstanceTracker:_Roam()
+    local distance = Vector2.Distance(self.EstimatedPosition, self.RoamDestination)
+
+    if distance < 0.1 then
+        self.RoamDestination = self.Position + Vector2.RandomInside(5)
+    end
+
+    local speed = 5
+    local next_position = Vector2.MoveTowards(self.EstimatedPosition, self.RoamDestination, speed * TICK_RATE)
+    self.EstimatedPosition = next_position
+
+    DCEI.SetSimpleUnitMoveTargetWorldPosition2D(self.Instance, self.RoamDestination.x, self.RoamDestination.y)
+end
+
+---Move towards the hero
+---@param hero Hero
+function DangerInstanceTracker:_MoveTowardsHero(hero)
+    local hero_position = hero:GetPosition()
+    DCEI.SetSimpleUnitMoveTargetWorldPosition2D(self.Instance, hero_position.x, hero_position.y)
+end
+
+-- Check if outside of range and move back to spawn point
+---@param hero Hero
+function DangerInstanceTracker:_UpdateInstanceMoveBehavior(hero)
+    if not Help.ValidateSimpleUnit(self.Instance) then
+        return
+    end
+
+    local position = self.Position
+
+    if not hero:IsUnitAlive() then
+        self:_Roam()
+        return
+    end
+
+    local hero_position = hero:GetPosition()
+    local distance = Vector2.Distance(position, hero_position)
+
+    if distance > 10 then
+        self:_Roam()
+    else
+        self:_MoveTowardsHero(hero)
+    end
+end
+
+---============================================================================
+-- !SECTION -- Internal Functions
+-- SECTION -- Getters & Setters
+---============================================================================
+
+---TODO: Verify that this is enough or if we have to manually track
+---TODO: May have to manually track if we decide to add a Pre-Spawn Ground VFX
+---@return boolean
+function DangerInstanceTracker:IsAlive()
+    return Help.ValidateSimpleUnit(self.Instance)
+end
+
+-- Set active and Spawn Instance
+function DangerInstanceTracker:SetActive()
+    self.IsActive = true
+
+    -- Spawn Instance
+    self:_CheckSpawnInstance()
+end
+
+---============================================================================
+-- !SECTION -- Getters & Setters
+-- SECTION -- Class Functions
+---============================================================================
+
+-- Update
+
+---comment
+---@param hero Hero
+function DangerInstanceTracker:Update(hero)
+    self:_ValidateUnit()
+    self:_CheckSpawnInstance()
+    self:_UpdateInstanceMoveBehavior(hero)
+end
+
+function DangerInstanceTracker:Clear()
+    if Help.ValidateSimpleUnit(self.Instance) then
+        DCEI.RemoveSimpleUnit(self.Instance)
+        self.Instance = nil
+    end
+
+    self.IsActive = false
+end
+
+-- Used for Temporary Spawns
+function DangerInstanceTracker:ForceSpawn()
+    self.Instance = SpawnDirector.Instance:SpawnStationary(self.HostileData, self.Position)
+end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return DangerInstanceTracker

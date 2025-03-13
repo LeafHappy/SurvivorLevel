@@ -1,0 +1,34 @@
+local SkillData = require("SharedData/Skills/SkillData")
+
+local StageSkills = {
+    Default = {
+        SkillData.Empty,
+    },
+    Stage_01 = {
+        SkillData.Bash,
+        SkillData.Boomerang,
+        SkillData.GuardianShield,
+    },
+    Stage_02 = {
+        SkillData.Fireball,
+        SkillData.Heatwave,
+    },
+    Stage_03 = {
+        SkillData.TeslaField,
+        SkillData.LightningStrike,
+    },
+    Stage_04 = {
+        SkillData.IceBarrage,
+        SkillData.IceRupture,
+    },
+    Stage_05 = {
+        SkillData.MagmaOrb,
+        SkillData.StaticRemnants,
+    },
+    Stage_06 = {
+        SkillData.Frostfang,
+        SkillData.Chakram,
+    },
+}
+
+return StageSkills

@@ -1,0 +1,97 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local CampBark = {}
+local current_label = nil
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+local function MoveFrameToUnit(frame, unit)
+    local offset = { up = 2 }
+    DCEI.AttachFrameToUnit(frame, unit, { offset = offset })
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function CampBark.Create(unit_data, content)
+    if not content then
+        return
+    end
+
+    if current_label then
+        CampBark.Remove()
+    end
+
+    current_label = GMUI.Layout.New({
+        name = "Camp/Bark",
+    })
+
+    function current_label:Remove()
+        local duration = 0.375
+        Animation.PopOut(self.Frame, { duration = duration})
+
+        GMUI.RunFunctionAfterTimeElapsed(function()
+            self:Destroy()
+        end, duration)
+    end
+
+    current_label.state.content = tostring(content)
+
+    -- NOTE: Need to find unit this way instead of passing unit because
+    -- unit object is userdata type and thus cannot be passed by events
+    local unit_type, unit_position = unit_data.type, unit_data.position
+    local unit = DCEI.FindUnitAtPosition(unit_type, unit_position.x, unit_position.y)
+    MoveFrameToUnit(current_label.Frame, unit)
+
+    -- Animate in
+    Animation.PopIn(current_label.Frame)
+end
+
+function CampBark.Remove()
+    if not current_label then
+        return
+    end
+
+    current_label:Remove()
+    current_label = nil
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("Camp.CreateBark", CampBark.Create)
+Core.Event.RegisterPresentationEvent("Camp.RemoveBark", CampBark.Remove)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return CampBark

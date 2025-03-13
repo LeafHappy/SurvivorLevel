@@ -1,0 +1,259 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    ---TODO: Load/Unload Props over a given number of Frames.
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local Vector2 = require("Class/Vector2")
+
+local PropInstance = require("Class/PropInstance")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local PROP_MAX = 3
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Class Initialization
+-- ================================================================================================
+
+---@class PropZoneOptions
+---@field Density number | nil
+---@field PropOptions table<PropData> | nil
+---@field ForcedProps table<PropData> | nil
+
+---@class PropZone
+---@field protected _Initialized boolean
+---@field Position Vector2
+---@field Size number
+---@field Density number
+---@field PropOptions table<PropData>
+---@field ForcedProps table<PropData>
+---@field Props table<PropInstance>
+local PropZone = {}
+PropZone.__index = PropZone
+
+---comment
+---@param position Vector2
+---@param size number
+---@param prop_zone_options PropZoneOptions
+---@return PropZone
+function PropZone.New(position, size, prop_zone_options)
+    ---@type PropZone
+    local self = setmetatable({}, PropZone)
+    self._Initialized = false
+    self.Position = position
+    self.Size = size
+    self.Density = prop_zone_options.Density
+    self.PropOptions = prop_zone_options.PropOptions
+    self.ForcedProps = prop_zone_options.ForcedProps
+
+    self.Props = {}
+
+    return self
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Initialization
+-- SECTION -- Class Internal
+-- ================================================================================================
+
+---comment
+---@param attempts number | nil Default: 3
+---@return Vector2
+function PropZone:_GetRandomSpawnPosition(attempts)
+    attempts = attempts or 3
+
+    local random_position = self.Position
+        + Vector2.New(
+            Help.RandomNumber(-self.Size / 2, self.Size / 2),
+            Help.RandomNumber(-self.Size / 2, self.Size / 2)
+        )
+    
+    -- Prevent Infinite Loop (forced Prop insertion)
+    if attempts <= 0 then
+        return random_position
+    end
+
+    -- Compare it to other Props in the Zone and prevent Spawn Overlap
+    for prop_instance, _ in pairs(self.Props) do
+        if random_position:Distance(prop_instance.Position) < 1 then
+            return self:_GetRandomSpawnPosition(attempts - 1)
+        end
+    end
+
+    return random_position
+end
+
+---Generates a New Prop Instance based on the provided Data.
+---@param prop_data PropData
+---@param position Vector2 | nil
+---@param spawn boolean | nil
+---@return PropInstance
+function PropZone:_GenerateNewPropInstance(prop_data, position, spawn)
+    position = position or self:_GetRandomSpawnPosition()
+
+    local prop_instance = PropInstance.New(prop_data, position, spawn)
+    self.Props[prop_instance] = prop_instance
+
+    -- Override to Remove this Element
+    local props = self.Props
+    function prop_instance:OnRemovedCallback()
+        props[prop_instance] = nil
+    end
+
+    return prop_instance
+end
+
+function PropZone:_Initialize()
+    self._Initialized = true
+
+    local weight = self.Density
+
+    -- Add Forced Props
+    if self.ForcedProps then
+        for _, selected_prop in pairs(self.ForcedProps) do
+            self:_GenerateNewPropInstance(selected_prop)
+
+            weight = weight - (selected_prop.Weight or 1)
+        end
+    end
+
+    local prop_count = 0
+
+    -- Add Random Props
+
+    if self.PropOptions and #self.PropOptions > 0 then
+        local attempts = 3
+        while weight > 0 and prop_count < PROP_MAX and attempts > 0 do
+            if #self.PropOptions == 0 then
+                break
+            end
+
+            ---@type PropData
+            local selected_prop = self.PropOptions[Help.RandomInteger(1, #self.PropOptions)]
+
+            -- Check if selected Prop can "Fit"
+            if selected_prop.Weight > weight then
+                attempts = attempts - 1
+                goto skip
+            end
+
+            -- Reset Attempts on Successful Selection
+            attempts = 3
+
+            -- Generate Prop
+            self:_GenerateNewPropInstance(selected_prop)
+
+            -- Subtract Weight
+            weight = weight - (selected_prop.Weight or 1)
+            prop_count = prop_count + 1
+
+            ::skip::
+        end
+    end
+
+    
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Internal
+-- SECTION -- Class Getters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Getters
+-- SECTION -- Class Setters
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Setters
+-- SECTION -- Class Functions
+-- ================================================================================================
+
+---Add a New Prop to the Zone.
+---@param prop_data PropData
+---@param position Vector2 | nil
+---@param spawn boolean | nil
+function PropZone:AddProp(prop_data, position, spawn)
+    self:_GenerateNewPropInstance(prop_data, position, true)
+end
+
+---Spawns the Props in the Zone.
+---@param immediately boolean | nil
+function PropZone:Load(immediately)
+    if not self._Initialized then
+        self:_Initialize()
+    end
+
+    -- Immediately Spawn Props.
+    -- Useful for Starting Zone.
+    if immediately then
+        for _, prop_instance in pairs(self.Props) do
+            prop_instance:Load()
+        end
+        return
+    end
+
+    -- Load Props over Time.
+    local frame = 1
+    for _, prop_instance in pairs(self.Props) do
+        frame = frame + 1
+
+        local timer = Core.Timer.Game:New()
+        timer:SetDuration(frame * TICK_RATE)
+        function timer:Action()
+            prop_instance:Load()
+        end
+    end
+end
+
+---Removes Props from the Zone.
+function PropZone:Unload()
+    -- Unloading Props over Time.
+    local frame = 0
+    for _, prop_instance in pairs(self.Props) do
+        frame = frame + 1
+
+        local timer = Core.Timer.Game:New()
+        timer:SetDuration(frame * TICK_RATE)
+        function timer:Action()
+            prop_instance:Unload()
+        end
+    end
+end
+
+function PropZone:Destroy()
+    for prop_instance, _ in pairs(self.Props) do
+        self.Props[prop_instance]:Destroy()
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Class Functions
+-- SECTION -- Class Library
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Class Library
+-- ================================================================================================
+
+return PropZone

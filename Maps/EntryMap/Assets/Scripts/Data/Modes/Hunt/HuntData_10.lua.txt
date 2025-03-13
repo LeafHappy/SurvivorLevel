@@ -1,0 +1,190 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+    Time-Key Tables
+        Many tables use a Time-Key to indicate when a certain event should occur.
+        Each Key is Unique, as in, you cannot have multiple of the same Key (like [1] and [1]) in the table.
+
+        Example:
+            [1] = {} -- Occurs after 1 second of Game Time.
+            [30] = {} -- Occurs after 30 seconds of Game Time.
+            [100] = {} -- Occurs after 100 seconds of Game Time.
+        
+        Places where Time-Key is used:
+            - Periodic Data
+                - Spawn Rates
+                - Timed Modifiers
+            - Fixed Data
+            - Elite Data
+            - Boss Data
+            - Loot Data
+
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+
+local LootData = require("Data/SimpleUnits/LootData")
+local DropTables = require("Data/DropTables")
+local SimpleDropTableData = require("Data/SimpleDropTableData")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+local Elites = require("Game/AI/Elites")
+local Bosses = require("Game/AI/Bosses")
+
+local Conditions = require("Data/Events/ConditionData")
+
+local EventSpawnData = require("Data/EventData/EventSpawnData")
+local EventEliteData = require("Data/EventData/EventEliteData")
+local EventStructureData = require("Data/EventData/EventStructureData")
+
+local StandardHuntEvents = require("Data/Modes/Hunt/StandardHuntEvents")
+
+local Modifier = require("SharedData/Class/Modifier")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Initialize
+---============================================================================
+
+---@type HuntData
+local Data = {}
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Camera Settings
+---============================================================================
+
+Data.CameraSettings = {
+    [120] = {
+        DistanceModifier = 0.50,
+    },
+    [240] = {
+        DistanceModifier = 0.50,
+    },
+}
+
+---============================================================================
+-- !SECTION -- Camera Settings
+-- SECTION -- Difficulty Settings
+---============================================================================
+
+Data.DifficultySettings = {
+    -- Stage 10
+    Fixed = {
+        [1] = { -- Starting
+            -- STATIC: Do not change.
+            Modifier.New(STAT.Count, 0.50, SCALING.Multiplier), -- Base Adjustment for Event Spawns
+
+            -- Stage Based
+            Modifier.New(STAT.Count, 1.90, SCALING.Multiplier), -- 10% Increase per Stage
+            Modifier.New(STAT.Health, 2.80, SCALING.Multiplier), -- 20% Increase per Stage
+            Modifier.New(STAT.Thorns, 0.90, SCALING.Additive), -- 10% Increase per Stage
+            Modifier.New(STAT.MoveSpeed, 0.27, SCALING.Additive), -- 3% Increase per Stage
+        },
+    },
+    Periodic = {
+        [30] = {
+            Modifier.New(STAT.Health, 1.14, SCALING.Multiplier), -- 5% + 1% Increase per Stage
+            Modifier.New(STAT.Thorns, 0.28, SCALING.Additive), -- 10% + 2% Increase per Stage
+
+            Modifier.New(STAT.Count, 1.10, SCALING.Multiplier),
+        },
+        [60] = { -- Minor Event : Moderate Growth
+            Modifier.New(STAT.Health, 1.28, SCALING.Multiplier), -- 10% + 2% per Stage
+
+            Modifier.New(STAT.Count, 1.15, SCALING.Multiplier),
+        },
+        [90] = { -- Moderate Event : Major Growth
+            Modifier.New(STAT.Health, 1.42, SCALING.Multiplier), -- 15% + 3% per Stage
+
+            Modifier.New(STAT.Count, 1.20, SCALING.Multiplier),
+        },
+        [120] = { -- Major Event : Reprieve (Reduced Count)
+            Modifier.New(STAT.Frequency, 1, SCALING.Scaled), -- Causes Hostile Groups to Spawn Faster (does not affect Spawn Count)
+
+            Modifier.New(STAT.Health, 1.56, SCALING.Multiplier), -- 20% + 4% per Stage
+
+            Modifier.New(STAT.Count, 0.50, SCALING.Multiplier),
+        },
+    },
+}
+
+---============================================================================
+-- !SECTION -- Difficulty Settings
+-- SECTION -- Event Data
+---============================================================================
+
+-- =======================================================================================
+-- ANCHOR: Hostile Spawning
+-- =======================================================================================
+
+-- =======================================================================================
+-- ANCHOR: Elite Spawning
+-- =======================================================================================
+
+-- =======================================================================================
+-- ANCHOR: Structure Spawning
+-- =======================================================================================
+
+-- =======================================================================================
+-- ANCHOR: Event Sequence
+-- =======================================================================================
+
+-- =======================================================================================
+-- ANCHOR: Game Event Container
+-- =======================================================================================
+
+Data.GameEventData = {
+    -- Simple Unit Spawns
+    StandardHuntEvents.StandardWalkers,
+    StandardHuntEvents.TravelBasedWalkers,
+    StandardHuntEvents.TravelBasedRunners,
+    StandardHuntEvents.StandardBansheeRush_Every120,
+
+    -- Nearby Destructibles (Crates)
+    StandardHuntEvents.NearbyDestructibles,
+
+    -- Emergency Potions (Structure)
+    StandardHuntEvents.EmergencyPotions,
+
+    -- Relic Hunt Sequence (Structure --> Elite)
+    StandardHuntEvents.RelicHuntSequenceRepeating,
+}
+
+---============================================================================
+-- !SECTION -- Event Data
+-- SECTION -- Boss Data
+---============================================================================
+
+Data.Boss = {
+    [840] = {
+        Type = Bosses.Types.SkeletonKing,
+        -- Difficulty = 100,
+        DropTable = DropTables.Boss101,
+        Modifiers = {
+            Modifier.New(STAT.Health, 30.00, SCALING.Multiplier), -- How much Health the Boss has.
+            -- Modifier.New(STAT.Thorns, 1.50, SCALING.Multiplier), -- How much damage the Boss does when it comes into contact with the player.
+            -- Modifier.New(STAT.MoveSpeed, 1.00, SCALING.Multiplier), -- How fast the Boss is.
+            Modifier.New(STAT.CollisionSize, 1.25, SCALING.Multiplier), -- How big the Boss is.
+            -- Modifier.New(STAT.StaggerResistance, 1.15, SCALING.Multiplier), -- How resistant the Boss is to Stagger.
+            -- Modifier.New(STAT.AddedStaggerResistance, 0.35, SCALING.Multiplier), -- The amount of increased resistance to Stagger added after being Staggered.
+
+            -- Modifier.New(STAT.MinionHealth, 2.00, SCALING.Multiplier), -- How much Health the Boss's Minions have.
+            -- Modifier.New(STAT.MinionDamage, 1.00, SCALING.Multiplier), -- How much damage the Boss's Minions do.
+            -- Modifier.New(STAT.MinionSpeed, 1.20, SCALING.Multiplier), -- How fast the Boss's Minions are.
+        },
+    },
+}
+
+---============================================================================
+-- !SECTION -- Boss Data
+---============================================================================
+
+return Data

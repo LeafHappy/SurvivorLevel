@@ -1,0 +1,233 @@
+-- ================================================================================================
+-- SECTION -- About
+-- ================================================================================================
+--[[
+    Description
+]]
+-- ================================================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+-- ================================================================================================
+
+local Core = require("Core")
+local EJS = require("Data/EJS")
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Ease = require("Data/Ease")
+
+local SkillData = require("SharedData/Skills/SkillData")
+local EffectPath = require("SharedData/Class/EffectPath")
+
+local Help = require("Help")
+
+-- ================================================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Variables
+-- ================================================================================================
+
+local REF = {
+    -- Ability
+    Ability = DCEI.Ability("Weapon - Orbital Shield"),
+
+    -- Effects
+    OnEnter = DCEI.Effect("Weapon - Orbital Shield - OnEnter"),
+    ImpactArea = DCEI.Effect("Weapon - Orbital Shield - Impact Area"),
+    Damage = DCEI.Effect("Weapon - Orbital Shield - Damage"),
+    Stagger = DCEI.Effect("Weapon - Orbital Shield - Stagger"),
+    ImpactVFX = DCEI.Effect("Weapon - Orbital Shield - Impact VFX"),
+
+    -- Unit
+    Projectile = DCEI.Unit("Weapon - Orbital Shield - Projectile"),
+}
+
+---@type table<number, Hero>
+local _Heroes = {}
+
+---@type table<number, SimpleUnit>
+local _SimpleUnits = {}
+
+local _Timers = {}
+
+---@class OrbitalShieldObjectData
+---@field instance Unit
+---@field cooldown number
+---@field angle number
+---@field radius number
+
+---Currently just care about the one player
+local _Cooldowns = {}
+local _ActiveShields = {}
+local _CurrentRotation = 0
+
+local _OrbitalShieldData = {}
+
+local MODEL_SCALE = 0.40
+
+-- ================================================================================================
+-- !SECTION -- Local Variables
+-- SECTION -- Local Functions
+-- ================================================================================================
+
+---comment
+---@param hero Hero
+---@param position Vector2
+---@return Unit
+local function SpawnProjectile(hero, position)
+    --
+    local instance = DCEI.CreateUnit(TEAM.Friendly, hero.player_id, REF.Projectile, position.x, position.y)
+
+    local tags = hero:GetInheritedTags(SkillData.OrbitalShield.Key)
+
+    local size = hero:GetStat(STAT.SkillSize, tags)
+
+    Help.SetModelScale(instance, size, 0.25)
+
+    SimpleUnit.ModifyCollision(instance, CollisionLayers.None, CollisionLayers.Hostile, size)
+
+    local collision_effects = {
+        SimpleUnit.GenerateCollisionEffect(REF.OnEnter, CollisionTiming.Start | CollisionTiming.Continue),
+    }
+
+    SimpleUnit.ModifyCollisionEffects(instance, collision_effects)
+
+    return instance
+end
+
+---comment
+---@param hero Hero
+local function OrbitalUpdate(hero)
+    -- Check to make sure the Hero is still Alive, otherwise, destroy the timer
+    if not hero:IsUnitAlive() then
+        -- Destroy Timer
+        _Timers[hero.player_id]:Destroy()
+        _Timers[hero.player_id] = nil
+
+        -- Remove all Projectiles
+        for _, shield_data in pairs(_OrbitalShieldData) do
+            if Help.ValidateUnit(shield_data.instance) then
+                DCEI.RemoveUnit(shield_data.instance)
+            end
+        end
+
+        -- Exit
+        return
+    end
+
+    -- Check Count
+    local tags = hero:GetInheritedTags(SkillData.OrbitalShield.Key)
+    local count = hero:GetStat(STAT.ProjectileCount, tags)
+    local cooldown = hero:GetStat(STAT.Cooldown, tags)
+    local range = hero:GetStat(STAT.SkillRange, tags)
+    local size = hero:GetStat(STAT.SkillSize, tags)
+    local radius = range + size
+    local projectile_speed = hero:GetStat(STAT.ProjectileSpeed, tags)
+
+    -- Negative to make it clockwise
+    local starting_angle = -(DCEI.GetGameTime() * projectile_speed) % 360
+    local angle_between = 360 / count
+
+    local hero_position = hero:GetPosition()
+
+    for i = 1, count do
+        local angle = starting_angle + angle_between * (i - 1)
+
+        local shield_data = _OrbitalShieldData[i]
+
+        -- Check for Shield Data
+        if not shield_data then
+            local target_position = hero_position + Vector2.NewFromAngle(angle) * radius
+
+            shield_data = {
+                instance = SpawnProjectile(hero, target_position),
+                cooldown = cooldown,
+                angle = angle,
+                radius = radius,
+            }
+
+            _OrbitalShieldData[i] = shield_data
+
+            DCEI.TriggerAddUnitRemovedEvent(shield_data.instance, function()
+                shield_data.instance = nil
+                shield_data.cooldown = cooldown
+            end)
+        end
+
+        -- Cooldown Check if No Instance
+        if not Help.ValidateUnit(shield_data.instance) then
+            shield_data.cooldown = shield_data.cooldown - TICK_RATE
+
+            if shield_data.cooldown <= 0 then
+                local target_position = hero_position + Vector2.NewFromAngle(angle) * radius
+
+                shield_data.instance = SpawnProjectile(hero, target_position)
+                shield_data.cooldown = cooldown
+            end
+        end
+
+        -- Move Instance
+        if Help.ValidateUnit(shield_data.instance) then
+            local target_position = hero_position + Vector2.NewFromAngle(angle) * radius
+            shield_data.angle = angle
+            shield_data.radius = radius
+
+            DCEI.SetUnitPosition2DWithInterpolation(shield_data.instance, target_position.x, target_position.y)
+        end
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Upgrade
+-- ================================================================================================
+
+---@type _SkillData
+local Upgrade = {
+    Name = REF.Ability,
+}
+
+Upgrade.Cache = {
+    [STAT.AttackSpeed] = {},
+    [STAT.SkillSize] = {
+        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.Radius, { SKILL_TAG.OrbitalShieldExplosion }),
+        EffectPath.New(REF.ImpactVFX, EJS.Actor.Scale, { SKILL_TAG.OrbitalShieldExplosion }, MODEL_SCALE),
+    },
+    [STAT.Damage] = {
+        EffectPath.New(REF.Damage, EJS.Damage.Value),
+    },
+    [STAT.Stagger] = {
+        EffectPath.New(REF.Stagger, EJS.ApplyBehavior.Count),
+    },
+}
+
+-- ANCHOR: Override
+-- Override occurs every time this weapon is modified
+---@param hero Hero
+function Upgrade.Override(hero)
+    _Heroes[hero.player_id] = hero
+
+    local player_id = hero.player_id
+
+    if not _Timers[player_id] then
+        local timer = Core.Timer.Game.New()
+
+        function timer:Tick()
+            OrbitalUpdate(hero)
+        end
+
+        _Timers[player_id] = timer
+    end
+end
+
+-- ================================================================================================
+-- !SECTION -- Upgrade
+-- SECTION -- Hookups
+-- ================================================================================================
+
+-- ================================================================================================
+-- !SECTION -- Hookups
+-- ================================================================================================
+
+return Upgrade

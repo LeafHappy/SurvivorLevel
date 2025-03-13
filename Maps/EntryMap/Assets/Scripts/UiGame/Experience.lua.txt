@@ -1,0 +1,61 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+
+-- LAYOUT
+local layout = GMUI.LazyLayout.New({
+    name = "Game/Experience",
+    parent = ui.game.ExperienceContainer,
+})
+
+-- LAYOUT METHODS
+function layout:Initialize()
+    -- self:OnShow()
+
+    -- Initialize UI controller
+    self.controller = DCEI.GetFrameController(self.Frame)
+    self.controller:SetDelayEffectFunc(GMUI.RunFunctionAfterTimeElapsed)
+    self.controller:Reset()
+end
+
+function layout:SetXpLevel(data)
+    data.level = data.level or 0
+
+    local text = "Lv. <size=130%%>%s</size>"
+    DCEI.SetTextFrameText(self.Label, text:format(tostring(data.level)))
+end
+
+function layout:SetXpFillAmount(data)
+    data.fill_amount = data.fill_amount or 0
+    DCEI.SetFrameImageFillAmount(self.Fill, data.fill_amount)
+end
+
+function layout:PlayAnimation()
+    self.controller:PlayAnimation()
+end
+
+local function SetFillAmount(data)
+    layout:SetXpFillAmount(data)
+end
+
+local function SetLevel(data)
+    layout:SetXpLevel(data)
+end
+
+local function PlayLevelAnimation()
+    layout:PlayAnimation()
+end
+
+Core.Event.RegisterPresentationEvent("ui.game.experience.set_fill_amount", SetFillAmount)
+Core.Event.RegisterPresentationEvent("ui.game.experience.set_level", SetLevel)
+Core.Event.RegisterPresentationEvent("ui.game.experience.play_level_animation", PlayLevelAnimation)
+
+function layout:OnShow()
+    self:SetXpFillAmount({ fill_amount = 0 })
+end
+
+-- EXPORT
+return layout

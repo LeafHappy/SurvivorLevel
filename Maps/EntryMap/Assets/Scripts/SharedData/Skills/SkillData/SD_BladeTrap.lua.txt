@@ -1,0 +1,263 @@
+local Modifier = require("SharedData/Class/Modifier")
+local Behavior = require("SharedData/Class/Behavior")
+
+local Data = {}
+
+-- ================================================================================================
+-- ANCHOR -- Core Skill
+-- ================================================================================================
+
+Data.BladeTrap = {
+    Key = "BladeTrap",
+
+    -- UI Information
+    DisplayName = "Blade Trap",
+    ShortDescription = "Place a Blade Trap that deals damage over time.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.BladeTrap,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {
+                DCEI.Ability("Skill - Blade Trap"),
+            },
+            Behaviors = {},
+            Modifiers = {
+                -- Cast
+                Modifier.New(STAT.BaseAttackTime, 5.00, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.ProjectileCount, 1, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.SkillRange, 4, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+
+                -- Projectile Stats
+                Modifier.New(STAT.SkillDuration, 6.00, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.SkillSize, 1.15, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.ProjectileSpeed, 3.35, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+
+                -- Effect Stats
+                Modifier.New(STAT.Frequency, 0.25, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.Stagger, 0, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+
+                -- Resets
+                Modifier.New(STAT.SlowEffectiveness, 0, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.SlowDuration, 0, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {
+        [SKILL_TAG.BladeTrap] = {
+            -- Core Tags
+            SKILL_TAG.Global,
+            SKILL_TAG.BladeTrap,
+
+            -- Exposed Tags
+            SKILL_TAG.Physical,
+            SKILL_TAG.Trap,
+        },
+    },
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Passives
+-- ================================================================================================
+
+Data.PatientTrapper = {
+    Key = "PatientTrapper",
+
+    -- UI Information
+    DisplayName = "Patient Trapper",
+    ShortDescription = "Patience is a virtue.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Physical,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.BladeTrap,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.10, SCALING.Additive, { SKILL_TAG.Physical }),
+                Modifier.New(STAT.SkillDuration, 0.15, SCALING.Additive, { SKILL_TAG.Physical }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.Rearm = {
+    Key = "Rearm",
+
+    -- UI Information
+    DisplayName = "Rearm",
+    ShortDescription = "Drop them like they're hot.",
+    Icon = DCEI.Texture("cartoon_icon_skill_placeholder_survivor"),
+
+    -- Skill Information
+    MaxLevel = 5,
+    Type = SKILL_TYPE.Passive,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.Trap,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.BladeTrap,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.AttackSpeed, 0.12, SCALING.Scaled, { SKILL_TAG.Trap }),
+                Modifier.New(STAT.SkillSize, 0.08, SCALING.Additive, { SKILL_TAG.Trap }),
+                Modifier.New(STAT.SkillSize, 0.08, SCALING.Additive, { SKILL_TAG.Trap }),
+            },
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+-- ================================================================================================
+-- ANCHOR -- Uniques
+-- ================================================================================================
+
+Data.Maim = {
+    Key = "Maim",
+
+    -- UI Information
+    DisplayName = "Maim",
+    ShortDescription = "Blade Trap causes a heavy slow on enemies passing through it.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.BladeTrap,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.BladeTrap,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {
+                Behavior.New(DCEI.Behavior("Skill - Blade Trap - Learned - Maim"), 1, APPLICATION_TYPE.Set),
+            },
+            Modifiers = {
+                Modifier.New(STAT.SlowEffectiveness, 0.25, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.SlowDuration, 1.00, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+                Modifier.New(STAT.Stagger, 1, SCALING.Scaled, { SKILL_TAG.BladeTrap }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.SeekingBlades = {
+    Key = "SeekingBlades",
+
+    -- UI Information
+    DisplayName = "Seeking Blades",
+    ShortDescription = "Blade Trap will seek out enemies.",
+    Icon = DCEI.Texture("cartoon_icon_skill_chakram_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Unique,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.BladeTrap,
+    },
+    Requirements = {
+        {
+            Tag = SKILL_TAG.BladeTrap,
+        },
+    },
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {
+                Behavior.New(DCEI.Behavior("Skill - Blade Trap - Learned - Seeking Blades"), 1, APPLICATION_TYPE.Set),
+            },
+            Modifiers = {
+                Modifier.New(STAT.Damage, 0.30, SCALING.Additive, { SKILL_TAG.BladeTrap }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+return Data

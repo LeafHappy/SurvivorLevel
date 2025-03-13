@@ -1,0 +1,261 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local ui = GMUI.ui
+local Help = require("UiHelp")
+
+-- DATA
+-- local GameStats = require("SharedData/GameStats")
+-- local Upgrades = require("SharedData/Upgrades")
+local SkillData = require("SharedData/Skills/SkillData")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Data
+---============================================================================
+
+-- LAYOUT
+local Layout = GMUI.Layout.New({
+    name = "Test/GUI",
+    parent = ui.z1.Lower,
+})
+
+local _AutomaticLeveling = false
+
+---@type table<string, Layout>
+local _DamageSlotLayout = {}
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+---ANCHOR: Damage Metrics
+
+---Destroy all Damage Layouts
+local function ResetDamageMetrics()
+    for _, layout in pairs(_DamageSlotLayout) do
+        layout:Destroy()
+    end
+
+    _DamageSlotLayout = {}
+end
+
+local function GenerateDamageSlotLayout(key)
+    --
+    local damage_layout = GMUI.Layout.New({
+        name = "Test/GUI/Metrics/DamageSlot",
+        parent = Layout.Metrics.Frame,
+    })
+
+    -- Find Respective Icon
+    local icon = ""
+
+    if SkillData[key] then
+        icon = SkillData[key].Icon
+    end
+
+    -- for i = 1, #Upgrades do
+    --     if Upgrades[i].Name == key then
+    --         icon = Upgrades[i].Icon
+    --         break
+    --     end
+    -- end
+
+    -- Update Icon and Set Default Values
+    DCEI.SetFrameImage(damage_layout.Icon, icon)
+    DCEI.SetTextFrameText(damage_layout.Label, 0)
+    DCEI.SetFrameImageFillAmount(damage_layout.Fill, 0)
+
+    _DamageSlotLayout[key] = damage_layout
+    return damage_layout
+end
+
+---ANCHOR: Buttons
+
+local function ToggleAutoStart()
+    local state = Layout.AutoStart.state
+    state.is_active = not state.is_active
+
+    Core.Event.SendSimulationEvent("test.auto_start.set", state.is_active)
+end
+
+local function ToggleSpawning()
+    local state = Layout.ToggleSpawning.state
+    state.is_active = not state.is_active
+
+    Core.Event.SendSimulationEvent("test.spawning.set", state.is_active)
+end
+
+local function SetSpawningActive(is_active)
+    local state = Layout.ToggleSpawning.state
+    state.is_active = is_active
+
+    Core.Event.SendSimulationEvent("test.spawning.set", state.is_active)
+end
+
+function Layout:SetSpawningActive(is_active)
+    SetSpawningActive(is_active)
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Custom Functions
+---============================================================================
+
+function Layout:Initialize()
+    self:OnShow()
+
+    -- Auto/Manual Leveling
+    self.LevelHero.state.is_auto = _AutomaticLeveling
+    DCEI.SetOnClickCallback(self.LevelHero.AutomaticToggleButton, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        _AutomaticLeveling = not _AutomaticLeveling
+        self.LevelHero.state.is_auto = _AutomaticLeveling
+        Core.Event.SendSimulationEvent("test.toggle_automatic_leveling", _AutomaticLeveling)
+    end)
+
+    -- Level - Standard
+    DCEI.SetOnClickCallback(self.LevelHero.LevelButton, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Core.Event.SendSimulationEvent("test.hero_level")
+    end)
+
+    -- Level - Heroic
+    DCEI.SetOnClickCallback(self.LevelHeroic.LevelButton, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Core.Event.SendSimulationEvent("test.heroic_point")
+    end)
+
+    -- Reset
+    DCEI.SetOnClickCallback(self.Reset.Button, function() 
+DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        Layout:Hide()
+        ui.test.configuration:Show()
+
+        SetSpawningActive(false)
+        Core.Event.SendSimulationEvent("test.reset")
+    end)
+
+    -- Auto Start Toggle
+    DCEI.SetOnClickCallback(self.AutoStart.Button, ToggleAutoStart)
+
+    -- Spawning Toggle
+    DCEI.SetOnClickCallback(self.ToggleSpawning.Button, ToggleSpawning)
+
+    self:Hide()
+end
+
+---Set the Info Panel Hero Portrait and Meta Level
+---Also resets the Level to 1
+---@param game_data table
+function Layout:ResetHeroInfo(game_data)
+    -- Reset Damage Metrics
+    ResetDamageMetrics()
+
+    -- Update Icon
+    DCEI.SetFrameImage(self.Info.Portrait, game_data.Portrait)
+
+    -- Reset Level
+    DCEI.SetTextFrameText(self.Info.Level, game_data.HeroLevel)
+
+    -- Show/Hide Meta Level & Star
+    local is_active = game_data.MetaLevel > 0
+
+    DCEI.SetFrameActive(self.Info.MetaLevel, is_active)
+    DCEI.SetFrameActive(self.Info.Star, is_active)
+
+    if not is_active then
+        return
+    end
+
+    -- Set Star Color & Label
+    if game_data.MetaLevel <= 5 then
+        DCEI.SetTextFrameText(self.Info.MetaLevel, game_data.MetaLevel)
+        DCEI.SetFrameImageColor(self.Info.Star, "#ffffff")
+    else
+        DCEI.SetTextFrameText(self.Info.MetaLevel, game_data.MetaLevel - 5)
+        DCEI.SetFrameImageColor(self.Info.Star, "#ff0000")
+    end
+end
+
+---Set the Info Panel Hero Level
+---@param level integer
+function Layout:SetHeroLevel(level)
+    DCEI.SetTextFrameText(self.Info.Level, level)
+end
+
+---Set the Damage Metrics
+-- Contains Key: value, level
+---@param data table<string, number>
+function Layout:UpdateDamageMetrics(data)
+    -- Convert Key-Value to Sorted Array
+    -- Track Highest Damage Value
+    local highest = 0
+    local sorted_data = {}
+    for key, t in pairs(data) do
+        if t.value > highest then
+            highest = t.value
+        end
+        -- highest = highest + value
+        table.insert(sorted_data, { key = key, value = t.value, level = t.level })
+    end
+
+    local function compare(a, b)
+        return a.value < b.value
+    end
+
+    table.sort(sorted_data, compare)
+
+    for i = 1, #sorted_data do
+        local layout = _DamageSlotLayout[sorted_data[i].key]
+
+        if not layout then
+            layout = GenerateDamageSlotLayout(sorted_data[i].key)
+        end
+
+        -- Update Layout Information
+        -- Order
+        DCEI.SetFrameIndexInParent(layout.Frame, i)
+
+        -- Level
+        DCEI.SetTextFrameText(layout.Level, sorted_data[i].level)
+
+        -- Fill/Value
+        DCEI.SetTextFrameText(layout.Label, Help.FormatDamage(sorted_data[i].value))
+        DCEI.SetFrameImageFillAmount(layout.Fill, sorted_data[i].value / highest)
+    end
+end
+
+---comment
+---@param time number
+function Layout:UpdateTimer(time)
+    local display = Help.FormatTime(time)
+    DCEI.SetTextFrameText(self.Timer.Label, display)
+end
+
+---============================================================================
+---!SECTION: Custom Functions
+---SECTION: Core Functions
+---============================================================================
+
+function Layout:OnShow()
+    --
+end
+
+function Layout:OnHide()
+    --
+end
+
+---============================================================================
+---!SECTION: Core Functions
+---============================================================================
+
+Layout:Initialize()
+return Layout

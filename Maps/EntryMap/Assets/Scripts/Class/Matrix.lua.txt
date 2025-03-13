@@ -1,0 +1,100 @@
+--[[
+    Generates a Matrix
+]]
+
+---@class Matrix
+---@field rows number
+---@field columns number
+
+local Matrix = {}
+Matrix.__index = Matrix
+
+---Generates a Matrix
+---@param rows integer
+---@param columns integer
+---@param func any
+---@return table
+function Matrix.New(rows, columns, func)
+    local self = setmetatable({}, Matrix)
+    self.rows = rows
+    self.columns = columns
+    self.array = {}
+    for c = 1, columns do
+        self.array[c] = {}
+        for r = 1, rows do
+            self.array[c][r] = func(r, c)
+        end
+    end
+    return self
+end
+
+function Matrix:ShiftDown()
+    local displaced = {}
+    for c = 1, #self.array do
+        local obj = self.array[c][1]
+        table.insert(displaced, obj)
+
+        for r = 1, #self.array[c] - 1 do
+            self.array[c][r] = self.array[c][r + 1]
+        end
+
+        self.array[c][#self.array[c]] = obj
+    end
+
+    return displaced
+end
+
+function Matrix:ShiftUp()
+    local displaced = {}
+    for c = 1, #self.array do
+        local obj = self.array[c][#self.array[c]]
+        table.insert(displaced, obj)
+
+        for r = #self.array[c], 2, -1 do
+            self.array[c][r] = self.array[c][r - 1]
+        end
+
+        self.array[c][1] = obj
+    end
+
+    return displaced
+end
+
+function Matrix:ShiftLeft()
+    local displaced = self.array[1]
+    for c = 1, #self.array - 1 do
+        self.array[c] = self.array[c + 1]
+    end
+
+    self.array[#self.array] = displaced
+
+    return displaced
+end
+
+function Matrix:ShiftRight()
+    local displaced = self.array[#self.array]
+    for c = #self.array, 2, -1 do
+        self.array[c] = self.array[c - 1]
+    end
+
+    self.array[1] = displaced
+
+    return displaced
+end
+
+function Matrix:Get(row, column)
+    return self.array[row][column]
+end
+
+function Matrix:GetAll()
+    local entries = {}
+    for c = 1, #self.array do
+        for r = 1, #self.array[c] do
+            table.insert(entries, self.array[c][r])
+        end
+    end
+
+    return entries
+end
+
+return Matrix

@@ -1,0 +1,374 @@
+local Vector2 = require("Class/Vector2")
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+local PerlinNoise = require("Class/PerlinNoise")
+
+local PropData = require("Map/PropData")
+
+local Help = require("Help")
+
+---@class Biome
+---@field TILE_DATA TileData
+
+---@type Biome
+local Biome = {}
+
+---@class BiomeData
+---@field seed integer
+---@field r integer
+---@field c integer
+
+---@class BiomeSpawnData
+---@field density integer
+---@field prop_options table
+---@field forced_props table
+
+---@type TileData
+Biome.TILE_DATA = {
+    Size = 5.12,
+    LoadDistance = 4,
+    TileOptions = {
+        DCEI.SimpleUnit("Zone - Cleansed - Default"),
+    },
+}
+
+---TODO: Figure out POIs
+
+-- table of {x, y} POIWeight
+-- POIWeight Id's
+local POI_Spawn_Weight = 0
+local POI_Spawn_Threshold = 100000
+
+---Returns true if the POI should spawn.
+---@return boolean
+local function POIChance(weight)
+    weight = weight or 1
+
+    POI_Spawn_Weight = POI_Spawn_Weight + weight
+
+    if Help.Chance(POI_Spawn_Weight / POI_Spawn_Threshold) then
+        POI_Spawn_Weight = 0
+        return true
+    end
+
+    return false
+end
+
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateWithPOIChance(biome_data, biome_spawn_data, weight)
+    weight = weight or 1
+
+    if POIChance() then
+        -- table.insert(biome_spawn_data.forced_props, PropData.POI.MeditationFountain)
+        table.insert(biome_spawn_data.forced_props, PropData.Forest.Crate01)
+        return true
+    end
+
+    return false
+end
+
+---Custom Noise Generation with Octaves
+---@param seed integer
+---@param r integer
+---@param c integer
+---@param zoom number
+---@param octaves number
+---@param persistence number
+---@return number
+function Biome.GenerateNoise(seed, r, c, zoom, octaves, persistence)
+    return PerlinNoise.GenerateOctave(seed + r / zoom, seed + c / zoom, 0.50, octaves, persistence)
+end
+
+---============================================================================
+---SECTION: Void Map Center
+---============================================================================
+
+---Prevents spawning in a 3x3 area around the map center.
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function PreventSpawningNearMapCenter(biome_data, biome_spawn_data)
+    local radius = 2
+
+    if biome_data.r == 0 and biome_data.c == 0 then
+        return true
+    end
+
+    if biome_data.r >= -radius and biome_data.r <= radius and biome_data.c >= -radius and biome_data.c <= radius then
+        if Help.Chance(0.05) then
+            table.insert(biome_spawn_data.forced_props, PropData.Forest.DirtPatch)
+        elseif Help.Chance(0.005) then
+            table.insert(biome_spawn_data.forced_props, PropData.Forest.Flower01)
+        end
+        return true
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Void Map Center
+---SECTION: Floral Forest Generation
+---============================================================================
+
+local _FloralForestSpline = {
+    Help.NewSplinePoint(-1.5, 30),
+    Help.NewSplinePoint(-0.8, 5),
+    Help.NewSplinePoint(-0.78, 0),
+    Help.NewSplinePoint(1, 0),
+}
+
+-- We want to generate large paths that are easy to follow.
+function Biome.FloralForestNoise(seed, r, c)
+    local noise = Biome.GenerateNoise(seed, r, c, 12, 3, 0.70) * 2
+    return noise
+end
+
+---comment
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateFloralForestWithPOIChance(biome_data, biome_spawn_data)
+    local noise = Biome.FloralForestNoise(biome_data.seed, biome_data.r, biome_data.c)
+    local density = Help.Spline(_FloralForestSpline, noise)
+
+    local poi_weight = 1000
+    -- if density > 10 and POIChance(poi_weight) then
+    --     table.insert(biome_spawn_data.forced_props, PropData.Forest.Crate01)
+    --     return true
+    -- end
+
+    if density > 1 then
+        biome_spawn_data.density = density
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.Flower01)
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.TreeDegrade01)
+        return true
+    end
+
+    if density > 0.5 then
+        return true
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Floral Forest Generation
+---SECTION: Large Path Generation
+---============================================================================
+
+---@type table<SplinePoint>
+local _LargePathSpline = {
+    Help.NewSplinePoint(-10, 0),
+    Help.NewSplinePoint(-0.1, 0),
+    Help.NewSplinePoint(0, 5),
+    Help.NewSplinePoint(0.1, 0),
+    Help.NewSplinePoint(10, 0),
+}
+
+-- We want to generate large paths that are easy to follow.
+function Biome.LargePathNoise(seed, r, c)
+    local noise = Biome.GenerateNoise(seed + 50, r, c, 8, 1, 0.50)
+    return noise
+end
+
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateLargePathsWithPOIChance(biome_data, biome_spawn_data)
+    local noise = Biome.LargePathNoise(biome_data.seed, biome_data.r, biome_data.c)
+    local density = Help.Spline(_LargePathSpline, noise)
+
+    -- if density > 4.5 and GenerateWithPOIChance(biome_data, biome_spawn_data) then
+    --     return true
+    -- end
+
+    if density > 0.5 then
+        return true
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Large Path Generation
+---SECTION: Camp Generation
+---============================================================================
+
+---@type table<SplinePoint>
+local _CampSpline = {
+    Help.NewSplinePoint(-2, 0),
+    Help.NewSplinePoint(-1, 30, 1, 1),
+    Help.NewSplinePoint(-0.90, 0),
+    Help.NewSplinePoint(0.90, 0),
+    Help.NewSplinePoint(1, 30, 1, 1),
+    Help.NewSplinePoint(2, 0),
+}
+
+function Biome.CampNoise(seed, r, c)
+    local noise = Biome.GenerateNoise(seed + 100, r, c, 10, 2, 0.10) * 2
+    return noise
+end
+
+local function GenerateCamp(biome_data, biome_spawn_data)
+    local noise = Biome.CampNoise(biome_data.seed, biome_data.r, biome_data.c)
+    local density = Help.Spline(_CampSpline, noise)
+
+    if density > 20 then
+        if Help.Chance(density / 100) then
+            biome_spawn_data.density = density
+            if Help.Flip() then
+                table.insert(biome_spawn_data.prop_options, PropData.Forest.Rock01)
+            else
+                table.insert(biome_spawn_data.prop_options, PropData.Forest.Rock02)
+            end
+        end
+        return true
+    end
+
+    if density > 10 then
+        return true
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Camp Generation
+---SECTION: Crate Generation
+---============================================================================
+
+---@type table<SplinePoint>
+local _CrateSpline = {
+    Help.NewSplinePoint(-2, 0),
+    Help.NewSplinePoint(-1.05, 0),
+    Help.NewSplinePoint(-1, 30, 1, 1),
+    Help.NewSplinePoint(-0.95, 0),
+    Help.NewSplinePoint(0.95, 0),
+    Help.NewSplinePoint(1, 30, 1, 1),
+    Help.NewSplinePoint(1.05, 0),
+    Help.NewSplinePoint(2, 0),
+}
+
+function Biome.CrateNoise(seed, r, c)
+    local noise = Biome.GenerateNoise(seed + 150, r, c, 10, 2, 0.10) * 2
+    return noise
+end
+
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateRandomCrate(biome_data, biome_spawn_data)
+    local noise = Biome.CrateNoise(biome_data.seed, biome_data.r, biome_data.c)
+    local density = Help.Spline(_CrateSpline, noise)
+
+    if density > 0.5 then
+        biome_spawn_data.density = density
+        -- table.insert(biome_spawn_data.prop_options, PropData.Forest.Crate01)
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.DestroyedCrate01)
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.DestroyedCrate02)
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.TreeDegrade05)
+        return true
+    end
+
+    return false
+end
+
+---============================================================================
+---!SECTION: Crate Generation
+---SECTION: Other Generation
+---============================================================================
+
+---Generates a Free Crate at the Map Center, slightly offset upwards.
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateFreeCrate(biome_data, biome_spawn_data)
+    if biome_data.r == 0 and biome_data.c == 1 then
+        table.insert(biome_spawn_data.forced_props, PropData.Forest.Crate01)
+        return true
+    end
+
+    return false
+end
+
+---@param biome_data BiomeData
+---@param biome_spawn_data BiomeSpawnData
+---@return boolean
+local function GenerateTreeFill(biome_data, biome_spawn_data)
+    biome_spawn_data.density = Help.RandomInteger(1, 30)
+
+    if Help.Chance(0.90) then
+        -- Healthy Tree
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.TreeDegrade01)
+    elseif Help.Chance(0.90) then
+        -- Damaged Tree
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.TreeDegrade02)
+    else
+        -- Tree Stump
+        table.insert(biome_spawn_data.prop_options, PropData.Forest.TreeDegrade05)
+    end
+
+    -- table.insert(biome_spawn_data.prop_options, PropData.Forest.TreeDegrade01)
+    -- table.insert(biome_spawn_data.prop_options, PropData.Forest.Tree02)
+    -- table.insert(biome_spawn_data.prop_options, PropData.Forest.Tree03)
+    -- table.insert(biome_spawn_data.prop_options, PropData.Forest.Tree04)
+    return true
+end
+
+---============================================================================
+---!SECTION: Other Generation
+---SECTION: Prop Injection
+---============================================================================
+
+-- Can likely turn this into a list of generators
+local GenerationList = {
+    -- GenerateFreeCrate,
+    PreventSpawningNearMapCenter,
+    GenerateFloralForestWithPOIChance,
+    GenerateLargePathsWithPOIChance,
+    GenerateCamp,
+    GenerateRandomCrate,
+    -- GenerateWithPOIChance,
+    GenerateTreeFill,
+}
+
+---comment
+---@param seed integer
+---@param r integer
+---@param c integer
+---@return PropZoneOptions
+function Biome.PropInjection(seed, r, c)
+    local biome_data = {
+        seed = seed,
+        r = r,
+        c = c,
+    }
+
+    local biome_spawn_data = {
+        density = 0,
+        prop_options = {},
+        forced_props = {},
+    }
+
+    for _, func in ipairs(GenerationList) do
+        local exit = func(biome_data, biome_spawn_data)
+
+        if exit then
+            break
+        end
+    end
+
+    return {
+        Density = biome_spawn_data.density,
+        PropOptions = biome_spawn_data.prop_options,
+        ForcedProps = biome_spawn_data.forced_props,
+    }
+end
+
+---============================================================================
+---!SECTION: Prop Injection
+---============================================================================
+
+return Biome

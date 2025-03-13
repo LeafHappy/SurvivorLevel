@@ -1,0 +1,91 @@
+-- LIBRARIES
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+---@class StarBarComponent
+local StarBarComponent = {}
+
+-- METHODS
+function StarBarComponent:Initialize(star_layout, override_data)
+    -- Store layout and star child layouts
+    star_layout.star_layouts = star_layout:GetChildCollection("Star")
+
+    -- Level State Defaults
+    star_layout.rollover_level = 5
+    star_layout.current_level = 0
+
+    -- Star colors
+    star_layout.color_1 = "#ffe926ff" -- Yellow
+    star_layout.color_2 = "#ff4646ff" -- Red
+    star_layout.color_inactive = "#7d85afff" -- Gray
+
+    -- Updates amount of stars to show and what color they are
+    function star_layout:Update(current_level, is_inactive)
+        if current_level then
+            self:SetCurrentLevel(current_level)
+        end
+
+        local star_count = self.current_level % self.rollover_level
+
+        -- Special case for when it is a multiple of rollover as we don't want 0 but rollover
+        if star_count == 0 and self.current_level > 0 then
+            star_count = self.rollover_level
+        end
+
+        -- Determine which fill color to use
+        local is_in_rollover_color = self.current_level > self.rollover_level
+        local filled_color = is_in_rollover_color and self.color_2 or self.color_1
+
+        -- Set stars as filled or not
+        for i, star_icon in ipairs(self.star_layouts) do
+            if star_count >= i then
+                DCEI.SetFrameActive(star_icon.Frame, true)
+                DCEI.SetFrameImageColor(star_icon.Frame, filled_color)
+
+                -- Set to inactive color if we are overriding it to be inactive
+                if is_inactive then
+                    DCEI.SetFrameImageColor(star_icon.Frame, star_layout.color_inactive)
+                end
+            else
+                DCEI.SetFrameActive(star_icon.Frame, false)
+            end
+        end
+    end
+
+    -- SECTION Level State Handling
+    -- Current Level
+    function star_layout:SetCurrentLevel(current_level)
+        self.current_level = current_level
+    end
+
+    -- Rollover Level
+    function star_layout:SetRolloverLevel(new_rollover)
+        self.rollover_level = new_rollover
+    end
+
+    -- Set Overrides
+    function star_layout:SetOverrideData(override_data)
+        if override_data.current_level then
+            self:SetCurrentLevel(override_data.current_level)
+        end
+
+        if override_data.rollover_level then
+            self:SetRolloverLevel(override_data.rollover_level)
+        end
+    end
+
+    -- Set override states
+    if override_data then
+        star_layout:SetOverrideData(override_data)
+    end
+end
+
+-- EXPORT
+return StarBarComponent

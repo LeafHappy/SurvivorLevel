@@ -1,0 +1,561 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local Json = require("json")
+
+local SkillData = require("SharedData/Skills/SkillData")
+local SkillTagData = require("SharedData/Skills/SkillTagData")
+local StatData = require("SharedData/Skills/StatData")
+
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Local Data
+---============================================================================
+
+local ui = GMUI.ui
+
+-- DATA
+-- local Upgrades = require("SharedData/Upgrades")
+
+-- CONSTANTS
+local INPUT_STATE_KEY = "on_perk_select"
+
+-- LAYOUT
+local Layout = GMUI.LazyLayout.New({
+    name = "Game/PerkSelect",
+    parent = ui.z1.Upper,
+})
+
+local _ActiveSkillLayouts = {}
+local _PerkOptionLayouts = {}
+local _ActiveSkillTagLayouts = {}
+local _StarLayouts = {}
+local _TagLayouts = {}
+local _ModifierLayouts = {}
+
+---============================================================================
+---!SECTION: Local Data
+---SECTION: Local Functions
+---============================================================================
+
+---@class SkillIconAndLevel
+---@field Icon string
+---@field Level integer
+
+---Update the Active Skill Data Layouts
+---@param data table<SkillIconAndLevel>
+local function UpdateActiveSkillData(data)
+    -- Help.Log("Active Skill Data Pass", nil, data)
+    for index, skill_data in ipairs(data) do
+        local layout = Help.GenerateLayoutRef(
+            "Game/PerkSelect/ActiveSkills/Item",
+            Layout.ActiveSkills.ItemContainer,
+            _ActiveSkillLayouts,
+            index
+        )
+
+        layout.state.icon = skill_data.Icon
+        layout.state.level = skill_data.Level
+    end
+
+    -- Hide any remaining layouts
+    for i = #data + 1, #_ActiveSkillLayouts do
+        _ActiveSkillLayouts[i]:Hide()
+    end
+end
+
+---@class PerkSelectionOptionData
+---@field Key string
+---@field Level integer
+---@field Tags table<string>
+
+-- -@field Type SKILL_TYPE
+-- -@field Name string
+-- -@field Icon string
+-- -@field Description string
+-- -@field MaxLevel integer
+
+---comment
+---@param index integer Option Layout Index
+---@param tags table<string>
+local function UpdateInheritedTags(index, tags)
+    for i = 1, index do
+        -- Verify that we have a layout to work with
+        if not _ActiveSkillTagLayouts[index] then
+            _ActiveSkillTagLayouts[index] = {}
+        end
+
+        local layout = Help.GenerateLayoutRef(
+            "Game/PerkSelect/Options/Item/Tag",
+            _PerkOptionLayouts[index].ActiveSkillTagContainer,
+            _ActiveSkillTagLayouts[index],
+            i
+        )
+
+        -- Set the Tag Icon
+        local skill_tag_data = SkillTagData[tags[i]] or SkillTagData.Default
+        layout.state.icon = skill_tag_data.Icon
+    end
+
+    -- Hide any remaining Tags in this Option Layout
+    local layouts = _ActiveSkillTagLayouts[index]
+    local active_count = #tags
+    for i = active_count, #layouts do
+        if i > active_count then
+            DCEI.SetFrameActive(layouts[i].Frame, false)
+        end
+    end
+end
+
+---comment
+---@param index integer Option Layout Index
+---@param level integer The current level of the option
+---@param max_level integer The maximum level of the option
+local function UpdateStars(index, level, max_level)
+    --
+    for i = 1, max_level, 1 do
+        -- Verify that we have a layout to work with
+        if not _StarLayouts[index] then
+            _StarLayouts[index] = {}
+        end
+
+        local layout = Help.GenerateLayoutRef(
+            "Game/PerkSelect/Options/Item/Star",
+            _PerkOptionLayouts[index].StarContainer,
+            _StarLayouts[index],
+            i
+        )
+
+        -- Set the Star State
+        layout.state.is_filled = i <= level
+    end
+
+    -- Hide any remaining Stars in this Option Layout
+    local layouts = _StarLayouts[index]
+    for i = max_level + 1, #layouts do
+        DCEI.SetFrameActive(layouts[i].Frame, false)
+    end
+end
+
+---comment
+---@param index integer Options Layout Inded
+---@param tags table<SKILL_TAG>
+---@param skill_type SKILL_TYPE
+local function UpdateTags(index, tags, skill_type)
+    --
+    for i = 1, #tags do
+        if not _TagLayouts[index] then
+            _TagLayouts[index] = {}
+        end
+
+        local layout = Help.GenerateLayoutRef(
+            "Game/PerkSelect/Options/Item/Tag",
+            _PerkOptionLayouts[index].TagContainer,
+            _TagLayouts[index],
+            i
+        )
+
+        -- Set the Tag States
+        local skill_tag_data = SkillTagData[tags[i]] or SkillTagData.Default
+        layout.state.icon = skill_tag_data.Icon
+        layout.state.show_upgrade = skill_type == SKILL_TYPE.Passive
+
+        -- Button Callback --> Popup with Tag Description
+    end
+
+    -- Hide any remaining Tags in this Option Layout
+    local tag_layouts = _TagLayouts[index]
+
+    if not tag_layouts then
+        return
+    end
+
+    for i = #tags + 1, #tag_layouts do
+        DCEI.SetFrameActive(tag_layouts[i].Frame, false)
+    end
+end
+
+---Extracts the Modifiers from the Application Group
+---@param applications ApplicationGroup
+---@param target_level integer
+---@return table
+local function ExtractModifiers(applications, target_level)
+    local modifiers = {}
+    for application_type, application_groups in pairs(applications) do
+        -- Extract First Level Only Modifiers
+        if target_level == 1 and application_type == "FirstLevelOnly" then
+            for _, modifier in ipairs(application_groups.Modifiers) do
+                table.insert(modifiers, modifier)
+            end
+        elseif target_level > 1 and application_type == "EveryLevelAfterFirst" then
+            for _, modifier in ipairs(application_groups.Modifiers) do
+                table.insert(modifiers, modifier)
+            end
+        end
+
+        -- Always get the EveryLevel Modifiers
+        if application_type == "EveryLevel" then
+            for _, modifier in ipairs(application_groups.Modifiers) do
+                table.insert(modifiers, modifier)
+            end
+        end
+    end
+
+    return modifiers
+end
+
+---@param modifier Modifier
+---@return string
+local function GetModifierIcon(modifier)
+    local icon = ""
+
+    -- Get the Icon
+    for _, tag in pairs(modifier.tags) do
+        if SkillTagData[tag] then
+            icon = SkillTagData[tag].Icon
+            break
+        end
+    end
+
+    return icon
+end
+
+---comment
+---@param index integer
+---@param skill_data SkillData
+local function UpdateModifiersActive(index, skill_data)
+    -- Just hide this for now
+    DCEI.SetFrameActive(_PerkOptionLayouts[index].ModifierContainer, false)
+    if true then
+        return
+    end
+
+    --
+    -- Convert ApplyStatInheritance[Key] to Icon / Skill Tag Name
+    local stat_inheritance = skill_data.ApplyStatInheritance[skill_data.Key]
+
+    -- Failed to find any Stat Inheritance
+    if not stat_inheritance then
+        return
+    end
+
+    -- Ignore Global and Self Key
+    local skill_tags = {}
+    for i = 1, #stat_inheritance do
+        if stat_inheritance[i] ~= SKILL_TAG.Global and stat_inheritance[i] ~= skill_data.Key then
+            table.insert(skill_tags, stat_inheritance[i])
+        end
+    end
+
+    for i = 1, #skill_tags do
+        if not _ModifierLayouts[index] then
+            _ModifierLayouts[index] = {}
+        end
+
+        local layout = Help.GenerateLayoutRef(
+            "Game/PerkSelect/Options/Item/Modifier",
+            _PerkOptionLayouts[index].ModifierContainer,
+            _ModifierLayouts[index],
+            i
+        )
+
+        -- Check Skill Tag Data
+        local skill_tag_data = SkillTagData[skill_tags[i]] or SkillTagData.Default
+
+        -- Set the Modifier Text
+        if skill_tag_data and not skill_tag_data.HideInPauseMenu then
+            layout.state.icon = skill_tag_data.Icon
+            -- layout.state.text = skill_tag_data.DisplayName
+            layout.state.text = ""
+
+            layout.state.show_icon = skill_tag_data.Icon ~= ""
+        else
+            DCEI.SetFrameActive(layout.Frame, false)
+        end
+    end
+
+    -- Hide any remaining Modifiers in the Modifier Layout
+    local modifier_layout = _ModifierLayouts[index]
+
+    if not modifier_layout then
+        return
+    end
+
+    for i = #skill_tags + 1, #modifier_layout do
+        DCEI.SetFrameActive(modifier_layout[i].Frame, false)
+    end
+end
+
+---comment
+---@param index integer
+---@param applications ApplicationGroup
+---@param target_level integer
+local function UpdateModifiersPassive(index, applications, target_level)
+    DCEI.SetFrameActive(_PerkOptionLayouts[index].ModifierContainer, true)
+
+    -- Extract Modifiers from Applciations Group
+    local modifiers = ExtractModifiers(applications, target_level)
+    -- Help.Log("Extracted Modifiers", index, modifiers)
+
+    local modifier_display = {}
+    for _, modifier in ipairs(modifiers) do
+        local icon = GetModifierIcon(modifier)
+        local display_text = StatData.ConvertModifierToText(modifier)
+
+        if display_text ~= "" then
+            table.insert(modifier_display, {
+                Icon = icon,
+                Text = display_text,
+            })
+        end
+
+        -- table.insert(modifier_display, ConvertModifierToText(modifier))
+    end
+
+    for i = 1, #modifier_display do
+        -- Associate the Modifier Layout based on the Option Layout Index
+        if not _ModifierLayouts[index] then
+            _ModifierLayouts[index] = {}
+        end
+
+        local layout = Help.GenerateLayoutRef(
+            "Game/PerkSelect/Options/Item/Modifier",
+            _PerkOptionLayouts[index].ModifierContainer,
+            _ModifierLayouts[index],
+            i
+        )
+
+        -- Set the Modifier Text
+        -- Help.Log("Modifier Display", nil, modifier_display[i])
+        layout.state.icon = modifier_display[i].Icon
+        layout.state.text = modifier_display[i].Text
+
+        -- Toggle Show Icon if Icon is Present
+        layout.state.show_icon = modifier_display[i].Icon ~= ""
+    end
+
+    -- Hide any remaining Modifiers in the Modifier Layout
+    local modifier_layout = _ModifierLayouts[index]
+
+    if not modifier_layout then
+        return
+    end
+
+    for i = #modifier_display + 1, #modifier_layout do
+        DCEI.SetFrameActive(modifier_layout[i].Frame, false)
+    end
+end
+
+---comment
+---@param data table<PerkSelectionOptionData>
+local function UpdateSelectionOptionData(data)
+    for index, option_data in ipairs(data) do
+        local layout =
+            Help.GenerateLayoutRef("Game/PerkSelect/Options/Item", Layout.Options.Container, _PerkOptionLayouts, index)
+
+        -- Reference to Skill Data
+        ---@type SkillData
+        local skill_data = SkillData[option_data.Key]
+
+        -- Set State Info
+        layout.state.skill_type = skill_data.Type
+        layout.state.name = skill_data.DisplayName
+        layout.state.icon = skill_data.Icon
+        layout.state.secondary_icon = skill_data.SecondaryIcon or ""
+        layout.state.description = skill_data.ShortDescription
+
+        -- Configure Active Skill Tags
+        UpdateInheritedTags(index, option_data.InheritedTags)
+
+        -- Configure Level Stars (if present)
+        -- layout.state.show_stars = skill_data.MaxLevel > 1
+        -- if layout.state.show_stars then
+        --     UpdateStars(index, option_data.Level, skill_data.MaxLevel)
+        -- end
+
+        -- Configure Related Tags (if present.. should be present)
+        -- Help.Log("Tags", option_data.Name, option_data.Tags)
+        UpdateTags(index, option_data.Tags, skill_data.Type)
+        layout.state.show_tags = #option_data.Tags > 0
+
+        -- Disable Tags on Active Skills
+        if skill_data.Type == SKILL_TYPE.Active then
+            layout.state.show_tags = false
+        end
+
+        -- We only want to show Modifiers for Passive Skills
+        -- local show_modifiers = skill_data.Type == SKILL_TYPE.PASSIVE
+
+        if skill_data.Type == SKILL_TYPE.Active then
+            UpdateModifiersActive(index, skill_data)
+        elseif skill_data.Type == SKILL_TYPE.Passive or skill_data.Type == SKILL_TYPE.Unique then
+            UpdateModifiersPassive(index, skill_data.Applications, option_data.Level + 1)
+        end
+
+        -- What is Active Skills shows their Tag information here?
+
+        -- layout.state.show_modifiers = show_modifiers
+    end
+
+    -- Hide any remaining layouts
+    for i = #data + 1, #_PerkOptionLayouts do
+        _PerkOptionLayouts[i]:Hide()
+    end
+end
+
+-- LOCAL FUNCTIONS
+---Get the Table Value where its key matches the passed value.
+---@param t table
+---@param key string
+---@param value any
+---@return table
+local function FindMatchingIndex(t, key, value)
+    for i = 1, #t do
+        if t[i][key] == value then
+            return t[i]
+        end
+    end
+
+    return {}
+end
+
+---Get the necessary information to display to the UI
+---@param item UpgradeOptionDataPass | nil
+---@return table | nil
+local function GetUpgradeData(item)
+    if item == nil then
+        return nil
+    end
+
+    ---@type UpgradeData
+    local upgrade_data = FindMatchingIndex(Upgrades, "Name", item.Name)
+
+    local item_data = {
+        icon = upgrade_data.Icon,
+        name = upgrade_data.Name,
+        display_name = upgrade_data.DisplayName,
+        description = upgrade_data.UpgradeOptions[item.Index].Description,
+        level = item.Level,
+    }
+
+    return item_data
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Layout Functions
+---SECTION: Layout Overrides
+---============================================================================
+
+-- LAYOUT METHODS
+function Layout:Initialize()
+    self.items = self:GetChildCollection("item")
+
+    for _, item_layout in ipairs(self.items) do
+        -- hookup item methods
+        ---@param skill_data SkillData
+        function item_layout:Update(skill_data)
+            -- Simply Hide when no Item Data is found.
+            if skill_data == nil then
+                self:Hide()
+                return
+            end
+
+            self:Show()
+
+            -- update name, icon, and description
+            DCEI.SetTextFrameText(self.DisplayLabel, skill_data.DisplayName)
+            DCEI.SetTextFrameText(self.DescriptionLabel, skill_data.ShortDescription)
+            DCEI.SetFrameImage(self.Icon, skill_data.Icon)
+
+            -- update level
+            local text = "Lv. " .. tostring(skill_data.Level + 1)
+            DCEI.SetTextFrameText(self.LevelLabel, text)
+
+            -- update weapon vs perk state
+            -- currently this just makes weapon banner yellow and perk banners green
+
+            self.state.is_weapon = true
+
+            -- self.state.is_weapon = item_data.is_weapon
+            -- self.state.is_ability = item_data.is_ability
+            -- self.state.is_item = item_data.is_item
+            -- self.state.is_artifact = item_data.is_artifact
+            -- self.state.is_evolution = item_data.level >= 5
+        end
+    end
+end
+
+---comment
+---@param options table<SkillData>
+---@param OnPerkSelect function
+function Layout:Update(options, OnPerkSelect)
+    DCEI.SetUpdateFrequency(0)
+
+    for index, item_layout in ipairs(self.items) do
+        -- local item_data = GetUpgradeData(options[index])
+        item_layout:Update(options[index])
+
+        DCEI.SetOnClickCallback(item_layout.Button, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+            DCEI.SetUpdateFrequency(1)
+
+            -- run the callback defined in `Hero:PerkSelection()` and hide perk selection
+            GMUI.RunSimulationCallback(OnPerkSelect, options[index])
+
+            -- perk select menu will either update or hide, depending on if there's more perks to choose
+            -- the logic flow is controlled on the simulation side, so we need to block input until that resolves
+            GMUI.InputState.BlockUserInput(INPUT_STATE_KEY)
+        end)
+    end
+
+    GMUI.InputState.UnblockUserInput(INPUT_STATE_KEY)
+end
+
+function Layout:OnHide()
+    GMUI.InputState.UnblockUserInput(INPUT_STATE_KEY)
+end
+
+---============================================================================
+---!SECTION: Layout Overrides
+---SECTION: Events
+---============================================================================
+
+local function GiveAuthority(keys, callback)
+    DCEI.SetUpdateFrequency(0)
+
+    for index, layout in ipairs(_PerkOptionLayouts) do
+        -- Setup the Click Callback
+        DCEI.SetOnClickCallback(layout.Button, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+            DCEI.SetUpdateFrequency(1)
+
+            GMUI.RunSimulationCallback(callback, keys[index])
+
+            GMUI.InputState.BlockUserInput(INPUT_STATE_KEY)
+        end)
+    end
+
+    GMUI.InputState.UnblockUserInput(INPUT_STATE_KEY)
+end
+
+Core.Event.RegisterPresentationEvent("Game.PerkSelect.UpdateActiveSkillData", UpdateActiveSkillData)
+Core.Event.RegisterPresentationEvent("Game.PerkSelect.UpdateSelectionOptionData", UpdateSelectionOptionData)
+Core.Event.RegisterPresentationEvent("Game.PerkSelect.GiveAuthority", GiveAuthority)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+-- EXPORT
+return Layout
