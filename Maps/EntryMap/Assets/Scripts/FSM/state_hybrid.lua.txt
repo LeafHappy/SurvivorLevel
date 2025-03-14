@@ -5,7 +5,7 @@
     About
 
     3 Parts
-    
+
     - Introduction -
     Player is free to move around, needs to travel upwards to meet the "horde".
 
@@ -1214,6 +1214,8 @@ end
 
 local function IncreaseGold()
     SaveDataManager.Modify(SAVE_KEY.Gold, 100)
+    SaveDataManager.Modify(SAVE_KEY.Wood, 100)
+    SaveDataManager.Modify(SAVE_KEY.Stone, 100)
 end
 
 local function ToggleEditor()

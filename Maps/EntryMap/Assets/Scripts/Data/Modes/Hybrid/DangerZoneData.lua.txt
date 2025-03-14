@@ -20,92 +20,504 @@ local REF = {
 
 ---@readonly
 ---@type table<DangerZoneData>
-local data = {
+local data =
+{
     StartingZone = {
         Key = "StartingZone",
         KeyItems = {
             {
                 Key = "ChopTree",
                 Position = {
-                    x = 5.8301796913146973,
-                    y = -0.082098007202148438,
+                x = 5.8301796913146973,
+                y = -0.082098007202148438
                 },
-                Status = "Cleansed",
-            },
+                Status = "Cleansed"
+            }
         },
         Position = {
             x = 0,
-            y = 0,
+            y = 0
         },
         Props = {
             {
                 Key = "Flower01",
                 Position = {
-                    x = 4.4827990531921387,
-                    y = 0.95574378967285156,
-                },
+                x = 4.4827990531921387,
+                y = 0.95574378967285156
+                }
             },
             {
                 Key = "Flower02",
                 Position = {
-                    x = 5.2089533805847168,
-                    y = 2.5919761657714844,
-                },
+                x = 5.2089533805847168,
+                y = 2.5919761657714844
+                }
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = -1.3410604000091553,
-                    y = 0.87963294982910156,
-                },
+                x = -1.3410604000091553,
+                y = 0.87963294982910156
+                }
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = 0.11589336395263672,
-                    y = -0.67236900329589844,
-                },
+                x = 0.11589336395263672,
+                y = -0.67236900329589844
+                }
             },
+            {
+                Key = "Stone01",
+                Position = {
+                x = 9.3104619979858398,
+                y = 5.6893234252929688
+                }
+            },
+            {
+                Key = "Stone01",
+                Position = {
+                x = 8.5326833724975586,
+                y = 0.22887611389160156
+                }
+            },
+            {
+                Key = "Stone01",
+                Position = {
+                x = 11.25490665435791,
+                y = -0.91034507751464844
+                }
+            }
         },
         StartingStatus = "Cleansed",
         Tiles = {
             {
                 Key = "Grasslands",
                 Position = {
-                    x = 0,
-                    y = 0,
-                },
+                x = 0,
+                y = 0
+                }
             },
             {
                 Key = "Grasslands",
                 Position = {
+                x = 1,
+                y = 0
+                }
+            },
+            {
+                Key = "Grasslands",
+                Position = {
+                x = 2,
+                y = 0
+                }
+            },
+            {
+                Key = "Grasslands",
+                Position = {
+                x = 1,
+                y = 1
+                }
+            },
+            {
+                Key = "Grasslands",
+                Position = {
+                x = 2,
+                y = 1
+                }
+            },
+            {
+                Key = "Grasslands",
+                Position = {
+                x = 1,
+                y = 2
+                }
+            },
+            {
+                Key = "Grasslands",
+                Position = {
+                x = 0,
+                y = 2
+                }
+            }
+        }
+    },
+    Zone_0_1 = {
+        Key = "Zone_0_1",
+        KeyItems = {
+            {
+                Key = "MineStone",
+                Position = {
                     x = 1,
-                    y = 0,
+                    y = -2,
                 },
+                Status = "Cleansed",
+            },
+        },
+        Position = {
+            x = 1,
+            y = 1
+        },
+        Props = {},
+        StartingStatus = "Available",
+        Tiles = {},
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 2.5,
+            ResourceCost = {
+                Amount = 4,
+                Resource = "Wood",
+                SaveKey = {
+                    "currency",
+                    "wood",
+                },
+            },
+            StandOffset = {
+                x = 0,
+                y = -1.25,
+            },
+            UIOffset = {
+                x = 0,
+                y = 0.75,
             },
         },
     },
-    Zone_1 = {
-        Key = "Zone_1",
+    Zone_0_2 = {
+        Key = "Zone_0_2",
         KeyItems = {
             {
                 Key = "Strafe",
                 Position = {
-                    x = 2.5,
-                    y = 5,
+                    x = 0,
+                    y = 0,
                 },
-                Status = "Occupied",
+                Status = "Cleansed",
             },
         },
+        Position = {
+            x = 0,
+            y = 2
+        },
+        Props = {},
+        StartingStatus = "Available",
+        Tiles = {},
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 2.5,
+            ResourceCost = {
+                Amount = 4,
+                Resource = "Stone",
+                SaveKey = {
+                    "currency",
+                    "stone",
+                },
+            },
+            StandOffset = {
+                x = 1.25,
+                y = 0,
+            },
+            UIOffset = {
+                x = 1.25,
+                y = 2,
+            },
+            Zones = {
+                "Zone_0_1",
+            },
+        },
+    },
+    Zone_0_3 = {
+        Key = "Zone_0_3",
+        KeyItems = {},
+        Position = {
+            x = -1,
+            y = 1
+        },
+        Props = {},
+        StartingStatus = "Available",
+        Tiles = {},
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 2.5,
+            ResourceCost = {
+                Amount = 10,
+                Resource = "Wood",
+                SaveKey = {
+                    "currency",
+                    "wood",
+                },
+            },
+            StandOffset = {
+                x = 5,
+                y = 0,
+            },
+            UIOffset = {
+                x = 5,
+                y = 2,
+            },
+            Zones = {
+                "Zone_2_1",
+            },
+        },
+    },
+    Zone_0_4 = {
+        Key = "Zone_0_4",
+        KeyItems = {},
+        Position = {
+            x = 0,
+            y = -1
+        },
+        Props = {},
+        StartingStatus = "Available",
+        Tiles = {},
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 2.5,
+            ResourceCost = {
+                Amount = 10,
+                Resource = "Stone",
+                SaveKey = {
+                    "currency",
+                    "stone",
+                },
+            },
+            StandOffset = {
+                x = 5,
+                y = 0,
+            },
+            UIOffset = {
+                x = 5,
+                y = 2,
+            },
+            Zones = {
+                "Zone_3_1",
+            },
+        },
+    },
+    Zone_0_5 = {
+        Key = "Zone_0_5",
+        KeyItems = {},
+        Position = {
+            x = 4,
+            y = 1
+        },
+        Props = {
+            {
+                Key = "PumpkinField01",
+                Position = {
+                x = 0.076062202453613281,
+                y = -0.017095565795898438
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = 1.0482845306396484,
+                y = 1.0828800201416016
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = 0.076062202453613281,
+                y = 1.0828800201416016
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = -1.0072717666625977,
+                y = 1.0043277740478516
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = 0.85383796691894531,
+                y = -0.027410507202148438
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = 0.159393310546875,
+                y = 0.090326309204101563
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = -0.89616203308105469,
+                y = -0.027410507202148438
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = -0.81282901763916016,
+                y = -1.0881404876708984
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = 0.020503997802734375,
+                y = -0.85242271423339844
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                x = 1.1316146850585938,
+                y = -1.0881404876708984
+                }
+            }
+        },
+        StartingStatus = "Available",
+        Tiles = {},
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 2.5,
+            ResourceCost = {
+                Amount = 10,
+                Resource = "Wood",
+                SaveKey = {
+                    "currency",
+                    "wood",
+                },
+            },
+            StandOffset = {
+                x = 0,
+                y = 0,
+            },
+            UIOffset = {
+                x = 0,
+                y = 2,
+            },
+            Zones = {
+                "Zone_4_1",
+            },
+        },
+    },
+    -- Zone_0_6 = {
+    --     Key = "Zone_0_6",
+    --     KeyItems = {
+    --         {
+    --             Key = "Shovel",
+    --             Position = {
+    --                 x = 0,
+    --                 y = 0,
+    --             },
+    --             Status = "Cleansed",
+    --         },
+    --     },
+    --     Position = {
+    --         x = 0,
+    --         y = 2
+    --     },
+    --     Props = {},
+    --     StartingStatus = "Available",
+    --     Tiles = {},
+    --     UnlockRequirements = {
+    --         AlwaysShowCost = true,
+    --         Range = 2.5,
+    --         ResourceCost = {
+    --             Amount = 50,
+    --             Resource = "Wood",
+    --             SaveKey = {
+    --                 "currency",
+    --                 "wood",
+    --             },
+    --         },
+    --         StandOffset = {
+    --             x = 1.25,
+    --             y = 0,
+    --         },
+    --         UIOffset = {
+    --             x = 1.25,
+    --             y = 2,
+    --         },
+    --         Zones = {
+    --             "Zone_0_5",
+    --         },
+    --     },
+    -- },
+    Zone_1_1 = {
+        Key = "Zone_1_1",
+        KeyItems = {},
         Occupied = {
             Area = {
                 OccupiedArea = {
-                    x = 5,
-                    y = 5,
+                    x = 0,
+                    y = 0,
                 },
                 PositionOffset = {
-                    x = 2.5,
-                    y = 5.5,
+                    x = 0,
+                    y = 0,
+                },
+            },
+            ClearRewards = {},
+            Simple = {
+                {
+                    Count = 3,
+                    DropTable = {
+                        "Gold",
+                    },
+                    Modifiers = {},
+                    SpawnType = "Walker",
+                },
+            },
+        },
+        Position = {
+            x = 1,
+            y = 3
+        },
+        Props = {},
+        StartingStatus = "Available",
+        Tiles = {
+            {
+                Key = "Wasteland",
+                Position = {
+                x = 1,
+                y = 3
+                }
+            }
+        },
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 2.5,
+            ResourceCost = {
+                Amount = 3,
+                Resource = "Gold",
+                SaveKey = {
+                    "currency",
+                    "gold",
+                },
+            },
+            StandOffset = {
+                x = 0,
+                y = -1.25,
+            },
+            UIOffset = {
+                x = 0,
+                y = 0.75,
+            },
+            Zones = {
+                "Zone_0_2",
+            },
+        },
+    },
+    Zone_2_1 = {
+        Key = "Zone_2_1",
+        KeyItems = {},
+        Occupied = {
+            Area = {
+                OccupiedArea = {
+                    x = 0,
+                    y = 0,
+                },
+                PositionOffset = {
+                    x = 0,
+                    y = 0,
                 },
             },
             ClearRewards = {},
@@ -122,188 +534,112 @@ local data = {
         },
         Position = {
             x = 0,
-            y = 2,
+            y = 1
         },
         Props = {
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = -1.0777149200439453,
-                    y = 8.7315006256103516,
-                },
+                x = -3.250075101852417,
+                y = 4.9247379302978516
+                }
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = 0.15305399894714355,
-                    y = 11.081293106079102,
-                },
+                x = -2.1945185661315918,
+                y = 0.87847328186035156
+                }
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = 6.1045932769775391,
-                    y = 8.4356021881103516,
-                },
+                x = -4.94451904296875,
+                y = -1.6356258392333984
+                }
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = -0.98886919021606445,
-                    y = -1.7293739318847656,
-                },
+                x = -6.6111860275268555,
+                y = 3.3140811920166016
+                }
             },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                x = -4.416740894317627,
+                y = -6.0747108459472656
+                }
+            }
         },
         StartingStatus = "Available",
         Tiles = {
             {
                 Key = "StandardTile",
                 Position = {
-                    x = 0,
-                    y = 2,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 1,
-                    y = 2,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 0,
-                    y = 3,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 1,
-                    y = 3,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 0,
-                    y = 4,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 1,
-                    y = 4,
-                },
-            },
-        },
-        UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 2,
-            ResourceCost = {
-                Amount = 2,
-                Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
-            },
-            StandOffset = {
-                x = 0.5,
-                y = -1.5,
-            },
-            UIOffset = {
-                x = 0.5,
-                y = 0.5,
-            },
-        },
-    },
-    Zone_1_1 = {
-        Key = "Zone_1_1",
-        KeyItems = {
-            {
-                Key = "MineStone",
-                Position = {
-                    x = 0.49494743347167969,
-                    y = 0.98949813842773438,
-                },
-                Status = "Cleansed",
-            },
-        },
-        Position = {
-            x = 2,
-            y = 2,
-        },
-        Props = {
-            {
-                Key = "Stone01",
-                Position = {
-                    x = -0.867401123046875,
-                    y = 6.1004581451416016,
-                },
-            },
-            {
-                Key = "Stone01",
-                Position = {
-                    x = 0.98690319061279297,
-                    y = 4.9765567779541016,
-                },
-            },
-        },
-        StartingStatus = "Available",
-        Tiles = {
-            {
-                Key = "Grasslands",
-                Position = {
-                    x = 2,
-                    y = 2,
-                },
-            },
-            {
-                Key = "Grasslands",
-                Position = {
-                    x = 2,
-                    y = 3,
-                },
-            },
-        },
-        UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 2,
-            ResourceCost = {
-                Amount = 5,
-                Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
-            },
-            StandOffset = {
-                x = -1.5,
-                y = 2,
-            },
-            UIOffset = {
                 x = 0,
+                y = 1
+                }
+            },
+            {
+                Key = "StandardTile",
+                Position = {
+                x = -1,
+                y = 2
+                }
+            },
+            {
+                Key = "StandardTile",
+                Position = {
+                x = -1,
+                y = 1
+                }
+            },
+            {
+                Key = "StandardTile",
+                Position = {
+                x = -1,
+                y = 0
+                }
+            }
+        },
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 2.5,
+            ResourceCost = {
+                Amount = 10,
+                Resource = "Gold",
+                SaveKey = {
+                    "currency",
+                    "gold",
+                },
+            },
+            StandOffset = {
+                x = 2,
+                y = 0,
+            },
+            UIOffset = {
+                x = 2,
                 y = 2,
             },
             Zones = {
-                "Zone_1",
+                "Zone_1_1",
             },
         },
     },
-    Zone_2 = {
-        Key = "Zone_2",
+    Zone_3_1 = {
+        Key = "Zone_3_1",
+        KeyItems = {},
         Occupied = {
             Area = {
                 OccupiedArea = {
-                    x = 2.5,
-                    y = 2.5,
+                    x = 0,
+                    y = 0,
                 },
                 PositionOffset = {
-                    x = 2.5,
-                    y = 2.5,
+                    x = 0,
+                    y = 0,
                 },
             },
             ClearRewards = {
@@ -322,120 +658,82 @@ local data = {
             },
         },
         Position = {
-            x = 3,
-            y = 2,
+        x = 1,
+        y = -1
         },
         Props = {
             {
-                Key = "DigSpot01",
+                Key = "Stone01",
                 Position = {
-                    x = 2.1473960876464844,
-                    y = 0.10381507873535156,
-                },
+                x = 4.5953197479248047,
+                y = -3.4843196868896484
+                }
             },
+            {
+                Key = "Stone01",
+                Position = {
+                x = -4.4602360725402832,
+                y = -5.0556087493896484
+                }
+            },
+            {
+                Key = "Stone01",
+                Position = {
+                x = -3.2102360725402832,
+                y = -3.2484798431396484
+                }
+            },
+            {
+                Key = "Stone01",
+                Position = {
+                x = -0.59912538528442383,
+                y = -4.9769954681396484
+                }
+            },
+            {
+                Key = "Stone01",
+                Position = {
+                x = 1.1786518096923828,
+                y = -1.3629817962646484
+                }
+            }
         },
         StartingStatus = "Available",
         Tiles = {
             {
-                Key = "StandardTile",
+                Key = "Desert",
                 Position = {
-                    x = 3,
-                    y = 2,
-                },
+                x = 1,
+                y = -1
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Desert",
                 Position = {
-                    x = 3,
-                    y = 3,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 4,
-                    y = 3,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 4,
-                    y = 2,
-                },
-            },
-        },
-        UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 2,
-            ResourceCost = {
-                Amount = 4,
-                Resource = "Stone",
-                SaveKey = {
-                    "currency",
-                    "stone",
-                },
-            },
-            StandOffset = {
-                x = -1.5,
-                y = 2,
-            },
-            UIOffset = {
                 x = 0,
-                y = 2,
-            },
-        },
-    },
-    Zone_2_1 = {
-        Key = "Zone_2_1",
-        Occupied = {
-            Area = {
-                OccupiedArea = {
-                    x = 0,
-                    y = 0,
-                },
-                PositionOffset = {
-                    x = 0,
-                    y = 0,
-                },
-            },
-            Simple = {
-                {
-                    Count = 1,
-                    DropTable = {
-                        "Gold",
-                    },
-                    SpawnType = "Marauder",
-                },
-            },
-        },
-        Position = {
-            x = 4,
-            y = 1,
-        },
-        Props = {},
-        StartingStatus = "Available",
-        Tiles = {
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 4,
-                    y = 1,
-                },
+                y = -2
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Desert",
                 Position = {
-                    x = 3,
-                    y = 1,
-                },
+                x = 2,
+                y = -2
+                }
             },
+            {
+                Key = "Desert",
+                Position = {
+                x = 1,
+                y = -2
+                }
+            }
         },
         UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 0.75,
+            AlwaysShowCost = true,
+            Range = 2.5,
             ResourceCost = {
-                Amount = 5,
+                Amount = 13,
                 Resource = "Gold",
                 SaveKey = {
                     "currency",
@@ -444,328 +742,20 @@ local data = {
             },
             StandOffset = {
                 x = 0,
-                y = 3.5,
+                y = 1.25,
             },
             UIOffset = {
                 x = 0,
-                y = 1.5,
+                y = 3.25,
             },
             Zones = {
-                "Zone_2",
+                "Zone_0_3",
             },
         },
     },
-    Zone_2_2 = {
-        Key = "Zone_2_2",
-        Position = {
-            x = 2,
-            y = 1,
-        },
-        Props = {
-            {
-                Key = "PumpkinField01",
-                Position = {
-                    x = 0.015024185180664063,
-                    y = 0.56316566467285156,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = -0.93104743957519531,
-                    y = -0.23956871032714844,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = -0.96889114379882813,
-                    y = 0.96453285217285156,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = -0.96889114379882813,
-                    y = 2.1954898834228516,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = -0.09850311279296875,
-                    y = -0.21283531188964844,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = -0.15526866912841797,
-                    y = 0.96453285217285156,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = 0.82864761352539063,
-                    y = -0.18610000610351563,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = 0.90433597564697266,
-                    y = 0.80401229858398438,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = 0.92325592041015625,
-                    y = 1.6603336334228516,
-                },
-            },
-            {
-                Key = "Pumpkin01",
-                Position = {
-                    x = -0.041738510131835938,
-                    y = 1.7941226959228516,
-                },
-            },
-        },
-        StartingStatus = "Available",
-        Tiles = {
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 2,
-                    y = 1,
-                },
-            },
-        },
-        UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 0.75,
-            ResourceCost = {
-                Amount = 5,
-                Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
-            },
-            StandOffset = {
-                x = 3.5,
-                y = 0,
-            },
-            UIOffset = {
-                x = 1.5,
-                y = 0,
-            },
-            Zones = {
-                "Zone_2_1",
-            },
-        },
-    },
-    Zone_3 = {
-        Key = "Zone_3",
-        Occupied = {
-            Area = {
-                OccupiedArea = {
-                    x = 0,
-                    y = 0,
-                },
-                PositionOffset = {
-                    x = 2.5,
-                    y = -2.5,
-                },
-            },
-            Simple = {
-                {
-                    Count = 15,
-                    DropTable = {
-                        "Gold",
-                    },
-                    SpawnType = "Runner",
-                },
-            },
-        },
-        Position = {
-            x = 2,
-            y = 0,
-        },
-        Props = {},
-        StartingStatus = "Available",
-        Tiles = {
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 2,
-                    y = 0,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 3,
-                    y = 0,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 3,
-                    y = -1,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 2,
-                    y = -1,
-                },
-            },
-        },
-        UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 2,
-            ResourceCost = {
-                Amount = 10,
-                Resource = "Pumpkin",
-                SaveKey = {
-                    "currency",
-                    "pumpkin",
-                },
-            },
-            StandOffset = {
-                x = 0,
-                y = 3.5,
-            },
-            UIOffset = {
-                x = 0,
-                y = 1.5,
-            },
-            Zones = {
-                "Zone_2_2",
-            },
-        },
-    },
-    Zone_3_1 = {
-        Key = "Zone_3_1",
-        KeyItems = {
-            {
-                Key = "Shovel",
-                Position = {
-                    x = 3.324066162109375,
-                    y = -0.45624351501464844,
-                },
-                Status = "Cleansed",
-            },
-        },
-        Position = {
-            x = 3,
-            y = -2,
-        },
-        Props = {
-            {
-                Key = "DigSpot01",
-                Position = {
-                    x = 1.0310325622558594,
-                    y = -0.12958335876464844,
-                },
-            },
-        },
-        StartingStatus = "Available",
-        Tiles = {
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 3,
-                    y = -2,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 4,
-                    y = -2,
-                },
-            },
-        },
-        UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 0.75,
-            ResourceCost = {
-                Amount = 9,
-                Resource = "Pumpkin",
-                SaveKey = {
-                    "currency",
-                    "pumpkin",
-                },
-            },
-            StandOffset = {
-                x = 0,
-                y = 3.5,
-            },
-            UIOffset = {
-                x = 0,
-                y = 1.5,
-            },
-            Zones = {
-                "Zone_3",
-            },
-        },
-    },
-    Zone_3_2 = {
-        Key = "Zone_3_2",
-        Position = {
-            x = 4,
-            y = -1,
-        },
-        Props = {},
-        StartingStatus = "Available",
-        Tiles = {
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 4,
-                    y = -1,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 4,
-                    y = 0,
-                },
-            },
-        },
-        UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 0.75,
-            ResourceCost = {
-                Amount = 5,
-                Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
-            },
-            StandOffset = {
-                x = 0,
-                y = -3.5,
-            },
-            UIOffset = {
-                x = 0,
-                y = -1.5,
-            },
-            Zones = {
-                "Zone_3_1",
-            },
-        },
-    },
-    Zone_4 = {
-        Key = "Zone_4",
+    Zone_4_1 = {
+        Key = "Zone_4_1",
+        KeyItems = {},
         Occupied = {
             Area = {
                 OccupiedArea = {
@@ -786,81 +776,81 @@ local data = {
             },
         },
         Position = {
-            x = 5,
-            y = 0,
+            x = 3,
+            y = 1
         },
         Props = {},
         StartingStatus = "Available",
         Tiles = {
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 5,
-                    y = 0,
-                },
+                x = 3,
+                y = 0
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 5,
-                    y = 1,
-                },
+                x = 3,
+                y = 1
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 6,
-                    y = 1,
-                },
+                x = 3,
+                y = 2
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 6,
-                    y = 0,
-                },
+                x = 4,
+                y = 0
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 6,
-                    y = -1,
-                },
+                x = 4,
+                y = 1
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 5,
-                    y = -1,
-                },
+                x = 4,
+                y = 2
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 7,
-                    y = -1,
-                },
+                x = 5,
+                y = 0
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 7,
-                    y = 0,
-                },
+                x = 5,
+                y = 1
+                }
             },
             {
-                Key = "StandardTile",
+                Key = "Grasslands",
                 Position = {
-                    x = 7,
-                    y = 1,
-                },
-            },
+                x = 5,
+                y = 2
+                }
+            }
         },
         UnlockRequirements = {
-            AlwaysShowCost = false,
-            Range = 0.75,
+            AlwaysShowCost = true,
+            Range = 2.5,
             ResourceCost = {
-                Amount = 15,
+                Amount = 20,
                 Resource = "Gold",
                 SaveKey = {
                     "currency",
@@ -868,119 +858,116 @@ local data = {
                 },
             },
             StandOffset = {
-                x = -3.5,
+                x = -1.25,
                 y = 0,
             },
             UIOffset = {
-                x = -1.5,
-                y = 0,
+                x = -1.25,
+                y = 2,
             },
             Zones = {
-                "Zone_3_2",
+                "Zone_3_1",
             },
         },
     },
-    start_transfer1 = {
-        Key = "start_transfer1",
+    Zone_5_1 = {
+        Key = "Zone_5_1",
         KeyItems = {},
         Position = {
-            x = 0,
-            y = 1,
+            x = -1,
+            y = -1
         },
-        Props = {
-            {
-                Key = "TreeDegrade01",
-                Position = {
-                    x = 1.0394988059997559,
-                    y = 1.1989688873291016,
-                },
-            },
-            {
-                Key = "TreeDegrade01",
-                Position = {
-                    x = -1.3635289669036865,
-                    y = 0.74389076232910156,
-                },
-            },
-        },
+        Props = {},
         StartingStatus = "Available",
         Tiles = {
             {
-                Key = "Grasslands",
+                Key = "Road",
                 Position = {
-                    x = 0,
-                    y = 1,
-                },
+                x = -1,
+                y = -1
+                }
             },
+            {
+                Key = "Road",
+                Position = {
+                x = -1,
+                y = -2
+                }
+            }
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
             Range = 2.5,
             ResourceCost = {
-                Amount = 8,
-                Resource = "Wood",
+                Amount = 16,
+                Resource = "Gold",
                 SaveKey = {
                     "currency",
-                    "wood",
+                    "gold",
                 },
             },
             StandOffset = {
-                x = 1.25,
-                y = -1.25,
+                x = 0,
+                y = 1.25,
             },
             UIOffset = {
-                x = 1.25,
-                y = 0.5,
+                x = 0,
+                y = 3.25,
+            },
+            Zones = {
+                "Zone_1_1",
             },
         },
     },
-    start_transfer2 = {
-        Key = "start_transfer2",
+    Zone_5_2 = {
+        Key = "Zone_5_2",
         KeyItems = {},
         Position = {
-            x = 1,
-            y = 1,
+            x = 2,
+            y = 3
         },
-        Props = {
-            {
-                Key = "DigSpot01",
-                Position = {
-                    x = -0.95631980895996094,
-                    y = -0.82318687438964844,
-                },
-            },
-        },
+        Props = {},
         StartingStatus = "Available",
         Tiles = {
             {
-                Key = "Grasslands",
+                Key = "Road",
                 Position = {
-                    x = 1,
-                    y = 1,
-                },
+                x = 2,
+                y = 3
+                }
             },
+            {
+                Key = "Road",
+                Position = {
+                x = 3,
+                y = 3
+                }
+            }
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
-            Range = 2,
+            Range = 2.5,
             ResourceCost = {
-                Amount = 4,
-                Resource = "Wood",
+                Amount = 25,
+                Resource = "Gold",
                 SaveKey = {
                     "currency",
-                    "wood",
+                    "gold",
                 },
             },
             StandOffset = {
-                x = -1.5,
-                y = 0.25,
+                x = 5,
+                y = -1.25,
             },
             UIOffset = {
-                x = -1.5,
-                y = 2,
+                x = 5,
+                y = 0.75,
+            },
+            Zones = {
+                "Zone_1_1",
             },
         },
-    },
+    }
 }
 
 return data
