@@ -6359,6 +6359,19 @@
                 ]
             }
         },
+        "Hybrid - LoggingCabin": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "GpuAnimation",
+                    "name": "prop_forestworld_house00"
+                },
+                "eventMacros": [
+                    "Hybrid - Upgradable Building"
+                ]
+            }
+        },
         "Hybrid - Masonry": {
             "prefix": "",
             "parent": "_StandardUnitMinimal",

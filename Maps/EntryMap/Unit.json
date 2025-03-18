@@ -1289,6 +1289,14 @@
                 ]
             }
         },
+        "Hybrid - LoggingCabin": {
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 1
+                }
+            }
+        },
         "Hybrid - Masonry": {
             "baseUnit": "_GenericControllableUnit"
         },

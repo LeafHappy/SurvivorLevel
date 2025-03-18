@@ -73,12 +73,13 @@ local REF = {
 local POS = {
     Star = Vector2.New(2.5, -2.5),
 
-    TalentExchange = Vector2.New(17, 15),
-    Talents = Vector2.New(20, 15),
+    TalentExchange = Vector2.New(5, 0),
+    Talents = Vector2.New(8, 0),
     Shrine_Strafe = Vector2.New(0, -8),
     Shrine_Bash = Vector2.New(0, -16),
 
-    Mine = Vector2.New(-1, 17),
+    Logging = Vector2.New(0, 5),
+    Mine = Vector2.New(5, -5),
     Treasury = Vector2.New(-1, 12),
 
     ArcherSlot_1 = Vector2.New(-4, 0),
@@ -100,7 +101,7 @@ local POS = {
     PerkOffer_Heatwave = Vector2.New(2.5, -18),
     PerkOffer_GuardianShield = Vector2.New(20, 3),
 
-    MeatGrinder = Vector2.New(6, 6),
+    MeatGrinder = Vector2.New(5, 5),
 }
 
 local data = {
@@ -841,6 +842,52 @@ local data = {
     --     },
     -- },
 
+    LoggingCabin = {
+        Key = "LoggingCabin",
+        StatusSaveKey = SAVE_KEY.LoggingStatus,
+        Name = "LoggingCabin",
+        UnitType = DCEI.Unit("Hybrid - LoggingCabin"),
+        Position = POS.Logging,
+        Rotation = Vector2.New(0, -1),
+
+        overhead_display = {
+            layout_name = "Hybrid/ResourceNeed",
+            upgrade_type = "Miner",
+            show_distance = 4.5,
+            offset = Vector2.New(0, 80),
+        },
+
+        required_resource = {
+            key = SAVE_KEY.Gold,
+            increase_key = SAVE_KEY.Miner,
+            amount = 20, -- TODO: support boss scroll
+            increasing_amount = 40,
+            spend_distance = 2.5,
+            generate_miner = true,
+        },
+
+        ShowStatusBar = false,
+        is_destructible = false,
+        TriggerDefeatOnDestoyed = false,
+
+        ArmorType = ARMOR_TYPES.Default,
+        OnEnter = REF.StructureOnEnter,
+
+        Modifiers = {
+            Modifier.New(STAT.Health, 500, SCALING.Scaled),
+            Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+        },
+
+        -- quest_requirement = { -- Must start quest before appearing
+        --     key = "recruit_miner", -- Which quest
+        --     objective = 1, -- Which objective
+        -- },
+
+        MetaRequirements = { -- Required to Build
+            "Zone_0_3",
+        },
+    },
+
     MineSlot = {
         Key = "MineSlot",
         StatusSaveKey = SAVE_KEY.MineStatus,
@@ -883,7 +930,7 @@ local data = {
         -- },
 
         MetaRequirements = { -- Required to Build
-            META_DATA.mine_slot,
+            "Zone_0_4",
         },
     },
 
@@ -1714,7 +1761,7 @@ local data = {
         },
 
         MetaRequirements = { -- Required to Build
-            "start_transfer2",
+            "Zone_0_1",
         },
     },
 }

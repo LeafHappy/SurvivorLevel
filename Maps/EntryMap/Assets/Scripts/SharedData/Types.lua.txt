@@ -791,6 +791,7 @@ SAVE_KEY = {
     FirstTalentOffer = { "status", "first_talent" },
     SecondTalentOffer = { "status", "second_talent" },
     TalentOffer_GuardianShield = { "status", "guardian_shield" },
+    LoggingStatus = { "status", "logging" },
     MineStatus = { "status", "mine" },
     TreasuryStatus = { "status", "treasury" },
     MeatGrinderStatus = { "status", "meat_grinder" },
