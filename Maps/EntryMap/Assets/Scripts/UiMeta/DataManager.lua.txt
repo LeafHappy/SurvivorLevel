@@ -120,8 +120,8 @@ end
 
 function DataManager.SetInventoryItem(name, value, quiet)
     local SaveData = DataManager.save_data
-    if name == "gems" then
-        SaveData.currency.gems = value
+    if name == "gem" then
+        SaveData.currency.gem = value
     elseif name == "gold" then
         DataManager.SetGold(value)
     elseif name:sub(1, 2) == "s_" then
@@ -144,8 +144,8 @@ end
 
 function DataManager.GetInventoryItem(name)
     local SaveData = DataManager.save_data
-    if name == "gems" then
-        return SaveData.currency.gems
+    if name == "gem" then
+        return SaveData.currency.gem
     elseif name == "gold" then
         return DataManager.GetGold()
     else
@@ -503,12 +503,12 @@ function DataManager.AddGold(amount)
 end
 
 function DataManager.AddCurrency(currency_type, amount)
-    if currency_type == "gems" then
+    if currency_type == "gem" then
         if amount > 0 then
             DCEI.PlaySound(DCEI.Sound("ui_gems_purchased"))
         end
         local SaveData = DataManager.save_data
-        SaveData.currency.gems = SaveData.currency.gems + amount
+        SaveData.currency.gem = SaveData.currency.gem + amount
     elseif currency_type == "gold" then
         if amount > 0 then
             DCEI.PlaySound(DCEI.Sound("smh_coin_land"))

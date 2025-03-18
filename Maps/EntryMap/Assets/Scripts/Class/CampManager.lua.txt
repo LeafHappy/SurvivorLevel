@@ -46,7 +46,7 @@ local _Dev = require("_Dev")
 local PERK_OFFER_DISTANCE = 5
 
 local UI_UPDATES = {
-    [SAVE_KEY.Gems] = "Camp.Overlay.SetGems",
+    [SAVE_KEY.Gem] = "Camp.Overlay.SetGems",
     [SAVE_KEY.Gold] = "Camp.Overlay.SetGold",
     -- [SaveKey.Experience] = "Camp.Overlay.SetExperience", -- Requires Fill Value, handled in hybrid state
     [SAVE_KEY.SkillPoints] = "Camp.Overlay.SetSkillPoints",

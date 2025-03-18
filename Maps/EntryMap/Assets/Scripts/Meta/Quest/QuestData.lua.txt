@@ -60,8 +60,8 @@ QuestData.data = {
                 },
                 rewards = {
                     {
-                        key = SAVE_KEY.Gems,
-                        type = TRACKED_STATS.Gems,
+                        key = SAVE_KEY.Gem,
+                        type = TRACKED_STATS.Gem,
                         amount = 10,
                     },
                 },
@@ -79,8 +79,8 @@ QuestData.data = {
                 },
                 rewards = {
                     {
-                        key = SAVE_KEY.Gems,
-                        type = TRACKED_STATS.Gems,
+                        key = SAVE_KEY.Gem,
+                        type = TRACKED_STATS.Gem,
                         amount = 10,
                     },
                 },
@@ -97,8 +97,8 @@ QuestData.data = {
                 },
                 rewards = {
                     {
-                        key = SAVE_KEY.Gems,
-                        type = TRACKED_STATS.Gems,
+                        key = SAVE_KEY.Gem,
+                        type = TRACKED_STATS.Gem,
                         amount = 10,
                     },
                 },
@@ -116,8 +116,8 @@ QuestData.data = {
                 },
                 rewards = {
                     {
-                        key = SAVE_KEY.Gems,
-                        type = TRACKED_STATS.Gems,
+                        key = SAVE_KEY.Gem,
+                        type = TRACKED_STATS.Gem,
                         amount = 10,
                     },
                 },

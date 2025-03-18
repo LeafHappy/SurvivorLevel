@@ -1799,6 +1799,77 @@
             </Frame>
         </Button>
     </Frame>
+    <Frame layout="flex" widthPercent="100" heightPercent="127.1941" flexDirection="column" justifyContent="flex-end" verticalOffsetInParent="-85.66154" name="Hybrid/UpgradeMenu">
+        <!-- State -->
+        <State name="IsActive" booleanValue="true" />
+        <!-- Layout -->
+        <Frame alignSelf="flex-end" width="100" height="100" padding="25">
+            <Button id="CloseButton" frameImage="wilddefender_icon_close" widthPercent="100" heightPercent="100" />
+        </Frame>
+        <Frame frameImage="summonrevolt_icon_frame_04" widthPercent="100" heightPercent="60">
+            <VScroll id="ItemScroll" widthPercent="100" heightPercent="100" padding="10" flexDirection="row" justifyContent="flex-start">
+                <ScrollContent id="Items" widthPercent="100" padding="15">
+                    <include name="Hybrid/UpgradeMenu/Item" preview="true" />
+                    <include name="Hybrid/UpgradeMenu/Item" preview="true" />
+                    <include name="Hybrid/UpgradeMenu/Item" preview="true" />
+                    <include name="Hybrid/UpgradeMenu/Item" preview="true" />
+                    <include name="Hybrid/UpgradeMenu/Item" preview="true" />
+                    <include name="Hybrid/UpgradeMenu/Item" preview="true" />
+                </ScrollContent>
+            </VScroll>
+        </Frame>
+    </Frame>
+    <Frame layout="flex" widthPercent="100" height="120" flexDirection="column" paddingBottom="15" name="Hybrid/UpgradeMenu/Item">
+        <!-- States -->
+        <State name="IsUnlocked" booleanValue="true" />
+        <State name="IsPurchasable" booleanValue="true" />
+        <State name="UpgradeName" stringValue="POWER" />
+        <State name="UpgradeIcon" stringValue="cartoon_icon_status_strength_mergewar" />
+        <State name="ResourceIcon" stringValue="cartoon_icon_coin3_mergewar" />
+        <State name="ResourceCost" stringValue="1.2k" />
+        <State name="CurrentValue" stringValue="10" />
+        <State name="NextValue" stringValue="11" />
+        <!-- <State name="CurrentLevel" stringValue="0" /> -->
+        <!-- <State name="MaxLevel" stringValue="999" /> -->
+        <!-- Constants -->
+        <Constant name="TextColor" value="state.IsPurchasable and '#ffffffff' or '#ff0000ff'" />
+        <!-- Frame -->
+        <Frame frameImage="summonrevolt_icon_frame_04" widthPercent="100" heightPercent="100" flexDirection="row">
+            <!-- Icon -->
+            <Frame widthPercent="20" heightPercent="100" padding="20" flexDirection="column">
+                <Frame bind:frameImage="state.UpgradeIcon" heightPercent="100" aspectRatio="1" />
+                <!-- <Frame flexDirection="row" widthPercent="100">
+                <Text text="Level:" fontSize="12" color="#4ecaffff" paddingRight="10" />
+                <Text bind:text="state.CurrentLevel" fontSize="12" />
+                <Text text="/" fontSize="12" padding="5" />
+                <Text bind:text="state.MaxLevel" fontSize="12" wrapping="false" />
+            </Frame> -->
+            </Frame>
+            <!-- Info -->
+            <Frame widthPercent="50" heightPercent="100" flexDirection="column">
+                <!--  -->
+                <Text bind:text="state.UpgradeName" />
+                <Frame flexDirection="row" widthPercent="100" height="40">
+                    <Text bind:text="state.CurrentValue" width="80" />
+                    <Frame frameImage="icon_arrow01_wildsurvivor" width="25" height="25" />
+                    <Text bind:text="state.NextValue" width="80" color="#00ff00ff" />
+                </Frame>
+            </Frame>
+            <!-- Cost -->
+            <Frame widthPercent="30" heightPercent="100" padding="20">
+                <Button id="PurchaseButton" widthPercent="100" heightPercent="100" bind:enable="state.IsPurchasable">
+                    <!-- Icon -->
+                    <Frame widthPercent="50" heightPercent="100" padding="15">
+                        <Frame bind:frameImage="state.ResourceIcon" widthPercent="100" aspectRatio="1" />
+                    </Frame>
+                    <!-- Cost -->
+                    <Frame widthPercent="50" heightPercent="100" padding="10">
+                        <Text bind:text="state.ResourceCost" bind:color="@TextColor" />
+                    </Frame>
+                </Button>
+            </Frame>
+        </Frame>
+    </Frame>
     <Frame layout="flex" heightPercent="100" widthPercent="100" controller="UiGame/EventWarningController" position="absolute" name="Hybrid/WaveStart">
         <Constant name="bar_width" value="1000" />
         <Constant name="bar_height" value="100" />
@@ -1896,7 +1967,7 @@
         <State name="frame_color" stringValue="#004abeff" />
         <State name="current_progress" numberValue="11" />
         <State name="max_progress" numberValue="10" />
-        <State name="reward_type" stringValue="gems" />
+        <State name="reward_type" stringValue="gem" />
         <State name="reward_amount" stringValue="0" />
         <State name="reward_icon" stringValue="cartoon_icon_gem2_wildsurvivor" />
         <State name="icon" stringValue="cartoon_fantasy_icon_portrait_hero_slayer_wildsurvivor" />
@@ -2325,7 +2396,7 @@
                 <Text text="Gold" wrapping="false" />
             </Button>
             <Button id="SpawnGems" width="100">
-                <Text text="Gems" wrapping="false" />
+                <Text text="Gem" wrapping="false" />
             </Button>
             <Button id="SpawnTrophy" width="100">
                 <Text text="Trophy" wrapping="false" />
@@ -3842,6 +3913,41 @@
             <include id="continue_button" name="Common/Button">
                 <Text id="Label" text="Continue" />
             </include>
+        </Frame>
+    </Frame>
+    <Frame layout="flex" heightPercent="100" widthPercent="100" position="absolute" name="Popup/ResourceExchange">
+        <State name="icon_1" stringValue="cartoon_icon_forest_wood_bg_wildsurvivor" />
+        <Constant name="icon_1" value="state.icon_1" />
+        <State name="icon_2" stringValue="cartoon_icon_coin3_wildsurvivor" />
+        <Constant name="icon_2" value="state.icon_2" />
+        <State name="resource_value_1" stringValue="12" />
+        <State name="resource_value_2" stringValue="4" />
+        <include name="Common/Mask" position="absolute" />
+        <Frame id="Popup" frameImage="frame05_fill_wildsurvivor" padding="20" paddingBottom="12" frameImageColor="#766b8dff" flexDirection="column">
+            <!-- content  -->
+            <Text id="Title" text="Refinery Wood?" fontSizeMax="44" fontSizeMin="12" width="500" maxHeight="200" marginTop="10" marginBottom="20" />
+            <Frame id="InnerContainer" padding="20" paddingTop="56" paddingBottom="56" width="600" justifyContent="center">
+                <Frame id="InnerContainer" padding="20" marginRight="40" paddingTop="56" paddingBottom="56" width="200" height="200" frameImage="ui_squareround2_wildsurvivor" frameImageColor="#453f52ff">
+                    <Frame bind:frameImage="@icon_1" height="84" aspectRatio="1" />
+                    <Text id="Description" bind:text="state.resource_value_1" fontSizeMax="62" fontSizeMin="12" maxHeight="200" class="standard" />
+                </Frame>
+                <Frame id="InnerContainer" padding="20" marginLeft="40" paddingTop="56" paddingBottom="56" width="200" height="200" frameImage="ui_squareround2_wildsurvivor" frameImageColor="#453f52ff">
+                    <Frame bind:frameImage="@icon_2" height="84" aspectRatio="1" />
+                    <Text id="Description" bind:text="state.resource_value_2" fontSizeMax="62" fontSizeMin="12" maxHeight="200" class="standard" />
+                </Frame>
+                <Frame frameImage="general_icon_shop_tab_circle_blue_castle_wildcastle" width="100" height="100" position="absolute">
+                    <Frame frameImage="cartoon_icon_pvp_arrow4_mergewar" rotation3d="x: 0, y: 0, z: -90" height="64" aspectRatio="1" />
+                </Frame>
+            </Frame>
+            <!--  button stack -->
+            <Frame id="ButtonStack" marginTop="32" marginBottom="32">
+                <include id="cancel" name="Common/Button" frameImage="general_icon_wildsurvivor_button1_pink" marginRight="24">
+                    <Text id="Label" text="Cancel" />
+                </include>
+                <include id="confirm" name="Common/Button" marginLeft="24">
+                    <Text id="Label" text="Confirm" />
+                </include>
+            </Frame>
         </Frame>
     </Frame>
     <Frame layout="flex" heightPercent="100" widthPercent="100" position="absolute" name="Popup/ReviewInvitePrompt">

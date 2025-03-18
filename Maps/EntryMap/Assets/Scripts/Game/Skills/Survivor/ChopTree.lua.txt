@@ -43,6 +43,9 @@ local REF = {
     Effects = DCEI.Effect("Skill - Chop Tree - Effects"),
     ImpactArea = DCEI.Effect("Skill - Chop Tree - Impact Area"),
     Damage = DCEI.Effect("Skill - Chop Tree - Damage"),
+
+    -- Extras
+    DropAmount = DCEI.Effect("Forest - Prop - Tree - Drop Count"),
 }
 
 ---@type table<number, Hero>
@@ -194,6 +197,12 @@ function Upgrade.Override(hero)
         hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
         hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
     end
+
+    -- Set Wood Drop Amount (Hostile)
+    local tags = hero:GetInheritedTags(SKILL_TAG.ChopTree)
+    local count = hero:GetStat(STAT.Count, tags)
+
+    DCEI.SetEffectFieldValueForPlayer(PLAYER.Destructible, REF.DropAmount, EJS.Persistent.Count, count)
 end
 
 -- ================================================================================================

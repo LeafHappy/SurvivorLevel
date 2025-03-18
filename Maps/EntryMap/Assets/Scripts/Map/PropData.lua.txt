@@ -35,7 +35,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 01"),
         Health = {
-            Starting = 3,
+            Starting = 10,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -55,10 +55,6 @@ local PropData = {
         TransformAnimation = {
             end_scale = Vector3.New(1.25, 1.25, 1.25),
             end_position = Vector3.New(0, 0, -0.15),
-            -- end_position = Vector3.New(0, -0.70, 0),
-            -- pivot = Vector3.New(0, 0.5, 0),
-            -- rotation_axis = Vector3.New(-1, 0, 0),
-            -- end_degree = 45,
         },
 
         RandomizeScale = 0.10,
@@ -69,7 +65,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 02"),
         Health = {
-            Starting = 3,
+            Starting = 10,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -89,10 +85,6 @@ local PropData = {
         TransformAnimation = {
             end_scale = Vector3.New(1.20, 1.20, 1.20),
             end_position = Vector3.New(0, 0, -0.15),
-            -- end_position = Vector3.New(0, -0.70, 0),
-            -- pivot = Vector3.New(0, 0.5, 0),
-            -- rotation_axis = Vector3.New(-1, 0, 0),
-            -- end_degree = 45,
         },
 
         RandomizeScale = 0.08,
@@ -103,7 +95,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 03"),
         Health = {
-            Starting = 4,
+            Starting = 10,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -123,10 +115,6 @@ local PropData = {
         TransformAnimation = {
             end_scale = Vector3.New(1.15, 1.15, 1.15),
             end_position = Vector3.New(0, 0, -0.15),
-            -- end_position = Vector3.New(0, -0.70, 0),
-            -- pivot = Vector3.New(0, 0.5, 0),
-            -- rotation_axis = Vector3.New(-1, 0, 0),
-            -- end_degree = 45,
         },
 
         RandomizeScale = 0.06,
@@ -137,7 +125,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Forest - Prop - Tree - Degrade - 04"),
         Health = {
-            Starting = 4,
+            Starting = 10,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -157,10 +145,6 @@ local PropData = {
         TransformAnimation = {
             end_scale = Vector3.New(1.10, 1.10, 1.10),
             end_position = Vector3.New(0, 0, -0.15),
-            -- end_position = Vector3.New(0, -0.70, 0),
-            -- pivot = Vector3.New(0, 0.5, 0),
-            -- rotation_axis = Vector3.New(-1, 0, 0),
-            -- end_degree = 45,
         },
 
         RandomizeScale = 0.04,
@@ -183,10 +167,148 @@ local PropData = {
         TransformAnimation = {
             end_scale = Vector3.New(1.05, 1.05, 1.05),
             end_position = Vector3.New(0, 0, -0.15),
-            -- end_position = Vector3.New(0, -0.70, 0),
-            -- pivot = Vector3.New(0, 0.5, 0),
-            -- rotation_axis = Vector3.New(-1, 0, 0),
-            -- end_degree = 45,
+        },
+
+        RandomizeScale = 0.02,
+    },
+    ThicketTreeDegrade01 = {
+        Key = "ThicketTreeDegrade01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 01"),
+        Health = {
+            Starting = 20,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - OnDeath"),
+
+        -- Prop Data
+        Weight = 18,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.25, 1.25, 1.25),
+            end_position = Vector3.New(0, 0, -0.15),
+        },
+
+        RandomizeScale = 0.10,
+    },
+    ThicketTreeDegrade02 = {
+        Key = "ThicketTreeDegrade02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 02"),
+        Health = {
+            Starting = 20,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - OnDeath"),
+
+        -- Prop Data
+        Weight = 16,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.20, 1.20, 1.20),
+            end_position = Vector3.New(0, 0, -0.15),
+        },
+
+        RandomizeScale = 0.08,
+    },
+    ThicketTreeDegrade03 = {
+        Key = "ThicketTreeDegrade03",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 03"),
+        Health = {
+            Starting = 20,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - OnDeath"),
+
+        -- Prop Data
+        Weight = 14,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.15, 1.15, 1.15),
+            end_position = Vector3.New(0, 0, -0.15),
+        },
+
+        RandomizeScale = 0.06,
+    },
+    ThicketTreeDegrade04 = {
+        Key = "ThicketTreeDegrade04",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 04"),
+        Health = {
+            Starting = 20,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Tree,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - OnDeath"),
+
+        -- Prop Data
+        Weight = 12,
+        IsSimple = true,
+        IsDestructible = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.10, 1.10, 1.10),
+            end_position = Vector3.New(0, 0, -0.15),
+        },
+
+        RandomizeScale = 0.04,
+    },
+    ThicketTreeDegrade05 = {
+        Key = "ThicketTreeDegrade05",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 05"),
+
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Prop,
+        Mass = 1000000,
+
+        -- Prop Data
+        Weight = 10,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.05, 1.05, 1.05),
+            end_position = Vector3.New(0, 0, -0.15),
         },
 
         RandomizeScale = 0.02,
@@ -418,6 +540,54 @@ local PropData = {
 
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Camp - Prop - Pumpkin - 01"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.50, 1.00) * 0.15,
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+    },
+    Pumpkin02 = {
+        Key = "Pumpkin02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Pumpkin - 02"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.50, 1.00) * 0.20,
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+    },
+    Pumpkin03 = {
+        Key = "Pumpkin03",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Pumpkin - 03"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.50, 1.00) * 0.25,
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+    },
+    Pumpkin04 = {
+        Key = "Pumpkin04",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Camp - Prop - Pumpkin - 04"),
         Health = {
             Starting = 1,
         },
@@ -444,7 +614,7 @@ local PropData = {
         IsDestructible = false,
 
         TransformAnimation = {
-            end_scale = Vector3.New(1.00, 1.00, 1.00),
+            end_scale = Vector3.New(1.00, 1.50, 1.00) * 0.30,
             end_position = Vector3.New(0, -0.001, 0),
         },
 
@@ -1099,191 +1269,6 @@ local PropData = {
 --     },
 
 --     RandomizeScale = 0.15,
--- }
-
--- PropData.Thicket.TreeDegrade01 = {
---     -- Simple Unit Data
---     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 01"),
---     Health = {
---         Starting = 3,
---     },
---     ArmorType = ARMOR_TYPES.Structure,
---     Tag = SIMPLE_TAG.Tree,
---     Mass = 1000000,
---     CollisionData = {
---         belongs_to_layer_mask = CollisionLayers.Hostile,
---         collides_with_layer_mask = CollisionLayers.Hostile,
---         radius = 0.5,
---     },
---     CollisionEffectData = {
---         {
---             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
---             timing = CollisionTiming.Start | CollisionTiming.Continue,
---             cooldown_seconds = 0.125,
---         },
---     },
---     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 01 - OnDeath"),
-
---     -- Prop Data
---     Weight = 18,
---     IsSimple = true,
---     IsDestructible = true,
-
---     TransformAnimation = {
---         end_scale = Vector3.New(1.25, 1.25, 1.25),
---         end_position = Vector3.New(0, 0, -0.15),
---         -- end_position = Vector3.New(0, -0.70, 0),
---         -- pivot = Vector3.New(0, 0.5, 0),
---         -- rotation_axis = Vector3.New(-1, 0, 0),
---         -- end_degree = 45,
---     },
-
---     RandomizeScale = 0.10,
--- }
-
--- PropData.Thicket.TreeDegrade02 = {
---     -- Simple Unit Data
---     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 02"),
---     Health = {
---         Starting = 4,
---     },
---     ArmorType = ARMOR_TYPES.Structure,
---     Tag = SIMPLE_TAG.Tree,
---     Mass = 1000000,
---     CollisionData = {
---         belongs_to_layer_mask = CollisionLayers.Hostile,
---         collides_with_layer_mask = CollisionLayers.Hostile,
---         radius = 0.5,
---     },
---     CollisionEffectData = {
---         {
---             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
---             timing = CollisionTiming.Start | CollisionTiming.Continue,
---             cooldown_seconds = 0.125,
---         },
---     },
---     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 02 - OnDeath"),
-
---     -- Prop Data
---     Weight = 16,
---     IsSimple = true,
---     IsDestructible = true,
-
---     TransformAnimation = {
---         end_scale = Vector3.New(1.20, 1.20, 1.20),
---         end_position = Vector3.New(0, 0, -0.15),
---         -- end_position = Vector3.New(0, -0.70, 0),
---         -- pivot = Vector3.New(0, 0.5, 0),
---         -- rotation_axis = Vector3.New(-1, 0, 0),
---         -- end_degree = 45,
---     },
-
---     RandomizeScale = 0.08,
--- }
-
--- PropData.Thicket.TreeDegrade03 = {
---     -- Simple Unit Data
---     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 03"),
---     Health = {
---         Starting = 5,
---     },
---     ArmorType = ARMOR_TYPES.Structure,
---     Tag = SIMPLE_TAG.Tree,
---     Mass = 1000000,
---     CollisionData = {
---         belongs_to_layer_mask = CollisionLayers.Hostile,
---         collides_with_layer_mask = CollisionLayers.Hostile,
---         radius = 0.5,
---     },
---     CollisionEffectData = {
---         {
---             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
---             timing = CollisionTiming.Start | CollisionTiming.Continue,
---             cooldown_seconds = 0.125,
---         },
---     },
---     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 03 - OnDeath"),
-
---     -- Prop Data
---     Weight = 14,
---     IsSimple = true,
---     IsDestructible = true,
-
---     TransformAnimation = {
---         end_scale = Vector3.New(1.15, 1.15, 1.15),
---         end_position = Vector3.New(0, 0, -0.15),
---         -- end_position = Vector3.New(0, -0.70, 0),
---         -- pivot = Vector3.New(0, 0.5, 0),
---         -- rotation_axis = Vector3.New(-1, 0, 0),
---         -- end_degree = 45,
---     },
-
---     RandomizeScale = 0.06,
--- }
-
--- PropData.Thicket.TreeDegrade04 = {
---     -- Simple Unit Data
---     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 04"),
---     Health = {
---         Starting = 6,
---     },
---     ArmorType = ARMOR_TYPES.Structure,
---     Tag = SIMPLE_TAG.Tree,
---     Mass = 1000000,
---     CollisionData = {
---         belongs_to_layer_mask = CollisionLayers.Hostile,
---         collides_with_layer_mask = CollisionLayers.Hostile,
---         radius = 0.5,
---     },
---     CollisionEffectData = {
---         {
---             effect_name = DCEI.Effect("Prop - Simple - Tree - Collision"),
---             timing = CollisionTiming.Start | CollisionTiming.Continue,
---             cooldown_seconds = 0.125,
---         },
---     },
---     DeathEffect = DCEI.Effect("Thicket - Prop - Tree - Degrade - 04 - OnDeath"),
-
---     -- Prop Data
---     Weight = 12,
---     IsSimple = true,
---     IsDestructible = true,
-
---     TransformAnimation = {
---         end_scale = Vector3.New(1.10, 1.10, 1.10),
---         end_position = Vector3.New(0, 0, -0.15),
---         -- end_position = Vector3.New(0, -0.70, 0),
---         -- pivot = Vector3.New(0, 0.5, 0),
---         -- rotation_axis = Vector3.New(-1, 0, 0),
---         -- end_degree = 45,
---     },
-
---     RandomizeScale = 0.04,
--- }
-
--- PropData.Thicket.TreeDegrade05 = {
---     -- Simple Unit Data
---     UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 05"),
-
---     ArmorType = ARMOR_TYPES.Structure,
---     Tag = SIMPLE_TAG.Prop,
---     Mass = 1000000,
-
---     -- Prop Data
---     Weight = 10,
---     IsSimple = true,
---     IsDestructible = false,
-
---     TransformAnimation = {
---         end_scale = Vector3.New(1.05, 1.05, 1.05),
---         end_position = Vector3.New(0, 0, -0.15),
---         -- end_position = Vector3.New(0, -0.70, 0),
---         -- pivot = Vector3.New(0, 0.5, 0),
---         -- rotation_axis = Vector3.New(-1, 0, 0),
---         -- end_degree = 45,
---     },
-
---     RandomizeScale = 0.02,
 -- }
 
 -- ---============================================================================

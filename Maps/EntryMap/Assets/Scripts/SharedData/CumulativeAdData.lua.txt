@@ -15,7 +15,7 @@ return {
             max_value = 75,
         },
         {
-            type = "gems",
+            type = "gem",
             text = "5 - 15",
             min_value = 5,
             max_value = 15,

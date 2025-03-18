@@ -34,6 +34,7 @@ Data.ChopTree = {
                 Modifier.New(STAT.SkillSize, 1.75, SCALING.Scaled, { SKILL_TAG.ChopTree }),
                 Modifier.New(STAT.Spread, 120, SCALING.Scaled, { SKILL_TAG.ChopTree }),
 
+                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
                 Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.ChopTree }),
             },
         },
@@ -53,6 +54,7 @@ Data.ChopTree = {
             -- Core Tags
             SKILL_TAG.Global,
             SKILL_TAG.ChopTree,
+            SKILL_TAG.Tool,
         },
     },
     RemoveStatInheritance = {},

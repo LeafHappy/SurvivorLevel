@@ -179,6 +179,8 @@ SKILL_TAG = {
     MineStone = "MineStone",
     Shovel = "Shovel",
 
+    Tool = "Tool", -- Used for Tools
+
     ---ANCHOR: Annnie
     MarkedForDeath = "MarkedForDeath",
     Strafe = "Strafe",
@@ -497,11 +499,13 @@ TRACKED_STATS = {
 
     -- Currency
     Wood = DCEI.Stats("Wood"),
+    Plank = DCEI.Stats("Plank"),
+    HardWood = DCEI.Stats("HardWood"),
     Stone = DCEI.Stats("Stone"),
     Pumpkin = DCEI.Stats("Pumpkin"),
     Meat = DCEI.Stats("Meat"),
     Gold = DCEI.Stats("Gold"),
-    Gems = DCEI.Stats("Gems"),
+    Gem = DCEI.Stats("Gem"),
 
     -- Chests
     NormalChest = DCEI.Stats("Normal Chest"),
@@ -734,10 +738,12 @@ EQUIPMENT_SORTING_TYPES = {
 SAVE_KEY = {
     -- Currencies
     Wood = { "currency", "wood" },
+    Plank = { "currency", "plank" },
+    HardWood = { "currency", "hard_wood" },
     Stone = { "currency", "stone" },
     Pumpkin = { "currency", "pumpkin" },
     Meat = { "currency", "meat" },
-    Gems = { "currency", "gems" },
+    Gem = { "currency", "gem" },
     Gold = { "currency", "gold" },
     GoldReserve = { "currency", "gold_reserve" }, -- This value is the sum of all gold reserved in buildings.
     SkillPoints = { "currency", "skill_points" },
@@ -754,6 +760,7 @@ SAVE_KEY = {
     Masonry = { "progress", "masonry" },
     Time = { "progress", "time" },
     TalentExchange = { "progress", "talent" },
+    UpgradeLevels = { "progress", "upgrade_levels" },
 
     -- Perk Offers
     PerkStrafe = { "perk", "strafe" },

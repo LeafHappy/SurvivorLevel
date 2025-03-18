@@ -5,7 +5,7 @@
 local Core = require("Core:Presentation")
 local GMUI = require("GMUI:Presentation")
 
-local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 
 local Help = require("UiHelp")
 
@@ -53,17 +53,6 @@ local function UpdateBossStagger(fill_amount)
     Layout:UpdateBossStagger(fill_amount)
 end
 
-local function UpdateGameStatLayout(stat)
-    --
-    local index = DisplayedGameStats[stat].Priority
-    local layout = Help.GenerateLayoutRef("Game/Stat", Layout.GameStatsContainer, _GameStatsLayout, index)
-
-    layout.state.icon = DisplayedGameStats[stat].Icon
-    layout.state.value = _GameStatsData[stat]
-
-    return layout
-end
-
 ---comment
 ---@param stat TRACKED_STATS
 ---@param value integer
@@ -75,7 +64,6 @@ local function SetGameStat(stat, value)
     _GameStatsData[stat] = value
 
     -- Check if we have a Layout for this stat
-    UpdateGameStatLayout(stat)
 
     -- Need to Fix Order when a new stat is added.
 end

@@ -28,6 +28,7 @@ local PropData = require("Map/PropData")
 local Modifier = require("SharedData/Class/Modifier")
 local MetaData = require("SharedData/MetaData")
 local TalentData = require("SharedData/Talents/TalentData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 
 local Help = require("Help")
 
@@ -41,15 +42,17 @@ local _Dev = require("_Dev")
 local PRIME_COMMIT_MAX_FREQUENCY = 3
 
 local UI_UPDATES = {
-    [SAVE_KEY.Wood] = "Camp.Overlay.SetWood",
-    [SAVE_KEY.Stone] = "Camp.Overlay.SetStone",
-    [SAVE_KEY.Pumpkin] = "Camp.Overlay.SetPumpkin",
-    [SAVE_KEY.Meat] = "Camp.Overlay.SetMeat",
-    [SAVE_KEY.Gems] = "Camp.Overlay.SetGems",
-    [SAVE_KEY.Gold] = "Camp.Overlay.SetGold",
     [SAVE_KEY.SkillPoints] = "Camp.Overlay.SetSkillPoints",
     [SAVE_KEY.Level] = "Camp.Overlay.SetPlayerLevel",
 }
+
+for _, resource_data in ipairs(ResourceData.List) do
+    --
+    local save_key = resource_data.SaveKey
+    local event_id = resource_data.DisplayUpdateEvent
+
+    UI_UPDATES[save_key] = event_id
+end
 
 local DEFAULT_VALUES = {
     [SAVE_KEY.ActiveDangerZone] = 1,
@@ -69,7 +72,7 @@ local _SaveData = {
     --     archer_slot_2 = nil,
     -- },
     -- currency = {
-    --     gems = 0,
+    --     gem = 0,
     --     gold = 0,
     --     gold_reserve = 0,
     -- },
@@ -101,7 +104,7 @@ local function CheckPresentationEvent(key, data)
 end
 
 local function CommitSaveData()
-    Help.Log("Committing Save Data", nil, _SaveData, true)
+    -- Help.Log("Committing Save Data", nil, _SaveData, true)
     DCEI.Save.Set("save_data", Json.encode(_SaveData))
     DCEI.Save.Commit()
 end

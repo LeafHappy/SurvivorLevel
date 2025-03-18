@@ -125,12 +125,12 @@ local function GenerateGameStats(victory)
 
     -- Gold
     if stats.game_stats["Gold"] then
-        table.insert(stats.rewards, { key = "gold", value = stats.game_stats["Gold"]})
+        table.insert(stats.rewards, { key = "gold", value = stats.game_stats["Gold"] })
     end
 
-    -- Gems
-    if stats.game_stats["Gems"] then
-        table.insert(stats.rewards, { key = "gems", value = stats.game_stats["Gems"]})
+    -- Gem
+    if stats.game_stats["Gem"] then
+        table.insert(stats.rewards, { key = "gem", value = stats.game_stats["Gem"] })
     end
 
     -- stats.rewards.t_trophy = trophies_earned

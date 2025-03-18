@@ -1,0 +1,221 @@
+---============================================================================
+-- SECTION -- About
+---============================================================================
+--[[
+    ---TODO: Perlin Noise?
+]]
+---============================================================================
+-- !SECTION -- About
+-- SECTION -- Libraries
+---============================================================================
+
+local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
+
+local SimpleUnits = require("SharedData/SimpleUnits")
+
+local Help = require("Help")
+
+---============================================================================
+-- !SECTION -- Libraries
+-- SECTION -- Local Data
+---============================================================================
+
+local REF = {
+    SmallPurpleCloud = DCEI.SimpleUnit("Background - Purple Cloud - Small"),
+    LargePurpleCloud = DCEI.SimpleUnit("Background - Purple Cloud - Large"),
+}
+
+local BACKGROUND_DATA = {
+    SmallPurpleCloud = {
+        Key = "SmallPurpleCloud",
+
+        -- Simple Unit Data
+        UnitType = REF.SmallPurpleCloud,
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+    LargePurpleCloud = {
+        Key = "LargePurpleCloud",
+
+        -- Simple Unit Data
+        UnitType = REF.LargePurpleCloud,
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+    },
+}
+
+local GRID_CHECK_DISTANCE = Vector2.New(1, 3)
+local CLOUD_SIZE = Vector2.New(17, 8)
+local HALF_SIZE = Vector2.New(CLOUD_SIZE.x / 2, CLOUD_SIZE.y / 2)
+local VERTICAL_SPAWN_OFFSET = 10
+
+---@type table<number, table<number, boolean>>
+local GRID = {}
+
+---@type table<string, SimpleUnit>
+local REGISTERED_UNITS = {}
+
+---============================================================================
+-- !SECTION -- Local Data
+-- SECTION -- Initialize
+---============================================================================
+
+---@class BackgroundManager
+local BackgroundManager = {}
+
+local function New()
+    ---@type BackgroundManager
+    local self = setmetatable({}, { __index = BackgroundManager })
+
+    self:Reset()
+
+    return self
+end
+
+function BackgroundManager:Reset()
+    ---TODO: Remove Clouds
+    if self.Clouds then
+        for _, x in pairs(self.Clouds) do
+            for y, _ in pairs(x) do
+                DCEI.RemoveSimpleUnit(self.Clouds[x][y])
+            end
+        end
+    end
+
+    self.Clouds = {}
+end
+
+local Instance = New()
+BackgroundManager.Instance = Instance
+
+---============================================================================
+-- !SECTION -- Initialize
+-- SECTION -- Local Functions
+---============================================================================
+
+local function ApplyTransformAnimation(instance)
+    -- Sort distance by scale
+
+    local scale = Vector3.New(1, 1, 1) * Help.RandomNumber(0.9, 1.1)
+    local distance = -10 * scale.y - 1
+
+    local data = {
+        end_scale = scale,
+        end_position = Vector3.New(0, distance, VERTICAL_SPAWN_OFFSET),
+    }
+
+    DCEI.ApplyTransformAnimationToSimpleUnit(instance, data)
+end
+
+---============================================================================
+-- !SECTION -- Local Functions
+-- SECTION -- Internal Functions
+---============================================================================
+
+---Generates Simple Unit for the Key in REGISTERED_UNITS
+---@param key string
+function BackgroundManager:_CheckRegisterUnit(key)
+    local simple_unit = REGISTERED_UNITS[key]
+
+    if simple_unit then
+        return simple_unit
+    end
+
+    local data = BACKGROUND_DATA[key]
+
+    if not data then
+        Help.Warn("Failed to find Background Data for key", key)
+        return
+    end
+
+    local unit = SimpleUnits.Register(data)
+    REGISTERED_UNITS[key] = unit
+end
+
+---Spawns a Cloud at a nearby position
+---@param position Vector2
+function BackgroundManager:_SpawnCloud(position)
+    local key = BACKGROUND_DATA.LargePurpleCloud.Key
+
+    self:_CheckRegisterUnit(key)
+
+    if not REGISTERED_UNITS[key] then
+        Help.Warn("Unable to Spawn Simple Unit with Key", key)
+        return
+    end
+
+    local player_id = PLAYER.Terrain
+    local team_id = TEAM.Hostile
+
+    local simple_unit = REGISTERED_UNITS[key]
+
+    local instance = simple_unit:SpawnSync(player_id, team_id, position)
+
+    -- Animation Options
+    ApplyTransformAnimation(instance)
+
+    return instance
+end
+
+local frame_count_to_spawn = 16
+local current_frame = 0
+
+function BackgroundManager:_SpawnTimedCloud(camera_position)
+    current_frame = current_frame + 1
+
+    if current_frame < frame_count_to_spawn then
+        return
+    end
+
+    current_frame = 0
+
+    local instance = self:_SpawnCloud(camera_position)
+
+    Help.GameTimer(10, nil, nil, function()
+        DCEI.RemoveSimpleUnit(instance)
+    end)
+end
+
+---============================================================================
+-- !SECTION -- Internal Functions
+-- SECTION -- Class Functions
+---============================================================================
+
+---comment
+---@param delta Time
+---@param camera_position Vector2
+function BackgroundManager:Update(delta, camera_position)
+    local grid_position =
+        Vector2.New(math.floor(camera_position.x / CLOUD_SIZE.x), math.floor(camera_position.y / CLOUD_SIZE.y))
+
+    for x = -GRID_CHECK_DISTANCE.x, GRID_CHECK_DISTANCE.x, 1 do
+        for y = -GRID_CHECK_DISTANCE.y, GRID_CHECK_DISTANCE.y, 1 do
+            local check_position = grid_position + Vector2.New(x, y)
+
+            if not GRID[check_position.x] then
+                GRID[check_position.x] = {}
+            end
+
+            if not GRID[check_position.x][check_position.y] then
+                GRID[check_position.x][check_position.y] = true
+
+                local cloud_position = Vector2.New(check_position.x * CLOUD_SIZE.x, check_position.y * CLOUD_SIZE.y)
+                    + HALF_SIZE
+                self:_SpawnCloud(cloud_position)
+            end
+        end
+    end
+end
+
+---============================================================================
+-- !SECTION -- Class Functions
+---============================================================================
+
+return BackgroundManager

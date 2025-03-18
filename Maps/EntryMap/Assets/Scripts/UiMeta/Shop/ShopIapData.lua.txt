@@ -2,395 +2,395 @@ local SHOP_PRODUCT_ID = require("UiMeta/Shop/ShopProductID")
 local ItemCustomCallbacks = require("UiMeta/Shop/ItemCustomCallbacks")
 
 return {
-	-- Chests
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_CHEST_01,
-		display = DCEI.Texture("wood_chest_wildsurvivor"),
-		label = {
-			name = "Common Chest",
-		},
-		items = {
-			chest = 1,
-		},
-		price = {
-			type = "gems",
-			amount = 15,
-		},
-		state = {
-			background_color = "#ffba61ff",
-			piping_color = "#d15944ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_CHEST_02,
-		display = DCEI.Texture("gold_chest_wildsurvivor"),
-		label = {
-			name = "Rare Chest",
-		},
-		items = {
-			chest = 2,
-		},
-		price = {
-			type = "gems",
-			amount = 60,
-		},
-		state = {
-			background_color = "#ffba61ff",
-			piping_color = "#d15944ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_CHEST_03,
-		display = DCEI.Texture("dark_chest_wildsurvivor"),
-		label = {
-			name = "Legendary Chest",
-		},
-		items = {
-			chest = 3,
-		},
-		price = {
-			type = "gems",
-			amount = 165,
-		},
-		state = {
-			background_color = "#ffba61ff",
-			piping_color = "#d15944ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-		},
-	},
-	-- Gems
-	{
-		product_id = SHOP_PRODUCT_ID.IAP_GEM_01,
-		label = {
-			item_type = "gems",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_gem_level1_store_wildsurvivor"),
-		items = {
-			gems = 30,
-		},
-		price = {
-			usd = 0.99,
-		},
-		state = {
-			background_color = "#66caf9ff",
-			piping_color = "#3030a0ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.IAP_GEM_02,
-		label = {
-			item_type = "gems",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_gem_level2_store_wildsurvivor"),
-		items = {
-			gems = 155,
-		},
-		price = {
-			usd = 4.99,
-		},
-		state = {
-			background_color = "#66caf9ff",
-			piping_color = "#3030a0ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.IAP_GEM_03,
-		label = {
-			item_type = "gems",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_gem_level3_store_wildsurvivor"),
-		items = {
-			gems = 320,
-		},
-		price = {
-			usd = 9.99,
-		},
-		state = {
-			background_color = "#66caf9ff",
-			piping_color = "#3030a0ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.IAP_GEM_04,
-		label = {
-			item_type = "gems",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_gem_level4_store_wildsurvivor"),
-		items = {
-			gems = 660,
-		},
-		price = {
-			usd = 19.99,
-		},
-		state = {
-			background_color = "#66caf9ff",
-			piping_color = "#3030a0ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.IAP_GEM_05,
-		label = {
-			item_type = "gems",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_gem_level5_store_wildsurvivor"),
-		items = {
-			gems = 1700,
-		},
-		price = {
-			usd = 49.99,
-		},
-		state = {
-			background_color = "#66caf9ff",
-			piping_color = "#3030a0ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.IAP_GEM_06,
-		label = {
-			item_type = "gems",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_gem_level6_store_wildsurvivor"),
-		items = {
-			gems = 3500,
-		},
-		price = {
-			usd = 99.99,
-		},
-		state = {
-			background_color = "#66caf9ff",
-			piping_color = "#3030a0ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	-- Gold
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_GOLD_01,
-		label = {
-			item_type = "gold",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_coin_level1_store_wildsurvivor"),
-		items = {
-			gold = 350,
-		},
-		price = {
-			type = "gems",
-			amount = 50,
-		},
-		state = {
-			background_color = "#ffdd61ff",
-			piping_color = "#b07308ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_GOLD_02,
-		label = {
-			item_type = "gold",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_coin_level2_store_wildsurvivor"),
-		items = {
-			gold = 1120,
-		},
-		price = {
-			type = "gems",
-			amount = 140,
-		},
-		state = {
-			background_color = "#ffdd61ff",
-			piping_color = "#b07308ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_GOLD_03,
-		label = {
-			item_type = "gold",
-			format_with_commas = true,
-		},
-		display = DCEI.Texture("cartoon_icon_coin_level3_store_wildsurvivor"),
-		items = {
-			gold = 3690,
-		},
-		price = {
-			type = "gems",
-			amount = 410,
-		},
-		state = {
-			background_color = "#ffdd61ff",
-			piping_color = "#b07308ff",
-		},
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
-		callbacks = {
-			on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
-			on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
-		},
-	},
-	---- DAILY DEALS
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_DAILY_01,
-		label = {
-			item_type = "gold",
-			format_with_commas = true,
-		},
-		display = {
-			use_stock_display = true,
+    -- Chests
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_CHEST_01,
+        display = DCEI.Texture("wood_chest_wildsurvivor"),
+        label = {
+            name = "Common Chest",
+        },
+        items = {
+            chest = 1,
+        },
+        price = {
+            type = "gem",
+            amount = 15,
+        },
+        state = {
+            background_color = "#ffba61ff",
+            piping_color = "#d15944ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_CHEST_02,
+        display = DCEI.Texture("gold_chest_wildsurvivor"),
+        label = {
+            name = "Rare Chest",
+        },
+        items = {
+            chest = 2,
+        },
+        price = {
+            type = "gem",
+            amount = 60,
+        },
+        state = {
+            background_color = "#ffba61ff",
+            piping_color = "#d15944ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_CHEST_03,
+        display = DCEI.Texture("dark_chest_wildsurvivor"),
+        label = {
+            name = "Legendary Chest",
+        },
+        items = {
+            chest = 3,
+        },
+        price = {
+            type = "gem",
+            amount = 165,
+        },
+        state = {
+            background_color = "#ffba61ff",
+            piping_color = "#d15944ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+        },
+    },
+    -- Gem
+    {
+        product_id = SHOP_PRODUCT_ID.IAP_GEM_01,
+        label = {
+            item_type = "gem",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_gem_level1_store_wildsurvivor"),
+        items = {
+            gem = 30,
+        },
+        price = {
+            usd = 0.99,
+        },
+        state = {
+            background_color = "#66caf9ff",
+            piping_color = "#3030a0ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.IAP_GEM_02,
+        label = {
+            item_type = "gem",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_gem_level2_store_wildsurvivor"),
+        items = {
+            gem = 155,
+        },
+        price = {
+            usd = 4.99,
+        },
+        state = {
+            background_color = "#66caf9ff",
+            piping_color = "#3030a0ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.IAP_GEM_03,
+        label = {
+            item_type = "gem",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_gem_level3_store_wildsurvivor"),
+        items = {
+            gem = 320,
+        },
+        price = {
+            usd = 9.99,
+        },
+        state = {
+            background_color = "#66caf9ff",
+            piping_color = "#3030a0ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.IAP_GEM_04,
+        label = {
+            item_type = "gem",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_gem_level4_store_wildsurvivor"),
+        items = {
+            gem = 660,
+        },
+        price = {
+            usd = 19.99,
+        },
+        state = {
+            background_color = "#66caf9ff",
+            piping_color = "#3030a0ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.IAP_GEM_05,
+        label = {
+            item_type = "gem",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_gem_level5_store_wildsurvivor"),
+        items = {
+            gem = 1700,
+        },
+        price = {
+            usd = 49.99,
+        },
+        state = {
+            background_color = "#66caf9ff",
+            piping_color = "#3030a0ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.IAP_GEM_06,
+        label = {
+            item_type = "gem",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_gem_level6_store_wildsurvivor"),
+        items = {
+            gem = 3500,
+        },
+        price = {
+            usd = 99.99,
+        },
+        state = {
+            background_color = "#66caf9ff",
+            piping_color = "#3030a0ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    -- Gold
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_GOLD_01,
+        label = {
+            item_type = "gold",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_coin_level1_store_wildsurvivor"),
+        items = {
+            gold = 350,
+        },
+        price = {
+            type = "gem",
+            amount = 50,
+        },
+        state = {
+            background_color = "#ffdd61ff",
+            piping_color = "#b07308ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_GOLD_02,
+        label = {
+            item_type = "gold",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_coin_level2_store_wildsurvivor"),
+        items = {
+            gold = 1120,
+        },
+        price = {
+            type = "gem",
+            amount = 140,
+        },
+        state = {
+            background_color = "#ffdd61ff",
+            piping_color = "#b07308ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_GOLD_03,
+        label = {
+            item_type = "gold",
+            format_with_commas = true,
+        },
+        display = DCEI.Texture("cartoon_icon_coin_level3_store_wildsurvivor"),
+        items = {
+            gold = 3690,
+        },
+        price = {
+            type = "gem",
+            amount = 410,
+        },
+        state = {
+            background_color = "#ffdd61ff",
+            piping_color = "#b07308ff",
+        },
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
+        callbacks = {
+            on_create_callback = ItemCustomCallbacks.SetItemDisplayState,
+            on_purchase_update_callback = ItemCustomCallbacks.FlyingItemRewardOnPurchase,
+        },
+    },
+    ---- DAILY DEALS
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_DAILY_01,
+        label = {
+            item_type = "gold",
+            format_with_commas = true,
+        },
+        display = {
+            use_stock_display = true,
             image = DCEI.Texture("cartoon_icon_gem_level1_store_wildsurvivor"),
-		},
-		items = {
-			gold = 999,
-		},
-		price = {
-			type = "gems",
-			amount = 0,
-		},
-		state = {
-			background_color = "#ca89ffff",
-			piping_color = "#342c81ff",
-		},
+        },
+        items = {
+            gold = 999,
+        },
+        price = {
+            type = "gem",
+            amount = 0,
+        },
+        state = {
+            background_color = "#ca89ffff",
+            piping_color = "#342c81ff",
+        },
         stock_limit = 1,
         custom = {
             index = 1,
         },
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
         callbacks = {
             on_create_callback = ItemCustomCallbacks.UpdateDailyShopItem,
             on_shop_open_callback = ItemCustomCallbacks.UpdateDailyShopItem,
             on_purchase_update_callback = ItemCustomCallbacks.UpdateDailyShopItem,
         },
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_DAILY_02,
-		label = {
-			item_type = "gold",
-			format_with_commas = true,
-		},
-		display = {
-			use_stock_display = true,
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_DAILY_02,
+        label = {
+            item_type = "gold",
+            format_with_commas = true,
+        },
+        display = {
+            use_stock_display = true,
             image = DCEI.Texture("cartoon_icon_gem_level1_store_wildsurvivor"),
-		},
-		items = {
-			gold = 999,
-		},
-		price = {
-			type = "gems",
-			amount = 0,
-		},
-		state = {
-			background_color = "#ca89ffff",
-			piping_color = "#342c81ff",
-		},
+        },
+        items = {
+            gold = 999,
+        },
+        price = {
+            type = "gem",
+            amount = 0,
+        },
+        state = {
+            background_color = "#ca89ffff",
+            piping_color = "#342c81ff",
+        },
         stock_limit = 1,
         custom = {
             index = 2,
         },
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
         callbacks = {
             on_create_callback = ItemCustomCallbacks.UpdateDailyShopItem,
             on_shop_open_callback = ItemCustomCallbacks.UpdateDailyShopItem,
             on_purchase_update_callback = ItemCustomCallbacks.UpdateDailyShopItem,
         },
-	},
-	{
-		product_id = SHOP_PRODUCT_ID.SHOP_DAILY_03,
-		label = {
-			item_type = "gold",
-			format_with_commas = true,
-		},
-		display = {
-			use_stock_display = true,
+    },
+    {
+        product_id = SHOP_PRODUCT_ID.SHOP_DAILY_03,
+        label = {
+            item_type = "gold",
+            format_with_commas = true,
+        },
+        display = {
+            use_stock_display = true,
             image = DCEI.Texture("cartoon_icon_gem_level1_store_wildsurvivor"),
-		},
-		items = {
-			gold = 999,
-		},
-		price = {
-			type = "gems",
-			amount = 0,
-		},
-		state = {
-			background_color = "#ca89ffff",
-			piping_color = "#342c81ff",
-		},
+        },
+        items = {
+            gold = 999,
+        },
+        price = {
+            type = "gem",
+            amount = 0,
+        },
+        state = {
+            background_color = "#ca89ffff",
+            piping_color = "#342c81ff",
+        },
         stock_limit = 1,
         custom = {
             index = 3,
         },
-		custom_xml = "Meta/Shop/Section/Item",
-		layout_height = 264,
+        custom_xml = "Meta/Shop/Section/Item",
+        layout_height = 264,
         callbacks = {
             on_create_callback = ItemCustomCallbacks.UpdateDailyShopItem,
             on_shop_open_callback = ItemCustomCallbacks.UpdateDailyShopItem,
             on_purchase_update_callback = ItemCustomCallbacks.UpdateDailyShopItem,
         },
-	},
+    },
 }

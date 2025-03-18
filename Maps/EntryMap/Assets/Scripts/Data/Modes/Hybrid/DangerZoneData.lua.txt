@@ -27,8 +27,8 @@ local data = {
             {
                 Key = "ChopTree",
                 Position = {
-                    x = 5.8301796913146973,
-                    y = -0.082098007202148438,
+                    x = -0.4895939826965332,
+                    y = -0.030096054077148438,
                 },
                 Status = "Cleansed",
             },
@@ -55,15 +55,15 @@ local data = {
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = -1.3410604000091553,
-                    y = 0.87963294982910156,
+                    x = 6.3410577774047852,
+                    y = 1.2275943756103516,
                 },
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = 0.11589336395263672,
-                    y = -0.67236900329589844,
+                    x = 5.7544937133789063,
+                    y = -1.1004676818847656,
                 },
             },
         },
@@ -96,8 +96,16 @@ local data = {
                 },
                 Status = "Occupied",
             },
+            {
+                Key = "Strafe",
+                Position = {
+                    x = 5.9916348457336426,
+                    y = 3.4518985748291016,
+                },
+                Status = "Cleansed",
+            },
         },
-        Occupied = {
+        Cleansed = {
             Area = {
                 OccupiedArea = {
                     x = 5,
@@ -117,6 +125,7 @@ local data = {
                     },
                     Modifiers = {},
                     SpawnType = "Walker",
+                    RespawnTime = 30,
                 },
             },
         },
@@ -201,22 +210,18 @@ local data = {
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
-            Range = 2,
+            Range = 0.75,
             ResourceCost = {
                 Amount = 2,
                 Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
             },
             StandOffset = {
-                x = 0.5,
-                y = -1.5,
+                x = 0.25,
+                y = -3,
             },
             UIOffset = {
-                x = 0.5,
-                y = 0.5,
+                x = 0.25,
+                y = -1.5,
             },
         },
     },
@@ -271,21 +276,17 @@ local data = {
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
-            Range = 2,
+            Range = 0.75,
             ResourceCost = {
                 Amount = 5,
                 Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
             },
             StandOffset = {
-                x = -1.5,
+                x = -3.5,
                 y = 2,
             },
             UIOffset = {
-                x = 0,
+                x = -1.25,
                 y = 2,
             },
             Zones = {
@@ -367,21 +368,17 @@ local data = {
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
-            Range = 2,
+            Range = 0.75,
             ResourceCost = {
                 Amount = 4,
                 Resource = "Stone",
-                SaveKey = {
-                    "currency",
-                    "stone",
-                },
             },
             StandOffset = {
-                x = -1.5,
+                x = -3.25,
                 y = 2,
             },
             UIOffset = {
-                x = 0,
+                x = -1.5,
                 y = 2,
             },
         },
@@ -437,10 +434,6 @@ local data = {
             ResourceCost = {
                 Amount = 5,
                 Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
             },
             StandOffset = {
                 x = 0,
@@ -549,10 +542,6 @@ local data = {
             ResourceCost = {
                 Amount = 5,
                 Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
             },
             StandOffset = {
                 x = 3.5,
@@ -628,14 +617,10 @@ local data = {
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
-            Range = 2,
+            Range = 0.75,
             ResourceCost = {
                 Amount = 10,
                 Resource = "Pumpkin",
-                SaveKey = {
-                    "currency",
-                    "pumpkin",
-                },
             },
             StandOffset = {
                 x = 0,
@@ -698,10 +683,6 @@ local data = {
             ResourceCost = {
                 Amount = 9,
                 Resource = "Pumpkin",
-                SaveKey = {
-                    "currency",
-                    "pumpkin",
-                },
             },
             StandOffset = {
                 x = 0,
@@ -746,10 +727,6 @@ local data = {
             ResourceCost = {
                 Amount = 5,
                 Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
             },
             StandOffset = {
                 x = 0,
@@ -779,9 +756,9 @@ local data = {
             },
             Boss = {
                 {
-                    SpawnType = "Shieldbearer",
-                    DropTable = DropTables.EliteStandard.Key,
+                    DropTable = "EliteStandard",
                     Modifiers = {},
+                    SpawnType = "Shieldbearer",
                 },
             },
         },
@@ -862,10 +839,6 @@ local data = {
             ResourceCost = {
                 Amount = 15,
                 Resource = "Gold",
-                SaveKey = {
-                    "currency",
-                    "gold",
-                },
             },
             StandOffset = {
                 x = -3.5,
@@ -915,22 +888,18 @@ local data = {
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
-            Range = 2.5,
+            Range = 0.75,
             ResourceCost = {
                 Amount = 8,
                 Resource = "Wood",
-                SaveKey = {
-                    "currency",
-                    "wood",
-                },
             },
             StandOffset = {
-                x = 1.25,
-                y = -1.25,
+                x = 0.75,
+                y = -3,
             },
             UIOffset = {
-                x = 1.25,
-                y = 0.5,
+                x = 0.75,
+                y = -1.25,
             },
         },
     },
@@ -962,22 +931,90 @@ local data = {
         },
         UnlockRequirements = {
             AlwaysShowCost = false,
-            Range = 2,
+            Range = 0.75,
             ResourceCost = {
                 Amount = 4,
                 Resource = "Wood",
-                SaveKey = {
-                    "currency",
-                    "wood",
-                },
             },
             StandOffset = {
-                x = -1.5,
+                x = -3.25,
                 y = 0.25,
             },
             UIOffset = {
                 x = -1.5,
-                y = 2,
+                y = 0.25,
+            },
+            Zones = "start_transfer1",
+        },
+    },
+    transfer_zone3addad = {
+        Key = "transfer_zone3addad",
+        KeyItems = {},
+        Position = {
+            x = -1,
+            y = 3,
+        },
+        Props = {
+            {
+                Key = "PumpkinField01",
+                Position = {
+                    x = 0.079009532928466797,
+                    y = 0.58489418029785156,
+                },
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = 0.70341777801513672,
+                    y = 1.5481510162353516,
+                },
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = 0.76018333435058594,
+                    y = -0.11078453063964844,
+                },
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = -0.67784929275512695,
+                    y = 1.5215396881103516,
+                },
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = -0.75353527069091797,
+                    y = 0.076471328735351563,
+                },
+            },
+        },
+        StartingStatus = "Available",
+        UnlockRequirements = {
+            AlwaysShowCost = false,
+            Range = 0.75,
+            ResourceCost = {
+                Amount = 4,
+                Resource = "Stone",
+            },
+            StandOffset = {
+                x = 3.25,
+                y = 1,
+            },
+            UIOffset = {
+                x = 1.5,
+                y = 1,
+            },
+        },
+        Tiles = {
+            {
+                Key = "Grasslands",
+                Position = {
+                    x = -1,
+                    y = 3,
+                },
             },
         },
     },

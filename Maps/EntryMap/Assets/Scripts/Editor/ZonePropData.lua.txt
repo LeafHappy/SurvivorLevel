@@ -6,6 +6,7 @@ local PropData = require("Map/PropData")
 ---@field DestroyedPlaceholder string
 ---@field RespawnTime number
 ---@field SpawnImmediately boolean | nil
+---@field GrowTime number | nil
 
 ---@class ZonePropData:ZoneItemData
 ---@field Settings PropItemSettings
@@ -46,6 +47,22 @@ local data = {
                 PropData.TreeDegrade04.Key,
             },
             DestroyedPlaceholder = PropData.TreeDegrade05.Key,
+            RespawnTime = 30,
+            SpawnImmediately = true,
+        },
+    },
+    ThicketTreeDegrade01 = {
+        Key = "ThicketTreeDegrade01",
+        Icon = DCEI.Texture("Wildsurvivor_prop_f_ntree01"), -- Displayed in the Editor UI
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Thicket Tree Degrade - 01"), -- The Unit that will follow the cursor
+        Settings = { -- Settings that the Prop Instance Tracker will use (injected into PropZone)
+            PropSeries = {
+                PropData.ThicketTreeDegrade01.Key,
+                PropData.ThicketTreeDegrade02.Key,
+                PropData.ThicketTreeDegrade03.Key,
+                PropData.ThicketTreeDegrade04.Key,
+            },
+            DestroyedPlaceholder = PropData.ThicketTreeDegrade05.Key,
             RespawnTime = 30,
             SpawnImmediately = true,
         },
@@ -117,9 +134,16 @@ local data = {
         GhostPlacement = DCEI.Unit("Editor - Ghost - Pumpkin - 01"), -- The Unit that will follow the cursor
         Icon = DCEI.Texture("cartoon_icon_mapleleafpumpkin_rank8_merge2"),
         Settings = {
-            PropData = PropData.Pumpkin01.Key,
+            -- PropData = PropData.Pumpkin01.Key,
+            PropSeries = {
+                -- PropData.Pumpkin01.Key,
+                PropData.Pumpkin02.Key,
+                PropData.Pumpkin03.Key,
+                PropData.Pumpkin04.Key,
+            },
+            DestroyedPlaceholder = PropData.Pumpkin01.Key,
             SpawnImmediately = true,
-            RespawnTime = 30,
+            GrowTime = 10,
         },
     },
 

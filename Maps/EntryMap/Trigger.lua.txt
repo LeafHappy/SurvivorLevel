@@ -10,6 +10,7 @@ local Server = require("DFServer")
 -- Contains Enum Constants for the Project
 -- needs to be called above script requires in case they reference enums
 require("SharedData/Types")
+-- local ResourceData = require("SharedData/MetaResources/ResourceData")
 
 -- Scripts
 local Event = require("Class/Event")

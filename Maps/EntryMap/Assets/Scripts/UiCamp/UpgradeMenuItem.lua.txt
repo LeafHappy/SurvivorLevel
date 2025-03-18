@@ -1,0 +1,154 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local Animation = require("Presentation/Animation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local UpgradeData = require("SharedData/Talents/UpgradeData")
+local StatData = require("SharedData/Skills/StatData")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local REF = {}
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- We ~should~ be able to use ui.GameState[resource_type].value to get the current value of a resource
+
+---@class UpgradeMenuItem
+---@field Layout Layout
+---@field Key string
+---@field Level number
+local UpgradeMenuItem = {}
+UpgradeMenuItem.__index = UpgradeMenuItem
+
+---comment
+---@param parent Layout
+---@param upgrade_data_key string
+---@return UpgradeMenuItem
+function UpgradeMenuItem.New(parent, upgrade_data_key)
+    local self = setmetatable({}, UpgradeMenuItem)
+    self.Layout = GMUI.Layout.New({
+        name = "Hybrid/UpgradeMenu/Item",
+        parent = parent,
+    })
+    self.Key = upgrade_data_key
+    self.Level = 0
+
+    self:Initialize()
+
+    return self
+end
+
+function UpgradeMenuItem:Purchase()
+    local upgrade_data = UpgradeData.Dictionary[self.Key]
+    local cost = upgrade_data.Cost.Base + (upgrade_data.Cost.Increment * self.Level)
+
+    -- ui.GameState.Gold.value = ui.GameState.Gold.value - cost ---TODO: Must be done in Simulation
+    self.Level = self.Level + 1
+
+    self:UpdateDisplay() ---TODO: Update All Displays since Gold can be reduced
+
+    -- Send Simulation Event
+    local data = self.Key
+    Core.Event.SendSimulationEvent("Hybrid.UpgradePurchased", data)
+end
+
+function UpgradeMenuItem:Initialize()
+    local upgrade_data = UpgradeData.Dictionary[self.Key]
+
+    -- Set Once
+    self.Layout.state.UpgradeIcon = upgrade_data.Icon
+    self.Layout.state.UpgradeName = upgrade_data.DisplayName
+
+    -- Button Callback
+    DCEI.SetOnClickCallback(self.Layout.PurchaseButton, function()
+        self:Purchase()
+    end)
+end
+
+function UpgradeMenuItem:UpdateDisplay()
+    local upgrade_data = UpgradeData.Dictionary[self.Key]
+
+    local current_value = upgrade_data.Modifier.StartingValue + (upgrade_data.Modifier.Increase * self.Level)
+    local next_value = upgrade_data.Modifier.StartingValue + (upgrade_data.Modifier.Increase * (self.Level + 1))
+    local cost = upgrade_data.Cost.Base + (upgrade_data.Cost.Increment * self.Level)
+    local can_afford = ui.GameState.Gold.value >= cost
+
+    local mod = upgrade_data.Modifier
+    local current_display_value = StatData.Convert(current_value, mod.Stat, mod.Scaling)
+    local next_display_value = StatData.Convert(next_value, mod.Stat, mod.Scaling)
+
+    self.Layout.state.CurrentValue = current_display_value
+    self.Layout.state.NextValue = next_display_value
+
+    self.Layout.state.ResourceIcon = upgrade_data.Cost.ResourceIcon
+    self.Layout.state.ResourceCost = cost
+
+    self.Layout.state.IsPurchasable = can_afford
+end
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout
+---============================================================================
+
+---comment
+---@param current_level number | nil
+function UpgradeMenuItem:Update(current_level)
+    current_level = current_level or 0
+
+    self.Level = current_level
+    self:UpdateDisplay()
+end
+
+---============================================================================
+---!SECTION: Layout
+---SECTION: Overrides
+---============================================================================
+
+function UpgradeMenuItem:Hide()
+    --
+end
+
+function UpgradeMenuItem:Show()
+    --
+end
+
+---============================================================================
+---!SECTION: Overrides
+---SECTION: Event Handling
+---============================================================================
+
+---============================================================================
+---!SECTION: Event Handling
+---SECTION: Event Registration
+---============================================================================
+
+---============================================================================
+---!SECTION: Event Registration
+---============================================================================
+
+return UpgradeMenuItem

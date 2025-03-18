@@ -5,133 +5,133 @@ AchievementData.Breakpoints = {
         {
             required = 60, -- 1 minute
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 180, -- 3 minutes
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 300, -- 5 minutes
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 600, -- 10 minutes
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 900, -- 15 minutes
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 1200, -- 20 minutes
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 1800, -- 30 minutes
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 3600, -- 1 hour
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 15,
             },
         },
         {
             required = 5400, -- 1 hour 30 minutes
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 15,
             },
         },
         {
             required = 7200, -- 2 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 10800, -- 3 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 14400, -- 4 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 18000, -- 5 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 36000, -- 10 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 54000, -- 15 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 72000, -- 20 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 108000, -- 30 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 180000, -- 50 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 30,
             },
         },
         {
             required = 360000, -- 100 hours
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 50,
             },
         },
@@ -140,42 +140,42 @@ AchievementData.Breakpoints = {
         {
             required = 10,
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 100, -- 1 Hundred
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 1000, -- 1 Thousand
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 10000, -- 10 Thousand
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 100000, -- 100 Thousand
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 15,
             },
         },
         {
             required = 1000000,
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
@@ -184,42 +184,42 @@ AchievementData.Breakpoints = {
         {
             required = 1, -- 1 enemy
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 10, -- 10 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 100, -- 100 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 1000, -- 1 thousand enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 30,
             },
         },
         {
             required = 5000, -- 5 thousand enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 40,
             },
         },
         {
             required = 10000, -- 10 thousand enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 50,
             },
         },
@@ -228,49 +228,49 @@ AchievementData.Breakpoints = {
         {
             required = 1, -- 1 enemy
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 10, -- 10 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 15,
             },
         },
         {
             required = 50, -- 50 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 100, -- 100 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 300, -- 300 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 30,
             },
         },
         {
             required = 500, -- 500 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 50,
             },
         },
         {
             required = 1000, -- 1000 enemies
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 100,
             },
         },
@@ -279,49 +279,49 @@ AchievementData.Breakpoints = {
         {
             required = 1000, -- 1 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 10000, -- 10 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 100000, -- 100 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 1000000, -- 1 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 10000000, -- 10 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 100000000, -- 100 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 30,
             },
         },
         {
             required = 1000000000, -- 1 Billion damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 50,
             },
         },
@@ -330,49 +330,49 @@ AchievementData.Breakpoints = {
         {
             required = 1000, -- 1 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 10000, -- 10 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 100000, -- 100 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 1000000, -- 1 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 10000000, -- 10 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 100000000, -- 100 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 30,
             },
         },
         {
             required = 1000000000, -- 1 Billion damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 50,
             },
         },
@@ -381,49 +381,49 @@ AchievementData.Breakpoints = {
         {
             required = 1000, -- 1 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 10000, -- 10 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 5,
             },
         },
         {
             required = 100000, -- 100 Thousand damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 1000000, -- 1 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 10,
             },
         },
         {
             required = 10000000, -- 10 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 20,
             },
         },
         {
             required = 100000000, -- 100 Million damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 30,
             },
         },
         {
             required = 1000000000, -- 1 Billion damage
             reward = {
-                type = TRACKED_STATS.Gems,
+                type = TRACKED_STATS.Gem,
                 amount = 50,
             },
         },

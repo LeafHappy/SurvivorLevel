@@ -5,7 +5,7 @@ local Currencies = {
         priority = 500,
     },
     {
-        name = "gems",
+        name = "gem",
         icon = DCEI.Texture("cartoon_icon_gem2_wildsurvivor"),
         priority = 600,
     },

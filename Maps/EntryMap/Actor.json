@@ -74,6 +74,30 @@
                 ]
             }
         },
+        "Background - Purple Cloud - Large": {
+            "prefix": "",
+            "unitActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "2d_wildsurvivor_prop_purplecloud1"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": -1
+                }
+            }
+        },
+        "Background - Purple Cloud - Small": {
+            "prefix": "",
+            "unitActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "2d_wildsurvivor_prop_purplecloud2"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": -1
+                }
+            }
+        },
         "Bomb - VFX": {
             "parent": "_FX OneShot SelfRemoving",
             "modelActor": {
@@ -2634,8 +2658,47 @@
             "parent": "_Prop - FG",
             "unitActor": {
                 "resource": {
-                    "type": "Animation2D",
-                    "name": "2d_merge2_item_maplepumpkin_rank8"
+                    "type": "Sprite",
+                    "name": "cartoon_pumpkin_rank1_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
+        "Camp - Prop - Pumpkin - 02": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_pumpkin_rank2_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
+        "Camp - Prop - Pumpkin - 03": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_pumpkin_rank3_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
+        "Camp - Prop - Pumpkin - 04": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_pumpkin_survival"
                 },
                 "animation2dOptions": {
                     "renderingQueue": 1
@@ -4061,6 +4124,38 @@
                     "Destroy On Remove"
                 ],
                 "modelScale": 0.5
+            }
+        },
+        "Editor - Ghost - Thicket Tree Degrade - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "prop_wildsurvivor_map2_tree03"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "playAnimation": {
+                                    "clipId": 2
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "modelScale": 0.45,
+                "hostSiteOperations": [
+                    "Editor - Ghost - Degradable Tree - Offset"
+                ]
             }
         },
         "Editor - Ghost - Tree Degrade - 01": {
@@ -7404,6 +7499,16 @@
                                 }
                             }
                         ]
+                    },
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "setVisibility": {}
+                            }
+                        ]
                     }
                 ],
                 "eventMacros": [
@@ -8049,6 +8154,26 @@
                 "modelScale": 0.35
             }
         },
+        "Loot - Gem": {
+            "prefix": "",
+            "parent": "_Loot",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "flat_icon_emoji_1f356_ipick"
+                },
+                "modelScale": 1
+            }
+        },
+        "Loot - Gem - Collect SFX": {
+            "parent": "_SFX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "Sound",
+                    "name": "smh_coin_spend"
+                }
+            }
+        },
         "Loot - Gold": {
             "prefix": "",
             "parent": "_Loot",
@@ -8066,6 +8191,22 @@
                 "resource": {
                     "type": "Sound",
                     "name": "smh_coin_land"
+                }
+            }
+        },
+        "Loot - Hard Wood": {
+            "prefix": "",
+            "parent": "_Loot",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "Wildsurvivor_prop_f_ndeadwood01"
+                },
+                "modelScale": 1,
+                "scaleMultiplier": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
                 }
             }
         },
@@ -8196,6 +8337,28 @@
                     "name": "wood_chest_wildsurvivor"
                 },
                 "modelScale": 0.15
+            }
+        },
+        "Loot - Plank": {
+            "prefix": "",
+            "parent": "_Loot",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "icon_gear_plank_03"
+                },
+                "hostSiteOperations": [
+                    "SOp UpBy Dot1"
+                ]
+            }
+        },
+        "Loot - Plank - Collect SFX": {
+            "parent": "_SFX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "Sound",
+                    "name": "wood_armor_hit_v1"
+                }
             }
         },
         "Loot - Potion": {
@@ -10378,6 +10541,43 @@
                 },
                 "spriteOptions": {
                     "disableCameraFacing": true,
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Simple - Glow": {
+            "prefix": "",
+            "unitActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "vfx_2d_wildsurvivor_madscientist_speedup_status"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "playAnimation": {
+                                    "clipId": 2
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.1,
+                    "y": 0.1,
+                    "z": 0.1
+                },
+                "animation2dOptions": {
                     "renderingQueue": 2
                 }
             }
@@ -13191,7 +13391,7 @@
                 "modelScale": 0.5
             }
         },
-        "Throw Resource - Gems": {
+        "Throw Resource - Gem": {
             "prefix": "",
             "unitActor": {
                 "resource": {
@@ -13313,6 +13513,67 @@
                 ]
             }
         },
+        "Throw Resource - Hard Wood": {
+            "prefix": "",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "Wildsurvivor_prop_f_ndeadwood01"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "createTimer": {
+                                    "name": "destroy",
+                                    "duration": 0.5
+                                }
+                            },
+                            {
+                                "setSiteOperations": {
+                                    "siteOperations": [
+                                        "MoveBy Random - 1"
+                                    ],
+                                    "duration": 0.05
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.5
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.05,
+                                    "duration": 0.5,
+                                    "ease": 25
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onTimer": {
+                                "name": "destroy"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "playSound": {
+                                    "soundName": "wood_armor_hit_v1"
+                                }
+                            },
+                            {
+                                "destroy": {}
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
         "Throw Resource - Impact VFX - Actor": {
             "modelActor": {
                 "resource": {
@@ -13327,6 +13588,67 @@
                 "resource": {
                     "type": "Sprite",
                     "name": "flat_icon_emoji_1f356_ipick"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "createTimer": {
+                                    "name": "destroy",
+                                    "duration": 0.5
+                                }
+                            },
+                            {
+                                "setSiteOperations": {
+                                    "siteOperations": [
+                                        "MoveBy Random - 1"
+                                    ],
+                                    "duration": 0.05
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.75
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.05,
+                                    "duration": 0.5,
+                                    "ease": 25
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onTimer": {
+                                "name": "destroy"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "playSound": {
+                                    "soundName": "smh_coin_spend"
+                                }
+                            },
+                            {
+                                "destroy": {}
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "Throw Resource - Plank": {
+            "prefix": "",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "icon_gear_plank_03"
                 },
                 "events": [
                     {
@@ -16341,16 +16663,11 @@
                     },
                     "actions": [
                         {
-                            "create": {
-                                "actor": "Hybrid - Spend Area"
-                            }
-                        },
-                        {
                             "setVariable": {
                                 "name": "HasSpend",
                                 "valueExpression": {
                                     "constant": {
-                                        "value": 1
+                                        "value": 0
                                     }
                                 }
                             }
@@ -16377,6 +16694,7 @@
                                         "name": "HasSpend"
                                     }
                                 },
+                                "op": 1,
                                 "right": {
                                     "constant": {
                                         "value": 1
@@ -16399,6 +16717,12 @@
                                         "value": 1
                                     }
                                 }
+                            }
+                        },
+                        {
+                            "log": {
+                                "type": 2,
+                                "message": "show spend"
                             }
                         }
                     ]
@@ -16468,20 +16792,11 @@
                     },
                     "actions": [
                         {
-                            "create": {
-                                "actor": "Hybrid - Stand",
-                                "hostSiteOperations": [
-                                    "SOp MoveBy 1.5"
-                                ],
-                                "detached": true
-                            }
-                        },
-                        {
                             "setVariable": {
                                 "name": "HasStand",
                                 "valueExpression": {
                                     "constant": {
-                                        "value": 1
+                                        "value": 0
                                     }
                                 }
                             }
@@ -16524,7 +16839,7 @@
                                 "hostSiteOperations": [
                                     "SOp MoveBy 1.5"
                                 ],
-                                "detached": true
+                                "detached": false
                             }
                         },
                         {

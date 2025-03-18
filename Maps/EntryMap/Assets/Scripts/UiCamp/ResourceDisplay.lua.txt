@@ -12,7 +12,7 @@ local GMUI = require("GMUI:Presentation")
 
 local Animation = require("Presentation/Animation")
 local DataManager = require("UiMeta/DataManager")
-local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 local FlyingLocationData = require("UiMeta/FlyingLocationData")
 local ui = GMUI.ui
 
@@ -53,7 +53,7 @@ local function CreateResourceBar(currency_type, value_expression, parent)
         parent = parent.Frame,
     })
 
-    layout.state.icon = DisplayedGameStats[currency_type].Icon
+    layout.state.icon = ResourceData.Map[currency_type].Icon
     DCEI.SetTextFrameTextExpression(layout.Label, value_expression)
     DCEI.SetFrameImageFillAmountExpression(layout.Mask, "Game." .. currency_type .. ".fill")
 
@@ -117,12 +117,12 @@ function ResourceDisplay.UpdateBar(currency_type, target_amount, skip_animation)
 end
 
 function ResourceDisplay.Create(parent)
-    CreateResourceBar(TRACKED_STATS.Wood, "{Game." .. TRACKED_STATS.Wood .. ".value}", parent)
-    CreateResourceBar(TRACKED_STATS.Stone, "{Game." .. TRACKED_STATS.Stone .. ".value}", parent)
-    CreateResourceBar(TRACKED_STATS.Pumpkin, "{Game." .. TRACKED_STATS.Pumpkin .. ".value}", parent)
-    CreateResourceBar(TRACKED_STATS.Meat, "{Game." .. TRACKED_STATS.Meat .. ".value}", parent)
-    CreateResourceBar(TRACKED_STATS.Gold, "{Game." .. TRACKED_STATS.Gold .. ".value}", parent)
-    CreateResourceBar(TRACKED_STATS.Gems, "{Game." .. TRACKED_STATS.Gems .. ".value}", parent)
+    for _, resource_data in ipairs(ResourceData.List) do
+        --
+        local currency_type = resource_data.TrackedStat
+        local value_expression = "{Game." .. currency_type .. ".value}"
+        CreateResourceBar(currency_type, value_expression, parent)
+    end
 end
 
 ---============================================================================
@@ -130,62 +130,18 @@ end
 ---SECTION: Events
 ---============================================================================
 
----@param amount number
-local function SetWood(amount)
-    local currency_type = TRACKED_STATS.Wood
-    ui.GameState[currency_type].value = amount
-    ResourceDisplay.UpdateBar(currency_type, amount, true)
-end
+for _, resource_data in ipairs(ResourceData.List) do
+    --
 
----@param amount number
-local function SetStone(amount)
-    local currency_type = TRACKED_STATS.Stone
-    ui.GameState[currency_type].value = amount
-    ResourceDisplay.UpdateBar(currency_type, amount, true)
-end
+    local function SetResourceDisplay(amount)
+        local currency_type = resource_data.TrackedStat
+        ui.GameState[currency_type].value = amount
+        ResourceDisplay.UpdateBar(currency_type, amount, true)
+    end
 
----@param amount number
-local function SetPumpkin(amount)
-    local currency_type = TRACKED_STATS.Pumpkin
-    ui.GameState[currency_type].value = amount
-    ResourceDisplay.UpdateBar(currency_type, amount, true)
+    local event_id = resource_data.DisplayUpdateEvent
+    Core.Event.RegisterPresentationEvent(event_id, SetResourceDisplay)
 end
-
----@param amount number
-local function SetMeat(amount)
-    local currency_type = TRACKED_STATS.Meat
-    ui.GameState[currency_type].value = amount
-    ResourceDisplay.UpdateBar(currency_type, amount, true)
-end
-
----@param amount number
-local function SetGems(amount)
-    local currency_type = TRACKED_STATS.Gems
-    ui.GameState[currency_type].value = amount
-    ResourceDisplay.UpdateBar(currency_type, amount, true)
-end
-
----@param amount number
-local function SetGold(amount)
-    local currency_type = TRACKED_STATS.Gold
-    ui.GameState[currency_type].value = amount
-    ResourceDisplay.UpdateBar(currency_type, amount, true)
-end
-
----@param limit number
-local function SetGoldLimit(limit)
-    local currency_type = TRACKED_STATS.Gold
-    ui.GameState[currency_type].limit = limit
-    ui.GameState[currency_type].fill = GetBarFill(currency_type)
-end
-
-Core.Event.RegisterPresentationEvent("Camp.Overlay.SetWood", SetWood)
-Core.Event.RegisterPresentationEvent("Camp.Overlay.SetStone", SetStone)
-Core.Event.RegisterPresentationEvent("Camp.Overlay.SetPumpkin", SetPumpkin)
-Core.Event.RegisterPresentationEvent("Camp.Overlay.SetMeat", SetMeat)
-Core.Event.RegisterPresentationEvent("Camp.Overlay.SetGems", SetGems)
-Core.Event.RegisterPresentationEvent("Camp.Overlay.SetGold", SetGold)
-Core.Event.RegisterPresentationEvent("Camp.Overlay.SetGoldLimit", SetGoldLimit)
 
 ---============================================================================
 ---!SECTION: Events

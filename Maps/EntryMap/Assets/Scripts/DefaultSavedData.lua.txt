@@ -1,7 +1,7 @@
 local DefaultSavedData = {
     version = 7,
     currency = {
-        gems = 0,
+        gem = 0,
     },
     heroes = {
         Annie = {
@@ -50,7 +50,7 @@ local DefaultSavedData = {
                 level = 1,
             },
             {
-                type = "gems",
+                type = "gem",
                 level = 1,
             },
         },

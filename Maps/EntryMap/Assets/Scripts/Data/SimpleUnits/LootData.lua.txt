@@ -12,6 +12,8 @@ local Vector2 = require("Class/Vector2")
 local Colors = require("Data/Colors")
 local EJS = require("Data/EJS")
 
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
 local Help = require("Help")
 
 local _Dev = require("_Dev")
@@ -98,31 +100,6 @@ local LootData = {
         Effect = DCEI.Effect("Loot - Potion Charge - OnEnter"),
     }),
 
-    ---ANCHOR: Meta Resources
-    -- Wood
-    Wood = RegisterLoot({
-        Type = DCEI.SimpleUnit("Loot - Wood"),
-        Effect = DCEI.Effect("Loot - Wood - OnEnter"),
-    }),
-    Stone = RegisterLoot({
-        Type = DCEI.SimpleUnit("Loot - Stone"),
-        Effect = DCEI.Effect("Loot - Stone - OnEnter"),
-    }),
-    Pumpkin = RegisterLoot({
-        Type = DCEI.SimpleUnit("Loot - Pumpkin"),
-        Effect = DCEI.Effect("Loot - Pumpkin - OnEnter"),
-    }),
-    -- Meat
-    Meat = RegisterLoot({
-        Type = DCEI.SimpleUnit("Loot - Meat"),
-        Effect = DCEI.Effect("Loot - Meat - OnEnter"),
-    }),
-    -- Gold
-    Gold = RegisterLoot({
-        Type = DCEI.SimpleUnit("Loot - Gold"),
-        Effect = DCEI.Effect("Loot - Gold - OnEnter"),
-    }),
-
     ---ANCHOR: Meta Chests
     NormalChest = RegisterLoot({
         Type = DCEI.SimpleUnit("Loot - Normal Chest"),
@@ -137,6 +114,19 @@ local LootData = {
         Effect = DCEI.Effect("Loot - Boss Chest - OnEnter"),
     }),
 }
+
+---ANCHOR: Meta Resources
+for _, resource_data in ipairs(ResourceData.List) do
+    -- Automate Resource Data
+    local key = resource_data.Key
+    local loot_type = resource_data.Loot
+    local on_enter_effect = resource_data.OnEnter
+
+    LootData[key] = RegisterLoot({
+        Type = loot_type,
+        Effect = on_enter_effect,
+    })
+end
 
 -- ================================================================================================
 -- !SECTION -- Initialization

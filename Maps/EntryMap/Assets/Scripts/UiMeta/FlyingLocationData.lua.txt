@@ -11,7 +11,7 @@ return {
         end_offset_x = -80,
         end_offset_y = 0,
     },
-    [TRACKED_STATS.Gems] = {
+    [TRACKED_STATS.Gem] = {
         end_offset_x = -80,
         end_offset_y = 0,
     },

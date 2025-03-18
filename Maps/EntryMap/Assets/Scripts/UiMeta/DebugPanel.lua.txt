@@ -18,19 +18,19 @@ local layout = GMUI.LazyLayout.New({
 -- LAYOUT FUNCTIONS
 function layout:Initialize()
     -- Setup dev buttons
-    DCEI.SetOnClickCallback(self.Reset, function() 
+    DCEI.SetOnClickCallback(self.Reset, function()
         DCEI.PlaySound(DCEI.Sound("smh_click_start"))
         DataManager.SetCurrentStage(4)
         DataManager.Save()
     end)
 
-    DCEI.SetOnClickCallback(self.SpawnGold, function() 
+    DCEI.SetOnClickCallback(self.SpawnGold, function()
         DCEI.PlaySound(DCEI.Sound("smh_click_start"))
         FlyingRewards.SpawnRewards(TRACKED_STATS.Gold, 20, 100)
     end)
-    DCEI.SetOnClickCallback(self.SpawnGems, function() 
+    DCEI.SetOnClickCallback(self.SpawnGems, function()
         DCEI.PlaySound(DCEI.Sound("smh_click_start"))
-        FlyingRewards.SpawnRewards(TRACKED_STATS.Gems, 20, 100)
+        FlyingRewards.SpawnRewards(TRACKED_STATS.Gem, 20, 100)
     end)
     layout:Show()
 end

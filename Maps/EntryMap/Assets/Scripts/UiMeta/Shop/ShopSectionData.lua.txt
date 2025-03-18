@@ -2,92 +2,92 @@ local ShopProductID = require("UiMeta/Shop/ShopProductID")
 local SectionCustomCallbacks = require("UiMeta/Shop/SectionCustomCallbacks")
 
 return {
-	{
-		name = "daily",
-		display_name = "DAILY DEALS",
-		rows = {
-			{
-				ShopProductID.SHOP_DAILY_01,
-				ShopProductID.SHOP_DAILY_02,
-				ShopProductID.SHOP_DAILY_03,
-			},
-		},
-		navigation = {
-			use_display_name = false,
-			icon = DCEI.Texture("general_icon_mergewar_flat_calendar1_wildsurvivor"),
-		},
-		custom_xml = "Meta/Shop/DailyShopSection",
-		callbacks = {
-			on_create_callback = SectionCustomCallbacks.OnAdRefreshSectionCreated,
-			nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
-			nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
-		},
-	},
-	{
-		name = "chest",
-		display_name = "CHESTS",
-		rows = {
-			{
-				ShopProductID.SHOP_CHEST_01,
-				ShopProductID.SHOP_CHEST_02,
-				ShopProductID.SHOP_CHEST_03,
-			},
-		},
-		navigation = {
-			use_display_name = false,
-			icon = DCEI.Texture("icon_chest_wildsurvivor"),
-		},
-		custom_xml = "Meta/Shop/Section",
-		callbacks = {
-			nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
-			nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
-		},
-	},
-	{
-		name = "gems",
-		display_name = "GEMS",
-		rows = {
-			{
-				ShopProductID.IAP_GEM_01,
-				ShopProductID.IAP_GEM_02,
-				ShopProductID.IAP_GEM_03,
-			},
-			{
-				ShopProductID.IAP_GEM_04,
-				ShopProductID.IAP_GEM_05,
-				ShopProductID.IAP_GEM_06,
-			},
-		},
-		custom_xml = "Meta/Shop/Section",
-		navigation = {
-			use_display_name = false,
-			icon = DCEI.Texture("cartoon_icon_gem2_wildsurvivor"),
-		},
-		callbacks = {
-			on_create_callback = SectionCustomCallbacks.OnAdRewardSectionCreated,
-			nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
-			nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
-		},
-	},
-	{
-		name = "gold",
-		display_name = "GOLD",
-		rows = {
-			{
-				ShopProductID.SHOP_GOLD_01,
-				ShopProductID.SHOP_GOLD_02,
-				ShopProductID.SHOP_GOLD_03,
-			},
-		},
-		custom_xml = "Meta/Shop/Section",
-		navigation = {
-			use_display_name = false,
-			icon = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
-		},
-		callbacks = {
-			on_create_callback = SectionCustomCallbacks.OnAdRewardSectionCreated,
-			nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
-			nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
-		},
-	},
+    {
+        name = "daily",
+        display_name = "DAILY DEALS",
+        rows = {
+            {
+                ShopProductID.SHOP_DAILY_01,
+                ShopProductID.SHOP_DAILY_02,
+                ShopProductID.SHOP_DAILY_03,
+            },
+        },
+        navigation = {
+            use_display_name = false,
+            icon = DCEI.Texture("general_icon_mergewar_flat_calendar1_wildsurvivor"),
+        },
+        custom_xml = "Meta/Shop/DailyShopSection",
+        callbacks = {
+            on_create_callback = SectionCustomCallbacks.OnAdRefreshSectionCreated,
+            nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
+            nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
+        },
+    },
+    {
+        name = "chest",
+        display_name = "CHESTS",
+        rows = {
+            {
+                ShopProductID.SHOP_CHEST_01,
+                ShopProductID.SHOP_CHEST_02,
+                ShopProductID.SHOP_CHEST_03,
+            },
+        },
+        navigation = {
+            use_display_name = false,
+            icon = DCEI.Texture("icon_chest_wildsurvivor"),
+        },
+        custom_xml = "Meta/Shop/Section",
+        callbacks = {
+            nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
+            nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
+        },
+    },
+    {
+        name = "gem",
+        display_name = "GEMS",
+        rows = {
+            {
+                ShopProductID.IAP_GEM_01,
+                ShopProductID.IAP_GEM_02,
+                ShopProductID.IAP_GEM_03,
+            },
+            {
+                ShopProductID.IAP_GEM_04,
+                ShopProductID.IAP_GEM_05,
+                ShopProductID.IAP_GEM_06,
+            },
+        },
+        custom_xml = "Meta/Shop/Section",
+        navigation = {
+            use_display_name = false,
+            icon = DCEI.Texture("cartoon_icon_gem2_wildsurvivor"),
+        },
+        callbacks = {
+            on_create_callback = SectionCustomCallbacks.OnAdRewardSectionCreated,
+            nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
+            nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
+        },
+    },
+    {
+        name = "gold",
+        display_name = "GOLD",
+        rows = {
+            {
+                ShopProductID.SHOP_GOLD_01,
+                ShopProductID.SHOP_GOLD_02,
+                ShopProductID.SHOP_GOLD_03,
+            },
+        },
+        custom_xml = "Meta/Shop/Section",
+        navigation = {
+            use_display_name = false,
+            icon = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
+        },
+        callbacks = {
+            on_create_callback = SectionCustomCallbacks.OnAdRewardSectionCreated,
+            nav_button_highlight_callback = SectionCustomCallbacks.HighlightNavButton,
+            nav_button_unhighlight_callback = SectionCustomCallbacks.UnHighlightNavButton,
+        },
+    },
 }

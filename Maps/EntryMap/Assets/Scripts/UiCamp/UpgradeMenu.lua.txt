@@ -1,0 +1,171 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+local PresentationTimer = require("Presentation/PresentationTimer")
+local Animation = require("Presentation/Animation")
+
+local UpgradeMenuItem = require("UiCamp/UpgradeMenuItem")
+
+local UpgradeData = require("SharedData/Talents/UpgradeData")
+
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- DATA
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local REF = {}
+
+local IN_ANIMATION = false
+
+-- HELPERS
+local ui = GMUI.ui
+local Layout = GMUI.Layout.New({
+    name = "Hybrid/UpgradeMenu",
+    parent = ui.root,
+})
+
+---@type table<UpgradeMenuItem>
+local ItemLayouts = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---comment
+---@param parent Layout
+---@param ordered_list table<UpgradeData>
+local function GenerateItemLayouts(parent, ordered_list)
+    for _, upgrade_data in ipairs(ordered_list) do
+        local item = UpgradeMenuItem.New(parent, upgrade_data.Key)
+        table.insert(ItemLayouts, item)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Layout
+---============================================================================
+
+function Layout:Initialize()
+    self:Show()
+
+    -- Close Button
+    DCEI.SetOnClickCallback(self.CloseButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        self:Close()
+    end)
+
+    -- Items
+    GenerateItemLayouts(self.Items, UpgradeData.List)
+
+    -- Outside Click
+    DCEI.SetOnClickOutsideCallback(self.Frame, function()
+        self:Close()
+    end)
+
+    self:Hide()
+end
+
+function Layout:UpdateItems(data_pass)
+    for _, item in ipairs(ItemLayouts) do
+        local level = data_pass[item.Key] or 0
+        item:Update(level)
+    end
+end
+
+function Layout:Open()
+    if IN_ANIMATION then
+        return
+    end
+    IN_ANIMATION = true
+
+    self:Show()
+    Animation.FadeIn(self.Frame, 0.25)
+
+    PresentationTimer.Create(function()
+        IN_ANIMATION = false
+    end, 0.25)
+end
+
+function Layout:Close()
+    if IN_ANIMATION then
+        return
+    end
+    IN_ANIMATION = true
+
+    Animation.FadeOut(self.Frame, 0.25)
+
+    PresentationTimer.Create(function()
+        IN_ANIMATION = false
+        self:Hide()
+    end, 0.25)
+end
+
+---============================================================================
+---!SECTION: Layout
+---SECTION: Overrides
+---============================================================================
+
+function Layout:OnShow()
+    --
+end
+
+function Layout:OnHide()
+    --
+end
+
+---============================================================================
+---!SECTION: Overrides
+---SECTION: Event Handling
+---============================================================================
+
+local Events = {}
+
+function Events.Update(data_pass)
+    Help.Log("Upgrade Menu Data pass", nil, data_pass)
+    Layout:UpdateItems(data_pass)
+end
+
+function Events.Open()
+    Layout:Open()
+end
+
+function Events.Close()
+    Layout:Close()
+end
+
+---============================================================================
+---!SECTION: Event Handling
+---SECTION: Event Registration
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("UpgradeMenu.Update", Events.Update)
+Core.Event.RegisterPresentationEvent("UpgradeMenu.Open", Events.Open)
+Core.Event.RegisterPresentationEvent("UpgradeMenu.Close", Events.Close)
+
+---============================================================================
+---!SECTION: Event Registration
+---============================================================================
+
+Layout:Initialize()
+
+return Layout

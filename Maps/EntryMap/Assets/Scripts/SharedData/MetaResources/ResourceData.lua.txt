@@ -1,272 +1,185 @@
 ---@class ResourceData
----@field key string
----@field display_name string
----@field icon string
----@field stat TRACKED_STATS
----@field order_priority number
----@field is_material boolean
+---@field Key string UniqueId
+---@field SaveKey table<string>
+---@field TrackedStat TRACKED_STATS
+---@field DisplayName string
+---@field Icon string
+---@field Sound string
+---@field DisplayUpdateEvent string
+---@field ThrowEffect string
+---@field Loot string
+---@field OnEnter string
 
----@table<ResourceData>
-local ResourceData = {
-    ---ANCHOR: Core Resources
-    gold = {
-        key = "gold",
-        display_name = "Gold",
-        type = RESOURCE_TYPE.Currency,
-        icon = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
-        stat = TRACKED_STATS.Gold,
-        order_priority = 1,
-        is_material = false,
+local ResourceData = {}
+
+---@table table<ResourceData>
+ResourceData.List = {
+    {
+        Key = "Wood",
+
+        -- Types
+        SaveKey = SAVE_KEY.Wood,
+        TrackedStat = TRACKED_STATS.Wood,
+
+        -- UI
+        DisplayName = "Wood",
+        Icon = DCEI.Texture("cartoon_icon_forest_wood_bg_wildsurvivor"),
+        Sound = DCEI.Sound("wood_armor_hit_v1"),
+        DisplayUpdateEvent = "Camp.Overlay.SetWood",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Wood - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Wood"),
+        OnEnter = DCEI.Effect("Loot - Wood - OnEnter"),
     },
-    gems = {
-        key = "gems",
-        display_name = "Gems",
-        type = RESOURCE_TYPE.Currency,
-        icon = DCEI.Texture("icon_item_gem_placeholder"),
-        -- stat = TRACKED_STATS.Gems,
-        order_priority = 2,
-        is_material = false,
+    {
+        Key = "Plank",
+
+        -- Types
+        SaveKey = SAVE_KEY.Plank,
+        TrackedStat = TRACKED_STATS.Plank,
+
+        -- UI
+        DisplayName = "Plank",
+        Icon = DCEI.Texture("icon_gear_plank_03"),
+        Sound = DCEI.Sound("wood_armor_hit_v1"),
+        DisplayUpdateEvent = "Camp.Overlay.SetPlank",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Plank - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Plank"),
+        OnEnter = DCEI.Effect("Loot - Plank - OnEnter"),
     },
-    -- ANCHOR: Materials
-    meta_alpha_1 = {
-        key = "meta_alpha_1",
-        display_name = "Meta Alpha 1",
-        type = RESOURCE_TYPE.Material,
-        icon = DCEI.Texture("icon_catalyst_main_item10_green_01_wildsurvivor"),
-        -- stat = TRACKED_STATS.MetaAlpha1,
-        order_priority = 3,
-        is_material = true,
+    {
+        Key = "HardWood",
+
+        -- Types
+        SaveKey = SAVE_KEY.HardWood,
+        TrackedStat = TRACKED_STATS.HardWood,
+
+        -- UI
+        DisplayName = "Wood",
+        Icon = DCEI.Texture("Wildsurvivor_prop_f_ndeadwood01"),
+        Sound = DCEI.Sound("wood_armor_hit_v1"),
+        DisplayUpdateEvent = "Camp.Overlay.SetHardWood",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Hard Wood - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Hard Wood"),
+        OnEnter = DCEI.Effect("Loot - Hard Wood - OnEnter"),
     },
-    meta_alpha_2 = {
-        key = "meta_alpha_2",
-        display_name = "Meta Alpha 2",
-        type = RESOURCE_TYPE.Material,
-        icon = DCEI.Texture("icon_catalyst_main_item10_violet_01_wildsurvivor"),
-        -- stat = TRACKED_STATS.MetaAlpha2,
-        order_priority = 4,
-        is_material = true,
+    {
+        Key = "Stone",
+
+        -- Types
+        SaveKey = SAVE_KEY.Stone,
+        TrackedStat = TRACKED_STATS.Stone,
+
+        -- UI
+        DisplayName = "Stone",
+        Icon = DCEI.Texture("wildcastle_terrain_forestland_prop_stone"),
+        Sound = DCEI.Sound("mergewar_rock_hit3"),
+        DisplayUpdateEvent = "Camp.Overlay.SetStone",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Stone - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Stone"),
+        OnEnter = DCEI.Effect("Loot - Stone - OnEnter"),
     },
-    meta_beta_1 = {
-        key = "meta_beta_1",
-        display_name = "Meta Beta 1",
-        type = RESOURCE_TYPE.Material,
-        icon = DCEI.Texture("icon_catalyst_main_item11_cerulean_01_wildsurvivor"),
-        -- stat = TRACKED_STATS.MetaBeta1,
-        order_priority = 5,
-        is_material = true,
+    {
+        Key = "Pumpkin",
+
+        -- Types
+        SaveKey = SAVE_KEY.Pumpkin,
+        TrackedStat = TRACKED_STATS.Pumpkin,
+
+        -- UI
+        DisplayName = "Pumpkin",
+        Icon = DCEI.Texture("cartoon_pumpkin_survival"),
+        Sound = DCEI.Sound("smh_hachimi_shark_impact2"),
+        DisplayUpdateEvent = "Camp.Overlay.SetPumpkin",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Pumpkin - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Pumpkin"),
+        OnEnter = DCEI.Effect("Loot - Pumpkin - OnEnter"),
     },
-    meta_beta_2 = {
-        key = "meta_beta_2",
-        display_name = "Meta Beta 2",
-        type = RESOURCE_TYPE.Material,
-        icon = DCEI.Texture("icon_catalyst_main_item11_orange_01_wildsurvivor"),
-        -- stat = TRACKED_STATS.MetaBeta2,
-        order_priority = 6,
-        is_material = true,
+    {
+        Key = "Meat",
+
+        -- Types
+        SaveKey = SAVE_KEY.Meat,
+        TrackedStat = TRACKED_STATS.Meat,
+
+        -- UI
+        DisplayName = "Meat",
+        Icon = DCEI.Texture("flat_icon_emoji_1f356_ipick"),
+        Sound = DCEI.Sound("smh_hachimi_shark_impact1"),
+        DisplayUpdateEvent = "Camp.Overlay.SetMeat",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Meat - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Meat"),
+        OnEnter = DCEI.Effect("Loot - Meat - OnEnter"),
     },
-    meta_charlie_1 = {
-        key = "meta_charlie_1",
-        display_name = "Meta Charlie 1",
-        type = RESOURCE_TYPE.Material,
-        icon = DCEI.Texture("icon_catalyst_main_item4_blue_01_wildsurvivor"),
-        -- stat = TRACKED_STATS.MetaCharlie1,
-        order_priority = 7,
-        is_material = true,
+    {
+        Key = "Gold",
+
+        -- Types
+        SaveKey = SAVE_KEY.Gold,
+        TrackedStat = TRACKED_STATS.Gold,
+
+        -- UI
+        DisplayName = "Gold",
+        Icon = DCEI.Texture("cartoon_icon_coin3_wildsurvivor"),
+        Sound = DCEI.Sound("smh_coin_spend"),
+        DisplayUpdateEvent = "Camp.Overlay.SetGold",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Gold - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Gold"),
+        OnEnter = DCEI.Effect("Loot - Gold - OnEnter"),
     },
-    meta_charlie_2 = {
-        key = "meta_charlie_2",
-        display_name = "Meta Charlie 2",
-        type = RESOURCE_TYPE.Material,
-        icon = DCEI.Texture("icon_catalyst_main_item4_green_01_wildsurvivor"),
-        -- stat = TRACKED_STATS.MetaCharlie2,
-        order_priority = 8,
-        is_material = true,
-    },
-    ---ANCHOR: Heroes
-    s_annie = {
-        key = "s_annie",
-        display_name = "Annie Shards",
-        type = RESOURCE_TYPE.Shard,
-        icon = DCEI.Texture("modern_icon_hero_bighead_annie_wildsurvivor"),
-        -- stat = TRACKED_STATS.AnnieShards,
-        order_priority = 9,
-        is_material = true,
-    },
-    s_jorian = {
-        key = "s_jorian",
-        display_name = "Jorian Shards",
-        type = RESOURCE_TYPE.Shard,
-        icon = DCEI.Texture("modern_icon_hero_bighead_bjornnson_wildsurvivor"),
-        -- stat = TRACKED_STATS.JorianShards,
-        order_priority = 10,
-        is_material = true,
-    },
-    s_erik = {
-        key = "s_erik",
-        display_name = "Erik Shards",
-        type = RESOURCE_TYPE.Shard,
-        icon = DCEI.Texture("modern_icon_hero_bighead_purplebunny_wildsurvivor"),
-        -- stat = TRACKED_STATS.ErikShards,
-        order_priority = 11,
-        is_material = true,
-    },
-    s_ghost = {
-        key = "s_ghost",
-        display_name = "Ghost Shards",
-        type = RESOURCE_TYPE.Shard,
-        icon = DCEI.Texture("modern_icon_hero_bighead_ghost_wildsurvivor"),
-        -- stat = TRACKED_STATS.GhostShards,
-        order_priority = 12,
-        is_material = true,
-    },
-    ---ANCHOR: Chests
-    c_common = {
-        key = "c_common",
-        type = RESOURCE_TYPE.Chest,
-        icon = DCEI.Texture("wood_chest_wildsurvivor"),
-        display_name = "Common Chest",
-    },
-    c_rare = {
-        key = "c_rare",
-        type = RESOURCE_TYPE.Chest,
-        icon = DCEI.Texture("gold_chest_wildsurvivor"),
-        display_name = "Rare Chest",
-    },
-    c_legendary = {
-        key = "c_legendary",
-        type = RESOURCE_TYPE.Chest,
-        icon = DCEI.Texture("dark_chest_wildsurvivor"),
-        display_name = "Legendary Chest",
-    },
-    ---ANCHOR: Trophies
-    t_trophy = {
-        key = "t_trophy",
-        type = RESOURCE_TYPE.Trophy,
-        icon = DCEI.Texture("icon_guild_trophy_wildsurvivor"),
-        display_name = "Trophy",
-    },
-    ---ANCHOR: Upgrades (Spells)
-    u_spectral_arrow = {
-        key = "u_spectral_arrow",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_mystic_archer_survivor"),
-        display_name = "Spectral Arrow",
-        description = "Release a volley of arrows that pierce through enemies.",
-    },
-    u_solar_crest = {
-        key = "u_solar_crest",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_solar_crest_survivor"),
-        display_name = "Solar Crest",
-        description = "Call upon the sun to burn your foes.",
-    },
-    u_clawstorm = {
-        key = "u_clawstorm",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_clawstorm_survivor"),
-        display_name = "Clawstorm",
-        description = "Channel a storm of claws to tear through enemies.",
-    },
-    u_chilling_presence = {
-        key = "u_chilling_presence",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_chilling_presence_survivor"),
-        display_name = "Chilling Presence",
-        description = "Chill the air around you.",
-    },
-    u_lightning_strike = {
-        key = "u_lightning_strike",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_lightning_storm_survivor"),
-        display_name = "Lightning Strike",
-        description = "Release a series of lightning strikes.",
-    },
-    u_chakram = {
-        key = "u_chakram",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_arcane_orb_survivor"),
-        display_name = "Weapon - Chakram",
-        description = "Release a series of Chakram that rotate around you.",
-    },
-    u_frostnova = {
-        key = "u_frostnova",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_frostnova_survivor"),
-        display_name = "Frostnova",
-        description = "Release a powerful wave of frost that slows enemies.",
-    },
-    u_guardian_shield = {
-        key = "u_guardian_shield",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_coffinwall_survivor"),
-        display_name = "Guardian Shield",
-        description = "Form a protective barrier.",
-    },
-    u_viper_strike = {
-        key = "u_viper_strike",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("icon_enhance_candycottage_toxicdroplets_wildsurvivor"),
-        display_name = "Viper Strike",
-        description = "Strike your enemies with a venomous bite.",
-    },
-    u_starblast = {
-        key = "u_starblast",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("icon_enhance_wardedgate_passingjudgement_wildsurvivor"),
-        display_name = "Weapon - Starblast",
-        description = "Release a burst of power.",
-    },
-    ---ANCHOR: Upgrades (Artifacts)
-    u_whirlwind = {
-        key = "u_whirlwind",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_whirlwind_survivor"),
-        display_name = "Artifact - Whirlwind",
-        description = "Generate a violent torrent of wind.",
-    },
-    u_ice_rupture = {
-        key = "u_ice_rupture",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_ice_rupture_survivor"),
-        display_name = "Ice Rupture",
-        description = "Release a powerful spike of ice from the ground.",
-    },
-    u_replicator = {
-        key = "u_replicator",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_replicator_artifact_survivor"),
-        display_name = "Replicator",
-        description = "Shoot more projectiles.",
-    },
-    u_death_blossom = {
-        key = "u_death_blossom",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_death_blossom_survivor"),
-        display_name = "Death Blossom",
-        description = "Create a deadly field of energy that heals you.",
-    },
-    u_hydra = {
-        key = "u_hydra",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("cartoon_icon_skill_hydra_missile_survivor"),
-        display_name = "Hydra",
-        description = "Call upon Hydras to decimate your foes.",
-    },
-    u_flamebreak = {
-        key = "u_flamebreak",
-        type = RESOURCE_TYPE.Upgrade,
-        icon = DCEI.Texture("icon_enhance_flamecannon_furnace_wildsurvivor"),
-        display_name = "Flamebreak",
-        description = "Release a fire nova that breaks down defenses.",
-    },
-    ---ANCHOR: Player Unlocks
-    p_shrines = {
-        key = "p_shrines",
-        type = RESOURCE_TYPE.Passive,
-        icon = DCEI.Texture("shard_tower_loashrine_wildsurvivor"),
-        display_name = "Shrines",
-        description = "You can now find Shrines, granting you blessings when interacted with.",
+    {
+        Key = "Gem",
+
+        -- Types
+        SaveKey = SAVE_KEY.Gem,
+        TrackedStat = TRACKED_STATS.Gem,
+
+        -- UI
+        DisplayName = "Gem",
+        Icon = DCEI.Texture("cartoon_icon_gem2_wildsurvivor"),
+        Sound = DCEI.Sound("smh_coin_spend"),
+        DisplayUpdateEvent = "Camp.Overlay.SetGem",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Gem - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Gem"),
+        OnEnter = DCEI.Effect("Loot - Gem - OnEnter"),
     },
 }
+
+---@type table<string, ResourceData>
+ResourceData.Map = {}
+for _, data in ipairs(ResourceData.List) do
+    ResourceData.Map[data.Key] = data
+end
 
 return ResourceData

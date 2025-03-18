@@ -11,7 +11,7 @@ local GMUI = require("GMUI:Presentation")
 ---============================================================================
 
 local Animation = require("Presentation/Animation")
-local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 local Vector3 = require("Class/Vector3")
 
 ---============================================================================
@@ -65,7 +65,10 @@ local function CreateZoneCostLayout(data)
 
     cost_layout.state.cost = data.cost
     cost_layout.state.spent = data.spent
-    cost_layout.state.icon = DisplayedGameStats[data.resource].Icon or ""
+    cost_layout.state.icon = ResourceData.Map[data.resource].Icon or ""
+
+    -- Update Position (prevents the UI from being screen-center on first frame)
+    MoveFrameToWorldPosition(cost_layout.Frame, data.position)
 
     return cost_layout
 end
@@ -105,7 +108,7 @@ function ZoneCost.Update(data)
     end
 
     Animation.Impact(cost_layout.Frame, {
-        final_size = final_size
+        final_size = final_size,
     })
 end
 

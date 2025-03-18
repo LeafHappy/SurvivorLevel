@@ -66,6 +66,8 @@ local REF = {
     ThrowMeat = DCEI.Effect("Hybrid - Meat Grinder - Throw Meat"),
     ThrowWood = DCEI.Effect("Hybrid - Meat Grinder - Throw Wood"),
     GenerateCoin = DCEI.Effect("Hybrid - Meat Grinder - Spawn Coin"),
+
+    SpawnPlank = DCEI.Effect("Spawn Resource - Plank"),
 }
 
 local POS = {
@@ -885,45 +887,45 @@ local data = {
         },
     },
 
-    TalentExchange = {
-        Key = "TalentExchange",
-        Name = "Talents",
-        UnitType = DCEI.Unit("Hybrid - Talent"),
-        Position = POS.TalentExchange,
-        Rotation = Vector2.New(0, -1),
+    -- TalentExchange = {
+    --     Key = "TalentExchange",
+    --     Name = "Talents",
+    --     UnitType = DCEI.Unit("Hybrid - Talent"),
+    --     Position = POS.TalentExchange,
+    --     Rotation = Vector2.New(0, -1),
 
-        overhead_display = {
-            layout_name = "Hybrid/ResourceNeed",
-            upgrade_type = "Exchange",
-            show_distance = 99,
-            offset = Vector2.New(0, 0),
-        },
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         upgrade_type = "Exchange",
+    --         show_distance = 99,
+    --         offset = Vector2.New(0, 0),
+    --     },
 
-        required_resource = {
-            key = SAVE_KEY.Gold,
-            increase_key = SAVE_KEY.TalentExchange,
-            amount = 10,
-            increasing_amount = 5,
-            spend_distance = 2.5,
-            gain_skill_point = true,
-        },
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         increase_key = SAVE_KEY.TalentExchange,
+    --         amount = 10,
+    --         increasing_amount = 5,
+    --         spend_distance = 2.5,
+    --         gain_skill_point = true,
+    --     },
 
-        ArmorType = ARMOR_TYPES.Default,
-        OnEnter = REF.StructureOnEnter,
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
 
-        Modifiers = {
-            Modifier.New(STAT.Health, 1, SCALING.Scaled),
-        },
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 1, SCALING.Scaled),
+    --     },
 
-        -- quest_requirement = { -- Must start quest before appearing
-        --     key = "tech_up", -- Which quest
-        --     objective = 1, -- Which objective
-        -- },
+    --     -- quest_requirement = { -- Must start quest before appearing
+    --     --     key = "tech_up", -- Which quest
+    --     --     objective = 1, -- Which objective
+    --     -- },
 
-        MetaRequirements = { -- Required to Build
-            META_DATA.talents,
-        },
-    },
+    --     MetaRequirements = { -- Required to Build
+    --         META_DATA.talents,
+    --     },
+    -- },
 
     Talents = {
         Key = "Talents",
@@ -937,11 +939,12 @@ local data = {
             show_distance = 99,
             label = "Talents",
             offset = Vector2.New(0, 0),
-            callback_id = "Hybrid.TalentMenu",
-            required_resource_overhead = {
-                key = SAVE_KEY.SkillPoints,
-                amount = 1,
-            },
+            -- callback_id = "Hybrid.TalentMenu",
+            callback_id = "Hybrid.UpgradeMenu",
+            -- required_resource_overhead = {
+            --     key = SAVE_KEY.SkillPoints,
+            --     amount = 1,
+            -- },
         },
 
         ArmorType = ARMOR_TYPES.Default,
@@ -1672,10 +1675,13 @@ local data = {
             frequency = 0.25,
             increase_frequency = true,
 
-            on_trigger = {
-                effect = REF.ThrowWood,
-                delay = 0.50,
-            },
+            exchange_rate = 3, -- triggers ui pop up
+            fly_effect = REF.ThrowWood,
+            fly_delay = 0.5,
+            -- on_trigger = {
+            --     effect = REF.ThrowWood,
+            --     delay = 0.50,
+            -- },
         },
 
         -- Progress
@@ -1688,6 +1694,7 @@ local data = {
             -- hero_work_speed = 2.00, -- Increases work speed by 200%
             output = {
                 effect = REF.GenerateCoin,
+                -- effect = REF.SpawnPlank,
             },
         },
 

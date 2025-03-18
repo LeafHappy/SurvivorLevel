@@ -16,7 +16,7 @@ local Core = require("Core:Presentation")
 ---@field description string
 ---@field image string | nil -- Will be replaced by shop laps data image instead if nil
 ---@field background_color string
----@field cost_type string -- Can be: "cash", "gold", or "gems"
+---@field cost_type string -- Can be: "cash", "gold", or "gem"
 ---@field cost number
 ---@field time_offered number
 
@@ -29,7 +29,7 @@ local Core = require("Core:Presentation")
 ---@field title string
 ---@field description string
 ---@field background_color string
----@field cost_type string -- Can be: "cash", "gold", or "gems"
+---@field cost_type string -- Can be: "cash", "gold", or "gem"
 ---@field cost number
 ---@field time_offered number
 ---@field items table<BundleItem>

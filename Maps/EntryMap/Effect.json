@@ -3055,60 +3055,23 @@
                 ]
             }
         },
-        "Forest - Prop - Tree - Launch Wood": {
-            "launchMissile": {
-                "missileUnit": "Loot - Wood",
-                "effect": "Spawn - Loot - Wood - Stationary",
-                "launchOffset": {
-                    "explicitOffset": {
-                        "up": 0.5
-                    }
-                },
-                "impactOffset": {
-                    "polarOffset": {}
-                },
-                "mover": "Throw Resource - Launch - Mover"
-            },
-            "universalFieldExpressions": [
-                {
-                    "fieldPath": [
-                        "launchMissile",
-                        "impactOffset",
-                        "polarOffset",
-                        "yaw"
-                    ],
-                    "expression": {
-                        "namedExpression": {
-                            "name": "Random Angle (0 - 360)"
-                        }
-                    }
-                },
-                {
-                    "fieldPath": [
-                        "launchMissile",
-                        "impactOffset",
-                        "polarOffset",
-                        "distance"
-                    ],
-                    "expression": {
-                        "value": {
-                            "random": {
-                                "doubleValue": {
-                                    "min": 0.5,
-                                    "max": 1.5
-                                }
-                            }
-                        }
-                    }
-                }
-            ]
+        "Forest - Prop - Tree - Drop Count": {
+            "persistent": {
+                "periodicCount": 1,
+                "periodicDurations": [
+                    0.0625
+                ],
+                "periodicEffects": [
+                    "Spawn Resource - Wood"
+                ]
+            }
         },
         "Forest - Prop - Tree - OnDeath": {
             "set": {
                 "effectList": [
                     "Prop - Simple - Tree - OnDeath VFX",
                     "Simple Remove Source",
-                    "Forest - Prop - Tree - Launch Wood"
+                    "Forest - Prop - Tree - Drop Count"
                 ]
             }
         },
@@ -3149,6 +3112,12 @@
                 "deltaValue": 1
             }
         },
+        "Gain Stats - Gem": {
+            "parent": "_Gain Experience",
+            "applySimplePlayerStats": {
+                "statsName": "Gem"
+            }
+        },
         "Gain Stats - Gold": {
             "parent": "_Gain Experience",
             "applySimplePlayerStats": {
@@ -3159,6 +3128,12 @@
             "applySimplePlayerStats": {
                 "statsName": "Hall of Life",
                 "deltaValue": 1
+            }
+        },
+        "Gain Stats - Hard Wood": {
+            "parent": "_Gain Experience",
+            "applySimplePlayerStats": {
+                "statsName": "HardWood"
             }
         },
         "Gain Stats - Heroic Point": {
@@ -3219,6 +3194,12 @@
             "parent": "_Gain Experience",
             "applySimplePlayerStats": {
                 "statsName": "Normal Chest"
+            }
+        },
+        "Gain Stats - Plank": {
+            "parent": "_Gain Experience",
+            "applySimplePlayerStats": {
+                "statsName": "Plank"
             }
         },
         "Gain Stats - Potion Charge": {
@@ -4562,6 +4543,23 @@
                 ]
             }
         },
+        "Loot - Gem - Collect SFX": {
+            "spawnActor": {
+                "actor": "Loot - Gem - Collect SFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
+        "Loot - Gem - OnEnter": {
+            "set": {
+                "effectList": [
+                    "Gain Stats - Gem",
+                    "Loot - Gem - Collect SFX",
+                    "Simple Remove Source"
+                ]
+            }
+        },
         "Loot - Gold - OnEnter": {
             "set": {
                 "effectList": [
@@ -4577,6 +4575,15 @@
                 "orientation": {
                     "eulerAnglesRelativeOffset": {}
                 }
+            }
+        },
+        "Loot - Hard Wood - OnEnter": {
+            "set": {
+                "effectList": [
+                    "Gain Stats - Hard Wood",
+                    "Loot - Wood - Spawn SFX",
+                    "Simple Remove Source"
+                ]
             }
         },
         "Loot - Launch": {
@@ -4699,6 +4706,23 @@
             "set": {
                 "effectList": [
                     "Gain Stats - Normal Chest",
+                    "Simple Remove Source"
+                ]
+            }
+        },
+        "Loot - Plank - Collect SFX": {
+            "spawnActor": {
+                "actor": "Loot - Plank - Collect SFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
+        "Loot - Plank - OnEnter": {
+            "set": {
+                "effectList": [
+                    "Gain Stats - Plank",
+                    "Loot - Plank - Collect SFX",
                     "Simple Remove Source"
                 ]
             }
@@ -5442,7 +5466,7 @@
         "Prop - Pumpkin - OnEnter": {
             "set": {
                 "effectList": [
-                    "Spawn Resource - Pumpkin - Launch",
+                    "Spawn Resource - Pumpkin",
                     "Simple Remove Source"
                 ]
             }
@@ -8470,6 +8494,12 @@
                 "playerId": 0
             }
         },
+        "Spawn - Loot - Hard Wood": {
+            "parent": "_Spawn Simple Loot",
+            "simpleSpawn": {
+                "spawnUnitType": "Loot - Hard Wood"
+            }
+        },
         "Spawn - Loot - Large Experience - Far Away": {
             "parent": "Spawn - Loot - Small Experience - Nearby",
             "simpleSpawn": {
@@ -8523,6 +8553,12 @@
                 "spawnUnitType": "Loot - Medium Experience"
             }
         },
+        "Spawn - Loot - Plank": {
+            "parent": "_Spawn Simple Loot",
+            "simpleSpawn": {
+                "spawnUnitType": "Loot - Plank"
+            }
+        },
         "Spawn - Loot - Potion": {
             "parent": "_Simple Spawn",
             "simpleSpawn": {
@@ -8552,10 +8588,9 @@
             }
         },
         "Spawn - Loot - Pumpkin - Stationary": {
-            "parent": "_Simple Spawn",
+            "parent": "_Spawn Simple Loot",
             "simpleSpawn": {
-                "spawnUnitType": "Loot - Pumpkin",
-                "playerId": 0
+                "spawnUnitType": "Loot - Pumpkin"
             }
         },
         "Spawn - Loot - Small Experience - Far Away": {
@@ -8664,17 +8699,156 @@
                 ]
             }
         },
-        "Spawn - Loot - Wood - Stationary": {
+        "Spawn - Loot - Wood": {
             "parent": "_Simple Spawn",
             "simpleSpawn": {
                 "spawnUnitType": "Loot - Wood",
                 "playerId": 0
             }
         },
-        "Spawn Resource - Pumpkin - Launch": {
+        "Spawn Resource - Hard Wood": {
+            "launchMissile": {
+                "missileUnit": "Loot - Hard Wood",
+                "effect": "Spawn - Loot - Hard Wood",
+                "impactLocation": 2,
+                "launchOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "impactOffset": {
+                    "polarOffset": {}
+                },
+                "mover": "Throw Resource - Launch - Mover"
+            },
+            "universalFieldExpressions": [
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "yaw"
+                    ],
+                    "expression": {
+                        "namedExpression": {
+                            "name": "Random Angle (0 - 360)"
+                        }
+                    }
+                },
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "distance"
+                    ],
+                    "expression": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "min": 0.5,
+                                    "max": 1.5
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "Spawn Resource - Plank": {
+            "launchMissile": {
+                "missileUnit": "Loot - Plank",
+                "effect": "Spawn - Loot - Plank",
+                "impactLocation": 2,
+                "mover": "Throw Resource - Launch - Mover"
+            },
+            "universalFieldExpressions": [
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "yaw"
+                    ],
+                    "expression": {
+                        "namedExpression": {
+                            "name": "Random Angle (0 - 360)"
+                        }
+                    }
+                },
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "distance"
+                    ],
+                    "expression": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "min": 0.5,
+                                    "max": 1.5
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "Spawn Resource - Pumpkin": {
             "launchMissile": {
                 "missileUnit": "Loot - Pumpkin",
                 "effect": "Spawn - Loot - Pumpkin - Stationary",
+                "impactLocation": 2,
+                "launchOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "impactOffset": {
+                    "polarOffset": {}
+                },
+                "mover": "Throw Resource - Launch - Mover"
+            },
+            "universalFieldExpressions": [
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "yaw"
+                    ],
+                    "expression": {
+                        "namedExpression": {
+                            "name": "Random Angle (0 - 360)"
+                        }
+                    }
+                },
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "distance"
+                    ],
+                    "expression": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "min": 0.5,
+                                    "max": 1.5
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "Spawn Resource - Wood": {
+            "launchMissile": {
+                "missileUnit": "Loot - Wood",
+                "effect": "Spawn - Loot - Wood",
                 "launchOffset": {
                     "explicitOffset": {
                         "up": 0.5
@@ -8945,16 +9119,6 @@
                 ]
             }
         },
-        "Thicket - Prop - Tree - Degrade - 01 - OnDeath": {
-            "set": {
-                "effectList": [
-                    "Trigger - Spawn - Thicket - Tree - Degrade - 02",
-                    "Prop - Simple - Tree - OnDeath VFX",
-                    "Simple Remove Source",
-                    "Prop - Drop - Chance"
-                ]
-            }
-        },
         "Thicket - Prop - Tree - Degrade - 02 - OnDeath": {
             "set": {
                 "effectList": [
@@ -8985,10 +9149,30 @@
                 ]
             }
         },
-        "Throw Resource - Gems - Launch": {
+        "Thicket - Prop - Tree - Degrade - OnDeath": {
+            "set": {
+                "effectList": [
+                    "Prop - Simple - Tree - OnDeath VFX",
+                    "Simple Remove Source",
+                    "Thicket - Prop - Tree - Drop Count"
+                ]
+            }
+        },
+        "Thicket - Prop - Tree - Drop Count": {
+            "persistent": {
+                "periodicCount": 1,
+                "periodicDurations": [
+                    0.0625
+                ],
+                "periodicEffects": [
+                    "Spawn Resource - Hard Wood"
+                ]
+            }
+        },
+        "Throw Resource - Gem - Launch": {
             "launchMissile": {
                 "targetType": 1,
-                "missileUnit": "Throw Resource - Gems",
+                "missileUnit": "Throw Resource - Gem",
                 "offsetStart": 4,
                 "impactOffset": {
                     "explicitOffset": {
@@ -9011,6 +9195,19 @@
                 "mover": "Throw Resource - Launch - Mover"
             }
         },
+        "Throw Resource - Hard Wood - Launch": {
+            "launchMissile": {
+                "targetType": 1,
+                "missileUnit": "Throw Resource - Hard Wood",
+                "offsetStart": 4,
+                "impactOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "mover": "Throw Resource - Launch - Mover"
+            }
+        },
         "Throw Resource - Impact VFX": {
             "spawnActor": {
                 "actor": "Throw Resource - Impact VFX - Actor",
@@ -9023,6 +9220,19 @@
             "launchMissile": {
                 "targetType": 1,
                 "missileUnit": "Throw Resource - Meat",
+                "offsetStart": 4,
+                "impactOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "mover": "Throw Resource - Launch - Mover"
+            }
+        },
+        "Throw Resource - Plank - Launch": {
+            "launchMissile": {
+                "targetType": 1,
+                "missileUnit": "Throw Resource - Plank",
                 "offsetStart": 4,
                 "impactOffset": {
                     "explicitOffset": {

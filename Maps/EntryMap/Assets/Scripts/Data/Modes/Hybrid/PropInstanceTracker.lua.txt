@@ -40,7 +40,9 @@ local Help = require("Help")
 -- SECTION -- Local Data
 ---============================================================================
 
-local REF = {}
+local REF = {
+    SimpleGlow = DCEI.SimpleUnit("Simple - Glow"),
+}
 
 ---@type table<string, SimpleUnit>
 local REGISTERED_UNITS = {}
@@ -74,6 +76,10 @@ function PropInstanceTracker.New(prop_data, zone_position)
     self.PropSeriesIndex = 0
 
     if self.PropData.Settings.SpawnImmediately then
+        if self.PropData.Settings.GrowTime then -- Start Grown
+            self.PropSeriesIndex = #self.PropData.Settings.PropSeries - 1
+        end
+
         self:_SpawnInstance()
     elseif self.PropData.Settings.DestroyedPlaceholder then
         self:_SpawnPlaceholder()
@@ -85,6 +91,7 @@ end
 function PropInstanceTracker:Reset()
     ---TODO: Remove Instance if one exists
     self.Instance = nil
+    self.GlowInstance = nil
     self.Timer = 0
 
     self.DestroyedInstance = nil
@@ -104,6 +111,20 @@ local function CheckTransformAnimationOptions(instance, key)
     end
 
     DCEI.ApplyTransformAnimationToSimpleUnit(instance, data.TransformAnimation)
+end
+
+local function GetSimpleGlow()
+    local simple_unit = REGISTERED_UNITS[REF.SimpleGlow]
+
+    if not simple_unit then
+        simple_unit = SimpleUnit.New(REF.SimpleGlow)
+        simple_unit:SetUnitType(REF.SimpleGlow)
+        simple_unit:Register()
+
+        REGISTERED_UNITS[REF.SimpleGlow] = simple_unit
+    end
+
+    return REGISTERED_UNITS[REF.SimpleGlow]
 end
 
 ---============================================================================
@@ -129,6 +150,42 @@ function PropInstanceTracker:_ValidateInstance()
     end
 end
 
+function PropInstanceTracker:_ValidateGlowInstance()
+    if self.GlowInstance == nil then
+        return
+    end
+
+    local unit_exists = DCEI.SimpleUnitExists(self.GlowInstance)
+
+    if not unit_exists then
+        self.GlowInstance = nil
+    end
+end
+
+function PropInstanceTracker:_RemoveInstance()
+    if Help.ValidateSimpleUnit(self.Instance) then
+        DCEI.RemoveSimpleUnit(self.Instance)
+        self.Instance = nil
+    end
+
+    if Help.ValidateSimpleUnit(self.GlowInstance) then
+        DCEI.RemoveSimpleUnit(self.GlowInstance)
+        self.GlowInstance = nil
+    end
+end
+
+function PropInstanceTracker:_RemoveGlowInstance()
+    if Help.ValidateSimpleUnit(self.GlowInstance) then
+        DCEI.RemoveSimpleUnit(self.GlowInstance)
+        self.GlowInstance = nil
+    end
+
+    if Help.ValidateSimpleUnit(self.Instance) then
+        DCEI.RemoveSimpleUnit(self.Instance)
+        self.Instance = nil
+    end
+end
+
 ---comment
 ---@param prop_key string
 function PropInstanceTracker:_CheckRegisterUnit(prop_key)
@@ -149,6 +206,53 @@ function PropInstanceTracker:_CheckRegisterUnit(prop_key)
     REGISTERED_UNITS[prop_key] = unit
 end
 
+function PropInstanceTracker:_SpawnGlow()
+    local is_grow = self.PropData.Settings.GrowTime
+    if not is_grow then
+        return
+    end
+
+    if Help.ValidateSimpleUnit(self.GlowInstance) then
+        return
+    end
+
+    local is_fully_grown = self.PropSeriesIndex == #self.PropData.Settings.PropSeries
+    if not is_fully_grown then
+        return
+    end
+
+    local condition = function()
+        return self.PropSeriesIndex == #self.PropData.Settings.PropSeries
+    end
+
+    local function TrySpawnGlow()
+        local glow_unit = GetSimpleGlow()
+        local position = self:_GetSpawnPosition()
+        local glow_instance = glow_unit:SpawnSync(PLAYER.Terrain, TEAM.Terrain, position)
+
+        self.GlowInstance = glow_instance
+    end
+
+    Help.GameTimer(TICK_RATE, condition, nil, TrySpawnGlow)
+end
+
+function PropInstanceTracker:_Spawn(key)
+    self:_CheckRegisterUnit(key)
+
+    local player_id = PLAYER.Destructible
+    local team_id = TEAM.Hostile
+    local position = self:_GetSpawnPosition()
+
+    local simple_unit = REGISTERED_UNITS[key]
+
+    local instance = simple_unit:SpawnSync(player_id, team_id, position)
+
+    CheckTransformAnimationOptions(instance, key)
+
+    self.Instance = instance
+    self:_SpawnGlow()
+end
+
 function PropInstanceTracker:_SpawnInstance()
     local prop_key
 
@@ -163,19 +267,7 @@ function PropInstanceTracker:_SpawnInstance()
         return
     end
 
-    self:_CheckRegisterUnit(prop_key)
-
-    local player_id = PLAYER.Destructible
-    local team_id = TEAM.Hostile
-    local position = self:_GetSpawnPosition()
-
-    local simple_unit = REGISTERED_UNITS[prop_key]
-
-    local instance = simple_unit:SpawnSync(player_id, team_id, position)
-
-    CheckTransformAnimationOptions(instance, prop_key)
-
-    self.Instance = instance
+    self:_Spawn(prop_key)
 end
 
 function PropInstanceTracker:_SpawnPlaceholder()
@@ -198,6 +290,10 @@ function PropInstanceTracker:_SpawnPlaceholder()
     CheckTransformAnimationOptions(instance, prop_key)
 
     self.DestroyedInstance = instance
+
+    if self.PropData.Settings.GrowTime then
+        self:_RemoveGlowInstance()
+    end
 end
 
 function PropInstanceTracker:_CheckPlaceholder()
@@ -216,18 +312,9 @@ function PropInstanceTracker:_CheckPlaceholder()
     end
 end
 
-function PropInstanceTracker:_CheckSpawnInstance()
+function PropInstanceTracker:_StandardRespawn()
     if Help.ValidateSimpleUnit(self.Instance) then -- Already Spawned
         return
-    end
-
-    -- Check Prop Series
-    if self.PropData.Settings.PropSeries then
-        -- Check if we've reached the end of our prop series
-        if self.PropSeriesIndex < #self.PropData.Settings.PropSeries then
-            self:_SpawnInstance()
-            return
-        end
     end
 
     -- Timer Check
@@ -240,6 +327,70 @@ function PropInstanceTracker:_CheckSpawnInstance()
     self.PropSeriesIndex = 0
 
     self:_SpawnInstance()
+end
+
+function PropInstanceTracker:_DegradeSeries()
+    if Help.ValidateSimpleUnit(self.Instance) then -- Already Spawned
+        return
+    end
+
+    -- Check if we've reached the end of our prop series
+    if self.PropSeriesIndex < #self.PropData.Settings.PropSeries then
+        self:_SpawnInstance()
+        return
+    end
+
+    -- Timer Check
+    local respawn_time = self.PropData.Settings.RespawnTime or 0
+    if self.Timer < respawn_time then
+        self.Timer = self.Timer + TICK_RATE
+        return
+    end
+    self.Timer = 0
+    self.PropSeriesIndex = 0
+
+    self:_SpawnInstance()
+end
+
+function PropInstanceTracker:_GrowSeries()
+    local is_fully_grown = self.PropSeriesIndex == #self.PropData.Settings.PropSeries
+    local is_instance = Help.ValidateSimpleUnit(self.Instance)
+
+    -- If fully grown, check if the instance is still alive
+    if is_fully_grown and is_instance then
+        return
+    end
+
+    -- Continue Growing
+    local grow_time = self.PropData.Settings.GrowTime
+    if self.Timer < grow_time then
+        self.Timer = self.Timer + TICK_RATE
+        return
+    end
+    self.Timer = 0
+    self.PropSeriesIndex = self.PropSeriesIndex + 1
+
+    if self.PropSeriesIndex > #self.PropData.Settings.PropSeries then
+        self.PropSeriesIndex = 1
+    end
+
+    -- Grow Changes
+    self:_RemoveInstance() -- Remove the current instance
+    self:_Spawn(self.PropData.Settings.PropSeries[self.PropSeriesIndex])
+end
+
+function PropInstanceTracker:_CheckSpawnInstance()
+    if self.PropData.Settings.PropSeries then
+        if self.PropData.Settings.GrowTime then
+            self:_GrowSeries()
+            return
+        else
+            self:_DegradeSeries()
+            return
+        end
+    end
+
+    self:_StandardRespawn()
 end
 
 ---============================================================================
@@ -255,6 +406,7 @@ function PropInstanceTracker:Update(hero)
     end
 
     self:_ValidateInstance()
+    self:_ValidateGlowInstance()
     self:_CheckSpawnInstance()
     self:_CheckPlaceholder()
 end
@@ -264,6 +416,10 @@ function PropInstanceTracker:Clear()
 
     if Help.ValidateSimpleUnit(self.Instance) then
         DCEI.RemoveSimpleUnit(self.Instance)
+    end
+
+    if Help.ValidateSimpleUnit(self.GlowInstance) then
+        DCEI.RemoveSimpleUnit(self.GlowInstance)
     end
 
     if Help.ValidateSimpleUnit(self.DestroyedInstance) then

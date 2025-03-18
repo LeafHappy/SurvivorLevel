@@ -25,6 +25,12 @@
                 "Artifact - Whirlwind - OnEnter"
             ]
         },
+        "Background - Purple Cloud - Large": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Background - Purple Cloud - Small": {
+            "baseUnit": "_StandardHelper"
+        },
         "Boss - Alchemist": {
             "baseUnit": "_Boss",
             "unitEventTriggers": {
@@ -445,6 +451,24 @@
                 "Prop - Pumpkin - OnEnter"
             ]
         },
+        "Camp - Prop - Pumpkin - 02": {
+            "baseUnit": "_Camp",
+            "dependentEffects": [
+                "Prop - Pumpkin - OnEnter"
+            ]
+        },
+        "Camp - Prop - Pumpkin - 03": {
+            "baseUnit": "_Camp",
+            "dependentEffects": [
+                "Prop - Pumpkin - OnEnter"
+            ]
+        },
+        "Camp - Prop - Pumpkin - 04": {
+            "baseUnit": "_Camp",
+            "dependentEffects": [
+                "Prop - Pumpkin - OnEnter"
+            ]
+        },
         "Camp - Prop - Stone - 01": {
             "baseUnit": "_Prop - BG",
             "dependentEffects": [
@@ -655,6 +679,9 @@
             "baseUnit": "_StandardHelper"
         },
         "Editor - Ghost - Stone - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Ghost - Thicket Tree Degrade - 01": {
             "baseUnit": "_StandardHelper"
         },
         "Editor - Ghost - Tree Degrade - 01": {
@@ -1508,10 +1535,22 @@
                 "Loot - Elite Chest - OnEnter"
             ]
         },
+        "Loot - Gem": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Gem - OnEnter"
+            ]
+        },
         "Loot - Gold": {
             "baseUnit": "_Loot",
             "dependentEffects": [
                 "Loot - Gold - OnEnter"
+            ]
+        },
+        "Loot - Hard Wood": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Hard Wood - OnEnter"
             ]
         },
         "Loot - Large Experience": {
@@ -1550,6 +1589,12 @@
             "baseUnit": "_Loot",
             "dependentEffects": [
                 "Loot - Normal Chest - OnEnter"
+            ]
+        },
+        "Loot - Plank": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Plank - OnEnter"
             ]
         },
         "Loot - Potion": {
@@ -1946,6 +1991,9 @@
                 ]
             }
         },
+        "Simple - Glow": {
+            "baseUnit": "_Loot"
+        },
         "Simple Collector": {
             "baseUnit": "Simple Collider",
             "dependentEffects": [
@@ -2245,28 +2293,25 @@
             "baseUnit": "_Prop - BG",
             "dependentEffects": [
                 "Prop - Simple - Tree - Collision",
-                "Thicket - Prop - Tree - Degrade - 01 - OnDeath"
+                "Thicket - Prop - Tree - Degrade - OnDeath"
             ]
         },
         "Thicket - Prop - Tree - Degrade - 02": {
             "baseUnit": "_Prop - BG",
             "dependentEffects": [
-                "Prop - Simple - Tree - Collision",
-                "Thicket - Prop - Tree - Degrade - 02 - OnDeath"
+                "Thicket - Prop - Tree - Degrade - OnDeath"
             ]
         },
         "Thicket - Prop - Tree - Degrade - 03": {
             "baseUnit": "_Prop - BG",
             "dependentEffects": [
-                "Prop - Simple - Tree - Collision",
-                "Thicket - Prop - Tree - Degrade - 03 - OnDeath"
+                "Thicket - Prop - Tree - Degrade - OnDeath"
             ]
         },
         "Thicket - Prop - Tree - Degrade - 04": {
             "baseUnit": "_Prop - BG",
             "dependentEffects": [
-                "Prop - Simple - Tree - Collision",
-                "Thicket - Prop - Tree - Degrade - 04 - OnDeath"
+                "Thicket - Prop - Tree - Degrade - OnDeath"
             ]
         },
         "Thicket - Prop - Tree - Degrade - 05": {
@@ -2275,7 +2320,7 @@
         "Thicket - Tile - Standard": {
             "baseUnit": "_Terrain"
         },
-        "Throw Resource - Gems": {
+        "Throw Resource - Gem": {
             "baseUnit": "_CMissile",
             "components": {
                 "unitStats": {
@@ -2305,7 +2350,37 @@
                 "type": 8
             }
         },
+        "Throw Resource - Hard Wood": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
         "Throw Resource - Meat": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Throw Resource - Plank": {
             "baseUnit": "_CMissile",
             "components": {
                 "unitStats": {

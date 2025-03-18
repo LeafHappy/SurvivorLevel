@@ -50,8 +50,8 @@ ChestRarityData.legendary = {
             quantity_min = 100,
             quantity_max = 200,
         },
-        -- gems = {
-        --     index = "gems",
+        -- gem = {
+        --     index = "gem",
         --     type = "resource",
         --     chance = 0.25,
         --     quantity_min = 5,

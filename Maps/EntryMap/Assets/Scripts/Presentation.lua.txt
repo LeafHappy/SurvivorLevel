@@ -14,10 +14,10 @@ require("SharedData/Types")
 local DataManager = require("UiMeta/DataManager")
 local PostGameRewards = require("UiMeta/PostGameRewards")
 
-local Help = require("UiHelp")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 
 -- SCRIPTS
--- local Help = require("Help")
+local Help = require("UiHelp")
 
 -- SELF-CONTAINED SCRIPTS
 require("UiGame/Tutorial/FloatingRescueText")
@@ -56,38 +56,16 @@ local HomeData = {
 }
 DCEI.BindLuaTable("HomeData", HomeData)
 
-local GameState = {
-    [TRACKED_STATS.Wood] = {
+local GameState = {}
+
+---NOTE: Setup Meta Resources
+for _, resource_data in ipairs(ResourceData.List) do
+    GameState[resource_data.Key] = {
         limit = 100,
         value = 0,
         fill = 0,
-    },
-    [TRACKED_STATS.Stone] = {
-        limit = 100,
-        value = 0,
-        fill = 0,
-    },
-    [TRACKED_STATS.Pumpkin] = {
-        limit = 100,
-        value = 0,
-        fill = 0,
-    },
-    [TRACKED_STATS.Meat] = {
-        limit = 100,
-        value = 0,
-        fill = 0,
-    },
-    [TRACKED_STATS.Gold] = {
-        limit = 100,
-        value = 0,
-        fill = 0,
-    },
-    [TRACKED_STATS.Gems] = {
-        limit = 100,
-        value = 0,
-        fill = 0,
-    },
-}
+    }
+end
 DCEI.BindLuaTable("Game", GameState)
 
 local function GetTrophiesNeeded(current_trophies)
@@ -138,16 +116,6 @@ local function OnUiInitialize()
     ui.HomeData = HomeData
 
     ui.GameState = GameState
-    GameState[TRACKED_STATS.Wood].value = 0
-    GameState[TRACKED_STATS.Stone].value = 0
-    GameState[TRACKED_STATS.Pumpkin].value = 0
-    GameState[TRACKED_STATS.Meat].value = 0
-    GameState[TRACKED_STATS.Gems].value = 0
-    GameState[TRACKED_STATS.Gold].value = 0
-
-    -- GameState.gems.value = data.currency.gems
-    -- GameState.gold.value = data.currency.gold
-    -- GameState.gold.value = DataManager.GetGold()
 
     ui.ResourceState = ResourceState
 end
@@ -165,7 +133,7 @@ end)
 
 -- UI LAYERS
 -- z1 is generally used base UIs, such as glue and meta (Lower) and "intermediate" popups (Upper)
--- intermediate popups are popups that need to have other elements above (like revive popup vs gems button)
+-- intermediate popups are popups that need to have other elements above (like revive popup vs gem button)
 ui.z1 = GMUI.Layout.New({ name = "Common/FullscreenUiLayer" })
 
 -- z2 is generally used nav elements (Lower) and "default" popups (Upper)
@@ -216,6 +184,8 @@ ui.camp.labels = require("UiCamp/CampButtons")
 ui.camp.warning = require("UiCamp/WaveStart")
 ui.camp.wave_complete = require("UiCamp/WaveComplete")
 ui.camp.wave_fail = require("UiCamp/WaveFail")
+ui.resource_exchange = require("UiMeta/Popup/ResourceExchangePopup")
+ui.camp.upgrade_menu = require("UiCamp/UpgradeMenu")
 
 -- game
 ui.game = require("UiGame/Game")

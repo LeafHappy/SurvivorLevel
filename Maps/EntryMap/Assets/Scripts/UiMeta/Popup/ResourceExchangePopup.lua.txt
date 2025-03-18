@@ -1,0 +1,98 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+-- SCRIPTS
+local Animation = require("Presentation/Animation")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Variables
+---============================================================================
+
+-- HELPERS
+local ui = GMUI.ui
+
+-- MODULE
+local ResourceExchangePopup = {}
+ResourceExchangePopup.is_initialized = false
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+function ResourceExchangePopup.Initialize()
+    if ResourceExchangePopup.is_initialized then
+        return
+    end
+
+    -- Create layout
+    ResourceExchangePopup.layout = GMUI.Layout.New({
+        name = "Popup/ResourceExchange",
+        parent = ui.z3.Lower,
+    })
+
+    DCEI.SetOnClickCallback(ResourceExchangePopup.layout.cancel.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        ResourceExchangePopup.layout:Hide()
+    end)
+    DCEI.SetOnClickCallback(ResourceExchangePopup.layout.confirm.Frame, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+        -- confirm
+        if ResourceExchangePopup.layout.simulation_key then
+            Core.Event.SendSimulationEvent(ResourceExchangePopup.layout.simulation_key, {
+                resource_key = ResourceExchangePopup.layout.resource_key,
+                resource_1 = ResourceExchangePopup.layout.resource_1,
+            })
+        end
+        ResourceExchangePopup.layout:Hide()
+    end)
+
+    ResourceExchangePopup.is_initialized = true
+end
+
+function ResourceExchangePopup.ShowExchangePopup(data)
+    if not ResourceExchangePopup.is_initialized then
+        ResourceExchangePopup.Initialize()
+    end
+
+    ResourceExchangePopup.layout.resource_1 = data.resource_1
+    ResourceExchangePopup.layout.exchange_rate = data.exchange_rate
+    ResourceExchangePopup.layout.simulation_key = data.simulation_key
+    ResourceExchangePopup.layout.resource_key = data.resource_key
+    ResourceExchangePopup.layout.resource_2 =
+        math.floor(ResourceExchangePopup.layout.resource_1 / ResourceExchangePopup.layout.exchange_rate)
+    ResourceExchangePopup.layout.resource_1 = ResourceExchangePopup.layout.resource_2
+        * ResourceExchangePopup.layout.exchange_rate
+
+    ResourceExchangePopup.layout.state.resource_value_1 = tostring(ResourceExchangePopup.layout.resource_1)
+    ResourceExchangePopup.layout.state.resource_value_2 = tostring(ResourceExchangePopup.layout.resource_2)
+    ResourceExchangePopup.layout:Show()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("ShowExchangePopup", ResourceExchangePopup.ShowExchangePopup)
+
+return ResourceExchangePopup

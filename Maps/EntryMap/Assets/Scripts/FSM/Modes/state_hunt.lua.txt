@@ -54,7 +54,6 @@ local PropData = require("Map/PropData")
 local MetaData = require("SharedData/MetaData")
 local LootData = require("Data/SimpleUnits/LootData")
 local Modifier = require("SharedData/Class/Modifier")
-local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
 
 -- Game
 local StageHelper = require("Game/StageHelper")
@@ -1905,21 +1904,6 @@ local function FogOfWarDamage(delta)
     end
 end
 
----TODO: Need to set this up to only send the Stats that have changed.
----Need to better manage Engine Stats (and Tracked Stats)
-local function UpdateDisplayedGameStats()
-    local passed_stats = {}
-    for key, _ in pairs(DisplayedGameStats) do
-        local value = StageHelper.GetTrackedStat(key)
-        if value and value > 0 then
-            passed_stats[key] = StageHelper.GetTrackedStat(key)
-        end
-    end
-
-    -- Send information to the UI
-    Core.Event.SendPresentationEvent("Game.UpdateGameStats", passed_stats)
-end
-
 local function AnimateIndicators()
     Core.Event.SendPresentationEvent("AnimateAllIndicators")
 end
@@ -1961,10 +1945,6 @@ local _TickRateUpdates = {
     {
         Interval = 1,
         Function = UpdateFogOfWar,
-    },
-    {
-        Interval = 1,
-        Function = UpdateDisplayedGameStats,
     },
     {
         Interval = 1,

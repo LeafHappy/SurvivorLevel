@@ -30,8 +30,8 @@ local MAX_RATING = 5
 -- VARIABLES
 local review_rewards = {
     {
-        key = SAVE_KEY.Gems,
-        type = TRACKED_STATS.Gems,
+        key = SAVE_KEY.Gem,
+        type = TRACKED_STATS.Gem,
         amount = 20,
     },
     {

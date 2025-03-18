@@ -55,8 +55,8 @@ local Heroes = require("SharedData/Heroes")
 local MetaData = require("SharedData/MetaData")
 local LootData = require("Data/SimpleUnits/LootData")
 local Modifier = require("SharedData/Class/Modifier")
-local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
 local SkillData = require("SharedData/Skills/SkillData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 
 -- Game
 local StageHelper = require("Game/StageHelper")
@@ -78,6 +78,7 @@ local WaveDataManager = require("Data/Modes/Hybrid/WaveDataManager")
 local SequenceManager = require("Class/SequenceManager")
 local QuestActionManager = require("Meta/Quest/QuestActionManager")
 local QuestManager = require("Meta/Quest/QuestManager")
+local BackgroundManager = require("Data/Modes/Hybrid/BackgroundManager")
 
 -- Meta Manager
 local ReviewInviteManager = require("Meta/ReviewInviteManager")
@@ -89,6 +90,7 @@ local CampData = require("SharedData/H_CampData")
 local WaveUnlockData = require("SharedData/WaveUnlockData")
 local MetaSkillSelector = require("SharedData/MetaSkillSelector")
 local TalentData = require("SharedData/Talents/TalentData")
+local UpgradeData = require("SharedData/Talents/UpgradeData")
 
 local GameEventManager = require("Game/Events/GameEventManager")
 local HybridEventManager = require("Game/HybridEvents/HybridEventManager")
@@ -182,6 +184,28 @@ end
 
 ---comment
 ---@param key string
+---@param level integer
+---@return Modifier | nil
+local function CreateUpgradeModifier(key, level)
+    local upgrade_data = UpgradeData.Dictionary[key]
+
+    if not upgrade_data then
+        Help.Warn("Upgrade Data not found for Key: " .. key)
+        return nil
+    end
+
+    local modifier_data = upgrade_data.Modifier
+    local stat = modifier_data.Stat
+    local scaling = modifier_data.Scaling
+    local value = modifier_data.StartingValue + modifier_data.Increase * level
+    local tags = modifier_data.Tags or {}
+
+    local modifier = Modifier.New(stat, value, scaling, tags, key)
+    return modifier
+end
+
+---comment
+---@param key string
 ---@return Modifier
 local function CreateTalentModifier(key)
     local talent_data = TalentData.GetTalent(key)
@@ -223,16 +247,27 @@ local function SpawnHero()
 
     hero:SpawnHero(spawn_position, SURVIVOR.Annie, 0, loaded_skills, {}, {})
 
-    local talents = SaveDataManager.GetReference(SAVE_KEY.Talents) or {}
+    local upgrade_levels = SaveDataManager.GetReference(SAVE_KEY.UpgradeLevels) or {}
 
-    for key, level in pairs(talents) do
-        local talent_data = TalentData.GetTalent(key)
+    for _, upgrade_data in ipairs(UpgradeData.List) do
+        local level = upgrade_levels[upgrade_data.Key] or 0
+        local modifier = CreateUpgradeModifier(upgrade_data.Key, level)
 
-        if talent_data.ModifierTarget == MODIFIER_TARGET.Hero then
-            local modifier = CreateTalentModifier(key)
+        if modifier then
             hero:ApplyModifier(modifier, true, true)
         end
     end
+
+    -- local talents = SaveDataManager.GetReference(SAVE_KEY.Talents) or {}
+
+    -- for key, level in pairs(talents) do
+    --     local talent_data = TalentData.GetTalent(key)
+
+    --     if talent_data.ModifierTarget == MODIFIER_TARGET.Hero then
+    --         local modifier = CreateTalentModifier(key)
+    --         hero:ApplyModifier(modifier, true, true)
+    --     end
+    -- end
 
     -- Apply Key items
     local key_items = SaveDataManager.GetReference(SAVE_KEY.KeyItems) or {}
@@ -1023,8 +1058,52 @@ local function TalentMenu()
     Core.Event.SendPresentationEvent("Camp.TalentMenu", data_pass)
 end
 
+local function UpgradeMenu()
+    -- local upgrade_levels = SaveDataManager.GetReference(SAVE_KEY.UpgradeLevels) or {}
+
+    local data_pass = SaveDataManager.GetReference(SAVE_KEY.UpgradeLevels) or {}
+
+    Core.Event.SendPresentationEvent("UpgradeMenu.Update", data_pass) -- Update the Data
+    Core.Event.SendPresentationEvent("UpgradeMenu.Open") -- Show the Menu
+end
+
 local function Shop()
     Core.Event.SendPresentationEvent("Camp.OpenShop")
+end
+
+local function UpgradePurchased(upgrade_key)
+    local upgrade_data = UpgradeData.Dictionary[upgrade_key]
+
+    if not upgrade_data then
+        Help.Warn("Upgrade Data not found for Key: " .. upgrade_key)
+        return
+    end
+
+    local hero = Hero.Fetch(PLAYER.Player1)
+    local upgrade_levels = SaveDataManager.GetReference(SAVE_KEY.UpgradeLevels) or {}
+
+    if not upgrade_levels[upgrade_key] then
+        upgrade_levels[upgrade_key] = 0
+    end
+
+    local cost_data = upgrade_data.Cost
+    local cost = cost_data.Base + cost_data.Increment * upgrade_levels[upgrade_key]
+
+    upgrade_levels[upgrade_key] = upgrade_levels[upgrade_key] + 1
+
+    SaveDataManager.Modify(SAVE_KEY.Gold, -cost)
+    SaveDataManager.Set(SAVE_KEY.UpgradeLevels, upgrade_levels)
+    SaveDataManager.CommitSaveData()
+
+    local level = upgrade_levels[upgrade_key]
+    local modifier = CreateUpgradeModifier(upgrade_key, level)
+
+    if modifier then
+        hero:ApplyModifier(modifier, true, true)
+    end
+
+    -- Update after Save Data Change
+    Core.Event.SendPresentationEvent("UpgradeMenu.Update", upgrade_levels)
 end
 
 ---comment
@@ -1076,7 +1155,9 @@ end
 Core.Event.RegisterSimulationEvent("Hybrid.StartWave", OnWaveStartButtonPressed)
 Core.Event.RegisterSimulationEvent("Hybrid.PerkSelection", PerkSelection)
 Core.Event.RegisterSimulationEvent("Hybrid.TalentMenu", TalentMenu)
+Core.Event.RegisterSimulationEvent("Hybrid.UpgradeMenu", UpgradeMenu)
 Core.Event.RegisterSimulationEvent("Hybrid.Shop", Shop)
+Core.Event.RegisterSimulationEvent("Hybrid.UpgradePurchased", UpgradePurchased)
 Core.Event.RegisterSimulationEvent("Hybrid.TalentSelected", TalentSelected)
 Core.Event.RegisterSimulationEvent("Hybrid.ResetTalents", ResetTalents)
 
@@ -1212,8 +1293,10 @@ local function TestMode()
     -- FSM:Transition(FSM.States.Test, {})
 end
 
-local function IncreaseGold()
-    SaveDataManager.Modify(SAVE_KEY.Gold, 100)
+local function IncreaseMetaResources()
+    for _, resource_data in ipairs(ResourceData.List) do
+        SaveDataManager.Modify(resource_data.SaveKey, 100)
+    end
 end
 
 local function ToggleEditor()
@@ -1263,101 +1346,21 @@ local function ProcessGameEvents()
     GameEventManager.Instance:Update(TICK_RATE)
 end
 
-local function UpdateWood(amount)
-    if amount <= 0 then
-        return
-    end
-
-    SaveDataManager.Modify(SAVE_KEY.Wood, amount)
-    QuestManager.CheckResourceObjective({
-        id = SAVE_KEY.Wood,
-        amount = amount,
-    })
-
-    StageHelper.SetTrackedStat(TRACKED_STATS.Wood, 0) -- Reset Wood so we don't keep increasing it.
-end
-
-local function UpdateStone(amount)
-    if amount <= 0 then
-        return
-    end
-
-    SaveDataManager.Modify(SAVE_KEY.Stone, amount)
-    QuestManager.CheckResourceObjective({
-        id = SAVE_KEY.Stone,
-        amount = amount,
-    })
-
-    StageHelper.SetTrackedStat(TRACKED_STATS.Stone, 0) -- Reset Stone so we don't keep increasing it.
-end
-
-local function UpdatePumpkin(amount)
-    if amount <= 0 then
-        return
-    end
-
-    SaveDataManager.Modify(SAVE_KEY.Pumpkin, amount)
-    QuestManager.CheckResourceObjective({
-        id = SAVE_KEY.Pumpkin,
-        amount = amount,
-    })
-
-    StageHelper.SetTrackedStat(TRACKED_STATS.Pumpkin, 0) -- Reset Pumpkin so we don't keep increasing it.
-end
-
-local function UpdateGold(amount)
-    if amount <= 0 then
-        return
-    end
-
-    local amount, overflow = SaveDataManager.Modify(SAVE_KEY.Gold, amount)
-    QuestManager.CheckResourceObjective({
-        id = SAVE_KEY.Gold,
-        amount = amount,
-    })
-
-    if overflow > 0 then
-        local hero = Hero.Fetch(PLAYER.Player1)
-
-        Help.PeriodicGameTimer(overflow, 0.125, nil, function()
-            DCEI.CreateEffectAtSelf(DCEI.Effect("Hybrid - Meat Grinder - Spawn Coin"), hero.unit)
-        end, true)
-    end
-
-    StageHelper.SetTrackedStat(TRACKED_STATS.Gold, 0) -- Reset Gold so we don't keep increasing it.
-end
-
-local function UpdateMeat(amount)
-    if amount <= 0 then
-        return
-    end
-
-    SaveDataManager.Modify(SAVE_KEY.Meat, amount)
-    QuestManager.CheckResourceObjective({
-        id = SAVE_KEY.Meat,
-        amount = amount,
-    })
-
-    StageHelper.SetTrackedStat(TRACKED_STATS.Meat, 0) -- Reset Meat so we don't keep increasing it.
-end
-
 local function UpdatePlayerStats()
     StageHelper.UpdatePlayerStats()
 
-    -- Update Displayed Stats
-    local passed_stats = {}
-    for key, _ in pairs(DisplayedGameStats) do
-        local value = StageHelper.GetTrackedStat(key)
+    for _, resource_data in ipairs(ResourceData.List) do
+        local value = StageHelper.GetTrackedStat(resource_data.TrackedStat)
         if value and value > 0 then
-            passed_stats[key] = StageHelper.GetTrackedStat(key)
+            SaveDataManager.Modify(resource_data.SaveKey, value)
+            QuestManager.CheckResourceObjective({
+                id = resource_data.SaveKey,
+                amount = value,
+            })
+
+            StageHelper.SetTrackedStat(resource_data.TrackedStat, 0) -- Reset Stat so we don't keep increasing it.
         end
     end
-
-    UpdateWood(passed_stats[TRACKED_STATS.Wood] or 0)
-    UpdateStone(passed_stats[TRACKED_STATS.Stone] or 0)
-    UpdatePumpkin(passed_stats[TRACKED_STATS.Pumpkin] or 0)
-    UpdateMeat(passed_stats[TRACKED_STATS.Meat] or 0)
-    UpdateGold(passed_stats[TRACKED_STATS.Gold] or 0)
 end
 
 ---Updates the Map Tiles based on the hero's position.
@@ -1385,6 +1388,12 @@ local function UpdateDangerZones(delta)
     DangerZoneManager.Instance:Update(delta, hero, camera.position)
 end
 
+local function UpdateBackground(delta)
+    local camera = Camera.Fetch(PLAYER.Player1)
+    local camera_position = camera:GetPosition()
+    BackgroundManager.Instance:Update(delta, camera_position)
+end
+
 ---============================================================================
 ---!SECTION: Local Functions - Tick Rates
 ---SECTION: Registered Functions
@@ -1410,6 +1419,10 @@ local _TickRateUpdates = {
     {
         Interval = 1,
         Function = UpdateDangerZones,
+    },
+    {
+        Interval = 1,
+        Function = UpdateBackground,
     },
     -- {
     --     Interval = 1 / TICK_RATE,
@@ -1504,7 +1517,7 @@ function State:OnEnter()
         _Dev.Events.Register("Victory", AutoVictory)
         _Dev.Events.Register("Defeat", AutoDefeat)
         _Dev.Events.Register("Test", TestMode)
-        _Dev.Events.Register("Time Skip", IncreaseGold)
+        _Dev.Events.Register("Time Skip", IncreaseMetaResources)
         _Dev.Events.Register("Editor Toggle", ToggleEditor)
     end
 end
@@ -1540,7 +1553,7 @@ function State:OnExit()
         _Dev.Events.Unregister("Victory", AutoVictory)
         _Dev.Events.Unregister("Defeat", AutoDefeat)
         _Dev.Events.Unregister("Test", TestMode)
-        _Dev.Events.Unregister("Time Skip", IncreaseGold)
+        _Dev.Events.Unregister("Time Skip", IncreaseMetaResources)
         _Dev.Events.Unregister("Editor Toggle", ToggleEditor)
     end
 end

@@ -18,9 +18,9 @@ local SectionCustomCallbacks = {}
 EPOCH_START = 1704117600
 
 local ad_button_layout_info = {
-    gems = {
+    gem = {
         max_available = 3,
-        reward_type = "gems",
+        reward_type = "gem",
         reward_amount = 30,
         reward_icon = DCEI.Texture("cartoon_icon_gem2_wildsurvivor"),
     },
@@ -119,8 +119,8 @@ function SectionCustomCallbacks.OnAdRewardSectionCreated(section_data, layout)
     ad_button_state.max_available = max_available
     ad_button_state.curr_available = curr_available
 
-    DCEI.SetOnClickCallback(layout.AdButtonLayout.AdButton, function() 
-DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+    DCEI.SetOnClickCallback(layout.AdButtonLayout.AdButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
         if ad_button_state.curr_available > 0 then
             ad_button_state.curr_available = ad_button_state.curr_available - 1
             ad_button_state.button_enable = ad_button_state.curr_available > 0
@@ -158,8 +158,8 @@ function SectionCustomCallbacks.OnAdRefreshSectionCreated(section_data, layout)
     ad_button_state.max_available = max_available
     ad_button_state.curr_available = curr_available
 
-    DCEI.SetOnClickCallback(layout.AdButtonLayout.AdButton, function() 
-DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+    DCEI.SetOnClickCallback(layout.AdButtonLayout.AdButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
         if ad_button_state.curr_available > 0 then
             ad_button_state.curr_available = ad_button_state.curr_available - 1
             ad_button_state.button_enable = ad_button_state.curr_available > 0

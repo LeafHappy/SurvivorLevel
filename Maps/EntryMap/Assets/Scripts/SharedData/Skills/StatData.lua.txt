@@ -572,4 +572,67 @@ function StatData.ConvertModifierDataToText(modifier_data)
     return display_name .. ": " .. display_value
 end
 
+---comment
+---@param stat STAT
+---@param scaling SCALING
+---@param value number
+---@return string
+function StatData.Convert(value, stat, scaling, modify_color)
+    local stat_data = StatData[stat]
+
+    if not stat_data then
+        return "N/A"
+    end
+
+    -- Compare Scaling Type
+    local display_value = ""
+    local display_formatting = Core.Table.DeepCopy(DEFAULT_CONVERSION[scaling])
+    local display_overrides = stat_data.DisplayConversion and stat_data.DisplayConversion[scaling]
+
+    if display_overrides then
+        RecursiveDepthKeyReplace(display_formatting, display_overrides)
+    end
+
+    if display_formatting.Format == NUMBER_FORMAT.Decimal then
+        display_value = ConvertToDecimal(math.abs(value))
+    elseif display_formatting.Format == NUMBER_FORMAT.Percent then
+        display_value = ConvertToPercent(math.abs(value))
+    elseif display_formatting.Format == NUMBER_FORMAT.Integer then
+        display_value = ConvertToInteger(math.abs(value))
+    elseif display_formatting.Format == NUMBER_FORMAT.PercentBaseOne then
+        display_value = ConvertToPercentBaseOne(math.abs(value))
+    else
+        display_value = tostring(math.abs(value))
+    end
+
+    local adjusted_value = display_formatting.Format == NUMBER_FORMAT.PercentBaseOne and value - 1 or value
+
+    local is_positive = adjusted_value > 0
+
+    -- Check if Reversed
+    if display_formatting.Reversed then
+        is_positive = not is_positive
+    end
+
+    -- Add Prefix and Suffix
+    if adjusted_value == 0 then
+        display_value = "0"
+    elseif is_positive then
+        display_value = display_formatting.Prefix.Positive .. display_value .. display_formatting.Suffix.Positive
+    else
+        display_value = display_formatting.Prefix.Negative .. display_value .. display_formatting.Suffix.Negative
+    end
+
+    -- Can check if flipped based on conditions
+    if modify_color then
+        if is_positive then
+            display_value = POSITIVE_COLOR .. display_value .. END_COLOR
+        else
+            display_value = NEGATIVE_COLOR .. display_value .. END_COLOR
+        end
+    end
+
+    return display_value
+end
+
 return StatData

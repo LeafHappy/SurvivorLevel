@@ -46,9 +46,9 @@ function ItemCustomCallbacks.UpdateDailyShopItem(item_data, layout)
         local stock_remaining = Shop.GetItemStockAvailable(product_id)
         state.background_color = item_data.state.background_color
         state.piping_color = item_data.state.piping_color
-        state.item_image = shop_item_data.display or ResourceData[item_type].icon
+        state.item_image = shop_item_data.display or ResourceData.Map[item_type].Icon
         state.title_label = item_amount
-        state.cost_icon = shop_item_data.cost_icon or ResourceData[cost_type].icon
+        state.cost_icon = shop_item_data.cost_icon or ResourceData.Map[cost_type].Icon
 
         state.cost_label = stock_remaining > 0 and cost_amount or "OUT OF STOCK"
 

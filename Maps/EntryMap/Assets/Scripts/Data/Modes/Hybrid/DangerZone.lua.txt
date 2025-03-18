@@ -50,7 +50,7 @@ local SimpleUnits = require("SharedData/SimpleUnits")
 
 local CampManager = require("Class/CampManager")
 
-local SpendResource = require("Meta/SpendResource")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 
 local Help = require("Help")
 
@@ -269,6 +269,13 @@ end
 -- SECTION -- Local Functions
 ---============================================================================
 
+---Gets the Resource's Save Key
+---@param resource string
+---@return SAVE_KEY
+local function GetSaveKey(resource)
+    return SAVE_KEY[resource]
+end
+
 ---comment
 ---@param tile_id string
 ---@return SimpleUnit | nil
@@ -371,11 +378,13 @@ function DangerZone:_UpdateCostUiValues()
     end
 
     local resource_cost = self.Data.UnlockRequirements.ResourceCost
-    local cost_save_key = resource_cost.SaveKey
+    local cost_save_key = GetSaveKey(resource_cost.Resource)
     local resource_key = resource_cost.Resource
     local cost_amount = resource_cost.Amount
 
     local total_spent = self:_GetSaveResourceReserve(cost_save_key)
+
+    local position = self:_GetDepositUIPosition()
 
     ---@type ZoneCostData
     local zone_cost_data = {
@@ -383,6 +392,7 @@ function DangerZone:_UpdateCostUiValues()
         resource = resource_key,
         cost = cost_amount,
         spent = total_spent,
+        position = position,
     }
     Core.Event.SendPresentationEvent("Zone.Update", zone_cost_data)
 end
@@ -414,14 +424,10 @@ function DangerZone:_ThrowOnSpend(hero)
     local resource_cost = self.Data.UnlockRequirements.ResourceCost
     local resource_key = resource_cost.Resource
 
-    ---@type ThrowData
-    local throw_data = {
-        resource = resource_key,
-        amount = 1,
-        hero = hero,
-        end_position = self:_GetDepositUIPosition(),
-    }
-    SpendResource.Throw(throw_data)
+    local effect = ResourceData.Map[resource_key].ThrowEffect
+    local position = self:_GetDepositUIPosition()
+
+    DCEI.CreateEffectAtPosition(effect, hero.unit, position.x, position.y)
 end
 
 ---@param cost_save_key SAVE_KEY
@@ -481,7 +487,7 @@ function DangerZone:_ChannelUnlockProgress(hero, delta)
     end
 
     local resource_cost = self.Data.UnlockRequirements.ResourceCost
-    local cost_save_key = resource_cost.SaveKey
+    local cost_save_key = GetSaveKey(resource_cost.Resource)
     local cost_amount = resource_cost.Amount
 
     local channel_step = CHANNEL_TIME / cost_amount
@@ -515,6 +521,7 @@ function DangerZone:_ChannelUnlockProgress(hero, delta)
     end
 
     self:_ThrowOnSpend(hero)
+
     if self.SpendArea then
         Help.SendActorEvent(self.SpendArea, "PlaySpend")
     end
@@ -907,13 +914,14 @@ function DangerZone:_CheckUIMessageEvent(hero)
     if self:_CheckUIShouldBeDisplayed(hero) then
         self.IsShowingUI = true
         self:_UpdateCostUiPosition()
-
+        Help.SendActorEvent(self.SpendArea, "ShowSpend")
         -- Only update when no resources flying to not override impact update
         if resources_in_air == 0 then
             self:_UpdateCostUiValues()
         end
     elseif self.IsShowingUI then
         Core.Event.SendPresentationEvent("Zone.Destroy", self.UniqueId)
+        Help.SendActorEvent(self.SpendArea, "HideSpend")
         self.IsShowingUI = false
     end
 end
@@ -1304,8 +1312,8 @@ function DangerZone:_LoadBossInstances(data, area_data)
     end
 end
 
-function DangerZone:_CheckGenerateOccupiedSpawns()
-    local data = self.Data.Occupied
+function DangerZone:_CheckGeneratedSpawns(status)
+    local data = self.Data[status]
     if not data then
         return
     end
@@ -1486,13 +1494,12 @@ function DangerZone:_ChangeStatus(from, to)
     end
 
     -- Set to Occupy, Load Temp Units
-    if to == ZONE_STATUS.Occupied then
-        self:_ClearSimpleInstances()
-        self:_ClearEliteInstances()
-        self:_ClearBossInstances()
-        self:_RegisterHostileData(to) -- Register Hostile Data
-        self:_CheckGenerateOccupiedSpawns() -- Generate Occupied Instances
-    end
+    self:_ClearSimpleInstances()
+    self:_ClearEliteInstances()
+    self:_ClearBossInstances()
+
+    self:_RegisterHostileData(to) -- Register Hostile Data
+    self:_CheckGeneratedSpawns(to) -- Generate Hostile Instances
 
     -- Turn on Props
     if to == ZONE_STATUS.Occupied or to == ZONE_STATUS.Cleansed then

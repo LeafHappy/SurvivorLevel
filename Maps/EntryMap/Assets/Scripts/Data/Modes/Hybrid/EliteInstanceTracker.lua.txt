@@ -79,6 +79,9 @@ function EliteInstanceTracker.New(spawn_data, zone_position, spawn_immediately, 
 end
 
 function EliteInstanceTracker:Reset()
+    if Help.ValidateUnit(self.Instance) then
+        DCEI.RemoveUnit(self.Instance)
+    end
     self.Instance = nil
 
     self.Timer = 0

@@ -1451,13 +1451,78 @@ function CampObject:_CheckResourceCollector(delta, hero)
     local position = self.data.Position
     local hero_position = hero:GetPosition()
     local distance = Vector2.Distance(position, hero_position)
-    if distance > data.deposit_range then
-        return
-    end
-
     -- Check what type of resource we can collect
     local resource_key = data.resource_key
     if not resource_key then
+        return
+    end
+
+    -- Cached Resource Values (display purposes)
+    local save_key = data.save_key
+    local save_data = SaveDataManager.GetReference(save_key) or {}
+    local key_index = resource_key[#resource_key]
+    if data.exchange_rate then
+        local is_standing_still = hero:GetTravelDistance() <= 0
+
+        local delta_x = position.x - hero_position.x
+        local delta_y = position.y - hero_position.y
+
+        local is_in_stand = math.abs(delta_x) <= 0.6 and (delta_y <= 2.1 and delta_y >= 0.9)
+
+        if is_standing_still and is_in_stand then
+            -- check if player has enough to commit
+            local resource_1 = SaveDataManager.GetReference(data.resource_key)
+            if resource_1 >= data.exchange_rate then
+                -- check if already triggerd
+                if not self.show_exchange_pop_up then
+                    self.show_exchange_pop_up = true
+                    local simulation_key = "Hybrid.ResourceExchange" .. tostring(resource_1)
+                    Core.Event.SendPresentationEvent("ShowExchangePopup", {
+                        resource_key = data.resource_key,
+                        resource_1 = resource_1,
+                        exchange_rate = data.exchange_rate,
+                        simulation_key = simulation_key,
+                    })
+
+                    Core.Event.RegisterSimulationEvent(simulation_key, function(presentation_data)
+                        local fly_time = math.min(5, presentation_data.resource_1)
+                        local step = math.floor(presentation_data.resource_1 / fly_time)
+
+                        for i = 0, fly_time - 1 do
+                            Help.GameTimer(0.25 * i, nil, nil, function()
+                                if hero:IsUnitAlive() then
+                                    -- Update Display
+                                    DCEI.CreateEffectAtUnit(data.fly_effect, self.instance, hero.unit)
+                                    local spend_amount = (i == (fly_time - 1))
+                                            and (presentation_data.resource_1 - step * (fly_time - 1))
+                                        or step
+                                    local success = SaveDataManager.Spend(resource_key, spend_amount)
+                                    Help.GameTimer(data.fly_delay, nil, nil, function()
+                                        -- Update Display
+                                        save_data[key_index] = (save_data[key_index] or 0) + spend_amount
+                                        SaveDataManager.Set(save_key, save_data)
+
+                                        -- Quest Check
+                                        QuestManager.CheckSpendResource({
+                                            id = resource_key,
+                                            amount = spend_amount,
+                                        })
+                                        self.resource_collected[resource_key] = self.resource_collected[resource_key]
+                                            + spend_amount
+                                    end)
+                                end
+                            end)
+                        end
+                    end)
+                end
+            end
+        else
+            self.show_exchange_pop_up = false
+        end
+        return
+    end
+
+    if distance > data.deposit_range then
         return
     end
 
@@ -1474,6 +1539,17 @@ function CampObject:_CheckResourceCollector(delta, hero)
             return
         end
     end
+
+    if not self.resource_collected then
+        self.resource_collected = {}
+
+        -- Check if there is a saved value
+        if save_data[key_index] then
+            self.resource_collected[resource_key] = save_data[key_index]
+        end
+    end
+
+    self.resource_collected[resource_key] = (self.resource_collected[resource_key] or 0)
 
     if data.frequency then
         self.resource_collector_options.cooldown = self.resource_collector_options.cooldown + delta
@@ -1501,9 +1577,7 @@ function CampObject:_CheckResourceCollector(delta, hero)
     end
 
     -- Save Resource Collected
-    local save_key = data.save_key
-    local save_data = SaveDataManager.GetReference(save_key) or {}
-    local key_index = resource_key[#resource_key]
+
     save_data[key_index] = (save_data[key_index] or 0) + spend_amount
     SaveDataManager.Set(save_key, save_data)
 
@@ -1512,18 +1586,6 @@ function CampObject:_CheckResourceCollector(delta, hero)
         id = resource_key,
         amount = spend_amount,
     })
-
-    -- Cached Resource Values (display purposes)
-    if not self.resource_collected then
-        self.resource_collected = {}
-
-        -- Check if there is a saved value
-        if save_data[key_index] then
-            self.resource_collected[resource_key] = save_data[key_index]
-        end
-    end
-
-    self.resource_collected[resource_key] = (self.resource_collected[resource_key] or 0)
 
     -- Check for Launch
     if data.on_trigger then

@@ -427,6 +427,27 @@ function AIHelper.GenerateSpiral(position, count, starting_angle, angle_step, st
     return pattern
 end
 
+---comment
+---@param unit UnitInstance
+---@param size number
+function AIHelper.SpawnLeashIndicator(unit, size)
+    local position = Vector2.UnitPosition(unit)
+    local instance = Help.SpawnIndicator(position)
+    Core.Unit.SetBehaviorCount(instance, REF.ActorScale, size * 100)
+
+    DCEI.TriggerAddUnitDiedEvent(unit, function()
+        if Help.ValidateUnit(instance) then
+            DCEI.RemoveUnit(instance)
+        end
+    end)
+
+    DCEI.TriggerAddUnitRemovedEvent(unit, function()
+        if Help.ValidateUnit(instance) then
+            DCEI.RemoveUnit(instance)
+        end
+    end)
+end
+
 -- ================================================================================================
 -- !SECTION: Pattern
 -- SECTION: Stagger

@@ -1,0 +1,119 @@
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+---@class UpgradeData
+---@field Key string
+---@field DisplayName string
+---@field Icon string
+---@field Cost UpgradeData.Cost
+---@field Modifier UpgradeData.Modifier
+
+---@class UpgradeData.Cost
+---@field ResourceIcon string
+---@field Base number
+---@field Increment number
+
+---@class UpgradeData.Modifier
+---@field Stat STAT
+---@field Scaling SCALING
+---@field StartingValue number
+---@field Increase number
+---@field Tags table<SKILL_TAG> | nil
+
+---@readonly
+local Data = {}
+
+---@type table<string, UpgradeData>
+Data.Dictionary = {}
+
+---@type table<UpgradeData>
+Data.List = {
+    {
+        Key = "Power",
+        DisplayName = "POWER",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        Cost = {
+            ResourceIcon = ResourceData.Map.Gold.Icon,
+            Base = 5,
+            Increment = 5,
+        },
+        Modifier = {
+            Stat = STAT.Damage,
+            Scaling = SCALING.Additive,
+            StartingValue = 0,
+            Increase = 0.10,
+        },
+    },
+    {
+        Key = "ActionSpeed",
+        DisplayName = "ACTION SPEED",
+        Icon = DCEI.Texture("cartoon_icon_tag_cooldown_survivor"),
+        Cost = {
+            ResourceIcon = ResourceData.Map.Gold.Icon,
+            Base = 10,
+            Increment = 10,
+        },
+        Modifier = {
+            Stat = STAT.AttackSpeed,
+            Scaling = SCALING.Scaled,
+            StartingValue = 0,
+            Increase = 0.1,
+        },
+    },
+    {
+        Key = "MoveSpeed",
+        DisplayName = "MOVE SPEED",
+        Icon = DCEI.Texture("cartoon_icon_tag_delivery_survivor"),
+        Cost = {
+            ResourceIcon = ResourceData.Map.Gold.Icon,
+            Base = 20,
+            Increment = 20,
+        },
+        Modifier = {
+            Stat = STAT.MoveSpeed,
+            Scaling = SCALING.Additive,
+            StartingValue = 0,
+            Increase = 0.10,
+        },
+    },
+    {
+        Key = "WoodDropAmount",
+        DisplayName = "WOOD AMOUNT",
+        Icon = DCEI.Texture("cartoon_icon_tag_burst_survivor"),
+        Cost = {
+            ResourceIcon = ResourceData.Map.Gold.Icon,
+            Base = 100,
+            Increment = 100,
+        },
+        Modifier = {
+            Stat = STAT.Count,
+            Scaling = SCALING.Scaled,
+            StartingValue = 0,
+            Increase = 1,
+            Tags = { SKILL_TAG.ChopTree },
+        },
+    },
+
+    -- {
+    --     Key = "ToolDamage",
+    --     DisplayName = "TOOL DAMAGE",
+    --     Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+    --     Cost = {
+    --         ResourceIcon = ResourceData.Map.Gold.Icon,
+    --         Base = 5,
+    --         Increment = 5,
+    --     },
+    --     Modifier = {
+    --         Stat = STAT.Damage,
+    --         Scaling = SCALING.Scaled,
+    --         StartingValue = 0,
+    --         Increase = 5,
+    --         Tags = { SKILL_TAG.Tool },
+    --     },
+    -- },
+}
+
+for _, data in ipairs(Data.List) do
+    Data.Dictionary[data.Key] = data
+end
+
+return Data

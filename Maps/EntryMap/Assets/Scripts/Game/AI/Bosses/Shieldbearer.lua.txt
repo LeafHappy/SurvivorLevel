@@ -62,7 +62,7 @@ Boss.Data = {
 ---============================================================================
 
 local AGGRO_RANGE = 8
-local LEASH_RANGE = 15
+local LEASH_RANGE = 10
 local MODEL_SCALE = 1.75
 
 local PHASE_MODIFIERS = {
@@ -605,6 +605,10 @@ local function AttemptRemoveChargeAddons(ai)
 end
 
 local function SpawnChargeVFX(ai)
+    if Help.ValidateUnit(ai.Data.ChargeVFX) then
+        DCEI.RemoveUnit(ai.Data.ChargeVFX)
+    end
+
     local collision_size = ai.attributes:Get(STAT.CollisionSize)
 
     local instance = DCEI.CreateUnit(TEAM.Hostile, PLAYER.Hostile, REF.ChargeVFX, 0, 0, 0, 0)
@@ -962,6 +966,12 @@ end
 ---comment
 ---@param ai AIHandler
 local function AdvancedDecision(ai)
+    local game_time = DCEI.GetGameTime()
+    if game_time == ai.Data.LastTriggeredTime then
+        return
+    end
+    ai.Data.LastTriggeredTime = game_time
+
     local spawn_position = Vector2.Copy(ai.Data.SpawnPosition)
     local unit_position = Vector2.UnitPosition(ai.unit)
     local target_position = Vector2.UnitPosition(ai.Data.Target)
@@ -998,31 +1008,6 @@ local function AdvancedDecision(ai)
         ai.Data.StateIndex = 0
     end
 
-    -- ValidateTarget
-    -- if not ai:ValidateTarget() then
-    --     ai.Data.Status = STATES.Return
-    -- elseif distance_from_spawn > LEASH_RANGE and target_distance_from_spawn > LEASH_RANGE then
-    --     ai.Data.Status = STATES.Return
-    -- end
-
-    ---TODO: Boss Specific Actions
-    -- local phase = ai.phase
-    -- local action_order = phase == 1 and ACTION_ORDER_01 or phase == 2 and ACTION_ORDER_02 or ACTION_ORDER_03
-
-    -- -- -- Update State Index
-    -- ai.Data.StateIndex = ai.Data.StateIndex + 1
-    -- if ai.Data.StateIndex > #ACTION_ORDER then
-    --     ai.Data.StateIndex = 1
-    -- end
-
-    -- local state = ACTION_ORDER[ai.Data.StateIndex]
-    -- ai:SetState(state)
-
-    -- if state == STATES.Move then
-    --     ai.Data.StateTime = Core.Random.GetNumber(2, 3) * action_speed_modifier
-    --     ai.Data.StateTimer = ai.Data.StateTime
-    -- end
-
     local action_speed_modifier = ai:GetActionSpeedModifier()
 
     if state == STATES.Pursue then
@@ -1031,10 +1016,6 @@ local function AdvancedDecision(ai)
     end
 
     ai:SetState(state)
-
-    -- Help.Log("IsInCombat", ai.Data.IsInCombat)
-    -- Help.Log("State", state)
-    -- Help.Log("Status", ai.Data.Status)
 
     local think_time = 0.25 * action_speed_modifier
     if not Help.WaitAndValidateUnit(think_time, ai.unit) then
@@ -1086,9 +1067,13 @@ function Boss.StartAI(unit, attributes)
     ai.Data.SpawnPosition = Vector2.UnitPosition(unit)
     ai.Data.StateIndex = 0
     ai.Data.IsInCombat = false
+    ai.Data.LastTriggeredTime = DCEI.GetGameTime()
 
     -- Stagger
     AIHelper.RegisterBossStaggerUpdate(ai)
+
+    -- Leash Indicator
+    AIHelper.SpawnLeashIndicator(unit, LEASH_RANGE)
 
     -- Force this to occur in a separate thread so we can use Wait.
     DCEI.TriggerAddTimerEventElapsed(

@@ -6,7 +6,7 @@ local UiHelper = GMUI.UiHelper
 
 -- SCRIPTS
 local Animation = require("Presentation/Animation")
-local DisplayedGameStats = require("SharedData/Game/DisplayedGameStats")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
 local FlyingLocationData = require("UiMeta/FlyingLocationData")
 
 -- CONSTANTS
@@ -34,7 +34,7 @@ local function CreateItem(type)
     if ICON_REPLACEMENTS[type] then
         state.icon = ICON_REPLACEMENTS[type]
     else
-        state.icon = DisplayedGameStats[type].Icon
+        state.icon = ResourceData.Map[type].Icon
     end
 
     return item_layout
@@ -168,9 +168,15 @@ function FlyingRewards.SpendResource(type, args)
         local pop_out_dur = pop_dur
         local size = 1.25
         local size_start = 0.5
-        Animation.PopIn(item_layout.Frame, { ease = "InSine", start_size = size_start, final_size = size, duration = pop_in_dur })
+        Animation.PopIn(
+            item_layout.Frame,
+            { ease = "InSine", start_size = size_start, final_size = size, duration = pop_in_dur }
+        )
         GMUI.RunFunctionAfterTimeElapsed(function()
-            Animation.PopOut(item_layout.Frame, { ease = "OutSine", start_size = size, final_size = size_start, duration = pop_out_dur })
+            Animation.PopOut(
+                item_layout.Frame,
+                { ease = "OutSine", start_size = size, final_size = size_start, duration = pop_out_dur }
+            )
         end, pop_in_dur + pop_dur)
 
         GMUI.RunFunctionAfterTimeElapsed(function()
