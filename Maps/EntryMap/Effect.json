@@ -8704,6 +8704,14 @@
                 "spawnUnitType": "Loot - Small Potion"
             }
         },
+        "Spawn - Loot - Stone - Nearby": {
+            "parent": "_Simple Spawn",
+            "simpleSpawn": {
+                "spawnUnitType": "Loot - Stone",
+                "effect": "SMover - Random Circle - Small",
+                "playerId": 0
+            }
+        },
         "Spawn - Loot - Stone - Stationary": {
             "parent": "_Simple Spawn",
             "simpleSpawn": {

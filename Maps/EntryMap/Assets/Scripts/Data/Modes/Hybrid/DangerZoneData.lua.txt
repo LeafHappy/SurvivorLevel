@@ -693,6 +693,66 @@ local data = {
             },
         },
     },
+    forest_7 = {
+        Key = "forest_7",
+        KeyItems = {},
+        Position = {
+        x = 3,
+        y = 5
+        },
+        Props = {
+        {
+            Key = "ThicketTreeDegrade01",
+            Position = {
+            x = -0.90939712524414063,
+            y = -1.0307674407958984
+            }
+        },
+        {
+            Key = "ThicketTreeDegrade01",
+            Position = {
+            x = -1.8538408279418945,
+            y = 1.0512638092041016
+            }
+        },
+        {
+            Key = "ThicketTreeDegrade01",
+            Position = {
+            x = 1.0350475311279297,
+            y = 1.6012535095214844
+            }
+        }
+        },
+        StartingStatus = "Available",
+        Tiles = {
+            {
+                Key = "StandardTile",
+                Position = {
+                x = 3,
+                y = 5
+                }
+            }
+        },
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 1,
+            ResourceCost = {
+                Amount = 60,
+                Resource = "Wood",
+            },
+            StandOffset = {
+                x = -3.5,
+                y = 0,
+            },
+            UIOffset = {
+                x = -1.5,
+                y = 0,
+            },
+            Zones = {
+                "forest_6",
+            },
+        },
+    },
     free_zone_1 = {
         Key = "free_zone_1",
         KeyItems = {
@@ -821,9 +881,18 @@ local data = {
             },
             Simple = {
                 {
-                    Count = 2,
+                    Count = 1,
                     DropTable = {
                         "Stone",
+                    },
+                    Modifiers = {},
+                    RespawnTime = 30,
+                    SpawnType = "Runner",
+                },
+                {
+                    Count = 1,
+                    DropTable = {
+                        "Gold",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -897,9 +966,18 @@ local data = {
             },
             Simple = {
                 {
-                    Count = 3,
+                    Count = 1,
                     DropTable = {
                         "Stone",
+                    },
+                    Modifiers = {},
+                    RespawnTime = 30,
+                    SpawnType = "Runner",
+                },
+                {
+                    Count = 2,
+                    DropTable = {
+                        "Gold",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -966,9 +1044,18 @@ local data = {
             },
             Simple = {
                 {
-                    Count = 2,
+                    Count = 1,
                     DropTable = {
                         "Stone",
+                    },
+                    Modifiers = {},
+                    RespawnTime = 30,
+                    SpawnType = "Runner",
+                },
+                {
+                    Count = 1,
+                    DropTable = {
+                        "Gold",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -1122,9 +1209,18 @@ local data = {
             },
             Simple = {
                 {
-                    Count = 2,
+                    Count = 1,
                     DropTable = {
                         "Stone",
+                    },
+                    Modifiers = {},
+                    RespawnTime = 30,
+                    SpawnType = "Runner",
+                },
+                {
+                    Count = 1,
+                    DropTable = {
+                        "Gold",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -1218,7 +1314,7 @@ local data = {
             {
                 Count = 1,
                 DropTable = {
-                    "Stone",
+                    "Gold",
                 },
                 Modifiers = {},
                 RespawnTime = 30,
@@ -1372,6 +1468,73 @@ local data = {
             },
             Zones = {
                 "sand_7",
+            },
+        },
+    },
+    sand_9 = {
+        Key = "sand_9",
+        KeyItems = {},
+        Position = {
+        x = 3,
+        y = -2
+        },
+        Props = {
+        {
+            Key = "IronVein01",
+            Position = {
+            x = 1.0515346527099609,
+            y = 1.0780582427978516
+            }
+        },
+        {
+            Key = "Stone01",
+            Position = {
+            x = -1.7540197372436523,
+            y = 1.1566104888916016
+            }
+        },
+        {
+            Key = "Stone01",
+            Position = {
+            x = -1.7262420654296875,
+            y = -0.45410728454589844
+            }
+        },
+        {
+            Key = "Stone01",
+            Position = {
+            x = -0.14290904998779297,
+            y = -1.0432796478271484
+            }
+        }
+        },
+        StartingStatus = "Available",
+        Tiles = {
+            {
+                Key = "Desert",
+                Position = {
+                x = 3,
+                y = -2
+                }
+            }
+        },
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 1,
+            ResourceCost = {
+                Amount = 40,
+                Resource = "Stone",
+            },
+            StandOffset = {
+                x = -3,
+                y = 0,
+            },
+            UIOffset = {
+                x = 0,
+                y = 0,
+            },
+            Zones = {
+                "sand_8",
             },
         },
     },
