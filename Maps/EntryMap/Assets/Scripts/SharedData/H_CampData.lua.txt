@@ -82,8 +82,8 @@ local POS = {
     Shrine_Strafe = Vector2.New(0, -8),
     Shrine_Bash = Vector2.New(0, -16),
 
-    Logging = Vector2.New(10, 26),
-    Mine = Vector2.New(10, -20),
+    Logging = Vector2.New(10, 21),
+    Mine = Vector2.New(10, -10),
     Treasury = Vector2.New(-1, 12),
 
     ArcherSlot_1 = Vector2.New(-4, 0),

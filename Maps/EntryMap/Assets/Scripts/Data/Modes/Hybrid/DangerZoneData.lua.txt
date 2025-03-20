@@ -4,77 +4,77 @@ local data = {
         KeyItems = {},
         Position = {
             x = -1,
-            y = 6,
+            y = 4,
         },
         Props = {
             {
                 Key = "PumpkinField01",
                 Position = {
                     x = -3.2399864196777344,
-                    y = 2.7708663940429688,
+                    y = 2.7708663940429688-5,
                 },
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
                     x = 1.4169678688049316,
-                    y = -1.1575984954833984,
+                    y = -1.1575984954833984 - 5,
                 },
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
                     x = 0.45286464691162109,
-                    y = 1.8449039459228516,
+                    y = 1.8449039459228516 - 5,
                 },
             },
             {
                 Key = "TreeDegrade01",
                 Position = {
                     x = 1.7554287910461426,
-                    y = 2.9907760620117188,
+                    y = 2.9907760620117188 - 5,
                 },
             },
             {
                 Key = "Pumpkin01",
                 Position = {
                     x = -4.2680492401123047,
-                    y = 2.1918258666992188,
+                    y = 2.1918258666992188 - 5,
                 },
             },
             {
                 Key = "Pumpkin01",
                 Position = {
                     x = -4.2065105438232422,
-                    y = 3.4537887573242188,
+                    y = 3.4537887573242188 - 5,
                 },
             },
             {
                 Key = "Pumpkin01",
                 Position = {
                     x = -3.2731771469116211,
-                    y = 3.4827804565429688,
+                    y = 3.4827804565429688 - 5,
                 },
             },
             {
                 Key = "Pumpkin01",
                 Position = {
                     x = -2.2783055305480957,
-                    y = 3.6132736206054688,
+                    y = 3.6132736206054688 - 5,
                 },
             },
             {
                 Key = "Pumpkin01",
                 Position = {
                     x = -3.3449726104736328,
-                    y = 2.0758590698242188,
+                    y = 2.0758590698242188 - 5,
                 },
             },
             {
                 Key = "Pumpkin01",
                 Position = {
                     x = -2.2270240783691406,
-                    y = 2.2064132690429688,
+                    y = 2.2064132690429688 - 5,
                 },
             },
         },
@@ -84,28 +84,28 @@ local data = {
                 Key = "StandardTile",
                 Position = {
                     x = -1,
-                    y = 6,
+                    y = 3,
                 },
             },
             {
                 Key = "StandardTile",
                 Position = {
                     x = -1,
-                    y = 7,
+                    y = 4,
                 },
             },
             {
                 Key = "StandardTile",
                 Position = {
                     x = -2,
-                    y = 7,
+                    y = 4,
                 },
             },
             {
                 Key = "StandardTile",
                 Position = {
                     x = -2,
-                    y = 6,
+                    y = 3,
                 },
             },
         },
@@ -118,7 +118,7 @@ local data = {
             },
             StandOffset = {
                 x = 0,
-                y = -3,
+                y = 3,
             },
             UIOffset = {
                 x = 0,
@@ -126,6 +126,101 @@ local data = {
             },
             Zones = {
                 "forest_3",
+            },
+        },
+    },
+    farm_2 = {
+        Key = "farm_2",
+        KeyItems = {},
+        Position = {
+            x = -1,
+            y = 2
+        },
+        Props = {
+            {
+                Key = "PumpkinField01",
+                Position = {
+                    x = -0.025890827178955078,
+                    y = 0.15825843811035156
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = -0.97033596038818359,
+                    y = 1.1010684967041016
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = 0.0018863677978515625,
+                    y = 1.0617618560791016
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = 0.64077615737915039,
+                    y = 0.90465736389160156
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = 0.86299705505371094,
+                    y = -0.11670303344726563
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = 0.085220813751220703,
+                    y = -0.43097496032714844
+                }
+            },
+            {
+                Key = "Pumpkin01",
+                Position = {
+                    x = -0.83144664764404297,
+                    y = -0.35242080688476563
+                }
+            }
+        },
+        StartingStatus = "Available",
+        Tiles = {
+            {
+                Key = "Grasslands",
+                Position = {
+                    x = -1,
+                    y = 2
+                }
+            },
+            {
+                Key = "Grasslands",
+                Position = {
+                    x = -1,
+                    y = 1
+                }
+            }
+        },
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 1,
+            ResourceCost = {
+                Amount = 5,
+                Resource = "Iron",
+            },
+            StandOffset = {
+                x = 0,
+                y = -8,
+            },
+            UIOffset = {
+                x = 0,
+                y = -5,
+            },
+            Zones = {
+                "farm_1",
             },
         },
     },
@@ -138,7 +233,7 @@ local data = {
                 },
                 PositionOffset = {
                     x = 0,
-                    y = 2.5,
+                    y = 7.5,
                 },
             },
             Simple = {
@@ -159,7 +254,7 @@ local data = {
                 Key = "Strafe",
                 Position = {
                     x = 0.69891119003295898,
-                    y = 6.0001163482666016,
+                    y = 1.0001163482666016,
                 },
                 Status = "Cleansed",
             },
@@ -401,8 +496,8 @@ local data = {
             {
                 Key = "TreeDegrade01",
                 Position = {
-                    x = -1.7390778064727783,
-                    y = 6.5683536529541016,
+                    x = -1.7390778064727783+5,
+                    y = 1.5683536529541016,
                 },
             },
         },
@@ -418,8 +513,8 @@ local data = {
             {
                 Key = "StandardTile",
                 Position = {
-                    x = 1,
-                    y = 6,
+                    x = 2,
+                    y = 5,
                 },
             },
         },
@@ -448,7 +543,7 @@ local data = {
         KeyItems = {},
         Position = {
             x = 2,
-            y = 6,
+            y = 4,
         },
         Props = {
             {
@@ -456,13 +551,6 @@ local data = {
                 Position = {
                     x = -2.2130708694458008,
                     y = -4.2078285217285156,
-                },
-            },
-            {
-                Key = "TreeDegrade01",
-                Position = {
-                    x = 3.1301631927490234,
-                    y = -2.0868587493896484,
                 },
             },
             {
@@ -479,21 +567,14 @@ local data = {
                 Key = "StandardTile",
                 Position = {
                     x = 2,
-                    y = 6,
-                },
-            },
-            {
-                Key = "StandardTile",
-                Position = {
-                    x = 3,
-                    y = 6,
+                    y = 4,
                 },
             },
             {
                 Key = "Grasslands",
                 Position = {
                     x = 2,
-                    y = 5,
+                    y = 3,
                 },
             },
         },
@@ -505,6 +586,101 @@ local data = {
                 Resource = "Pumpkin",
             },
             StandOffset = {
+                x = 0,
+                y = 2.5,
+            },
+            UIOffset = {
+                x = 0,
+                y = 0,
+            },
+            Zones = {
+                "forest_4",
+            },
+        },
+    },
+    forest_6 = {
+        Key = "forest_6",
+        KeyItems = {},
+        Position = {
+            x = 3,
+            y = 4,
+        },
+        Props = {
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = -2.2130708694458008,
+                    y = -2.2078285217285156
+                }
+            },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = 1.8993959426879883,
+                    y = 2.0015316009521484
+                }
+            },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = 1.0993959426879882,
+                    y = 1.0015316009521484
+                }
+            },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = -1.3079566955566406,
+                    y = 1.4230289459228516
+                }
+            },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = -1.1135120391845703,
+                    y = 0.16594886779785156
+                }
+            },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = 0.41426753997802734,
+                    y = -0.77686119079589844
+                }
+            },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = 1.4698219299316406,
+                    y = -0.69830894470214844
+                }
+            },
+            {
+                Key = "TreeDegrade01",
+                Position = {
+                    x = 0.3309326171875,
+                    y = -1.7589149475097656
+                }
+            },
+        },
+        StartingStatus = "Available",
+        Tiles = {
+            {
+                Key = "StandardTile",
+                Position = {
+                    x = 3,
+                    y = 4,
+                },
+            },
+        },
+        UnlockRequirements = {
+            AlwaysShowCost = true,
+            Range = 1,
+            ResourceCost = {
+                Amount = 40,
+                Resource = "Pumpkin",
+            },
+            StandOffset = {
                 x = -3.5,
                 y = 0,
             },
@@ -513,7 +689,7 @@ local data = {
                 y = 0,
             },
             Zones = {
-                "forest_4",
+                "forest_5",
             },
         },
     },
@@ -531,16 +707,37 @@ local data = {
         },
         Position = {
             x = -2,
-            y = 2,
+            y = -2,
         },
         Props = {
             {
                 Key = "DigSpot01",
                 Position = {
                     x = -1.1035833358764648,
-                    y = 1.1620426177978516,
-                },
+                    y = 1.1620426177978516
+                }
             },
+            {
+                Key = "Stone01",
+                Position = {
+                    x = -1.0751962661743164,
+                    y = -3.9144954681396484
+                }
+            },
+            {
+                Key = "Stone01",
+                Position = {
+                    x = 1.5914707183837891,
+                    y = -5.5250911712646484
+                }
+            },
+            {
+                Key = "Stone01",
+                Position = {
+                    x = -1.1863079071044922,
+                    y = -6.0358333587646484
+                }
+            }
         },
         StartingStatus = "Cleansed",
         Tiles = {
@@ -548,7 +745,14 @@ local data = {
                 Key = "Grasslands",
                 Position = {
                     x = -2,
-                    y = 2,
+                    y = -2,
+                },
+            },
+            {
+                Key = "Wasteland",
+                Position = {
+                    x = -2,
+                    y = -3,
                 },
             },
         },
@@ -619,7 +823,7 @@ local data = {
                 {
                     Count = 2,
                     DropTable = {
-                        "Gold",
+                        "Stone",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -695,7 +899,7 @@ local data = {
                 {
                     Count = 3,
                     DropTable = {
-                        "Gold",
+                        "Stone",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -764,7 +968,7 @@ local data = {
                 {
                     Count = 2,
                     DropTable = {
-                        "Gold",
+                        "Stone",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -920,7 +1124,7 @@ local data = {
                 {
                     Count = 2,
                     DropTable = {
-                        "Gold",
+                        "Stone",
                     },
                     Modifiers = {},
                     RespawnTime = 30,
@@ -978,7 +1182,7 @@ local data = {
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 15,
+                Amount = 20,
                 Resource = "Stone",
             },
             StandOffset = {
@@ -1014,7 +1218,7 @@ local data = {
             {
                 Count = 1,
                 DropTable = {
-                    "Gold",
+                    "Stone",
                 },
                 Modifiers = {},
                 RespawnTime = 30,
@@ -1062,7 +1266,7 @@ local data = {
             {
                 Key = "Stone01",
                 Position = {
-                    x = -1.0489969253540039,
+                    x = 1.0489969253540039,
                     y = 1.7841739654541016,
                 },
             },
@@ -1088,7 +1292,7 @@ local data = {
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 25,
+                Amount = 20,
                 Resource = "Stone",
             },
             StandOffset = {
@@ -1109,21 +1313,21 @@ local data = {
         KeyItems = {},
         Position = {
             x = 2,
-            y = -4,
+            y = -2,
         },
         Props = {
             {
                 Key = "Stone01",
                 Position = {
-                    x = -0.39728641510009766,
-                    y = -5.8714027404785156,
+                    x = -0.39728641510009766 - 5,
+                    y = -0.8714027404785156,
                 },
             },
             {
                 Key = "Stone01",
                 Position = {
-                    x = 1.264251708984375,
-                    y = -4.8270301818847656,
+                    x = 1.264251708984375 - 5,
+                    y = -4.8270301818847656 + 5,
                 },
             },
             {
@@ -1140,14 +1344,14 @@ local data = {
                 Key = "Wasteland",
                 Position = {
                     x = 2,
-                    y = -4,
+                    y = -2,
                 },
             },
             {
                 Key = "Desert",
                 Position = {
-                    x = 2,
-                    y = -5,
+                    x = 1,
+                    y = -2,
                 },
             },
         },
@@ -1160,7 +1364,7 @@ local data = {
             },
             StandOffset = {
                 x = 0,
-                y = 3,
+                y = -3,
             },
             UIOffset = {
                 x = 0,
@@ -1179,14 +1383,6 @@ local data = {
                 Position = {
                     x = -0.11501608788967133,
                     y = 4.8436832427978516,
-                },
-                Status = "Cleansed",
-            },
-            {
-                Key = "Strafe",
-                Position = {
-                    x = -0.18551596999168396,
-                    y = -14.474063873291016,
                 },
                 Status = "Cleansed",
             },
@@ -1337,6 +1533,13 @@ local data = {
                     y = 2,
                 },
             },
+            {
+                Key = "Grasslands",
+                Position = {
+                    x = 0,
+                    y = 3,
+                },
+            },
         },
         UnlockRequirements = {
             AlwaysShowCost = true,
@@ -1369,22 +1572,22 @@ local data = {
             {
                 Key = "ThicketTreeDegrade01",
                 Position = {
-                    x = -5.8254613876342773,
-                    y = 1.7741641998291016,
+                    x = -5.8254613876342773+5,
+                    y = 1.7741641998291016+10,
                 },
             },
             {
                 Key = "ThicketTreeDegrade01",
                 Position = {
-                    x = -6.7280254364013672,
-                    y = 0.61376380920410156,
+                    x = -6.7280254364013672 + 5,
+                    y = 0.61376380920410156 + 10,
                 },
             },
             {
                 Key = "ThicketTreeDegrade01",
                 Position = {
-                    x = -3.0767450332641602,
-                    y = -1.7504920959472656,
+                    x = -3.0767450332641602 + 5,
+                    y = -1.7504920959472656 + 10,
                 },
             },
             {
@@ -1407,8 +1610,15 @@ local data = {
             {
                 Key = "StandardTile",
                 Position = {
-                    x = -3,
-                    y = 0,
+                    x = -2,
+                    y = 1,
+                },
+            },
+            {
+                Key = "StandardTile",
+                Position = {
+                    x = -2,
+                    y = 2,
                 },
             },
         },
@@ -1434,7 +1644,7 @@ local data = {
         KeyItems = {},
         Position = {
             x = -2,
-            y = 1,
+            y = -1,
         },
         Props = {
             {
@@ -1458,7 +1668,14 @@ local data = {
                 Key = "Grasslands",
                 Position = {
                     x = -2,
-                    y = 1,
+                    y = -1,
+                },
+            },
+            {
+                Key = "Grasslands",
+                Position = {
+                    x = -1,
+                    y = -1,
                 },
             },
         },
@@ -1471,7 +1688,7 @@ local data = {
             },
             StandOffset = {
                 x = 0,
-                y = -3,
+                y = 3,
             },
             UIOffset = {
                 x = 0,
