@@ -657,6 +657,9 @@
         "Editor - Ghost - Grasslands": {
             "baseUnit": "_StandardHelper"
         },
+        "Editor - Ghost - Iron Vein - 01": {
+            "baseUnit": "_StandardHelper"
+        },
         "Editor - Ghost - KeyItem - Axe": {
             "baseUnit": "_StandardHelper"
         },
@@ -688,6 +691,15 @@
             "baseUnit": "_StandardHelper"
         },
         "Editor - Ghost - Wasteland": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Selected Zone Indicator": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Selected Zone Marker": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Editor - Zone Marker": {
             "baseUnit": "_StandardHelper"
         },
         "Elite - Bloodstone": {
@@ -1352,6 +1364,7 @@
             "baseUnit": "_GenericControllableUnit",
             "components": {
                 "unitStats": {
+                    "immortal": true,
                     "selectable": false,
                     "ignoreCollision": true,
                     "ignorePathing": true
@@ -1360,7 +1373,7 @@
                     "maxHealth": 1
                 },
                 "movement": {
-                    "moveSpeed": 2
+                    "moveSpeed": 1
                 }
             },
             "healthBar": {
@@ -1442,7 +1455,9 @@
         "Hybrid - Treasury - Slot": {
             "baseUnit": "_GenericControllableUnit"
         },
-        "Hybrid - Zone - Spend Area": {},
+        "Hybrid - Zone - Spend Area": {
+            "baseUnit": "_StandardHelper"
+        },
         "Hydra - Impact VFX": {
             "baseUnit": "_VFX"
         },
@@ -1559,6 +1574,12 @@
             "baseUnit": "_Loot",
             "dependentEffects": [
                 "Loot - Hard Wood - OnEnter"
+            ]
+        },
+        "Loot - Iron": {
+            "baseUnit": "_Loot",
+            "dependentEffects": [
+                "Loot - Iron - OnEnter"
             ]
         },
         "Loot - Large Experience": {
@@ -1849,6 +1870,36 @@
         },
         "Prop - Gas Pump - 02": {
             "baseUnit": "_Prop - FG"
+        },
+        "Prop - Iron Vein - 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Iron Vein - OnDeath"
+            ]
+        },
+        "Prop - Iron Vein - 02": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Iron Vein - OnDeath"
+            ]
+        },
+        "Prop - Iron Vein - 03": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Iron Vein - OnDeath"
+            ]
+        },
+        "Prop - Iron Vein - 04": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Iron Vein - OnDeath"
+            ]
+        },
+        "Prop - Iron Vein - 05": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Iron Vein - OnDeath"
+            ]
         },
         "Prop - Overgrown RV - 01": {
             "baseUnit": "_Prop - FG"
@@ -2359,6 +2410,21 @@
             }
         },
         "Throw Resource - Hard Wood": {
+            "baseUnit": "_CMissile",
+            "components": {
+                "unitStats": {
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                },
+                "behavior": {
+                    "genericControllableUnit": {}
+                }
+            },
+            "healthBar": {
+                "type": 8
+            }
+        },
+        "Throw Resource - Iron": {
             "baseUnit": "_CMissile",
             "components": {
                 "unitStats": {

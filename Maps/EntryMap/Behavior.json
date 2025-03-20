@@ -217,6 +217,22 @@
         "Hybrid - Archer - Projectile Speed": {
             "defaultStackType": {}
         },
+        "Hybrid - Worker Sleep": {
+            "defaultStackType": {},
+            "modifiers": {
+                "flags": {
+                    "suppressMovement": true
+                }
+            }
+        },
+        "Hybrid - Worker Speed Upgrade Buff": {
+            "defaultStackType": {},
+            "modifiers": {
+                "moveSpeedModifier": {
+                    "scaled": 0.1
+                }
+            }
+        },
         "Hydra - Active": {
             "defaultStackType": {}
         },
@@ -366,6 +382,9 @@
             "periodicInterval": 1,
             "periodicEffect": "Skill - Blade Trap - Seeking Blades - Scan"
         },
+        "Skill - Chop Tree - Axe Scale": {
+            "defaultStackType": {}
+        },
         "Skill - Fireball - Projectile Speed": {
             "defaultStackType": {}
         },
@@ -387,6 +406,9 @@
             "defaultStackType": {}
         },
         "Skill - Mighty Axe - Projectile Speed": {
+            "defaultStackType": {}
+        },
+        "Skill - Mine Stone - Pickaxe Scale": {
             "defaultStackType": {}
         },
         "Skill - Static Remnants - Storm Serpent - Damage": {

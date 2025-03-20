@@ -14,6 +14,9 @@ local Animation = require("Presentation/Animation")
 
 local UpgradeData = require("SharedData/Talents/UpgradeData")
 local StatData = require("SharedData/Skills/StatData")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+local Help = require("UiHelp")
 
 ---============================================================================
 ---!SECTION: Scripts
@@ -84,22 +87,57 @@ function UpgradeMenuItem:Initialize()
     end)
 end
 
+---comment
+---@param stat STAT
+---@param modifiers table<integer, table<Modifier>>
+---@param level integer
+---@return number
+local function CalculateStatAtLevel(stat, modifiers, level)
+    local value = 0
+
+    for index, modifier_set in pairs(modifiers) do
+        if level >= index then
+            -- Check how many times it should be applied
+            local step = math.floor(level / index)
+
+            -- Loop through all of the modifiers
+            for _, modifier in ipairs(modifier_set) do
+                -- Only check for the requested Stat
+                if modifier.stat == stat then
+                    value = value + modifier.value * step
+                end
+            end
+        end
+    end
+
+    return value
+end
+
 function UpgradeMenuItem:UpdateDisplay()
     local upgrade_data = UpgradeData.Dictionary[self.Key]
 
-    local current_value = upgrade_data.Modifier.StartingValue + (upgrade_data.Modifier.Increase * self.Level)
-    local next_value = upgrade_data.Modifier.StartingValue + (upgrade_data.Modifier.Increase * (self.Level + 1))
-    local cost = upgrade_data.Cost.Base + (upgrade_data.Cost.Increment * self.Level)
-    local can_afford = ui.GameState.Gold.value >= cost
+    --- First Modifier is the only one displayed
+    local displayed_stat = upgrade_data.DisplayedStat
+    local displayed_scaling = upgrade_data.DisplayedScaling
 
-    local mod = upgrade_data.Modifier
-    local current_display_value = StatData.Convert(current_value, mod.Stat, mod.Scaling)
-    local next_display_value = StatData.Convert(next_value, mod.Stat, mod.Scaling)
+    local current_value = CalculateStatAtLevel(displayed_stat, upgrade_data.Modifiers, self.Level)
+    local next_value = CalculateStatAtLevel(displayed_stat, upgrade_data.Modifiers, self.Level + 1)
+
+    local cost_data = upgrade_data.Cost
+
+    local cost = cost_data.Base + (cost_data.Increment * self.Level)
+
+    local current_display_value = StatData.Convert(current_value, displayed_stat, displayed_scaling)
+    local next_display_value = StatData.Convert(next_value, displayed_stat, displayed_scaling)
+
+    local required_resource_type = cost_data.ResourceType
+    local resource_data = ResourceData.Map[required_resource_type]
+    local can_afford = ui.GameState[required_resource_type].value >= cost
 
     self.Layout.state.CurrentValue = current_display_value
     self.Layout.state.NextValue = next_display_value
 
-    self.Layout.state.ResourceIcon = upgrade_data.Cost.ResourceIcon
+    self.Layout.state.ResourceIcon = resource_data.Icon
     self.Layout.state.ResourceCost = cost
 
     self.Layout.state.IsPurchasable = can_afford

@@ -393,6 +393,34 @@ function PropInstanceTracker:_CheckSpawnInstance()
     self:_StandardRespawn()
 end
 
+function PropInstanceTracker:CheckAvailability(tag)
+    if not Help.ValidateSimpleUnit(self.Instance) then
+        return nil
+    end
+
+    if not self.PropData.Settings.PropSeries then
+        return nil
+    end
+
+    local prop_key = self.PropData.Settings.PropSeries[self.PropSeriesIndex]
+
+    if not prop_key then
+        return nil
+    end
+
+    local prop_data = PropData[prop_key]
+
+    if not prop_data then
+        return nil
+    end
+
+    if prop_data.Tag == tag then
+        return self:_GetSpawnPosition()
+    end
+
+    return nil
+end
+
 ---============================================================================
 -- !SECTION -- Internal Functions
 -- SECTION -- Class Functions

@@ -158,7 +158,7 @@ HostileData.Marauder = {
     Type = DCEI.SimpleUnit("Hostile - Marauder"),
 
     Stats = {
-        [STAT.Health] = 75,
+        [STAT.Health] = 150,
         [STAT.Thorns] = 20,
         [STAT.CollisionSize] = 0.395,
         [STAT.MoveSpeed] = 1,

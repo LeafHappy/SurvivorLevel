@@ -1,14 +1,17 @@
 local ResourceData = require("SharedData/MetaResources/ResourceData")
+local Modifier = require("SharedData/Class/Modifier")
 
 ---@class UpgradeData
 ---@field Key string
 ---@field DisplayName string
 ---@field Icon string
 ---@field Cost UpgradeData.Cost
----@field Modifier UpgradeData.Modifier
+---@field DisplayedStat STAT
+---@field DisplayedScaling SCALING
+---@field Modifiers table<integer, table<Modifier>> Uses a custom id for the key and stat
 
 ---@class UpgradeData.Cost
----@field ResourceIcon string
+---@field ResourceType ResourceData
 ---@field Base number
 ---@field Increment number
 
@@ -28,88 +31,169 @@ Data.Dictionary = {}
 ---@type table<UpgradeData>
 Data.List = {
     {
-        Key = "Power",
-        DisplayName = "POWER",
+        Key = "AttackDamage",
+        DisplayName = "ATTACK DAMAGE",
         Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
         Cost = {
-            ResourceIcon = ResourceData.Map.Gold.Icon,
-            Base = 5,
-            Increment = 5,
-        },
-        Modifier = {
-            Stat = STAT.Damage,
-            Scaling = SCALING.Additive,
-            StartingValue = 0,
-            Increase = 0.10,
-        },
-    },
-    {
-        Key = "ActionSpeed",
-        DisplayName = "ACTION SPEED",
-        Icon = DCEI.Texture("cartoon_icon_tag_cooldown_survivor"),
-        Cost = {
-            ResourceIcon = ResourceData.Map.Gold.Icon,
+            ResourceType = ResourceData.Map.Wood.Key,
             Base = 10,
             Increment = 10,
         },
-        Modifier = {
-            Stat = STAT.AttackSpeed,
-            Scaling = SCALING.Scaled,
-            StartingValue = 0,
-            Increase = 0.1,
+        DisplayedStat = STAT.Damage,
+        DisplayedScaling = SCALING.Scaled,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.Damage, 5, SCALING.Scaled, { SKILL_TAG.Attack }),
+            },
+            [10] = { -- Every 10 Level
+                Modifier.New(STAT.Damage, 25, SCALING.Scaled, { SKILL_TAG.Attack }),
+            },
+        },
+    },
+    {
+        Key = "ChoppingPower",
+        DisplayName = "CHOPPING POWER",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        Cost = {
+            ResourceType = ResourceData.Map.Stone.Key,
+            Base = 5,
+            Increment = 5,
+        },
+        DisplayedStat = STAT.Damage,
+        DisplayedScaling = SCALING.Scaled,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.Damage, 5, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+            },
+            [10] = { -- Every 10 Levels
+                Modifier.New(STAT.Damage, 50, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+                Modifier.New(STAT.CollisionSize, 0.10, SCALING.Scaled, { SKILL_TAG.ChopTree }), -- Visual
+            },
+        },
+    },
+    {
+        Key = "MiningPower",
+        DisplayName = "MINING POWER",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        Cost = {
+            ResourceType = ResourceData.Map.Wood.Key,
+            Base = 5,
+            Increment = 5,
+        },
+        DisplayedStat = STAT.Damage,
+        DisplayedScaling = SCALING.Scaled,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.Damage, 5, SCALING.Scaled, { SKILL_TAG.MineStone }),
+            },
+            [10] = { -- Every 10 Levels
+                Modifier.New(STAT.Damage, 50, SCALING.Scaled, { SKILL_TAG.MineStone }),
+                Modifier.New(STAT.CollisionSize, 0.10, SCALING.Scaled, { SKILL_TAG.MineStone }), -- Visual
+            },
+        },
+    },
+    {
+        Key = "ToolActionSpeed",
+        DisplayName = "TOOL ACTION SPEED",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        Cost = {
+            ResourceType = ResourceData.Map.Gold.Key,
+            Base = 10,
+            Increment = 10,
+        },
+        DisplayedStat = STAT.AttackSpeed,
+        DisplayedScaling = SCALING.Scaled,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.AttackSpeed, 0.10, SCALING.Scaled, { SKILL_TAG.Tool }),
+            },
+        },
+    },
+    {
+        Key = "Health",
+        DisplayName = "HEALTH",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        Cost = {
+            ResourceType = ResourceData.Map.Pumpkin.Key,
+            Base = 10,
+            Increment = 10,
+        },
+        DisplayedStat = STAT.Health,
+        DisplayedScaling = SCALING.Scaled,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.Health, 25, SCALING.Scaled),
+            },
+        },
+    },
+    {
+        Key = "HealthRegeneration",
+        DisplayName = "HEALTH REGEN",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        Cost = {
+            ResourceType = ResourceData.Map.Pumpkin.Key,
+            Base = 20,
+            Increment = 20,
+        },
+        DisplayedStat = STAT.HealthRegeneration,
+        DisplayedScaling = SCALING.Scaled,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.HealthRegeneration, 1, SCALING.Scaled),
+            },
         },
     },
     {
         Key = "MoveSpeed",
         DisplayName = "MOVE SPEED",
-        Icon = DCEI.Texture("cartoon_icon_tag_delivery_survivor"),
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
         Cost = {
-            ResourceIcon = ResourceData.Map.Gold.Icon,
-            Base = 20,
-            Increment = 20,
+            ResourceType = ResourceData.Map.HardWood.Key,
+            Base = 10,
+            Increment = 10,
         },
-        Modifier = {
-            Stat = STAT.MoveSpeed,
-            Scaling = SCALING.Additive,
-            StartingValue = 0,
-            Increase = 0.10,
+        DisplayedStat = STAT.MoveSpeed,
+        DisplayedScaling = SCALING.Additive,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.MoveSpeed, 0.10, SCALING.Additive),
+            },
         },
     },
     {
-        Key = "WoodDropAmount",
-        DisplayName = "WOOD AMOUNT",
-        Icon = DCEI.Texture("cartoon_icon_tag_burst_survivor"),
+        Key = "AttackSpeed",
+        DisplayName = "ATTACK SPEED",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
         Cost = {
-            ResourceIcon = ResourceData.Map.Gold.Icon,
+            ResourceType = ResourceData.Map.Gold.Key,
             Base = 100,
             Increment = 100,
         },
-        Modifier = {
-            Stat = STAT.Count,
-            Scaling = SCALING.Scaled,
-            StartingValue = 0,
-            Increase = 1,
-            Tags = { SKILL_TAG.ChopTree },
+        DisplayedStat = STAT.AttackSpeed,
+        DisplayedScaling = SCALING.Scaled,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.AttackSpeed, 0.10, SCALING.Scaled, { SKILL_TAG.Attack }),
+            },
         },
     },
-
-    -- {
-    --     Key = "ToolDamage",
-    --     DisplayName = "TOOL DAMAGE",
-    --     Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
-    --     Cost = {
-    --         ResourceIcon = ResourceData.Map.Gold.Icon,
-    --         Base = 5,
-    --         Increment = 5,
-    --     },
-    --     Modifier = {
-    --         Stat = STAT.Damage,
-    --         Scaling = SCALING.Scaled,
-    --         StartingValue = 0,
-    --         Increase = 5,
-    --         Tags = { SKILL_TAG.Tool },
-    --     },
-    -- },
+    {
+        Key = "WorkerSpeed",
+        DisplayName = "WORKER SPEED",
+        Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
+        Cost = {
+            ResourceType = ResourceData.Map.Gold.Key,
+            Base = 30,
+            Increment = 30,
+        },
+        DisplayedStat = STAT.MinionSpeed,
+        DisplayedScaling = SCALING.Additive,
+        Modifiers = {
+            [1] = { -- Every 1 Level
+                Modifier.New(STAT.MinionSpeed, 0.20, SCALING.Additive, { SKILL_TAG.Worker }),
+            },
+        },
+    },
 }
 
 for _, data in ipairs(Data.List) do

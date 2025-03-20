@@ -478,7 +478,7 @@
         <!-- Zone Handling -->
         <include id="NewZone" name="Editor/Zone/New" position="absolute" bottom="280" right="50" />
         <include id="AutoZone" name="Editor/Zone/Auto" position="absolute" bottom="150" right="50" />
-        <include id="ModifyZone" name="Editor/Zone/Modify" position="absolute" top="30" />
+        <include id="ModifyZone" name="Editor/Zone/Modify" position="absolute" />
         <include id="StatusZone" name="Editor/Zone/Status" position="absolute" top="30" left="30" />
         <!-- Create New Zone -->
         <include id="CreateZone" name="Editor/Zone/Create" bind:active="state.IsCreateZoneActive" />
@@ -536,6 +536,16 @@
             <Text text="Save" />
             <Frame height="10" />
             <Frame frameImage="flat_icon_save_progress_white_ipick" width="25" height="25" />
+        </Button>
+    </Frame>
+    <Frame layout="flex" width="150" height="150" name="Editor/ToggleButton">
+        <!-- State -->
+        <State name="IsOn" booleanValue="false" />
+        <Constant name="ButtonColor" value="state.IsOn and 'cartoon_icon_button3_green_mergewar' or 'general_icon_mergewar_button1_pink'" />
+        <!-- Layout -->
+        <Button id="Button" bind:frameImage="@ButtonColor" widthPercent="100" heightPercent="100">
+            <!-- Text -->
+            <Text id="Label" text="Info" />
         </Button>
     </Frame>
     <Frame layout="flex" widthPercent="100" height="120" name="Editor/ToolSelector">
@@ -625,18 +635,100 @@
             </Frame>
         </Frame>
     </Frame>
-    <Frame layout="flex" name="Editor/Zone/Modify">
+    <Frame layout="flex" widthPercent="100" heightPercent="100" flexDirection="column" name="Editor/Zone/Modify">
         <!-- State -->
-        <State name="IsOpen" booleanValue="false" />
+        <State name="IsOpen" booleanValue="true" />
         <State name="Key" stringValue="Zone_Name" />
+        <State name="CurrentX" stringValue="1" />
+        <State name="CurrentY" stringValue="2" />
+        <State name="NewX" stringValue="3" />
+        <State name="NewY" stringValue="4" />
+        <State name="StartingStatus" stringValue="Available" />
+        <State name="IsValid" booleanValue="true" />
         <Constant name="IsActive" value="state.Key ~= ''" />
+        <Constant name="ShowUpArrow" value="state.IsOpen" />
+        <Constant name="ShowDownArrow" value="not state.IsOpen" />
+        <State name="ErrorMessage" stringValue="Invalid Key" />
+        <Constant name="UpdateText" value="state.IsValid and 'Update' or state.ErrorMessage" />
         <!-- Layout -->
         <!-- Open/Closed -->
-        <Button frameImage="event_icon_button01" width="175" height="60" flexDirection="column" bind:active="@IsActive">
+        <Button id="ToggleOpenButton" frameImage="event_icon_button01" width="175" height="60" flexDirection="column" bind:active="@IsActive" position="absolute" top="50">
             <Text bind:text="state.Key" widthPercent="100" height="25" fontSizeMin="1" verticalOffsetInParent="3" />
-            <Frame frameImage="shape_arrow00" width="20" height="15" rotation3d="x: 0, y: 0, z: 0" verticalOffsetInParent="-15" position="absolute" />
+            <Frame frameImage="shape_arrow00" width="20" height="15" rotation3d="x: 0, y: 0, z: 0" verticalOffsetInParent="-15" position="absolute" bind:active="@ShowDownArrow" />
+            <Frame frameImage="shape_arrow00" width="20" height="15" rotation3d="x: 0, y: 180, z: 0" verticalOffsetInParent="-15" position="absolute" bind:active="@ShowUpArrow" />
         </Button>
         <!-- Modify Properties -->
+        <Frame widthPercent="90" height="500" frameImage="summonrevolt_icon_frame_04" flexDirection="column" justifyContent="flex-start" bind:active="state.IsOpen">
+            <!-- Header -->
+            <Frame widthPercent="100" height="50">
+                <Frame widthPercent="30" />
+                <Text text="Current" widthPercent="40" />
+                <Text text="New" widthPercent="40" />
+            </Frame>
+            <Frame widthPercent="100" height="5" frameImage="grid_01_wildsurvivor" />
+            <!-- Key -->
+            <Frame widthPercent="100" height="50">
+                <!-- Key -->
+                <Text text="Key" widthPercent="30" heightPercent="100" />
+                <!-- Current -->
+                <Text bind:text="state.Key" widthPercent="40" heightPercent="100" />
+                <!-- New -->
+                <Input id="KeyInput" placeholder="new_id" widthPercent="40" heightPercent="100" />
+            </Frame>
+            <!-- Line -->
+            <Frame widthPercent="100" height="5" frameImage="grid_01_wildsurvivor" />
+            <!-- Position -->
+            <Frame widthPercent="100" height="80">
+                <!-- Position -->
+                <Frame flexDirection="row" widthPercent="30" heightPercent="100">
+                    <Text text="Position" widthPercent="80" heightPercent="100" />
+                    <Frame widthPercent="20" heightPercent="100" flexDirection="column">
+                        <Text text="x" widthPercent="100" />
+                        <Text text="y" widthPercent="100" />
+                    </Frame>
+                </Frame>
+                <!-- Current -->
+                <Frame widthPercent="40" heightPercent="100" flexDirection="column">
+                    <Text bind:text="state.CurrentX" widthPercent="100" />
+                    <Text bind:text="state.CurrentY" widthPercent="100" />
+                </Frame>
+                <!-- New -->
+                <Frame widthPercent="40" heightPercent="100" flexDirection="column">
+                    <Text bind:text="state.NewX" widthPercent="100" />
+                    <Text bind:text="state.NewY" widthPercent="100" />
+                </Frame>
+            </Frame>
+            <!-- Line -->
+            <Frame widthPercent="100" height="5" frameImage="grid_01_wildsurvivor" />
+            <!-- Starting Status -->
+            <Frame widthPercent="100" height="140">
+                <!-- Key -->
+                <Text text="Starting Status" widthPercent="30" heightPercent="100" />
+                <!-- Current -->
+                <Text bind:text="state.StartingStatus" widthPercent="40" heightPercent="100" />
+                <!-- New -->
+                <Frame id="StartingStatusContainer" widthPercent="40" heightPercent="90" flexDirection="column">
+                    <include name="Editor/Zone/Status/Item" preview="true" />
+                    <include name="Editor/Zone/Status/Item" preview="true" />
+                    <include name="Editor/Zone/Status/Item" preview="true" />
+                </Frame>
+            </Frame>
+            <!-- Line -->
+            <Frame widthPercent="100" height="5" frameImage="grid_01_wildsurvivor" />
+            <!-- Options -->
+            <Frame widthPercent="100" height="150">
+                <!-- Relocate Instances -->
+                <include id="Relocate" name="Editor/ToggleButton" width="100" height="80">
+                    <Text id="Label" text="Relocate Objects" fontSize="14" />
+                </include>
+            </Frame>
+        </Frame>
+        <!-- Options -->
+        <!-- Reposition Content -->
+        <!-- Update/Confirm -->
+        <Button id="UpdateButton" width="200" height="100" marginTop="25" bind:active="state.IsOpen" bind:enable="state.IsValid">
+            <Text bind:text="@UpdateText" />
+        </Button>
     </Frame>
     <Frame layout="flex" name="Editor/Zone/New">
         <!-- States -->
@@ -1798,6 +1890,20 @@
                 <Text bind:text="state.label" wrapping="false" color="#ffffffff" shadow="false" outlineWidth="0.4" />
             </Frame>
         </Button>
+    </Frame>
+    <Frame layout="flex" name="Hybrid/Storage">
+        <!-- Register -->
+        <!-- <Frame frameImage="cartoon_icon_coin3_mergewar"/> -->
+        <!-- State -->
+        <State name="spent" stringValue="1500" />
+        <State name="cost" stringValue="3000" />
+        <State name="icon" stringValue="cartoon_icon_coin3_mergewar" />
+        <State name="label" stringValue="Start Next Wave" />
+        <!-- Layout -->
+        <Frame heightPercent="100">
+            <Text bind:text="state.spent .. '/' .. state.cost" class="outline" outsideOutline="true" fontSize="28" wrapping="false" marginRight="8" />
+            <Frame bind:frameImage="state.icon" width="30" height="30" />
+        </Frame>
     </Frame>
     <Frame layout="flex" widthPercent="100" heightPercent="127.1941" flexDirection="column" justifyContent="flex-end" verticalOffsetInParent="-85.66154" name="Hybrid/UpgradeMenu">
         <!-- State -->

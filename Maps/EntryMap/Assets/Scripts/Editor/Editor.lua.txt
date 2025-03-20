@@ -76,6 +76,7 @@ local Layout = GMUI.Layout.New({
 local _IsActive = false
 local _LatestZoneData = nil
 local _RequestNewZone = false
+local _RequestUpdateZone = false
 
 ---@class Editor.ItemLayout
 ---@field Layout Layout
@@ -91,6 +92,10 @@ local _ItemLayouts = {}
 
 ---@type table<integer, Layout>
 local _StatusLayouts = {}
+
+---@type table<integer, Layout>
+local _ModifyStatusLayouts = {}
+local _ModifyLatestStatus = ""
 
 local _EditorClosestZoneKey = ""
 local _EditorSelectedZoneStatus = ""
@@ -251,9 +256,88 @@ function Layout:_InitializeAutoZoneToggle()
         DCEI.PlaySound(DCEI.Sound("smh_click_start"))
 
         state.IsActive = not state.IsActive
-
-        -- Core.Event.SendSimulationEvent("Editor.AutoZoneToggle", state.IsAutoZone)
+        Core.Event.SendSimulationEvent("Editor.SetAutoZone", state.IsActive)
     end)
+end
+
+function Layout:_InitializeModifyZoneToggle()
+    local state = self.ModifyZone.state
+
+    -- Starting Status Container
+    for index, value in ipairs(ZONE_STATUS_ORDER) do
+        local layout = GMUI.Layout.New({
+            name = "Editor/Zone/Status/Item",
+            parent = self.ModifyZone.StartingStatusContainer,
+        })
+
+        local state = layout.state
+        state.Name = value
+
+        DCEI.SetOnClickCallback(layout.Button, function()
+            DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+            -- Deselect
+            for _, status_layout in ipairs(_ModifyStatusLayouts) do
+                status_layout.state.IsSelected = false
+            end
+
+            layout.state.IsSelected = true
+            _ModifyLatestStatus = value
+        end)
+
+        _ModifyStatusLayouts[index] = layout
+    end
+
+    -- Toggle Open Button
+    DCEI.SetOnClickCallback(self.ModifyZone.ToggleOpenButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        state.IsOpen = not state.IsOpen
+
+        if state.IsOpen then
+            -- Close New Zone
+            self.state.IsCreateZoneActive = false
+
+            -- Set Input Key
+            DCEI.SetInputFrameText(self.ModifyZone.KeyInput, _EditorClosestZoneKey)
+
+            -- Lock the Selected Zone
+            self.AutoZone.state.IsActive = false
+            Core.Event.SendSimulationEvent("Editor.SetAutoZone", false)
+
+            -- Deselect
+            for _, status_layout in ipairs(_ModifyStatusLayouts) do
+                status_layout.state.IsSelected = false
+            end
+
+            -- Select the data's current Starting Status and set it
+            local data = _LatestZoneData[_EditorClosestZoneKey]
+            local starting_status = data.StartingStatus
+
+            for index, status in ipairs(ZONE_STATUS_ORDER) do
+                if status == starting_status then
+                    _ModifyStatusLayouts[index].state.IsSelected = true
+                    _ModifyLatestStatus = starting_status
+                end
+            end
+        end
+    end)
+
+    -- Options
+    DCEI.SetOnClickCallback(self.ModifyZone.Relocate.Button, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        self.ModifyZone.Relocate.state.IsOn = not self.ModifyZone.Relocate.state.IsOn
+    end)
+
+    -- Update Button
+    DCEI.SetOnClickCallback(self.ModifyZone.UpdateButton, function()
+        DCEI.PlaySound(DCEI.Sound("smh_click_start"))
+
+        _RequestNewZone = true
+    end)
+
+    state.IsOpen = false
 end
 
 function Layout:_InitializeCreateZone()
@@ -264,6 +348,7 @@ function Layout:_InitializeCreateZone()
         DCEI.PlaySound(DCEI.Sound("smh_click_start"))
 
         self.state.IsCreateZoneActive = true
+        self.ModifyZone.state.IsOpen = false
     end)
 
     -- Create New Zone Cancel Button
@@ -370,6 +455,9 @@ function Layout:Initialize()
     -- Toggle AutoZone
     self:_InitializeAutoZoneToggle()
 
+    -- Modify Zone
+    self:_InitializeModifyZoneToggle()
+
     -- Generate ToolSelector Options
     self:_GenerateToolSelectorLayouts(self.ToolSelector.Items)
     self:_GenerateItemScroll(self.Tiles, ZoneTileData, SELECTION_TOOL.Tile)
@@ -423,6 +511,90 @@ function Layout:Update(delta_time)
     end
 
     -- Configure Zone Status
+
+    ---TODO: Update Modify Information
+    if self.ModifyZone.state.IsOpen then
+        -- Update Modify State information
+        local zone_data = _LatestZoneData[_EditorClosestZoneKey]
+        -- Help.Log("Zone Data", nil, zone_data)
+        if not zone_data then
+            _RequestNewZone = false
+            return
+        end
+
+        -- Position
+        local current_position_x = zone_data.Position.x
+        local current_position_y = zone_data.Position.y
+
+        self.ModifyZone.state.CurrentX = string.format("%.0f", current_position_x)
+        self.ModifyZone.state.CurrentY = string.format("%.0f", current_position_y)
+
+        local new_position_x = Core.Math.Round(_EditorCameraPosition.x, 2)
+        local new_position_y = Core.Math.Round(_EditorCameraPosition.y, 2)
+
+        self.ModifyZone.state.NewX = string.format("%.0f", new_position_x)
+        self.ModifyZone.state.NewY = string.format("%.0f", new_position_y)
+
+        -- Status
+        self.ModifyZone.state.StartingStatus = zone_data.StartingStatus
+
+        ---TODO: Configure if IsValid
+        -- Check if new id is not already taken (current id is still valid)
+        -- Compare if new position is already occupied (current position is still valid)
+
+        local key_input = DCEI.GetInputFrameText(self.ModifyZone.KeyInput)
+        local is_key_valid = true
+        local error_message = ""
+
+        if key_input == "" then -- Empty Key
+            is_key_valid = false
+            error_message = "Key is Empty"
+        end
+
+        if _LatestZoneData[key_input] and key_input ~= _EditorClosestZoneKey then
+            is_key_valid = false
+            error_message = "Duplicate Key"
+        end
+
+        -- Check duplicate Zone Position (but allow the current position)
+        if new_position_x ~= current_position_x or new_position_y ~= current_position_y then
+            for _, zone_data in pairs(_LatestZoneData) do
+                if zone_data.Position.x == new_position_x and zone_data.Position.y == new_position_y then
+                    is_key_valid = false
+                    error_message = "Position Occupied"
+                    break
+                end
+            end
+        end
+
+        self.ModifyZone.state.IsValid = is_key_valid
+        self.ModifyZone.state.ErrorMessage = error_message
+
+        if _RequestNewZone then
+            _RequestNewZone = false
+
+            local data = {
+                PreviousKey = _EditorClosestZoneKey,
+                NewKey = key_input,
+                StartingStatus = _ModifyLatestStatus,
+                Position = {
+                    x = new_position_x,
+                    y = new_position_y,
+                },
+                Options = {
+                    Relocate = self.ModifyZone.Relocate.state.IsOn,
+                },
+            }
+            Core.Event.SendSimulationEvent("Editor.UpdateZoneData", data)
+
+            -- Close the ModifyZone
+            self.ModifyZone.state.IsOpen = false
+
+            -- Set back to AutoZone
+            self.AutoZone.state.IsActive = true
+            Core.Event.SendSimulationEvent("Editor.SetAutoZone", true)
+        end
+    end
 
     ---TODO: Update Create Zone Position if Active
     if self.state.IsCreateZoneActive then
@@ -521,14 +693,15 @@ end
 ---@class Editor.UpdateData
 ---@field Key string
 ---@field Status ZONE_STATUS
----@field Position Vector2
+---@field CameraPosition Vector2
+---@field SelectedZonePosition Vector2
 
 ---comment
 ---@param data Editor.UpdateData
 local function EventSendEditorUpdateData(data)
     _EditorClosestZoneKey = data.Key
     _EditorSelectedZoneStatus = data.Status
-    _EditorCameraPosition = Vector2.NewFromTable(data.Position)
+    _EditorCameraPosition = Vector2.NewFromTable(data.CameraPosition)
 end
 
 ---============================================================================

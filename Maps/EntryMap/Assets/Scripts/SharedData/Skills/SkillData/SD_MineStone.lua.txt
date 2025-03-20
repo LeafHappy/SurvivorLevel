@@ -35,6 +35,9 @@ Data.MineStone = {
                 Modifier.New(STAT.Spread, 120, SCALING.Scaled, { SKILL_TAG.MineStone }),
 
                 Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.MineStone }),
+
+                -- Visual
+                Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled, { SKILL_TAG.MineStone }),
             },
         },
         EveryLevel = {

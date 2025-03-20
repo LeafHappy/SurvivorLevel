@@ -273,6 +273,9 @@
             "effect": "Skill - Chop Tree - Scan",
             "dependentEffects": [
                 "Skill - Chop Tree - Effects"
+            ],
+            "dependentBehaviors": [
+                "Skill - Chop Tree - Axe Scale"
             ]
         },
         "Skill - Fireball": {
@@ -388,6 +391,9 @@
             "effect": "Skill - Mine Stone - Scan",
             "dependentEffects": [
                 "Skill - Mine Stone - Effects"
+            ],
+            "dependentBehaviors": [
+                "Skill - Mine Stone - Pickaxe Scale"
             ]
         },
         "Skill - Shovel": {

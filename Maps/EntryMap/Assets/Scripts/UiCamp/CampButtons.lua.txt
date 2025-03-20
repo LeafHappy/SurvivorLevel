@@ -197,6 +197,12 @@ function CampButtons.CreateOverheadDisplay(data)
         if data.max_cost then
             layout.state.fill_amount = 1 - data.remaining_cost / data.max_cost
         end
+    elseif camp_data.island_worker then
+        layout.state.spent = "0"
+        layout.state.cost = tostring(camp_data.island_worker.max_storage)
+        -- todo: get proper icon
+        layout.state.icon = DCEI.Texture("cartoon_icon_forest_wood_bg_wildsurvivor")
+        label_text = camp_data.overhead_display.label or "N/A"
     else
         label_text = camp_data.overhead_display.label or "N/A"
     end
@@ -368,6 +374,11 @@ function CampButtons.UpdateProgressDisplay(data)
     MoveFrameToUnit(layout.Frame, unit, -2.6, layout.offset_y)
 end
 
+function CampButtons.UpdateStorageDisplay(data)
+    local layout = active_storage[data.uid].layout
+    layout.state.spent = tostring(data.storage)
+end
+
 ---============================================================================
 ---!SECTION: Methods
 ---SECTION: Events
@@ -385,7 +396,7 @@ Core.Event.RegisterPresentationEvent("Camp.Repair.Update", CampButtons.UpdateRep
 Core.Event.RegisterPresentationEvent("Camp.Repair.Remove", CampButtons.RemoveRepairDisplay)
 
 Core.Event.RegisterPresentationEvent("Camp.Progress.Update", CampButtons.UpdateProgressDisplay)
-
+Core.Event.RegisterPresentationEvent("Camp.Storage.Update", CampButtons.UpdateStorageDisplay)
 ---============================================================================
 ---!SECTION: Events
 ---============================================================================

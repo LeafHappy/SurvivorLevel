@@ -3148,6 +3148,12 @@
                 "deltaValue": 1
             }
         },
+        "Gain Stats - Iron": {
+            "parent": "_Gain Experience",
+            "applySimplePlayerStats": {
+                "statsName": "Iron"
+            }
+        },
         "Gain Stats - Large Experience": {
             "parent": "_Gain Experience",
             "applySimplePlayerStats": {
@@ -4586,6 +4592,23 @@
                 ]
             }
         },
+        "Loot - Iron - OnEnter": {
+            "set": {
+                "effectList": [
+                    "Gain Stats - Iron",
+                    "Loot - Iron - OnEnter - SFX",
+                    "Simple Remove Source"
+                ]
+            }
+        },
+        "Loot - Iron - OnEnter - SFX": {
+            "spawnActor": {
+                "actor": "Loot - Iron - OnEnter - SFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
         "Loot - Launch": {
             "launchMissile": {
                 "missileUnit": "Loot - Missile",
@@ -5462,6 +5485,34 @@
                     }
                 }
             ]
+        },
+        "Prop - Iron Vein - Drop Count": {
+            "persistent": {
+                "periodicCount": 1,
+                "periodicDurations": [
+                    0.0625
+                ],
+                "periodicEffects": [
+                    "Spawn Resource - Iron"
+                ]
+            }
+        },
+        "Prop - Iron Vein - OnDeath": {
+            "set": {
+                "effectList": [
+                    "Prop - Iron Vein - Drop Count",
+                    "Prop - Iron Vein - OnDeath - VFX",
+                    "Simple Remove Source"
+                ]
+            }
+        },
+        "Prop - Iron Vein - OnDeath - VFX": {
+            "spawnActor": {
+                "actor": "Prop - Iron Vein - OnDeath - VFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
         },
         "Prop - Pumpkin - OnEnter": {
             "set": {
@@ -6672,6 +6723,7 @@
         "Skill - Chop Tree - Impact Area": {
             "parent": "_Scan - Tree",
             "simpleAreaSearch": {
+                "debugDraw": false,
                 "areaSearchType": {
                     "circleSector": {}
                 },
@@ -8500,6 +8552,12 @@
                 "spawnUnitType": "Loot - Hard Wood"
             }
         },
+        "Spawn - Loot - Iron": {
+            "parent": "_Spawn Simple Loot",
+            "simpleSpawn": {
+                "spawnUnitType": "Loot - Iron"
+            }
+        },
         "Spawn - Loot - Large Experience - Far Away": {
             "parent": "Spawn - Loot - Small Experience - Nearby",
             "simpleSpawn": {
@@ -8711,6 +8769,54 @@
                 "missileUnit": "Loot - Hard Wood",
                 "effect": "Spawn - Loot - Hard Wood",
                 "impactLocation": 2,
+                "launchOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "impactOffset": {
+                    "polarOffset": {}
+                },
+                "mover": "Throw Resource - Launch - Mover"
+            },
+            "universalFieldExpressions": [
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "yaw"
+                    ],
+                    "expression": {
+                        "namedExpression": {
+                            "name": "Random Angle (0 - 360)"
+                        }
+                    }
+                },
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "distance"
+                    ],
+                    "expression": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "min": 0.5,
+                                    "max": 1.5
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "Spawn Resource - Iron": {
+            "launchMissile": {
+                "missileUnit": "Loot - Iron",
+                "effect": "Spawn - Loot - Iron",
                 "launchOffset": {
                     "explicitOffset": {
                         "up": 0.5
@@ -9214,6 +9320,19 @@
                 "orientation": {
                     "eulerAnglesRelativeOffset": {}
                 }
+            }
+        },
+        "Throw Resource - Iron - Launch": {
+            "launchMissile": {
+                "targetType": 1,
+                "missileUnit": "Throw Resource - Iron",
+                "offsetStart": 4,
+                "impactOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "mover": "Throw Resource - Launch - Mover"
             }
         },
         "Throw Resource - Meat - Launch": {

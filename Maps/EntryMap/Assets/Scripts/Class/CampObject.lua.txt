@@ -32,6 +32,7 @@ local SaveDataManager = require("Class/SaveDataManager")
 local QuestManager = require("Meta/Quest/QuestManager")
 local QuestIndicators = require("Meta/Quest/QuestIndicators")
 local Help = require("Help")
+---NOTE: New, Reorganize later
 
 -- ================================================================================================
 -- !SECTION -- Libraries
@@ -1183,7 +1184,7 @@ end
 
 function CampObject:_CheckNPCWork(delta, hero)
     self.miners = self.miners or {}
-
+    self.island_workers = self.island_workers or {}
     if #self.miners > 0 then
         if self.miners[1].tick_time % 480 == 0 then
             DCEI.GetServerTime(function(time_stamp)
@@ -1207,15 +1208,12 @@ function CampObject:_CheckNPCWork(delta, hero)
                     DCEI.Move(miner_data.unit_reference, miner_pos.x, miner_pos.y)
 
                     DCEI.TriggerAddTimerEventElapsed(function()
-                        -- TODO: actually give gold and pops +1 gold ui
                         local amount = 1
                         local data = {
                             amount = amount,
                             unit_reference = GMUI.CreateUnitReference(miner_data.unit_reference),
                         }
                         Core.Event.SendPresentationEvent("Popup", data)
-
-                        SaveDataManager.Modify(SAVE_KEY.Gold, amount)
                     end, 0.5)
 
                     DCEI.TriggerAddTimerEventElapsed(function()
@@ -1260,6 +1258,128 @@ function CampObject:_CheckNPCWork(delta, hero)
             end
         end
     end
+
+    if #self.island_workers > 0 then
+        for i, miner_data in ipairs(self.island_workers) do
+            miner_data.tick_time = miner_data.tick_time + 1
+            miner_data.sleep_timer = miner_data.sleep_timer - delta
+
+            if
+                miner_data.sleep_timer <= 0
+                and DCEI.GetUnitBehaviorStackCount(
+                        miner_data.unit_reference,
+                        DCEI.Behavior("Hybrid - Worker Sleep")
+                    )
+                    <= 0
+            then
+                -- fall asleep
+                DCEI.ApplyBehaviorToSelf(miner_data.unit_reference, DCEI.Behavior("Hybrid - Worker Sleep"), 1)
+            elseif
+                DCEI.GetUnitBehaviorStackCount(miner_data.unit_reference, DCEI.Behavior("Hybrid - Worker Sleep"))
+                > 0
+            then
+                if Vector2.DistanceBetweenUnits(hero.unit, miner_data.unit_reference) <= 1.5 then
+                    -- wake up
+                    miner_data.sleep_timer = self.data.island_worker.sleep_timer
+                    DCEI.RemoveBehavior(miner_data.unit_reference, DCEI.Behavior("Hybrid - Worker Sleep"))
+                end
+            end
+            if miner_data.state == MINER_STATE.MOVING_TO_BASE then
+                local distance = Vector2.DistanceBetweenUnits(miner_data.unit_reference, self.instance)
+                if distance < 1 then
+                    DCEI.SendSendCustomEventActorAction(miner_data.unit_reference, { identifier = "Deliver" })
+                    miner_data.state = MINER_STATE.DELIVER
+                    local miner_pos = DCEI.GetUnitPosition2D(miner_data.unit_reference)
+                    DCEI.Move(miner_data.unit_reference, miner_pos.x, miner_pos.y) -- stops moving and deliver resource
+
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        -- TODO: actually give resource and pop up +1
+                        -- local amount = 1
+                        -- local data = {
+                        --     amount = amount,
+                        --     unit_reference = GMUI.CreateUnitReference(miner_data.unit_reference),
+                        -- }
+                        -- Core.Event.SendPresentationEvent("Popup", data)
+                    end, 0.5)
+
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        -- finish movement, find an available tree
+
+                        miner_data.mine_pos = self.manager.DangerZoneManager:GetNearestResource(
+                            miner_pos,
+                            self.data.island_worker.target_tag
+                        )
+
+                        local move_position = miner_data.mine_pos
+                        if move_position then
+                            DCEI.Move(miner_data.unit_reference, move_position.x, move_position.y)
+                            miner_data.state = MINER_STATE.MOVING_TO_MINE
+                        else
+                            --todo: change to idle
+                            miner_data.state = MINER_STATE.IDLE
+                        end
+                    end, 1)
+                end
+            elseif miner_data.state == MINER_STATE.MOVING_TO_MINE then
+                local miner_pos = DCEI.GetUnitPosition2D(miner_data.unit_reference)
+                local distance = Vector2.Distance(miner_pos, miner_data.mine_pos)
+                if distance < 0.25 then
+                    DCEI.SendSendCustomEventActorAction(miner_data.unit_reference, { identifier = "StartWork" })
+                    miner_data.state = MINER_STATE.WORKING
+                    DCEI.Move(miner_data.unit_reference, miner_pos.x, miner_pos.y) -- stops moving and deliver resource
+
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        DCEI.CreateEffectAtPosition(
+                            self.data.island_worker.effect,
+                            miner_data.unit_reference,
+                            miner_data.mine_pos.x,
+                            miner_data.mine_pos.y
+                        )
+                    end, 0.5)
+
+                    DCEI.TriggerAddTimerEventElapsed(function()
+                        miner_data.state = MINER_STATE.MOVING_TO_BASE
+                        local move_position = miner_data.base_pos
+                        DCEI.Move(miner_data.unit_reference, move_position.x, move_position.y)
+                    end, 1)
+                end
+            elseif miner_data.state == MINER_STATE.IDLE then
+                local miner_pos = DCEI.GetUnitPosition2D(miner_data.unit_reference)
+                miner_data.mine_pos =
+                    self.manager.DangerZoneManager:GetNearestResource(miner_pos, self.data.island_worker.target_tag)
+
+                local move_position = miner_data.mine_pos
+                if move_position then
+                    DCEI.Move(miner_data.unit_reference, move_position.x, move_position.y)
+                    miner_data.state = MINER_STATE.MOVING_TO_MINE
+                end
+            end
+        end
+    end
+end
+
+function CampObject:AddIslandWorker()
+    self.island_workers = self.island_workers or {}
+    local miner_index = #self.island_workers
+    local storage_pos = DCEI.GetUnitPosition2D(self.instance)
+    local new_island_worker =
+        DCEI.CreateUnit(1, 1, DCEI.Unit("Hybrid - Miner"), storage_pos.x + 1, storage_pos.y - 1, -1, 0)
+    local upgrade_levels = SaveDataManager.GetReference(SAVE_KEY.UpgradeLevels) or {}
+    local upgrade_key = "WorkerSpeed"
+    if not upgrade_levels[upgrade_key] then
+        upgrade_levels[upgrade_key] = 0
+    else
+        DCEI.ApplyBehaviorToSelf(new_island_worker, DCEI.Behavior("Hybrid - Worker Speed Upgrade Buff"), upgrade_levels[upgrade_key])
+    end
+
+    self.island_workers[miner_index + 1] = {
+        unit_reference = new_island_worker,
+        state = MINER_STATE.IDLE,
+        base_pos = storage_pos,
+        carried_resource = 0,
+        sleep_timer = self.data.island_worker.sleep_timer,
+        tick_time = miner_index == 0 and 0 or self.island_workers[miner_index].tick_time,
+    }
 end
 
 function CampObject:AddMiner()
@@ -2113,6 +2233,12 @@ function CampObject:SpawnInstance(health_percentage)
             remaining_resource = self.resource_cost.max_cost - self.resource_cost.stored,
         }
         Core.Event.SendPresentationEvent("Camp.UpdateDisplayValue", data_pass)
+    end
+
+    if self.data.island_worker then
+        -- spawn an island worker
+
+        self:AddIslandWorker()
     end
 end
 

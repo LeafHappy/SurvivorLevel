@@ -43,7 +43,7 @@ local _Dev = {
     },
     Extra = {
         -- instant_transitions = true, -- Skip Transitions
-        hide_dev_text = true,
+        -- hide_dev_text = true,
         hide_test_mode_ui = true, -- Hide Test Mode UI
         -- reset_save_data_on_startup = true, -- Reset Save Data on Startup
     },

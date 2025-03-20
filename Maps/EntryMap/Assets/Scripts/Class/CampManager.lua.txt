@@ -1027,6 +1027,16 @@ function CampManager:ResetTalents()
     self:ResetModifiers()
 end
 
+function CampManager:UpgradeWorkers()
+    for _, camp_object in pairs(self.Objects) do
+        if camp_object.island_workers then
+            for _, island_worker in ipairs(camp_object.island_workers) do
+                DCEI.ApplyBehaviorToSelf(island_worker.unit_reference, DCEI.Behavior("Hybrid - Worker Speed Upgrade Buff"), 1)
+            end
+        end
+    end
+end
+
 -- ================================================================================================
 -- !SECTION -- Class Save/Load
 -- ================================================================================================

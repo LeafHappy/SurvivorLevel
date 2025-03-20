@@ -177,7 +177,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 01"),
         Health = {
-            Starting = 20,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -207,7 +207,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 02"),
         Health = {
-            Starting = 20,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -237,7 +237,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 03"),
         Health = {
-            Starting = 20,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -267,7 +267,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 04"),
         Health = {
-            Starting = 20,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -391,7 +391,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 01"),
         Health = {
-            Starting = 3,
+            Starting = 20,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -421,7 +421,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 02"),
         Health = {
-            Starting = 3,
+            Starting = 20,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -451,7 +451,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 03"),
         Health = {
-            Starting = 3,
+            Starting = 20,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -481,7 +481,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 04"),
         Health = {
-            Starting = 3,
+            Starting = 20,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -501,6 +501,158 @@ local PropData = {
         TransformAnimation = {
             end_scale = Vector3.New(0.50, 0.50, 0.50),
             end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
+    IronVein01 = {
+        Key = "IronVein01",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 01"),
+        Health = {
+            Starting = 500,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Prop - Iron Vein - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.00, 1.00),
+            end_position = Vector3.New(0, 0.50, 0),
+            rotation_axis = Vector3.New(-1, 0, 0),
+            end_degree = 45,
+        },
+
+        RandomizeScale = 0.35,
+    },
+    IronVein02 = {
+        Key = "IronVein02",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 02"),
+        Health = {
+            Starting = 500,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Prop - Iron Vein - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.00, 1.00),
+            end_position = Vector3.New(0, 0.50, 0),
+            rotation_axis = Vector3.New(-1, 0, 0),
+            end_degree = 45,
+        },
+
+        RandomizeScale = 0.35,
+    },
+    IronVein03 = {
+        Key = "IronVein03",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 03"),
+        Health = {
+            Starting = 500,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Prop - Iron Vein - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.00, 1.00),
+            end_position = Vector3.New(0, 0.50, 0),
+            rotation_axis = Vector3.New(-1, 0, 0),
+            end_degree = 45,
+        },
+
+        RandomizeScale = 0.35,
+    },
+    IronVein04 = {
+        Key = "IronVein04",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 04"),
+        Health = {
+            Starting = 500,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+        CollisionData = {
+            belongs_to_layer_mask = CollisionLayers.Hostile,
+            collides_with_layer_mask = CollisionLayers.Hostile,
+            radius = 0.5,
+        },
+        DeathEffect = DCEI.Effect("Prop - Iron Vein - OnDeath"),
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(1.00, 1.00, 1.00),
+            end_position = Vector3.New(0, 0.50, 0),
+            rotation_axis = Vector3.New(-1, 0, 0),
+            end_degree = 45,
+        },
+
+        RandomizeScale = 0.35,
+    },
+    IronVein05 = {
+        Key = "IronVein05",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 05"),
+        Health = {
+            Starting = 500,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Mass = 1000000,
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(0.50, 0.50, 0.50),
+            end_position = Vector3.New(0, 0.50, 0),
+            rotation_axis = Vector3.New(-1, 0, 0),
+            end_degree = 45,
         },
 
         RandomizeScale = 0.35,

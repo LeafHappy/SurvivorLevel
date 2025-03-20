@@ -180,6 +180,7 @@ SKILL_TAG = {
     Shovel = "Shovel",
 
     Tool = "Tool", -- Used for Tools
+    Worker = "Worker", -- Used for Workers
 
     ---ANCHOR: Annnie
     MarkedForDeath = "MarkedForDeath",
@@ -502,6 +503,7 @@ TRACKED_STATS = {
     Plank = DCEI.Stats("Plank"),
     HardWood = DCEI.Stats("HardWood"),
     Stone = DCEI.Stats("Stone"),
+    Iron = DCEI.Stats("Iron"),
     Pumpkin = DCEI.Stats("Pumpkin"),
     Meat = DCEI.Stats("Meat"),
     Gold = DCEI.Stats("Gold"),
@@ -741,6 +743,7 @@ SAVE_KEY = {
     Plank = { "currency", "plank" },
     HardWood = { "currency", "hard_wood" },
     Stone = { "currency", "stone" },
+    Iron = { "currency", "iron" },
     Pumpkin = { "currency", "pumpkin" },
     Meat = { "currency", "meat" },
     Gem = { "currency", "gem" },

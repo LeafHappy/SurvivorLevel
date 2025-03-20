@@ -36,6 +36,9 @@ Data.ChopTree = {
 
                 Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
                 Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+
+                -- Visual
+                Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
             },
         },
         EveryLevel = {

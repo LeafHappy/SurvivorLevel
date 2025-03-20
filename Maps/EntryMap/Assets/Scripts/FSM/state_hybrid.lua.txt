@@ -185,23 +185,37 @@ end
 ---comment
 ---@param key string
 ---@param level integer
----@return Modifier | nil
-local function CreateUpgradeModifier(key, level)
+---@return table<Modifier>
+local function CreateUpgradeModifiers(key, level)
     local upgrade_data = UpgradeData.Dictionary[key]
 
     if not upgrade_data then
         Help.Warn("Upgrade Data not found for Key: " .. key)
-        return nil
+        return {}
     end
 
-    local modifier_data = upgrade_data.Modifier
-    local stat = modifier_data.Stat
-    local scaling = modifier_data.Scaling
-    local value = modifier_data.StartingValue + modifier_data.Increase * level
-    local tags = modifier_data.Tags or {}
+    local modifiers = {}
+    local stats = {}
+    for index, modifier_set in pairs(upgrade_data.Modifiers) do
+        if level >= index then
+            -- Check how many times it should be applied
+            local step = math.floor(level / index)
 
-    local modifier = Modifier.New(stat, value, scaling, tags, key)
-    return modifier
+            -- Loop through all of the modifiers
+            for _, modifier in ipairs(modifier_set) do
+                local value = modifier.value * step
+                local stat = modifier.stat
+                local tags = modifier.tags
+                local scaling = modifier.scaling
+                local id = modifier.id
+
+                local new_modifier = Modifier.New(stat, value, scaling, tags, id)
+                table.insert(modifiers, new_modifier)
+            end
+        end
+    end
+
+    return modifiers
 end
 
 ---comment
@@ -251,10 +265,13 @@ local function SpawnHero()
 
     for _, upgrade_data in ipairs(UpgradeData.List) do
         local level = upgrade_levels[upgrade_data.Key] or 0
-        local modifier = CreateUpgradeModifier(upgrade_data.Key, level)
 
-        if modifier then
-            hero:ApplyModifier(modifier, true, true)
+        local modifiers = CreateUpgradeModifiers(upgrade_data.Key, level)
+
+        if modifiers and #modifiers then
+            for _, modifier in ipairs(modifiers) do
+                hero:ApplyModifier(modifier, true, true)
+            end
         end
     end
 
@@ -1091,15 +1108,25 @@ local function UpgradePurchased(upgrade_key)
 
     upgrade_levels[upgrade_key] = upgrade_levels[upgrade_key] + 1
 
-    SaveDataManager.Modify(SAVE_KEY.Gold, -cost)
+    local resource_data = ResourceData.Map[cost_data.ResourceType]
+
+    SaveDataManager.Modify(resource_data.SaveKey, -cost)
     SaveDataManager.Set(SAVE_KEY.UpgradeLevels, upgrade_levels)
     SaveDataManager.CommitSaveData()
 
     local level = upgrade_levels[upgrade_key]
-    local modifier = CreateUpgradeModifier(upgrade_key, level)
+    local modifiers = CreateUpgradeModifiers(upgrade_key, level)
 
-    if modifier then
-        hero:ApplyModifier(modifier, true, true)
+    if modifiers and #modifiers then
+        for _, modifier in ipairs(modifiers) do
+            hero:ApplyModifier(modifier, true, true)
+        end
+    end
+
+    -- upgdate worker
+
+    if upgrade_key == "WorkerSpeed" then
+        CampManager.Instance:UpgradeWorkers()
     end
 
     -- Update after Save Data Change
@@ -1192,6 +1219,7 @@ local function Initialize()
 
     -- Initialize Camp Manager Save Data
     CampManager.Instance:Reset()
+
     -- CampManager.Instance:LoadSaveData()
     CampManager.Instance:LoadCampData(CampData)
     SaveDataManager.SendPresentationEvents()
@@ -1238,6 +1266,8 @@ local function Initialize()
 
     -- Initialize DangerZoneManager
     DangerZoneManager.Instance:LoadDangerZoneDataSet(DangerZoneData)
+
+    CampManager.Instance.DangerZoneManager = DangerZoneManager.Instance
 end
 
 -- Start Quests
@@ -1514,9 +1544,9 @@ function State:OnEnter()
     end
 
     if _Dev then
-        _Dev.Events.Register("Victory", AutoVictory)
-        _Dev.Events.Register("Defeat", AutoDefeat)
-        _Dev.Events.Register("Test", TestMode)
+        -- _Dev.Events.Register("Victory", AutoVictory)
+        -- _Dev.Events.Register("Defeat", AutoDefeat)
+        -- _Dev.Events.Register("Test", TestMode)
         _Dev.Events.Register("Time Skip", IncreaseMetaResources)
         _Dev.Events.Register("Editor Toggle", ToggleEditor)
     end

@@ -35,6 +35,9 @@ local REF = {
     -- Ability
     Ability = DCEI.Ability("Skill - Chop Tree"),
 
+    -- Behavior
+    AxeScale = DCEI.Behavior("Skill - Chop Tree - Axe Scale"),
+
     -- Cast Effects
     Scan = DCEI.Effect("Skill - Chop Tree - Scan"),
     Success = DCEI.Effect("Skill - Chop Tree - Success"),
@@ -200,8 +203,14 @@ function Upgrade.Override(hero)
 
     -- Set Wood Drop Amount (Hostile)
     local tags = hero:GetInheritedTags(SKILL_TAG.ChopTree)
-    local count = hero:GetStat(STAT.Count, tags)
 
+    -- Axe Model Scale
+    local axe_scale = hero:GetStat(STAT.CollisionSize, tags)
+    axe_scale = math.floor(axe_scale * 100) -- Behavior Stacks Applied
+    Core.Unit.SetBehaviorCount(hero.top, REF.AxeScale, axe_scale)
+
+    -- Wood Drop Count
+    local count = hero:GetStat(STAT.Count, tags)
     DCEI.SetEffectFieldValueForPlayer(PLAYER.Destructible, REF.DropAmount, EJS.Persistent.Count, count)
 end
 

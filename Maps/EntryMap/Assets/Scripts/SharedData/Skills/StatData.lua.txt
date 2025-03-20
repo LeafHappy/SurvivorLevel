@@ -195,6 +195,9 @@ local StatData = {
     [STAT.MoveSpeed] = {
         DisplayName = "Move Speed",
     },
+    [STAT.MinionSpeed] = {
+        DisplayName = "Worker Speed",
+    },
     [STAT.Armor] = {
         DisplayName = "Armor",
         DisplayConversion = {

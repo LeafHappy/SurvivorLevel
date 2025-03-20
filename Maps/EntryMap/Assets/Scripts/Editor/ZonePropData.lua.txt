@@ -47,7 +47,7 @@ local data = {
                 PropData.TreeDegrade04.Key,
             },
             DestroyedPlaceholder = PropData.TreeDegrade05.Key,
-            RespawnTime = 30,
+            RespawnTime = 60,
             SpawnImmediately = true,
         },
     },
@@ -63,7 +63,7 @@ local data = {
                 PropData.ThicketTreeDegrade04.Key,
             },
             DestroyedPlaceholder = PropData.ThicketTreeDegrade05.Key,
-            RespawnTime = 30,
+            RespawnTime = 90,
             SpawnImmediately = true,
         },
     },
@@ -115,7 +115,23 @@ local data = {
                 PropData.Stone04.Key,
             },
             -- DestroyedPlaceholder = PropData.TreeDegrade05.Key,
-            RespawnTime = 30,
+            RespawnTime = 60,
+            SpawnImmediately = true,
+        },
+    },
+    IronVein01 = {
+        Key = "IronVein01",
+        GhostPlacement = DCEI.Unit("Editor - Ghost - Iron Vein - 01"), -- The Unit that will follow the cursor
+        Icon = DCEI.Texture("cartoon_icon_prop_ingame_rock_rank4_mergewar"),
+        Settings = {
+            PropSeries = {
+                PropData.IronVein01.Key,
+                PropData.IronVein02.Key,
+                PropData.IronVein03.Key,
+                PropData.IronVein04.Key,
+            },
+            DestroyedPlaceholder = PropData.IronVein05.Key,
+            RespawnTime = 90,
             SpawnImmediately = true,
         },
     },
@@ -126,7 +142,7 @@ local data = {
         Settings = {
             PropData = PropData.DigSpot01.Key,
             SpawnImmediately = true,
-            RespawnTime = 30,
+            RespawnTime = 120,
         },
     },
     Pumpkin01 = {

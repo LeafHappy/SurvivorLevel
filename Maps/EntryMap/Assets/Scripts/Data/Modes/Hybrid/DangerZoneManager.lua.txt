@@ -194,6 +194,30 @@ end
 --     self.ActiveZone = -1
 -- end
 
+function DangerZoneManager:GetNearestResource(worker_pos, tag)
+    local nearest_resource = nil
+    if self.Zones then
+        for _, t in pairs(self.Zones) do
+            for _, zone in pairs(t) do
+                for _, instance in pairs(zone.PropInstances) do
+                    local pos = instance:CheckAvailability(tag)
+                    if pos then
+                        if nearest_resource then
+                            if Vector2.Distance(worker_pos, nearest_resource) > Vector2.Distance(worker_pos, pos) then
+                                nearest_resource = pos
+                            end
+                        else
+                            nearest_resource = pos
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nearest_resource
+end
+
 ---============================================================================
 -- !SECTION -- Internal Functions
 -- SECTION -- Getters and Setters
@@ -387,6 +411,11 @@ local __AttemptRemoval = false
 local __ReloadBoundaryTiles = false
 local __BoundaryTiles = {}
 
+local __IsAutoZone = true
+
+---@type UnitInstance | nil
+local __SelectedZoneIndicator = nil
+
 local function RemoveBoundaryTiles()
     for _, tile in pairs(__BoundaryTiles) do
         DCEI.RemoveUnit(tile)
@@ -493,9 +522,37 @@ function DangerZoneManager:__CameraUpdate()
     camera:Update()
 end
 
+function DangerZoneManager:__UpdateClosestZoneIndicator()
+    local camera = Camera.Fetch(PLAYER.Player1)
+    local camera_position = camera:GetPosition()
+    local position = self:GetTileIndexFromWorldPosition(camera_position) * TILE_SIZE
+
+    if not Help.ValidateUnit(__SelectedZoneIndicator) then
+        __SelectedZoneIndicator = DCEI.CreateUnit(
+            TEAM.Terrain,
+            PLAYER.Terrain,
+            DCEI.Unit("Editor - Selected Zone Indicator"),
+            position.x,
+            position.y
+        )
+    end
+
+    DCEI.SetUnitPosition2D(__SelectedZoneIndicator, position.x, position.y)
+end
+
+function DangerZoneManager:__RemoveClosestZoneIndicator()
+    if Help.ValidateUnit(__SelectedZoneIndicator) then
+        DCEI.RemoveUnit(__SelectedZoneIndicator)
+    end
+end
+
 ---TODO: Configure a way for the player to select a Zone
 ---NOTE: For now, just select the Zone closest to the Camera
 function DangerZoneManager:__ZoneSelectionUpdate()
+    if not __IsAutoZone then
+        return
+    end
+
     local camera = Camera.Fetch(PLAYER.Player1)
     local camera_position = camera:GetPosition()
 
@@ -770,7 +827,7 @@ function DangerZoneManager:__SendEditorUpdateData()
     local data = {
         Key = __ClosestZone and __ClosestZone.Key or "",
         Status = status,
-        Position = {
+        CameraPosition = {
             x = position.x,
             y = position.y,
         },
@@ -778,15 +835,59 @@ function DangerZoneManager:__SendEditorUpdateData()
     Core.Event.SendPresentationEvent("Editor.SendEditorUpdateData", data)
 end
 
-function DangerZoneManager:__DrawZoneMarkers()
-    for _, zone in pairs(self.LoadedZoneData) do
-        local position = Vector2.NewFromTable(zone.Position) * TILE_SIZE
-        Help.Draw(position, 0.125, 0.25)
+local __SelectedZoneMarker = nil
+local __ZoneMarkers = {}
+
+function DangerZoneManager:__RemoveZoneMarkers()
+    for i = 1, #__ZoneMarkers do
+        DCEI.RemoveUnit(__ZoneMarkers[i])
     end
 
+    __ZoneMarkers = {}
+end
+
+function DangerZoneManager:__SpawnZoneMarkers()
+    for _, zone in pairs(self.LoadedZoneData) do
+        local position = Vector2.NewFromTable(zone.Position) * TILE_SIZE
+        local instance =
+            DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, DCEI.Unit("Editor - Zone Marker"), position.x, position.y)
+        table.insert(__ZoneMarkers, instance)
+    end
+end
+
+function DangerZoneManager:__RemoveSelectedZoneMarker()
+    if Help.ValidateUnit(__SelectedZoneMarker) then
+        DCEI.RemoveUnit(__SelectedZoneMarker)
+    end
+end
+
+function DangerZoneManager:__SpawnSelectedZoneMarker()
+    if not __ClosestZone then
+        return
+    end
+
+    local position = Vector2.NewFromTable(__ClosestZone.Position) * TILE_SIZE
+    __SelectedZoneMarker = DCEI.CreateUnit(
+        TEAM.Terrain,
+        PLAYER.Terrain,
+        DCEI.Unit("Editor - Selected Zone Marker"),
+        position.x,
+        position.y
+    )
+end
+
+function DangerZoneManager:__DrawZoneMarkers()
+    for _, zone in pairs(self.LoadedZoneData) do
+        ---TODO: Optimize this a bit
+        -- For now, Remove all Zone Markers, then Create New Ones
+        self:__RemoveZoneMarkers()
+        self:__SpawnZoneMarkers()
+    end
+
+    self:__RemoveSelectedZoneMarker()
+
     if __ClosestZone then
-        local position = Vector2.NewFromTable(__ClosestZone.Position) * TILE_SIZE
-        Help.Draw(position, 0.125, 0.50)
+        self:__SpawnSelectedZoneMarker()
 
         if __ReloadBoundaryTiles then
             __ReloadBoundaryTiles = false
@@ -807,6 +908,8 @@ end
 function DangerZoneManager:__EditorUpdate()
     self:__CameraUpdate()
     self:__ZoneSelectionUpdate()
+
+    self:__UpdateClosestZoneIndicator()
 
     self:__GhostPlacementUpdate()
     self:__AttemptPlacement()
@@ -869,6 +972,12 @@ function DangerZoneManager:__OnEditorDisabled()
 
     self:__RemoveCurrentGhostPlacement()
     RemoveBoundaryTiles()
+
+    self:__RemoveClosestZoneIndicator()
+
+    -- Remove Markers
+    self:__RemoveZoneMarkers()
+    self:__RemoveSelectedZoneMarker()
 end
 
 function DangerZoneManager:__ToggleEditorModeActive()
@@ -1112,6 +1221,73 @@ function DangerZoneManager:__InjectKeyItem()
     -- self:UpdateStatusKey(__ClosestZone.Key, status)
 end
 
+function DangerZoneManager:__EditorUpdateZoneData(data)
+    Help.Log("Update Zone Data", nil, data)
+    -- We're essentially going to copy the Key's Data, Modify it, then Replace it
+
+    local original_position = self.LoadedZoneData[data.PreviousKey].Position
+    local new_position = Vector2.NewFromTable(data.Position)
+
+    local position_offset = new_position - original_position
+
+    local new_zone_data = Core.Table.DeepCopy(self.LoadedZoneData)
+    local zone_data = Core.Table.DeepCopy(new_zone_data[data.PreviousKey])
+    zone_data.Key = data.NewKey
+    zone_data.Position = data.Position
+    zone_data.StartingStatus = data.StartingStatus
+
+    -- Handle Repositioning based on Relocation Option
+    if data.Options.Relocate then
+        -- Update all Tile Positions
+        for _, tile_data in pairs(zone_data.Tiles) do
+            local tile_position = Vector2.NewFromTable(tile_data.Position)
+            tile_position = tile_position + position_offset
+            tile_data.Position = {
+                x = tile_position.x,
+                y = tile_position.y,
+            }
+        end
+    else
+        -- Since Props are already anchored to Zone Position, we need to apply the opposite
+        for _, prop_data in pairs(zone_data.Props) do
+            local prop_position = Vector2.NewFromTable(prop_data.Position)
+            prop_position = prop_position - (position_offset * TILE_SIZE)
+            prop_data.Position = {
+                x = prop_position.x,
+                y = prop_position.y,
+            }
+        end
+
+        -- Do the same for Key Items
+        for _, key_item_data in pairs(zone_data.KeyItems) do
+            local key_item_position = Vector2.NewFromTable(key_item_data.Position)
+            key_item_position = key_item_position - (position_offset * TILE_SIZE)
+            key_item_data.Position = {
+                x = key_item_position.x,
+                y = key_item_position.y,
+            }
+        end
+    end
+
+    new_zone_data[data.PreviousKey] = nil
+    new_zone_data[data.NewKey] = zone_data
+
+    -- Reload
+    self:Reset()
+    self:LoadDangerZoneDataSet(new_zone_data)
+
+    -- Need to do some extra clearing
+    __ClosestZone = nil
+    __ReloadBoundaryTiles = true
+    self:__RemoveClosestZoneIndicator()
+
+    -- Update Closest Zone to the New Zone
+    -- __ClosestZone = zone_data
+
+    Help.Log("New Zone Data", nil, new_zone_data)
+    Core.Event.SendPresentationEvent("Editor.SetZoneData", new_zone_data)
+end
+
 ---============================================================================
 ---!SECTION: Editor
 ---SECTION: Events
@@ -1147,12 +1323,23 @@ local function UpdateZoneStatus(status)
     end
 end
 
+---@param status boolean
+local function SetAutoZone(status)
+    __IsAutoZone = status
+end
+
+local function UpdateZoneData(data)
+    DangerZoneManager.Instance:__EditorUpdateZoneData(data)
+end
+
 ---TODO: Setup Events that the Editor can use to modify Danger Zones
 
 Core.Event.RegisterSimulationEvent("Editor.CreateNewZone", CreateNewZone)
 Core.Event.RegisterSimulationEvent("Editor.ItemSelected", OnItemSelected)
 Core.Event.RegisterSimulationEvent("Editor.SaveZoneData", SaveZoneData)
 Core.Event.RegisterSimulationEvent("Editor.UpdateZoneStatus", UpdateZoneStatus)
+Core.Event.RegisterSimulationEvent("Editor.SetAutoZone", SetAutoZone)
+Core.Event.RegisterSimulationEvent("Editor.UpdateZoneData", UpdateZoneData)
 
 ---============================================================================
 -- !SECTION -- Events

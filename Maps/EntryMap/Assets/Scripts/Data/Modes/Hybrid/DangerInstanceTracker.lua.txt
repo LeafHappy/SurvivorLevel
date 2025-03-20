@@ -152,7 +152,7 @@ function DangerInstanceTracker:_Roam()
     local distance = Vector2.Distance(self.EstimatedPosition, self.RoamDestination)
 
     if distance < 0.1 then
-        self.RoamDestination = self.Position + Vector2.RandomInside(5)
+        self.RoamDestination = self.Position + Vector2.RandomInside(2.5)
     end
 
     local speed = 5

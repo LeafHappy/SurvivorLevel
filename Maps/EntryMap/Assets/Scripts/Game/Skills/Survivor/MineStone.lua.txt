@@ -35,6 +35,9 @@ local REF = {
     -- Ability
     Ability = DCEI.Ability("Skill - Mine Stone"),
 
+    -- Behavior
+    PickaxeScale = DCEI.Behavior("Skill - Mine Stone - Pickaxe Scale"),
+
     -- Cast Effects
     Scan = DCEI.Effect("Skill - Mine Stone - Scan"),
     Success = DCEI.Effect("Skill - Mine Stone - Success"),
@@ -195,6 +198,12 @@ function Upgrade.Override(hero)
         hero.OnUpdateEvent:Subscribe(HeroUpdateLoop)
         hero.OnRemoveEvent:Subscribe(UnsubscribeFromHeroEvents)
     end
+
+    local tags = hero:GetInheritedTags(SKILL_TAG.MineStone)
+
+    local pickaxe_scale = hero:GetStat(STAT.CollisionSize, tags)
+    pickaxe_scale = math.floor(pickaxe_scale * 100) -- Behavior Stacks Applied
+    Core.Unit.SetBehaviorCount(hero.top, REF.PickaxeScale, pickaxe_scale)
 end
 
 -- ================================================================================================

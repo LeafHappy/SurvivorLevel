@@ -3423,6 +3423,33 @@
                 }
             }
         },
+        "Chop Tree - Axe Miner": {
+            "parent": "_UnitModelAddition",
+            "modelActor": {
+                "resource": {
+                    "name": "modern_missile_wildsurvivor_bjornnson_axe"
+                },
+                "hostSiteOperations": [
+                    "Chop Tree - Axe Miner - Offset",
+                    "SOp 180"
+                ],
+                "modelScale": 0.5,
+                "scaleMultiplier": {
+                    "x": 1.5,
+                    "y": 1.5,
+                    "z": 1.5
+                }
+            }
+        },
+        "Chop Tree - Axe Miner - Offset": {
+            "siteOperation": {
+                "offset": {
+                    "x": 0,
+                    "y": 0.1,
+                    "orientation": 2
+                }
+            }
+        },
         "Clawstorm - VFX": {
             "prefix": "",
             "unitActor": {
@@ -3994,6 +4021,30 @@
                 ]
             }
         },
+        "Editor - Ghost - Iron Vein - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_prop_ingame_rock_rank4_mergewar"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "Editor - Ghost - Iron Vein - 01 - Offset"
+                ]
+            }
+        },
+        "Editor - Ghost - Iron Vein - 01 - Offset": {
+            "siteOperation": {
+                "offset": {
+                    "y": -3.5
+                }
+            }
+        },
         "Editor - Ghost - KeyItem - Axe": {
             "prefix": "",
             "parent": "_StandardUnitMinimal",
@@ -4192,6 +4243,51 @@
                 "hostSiteOperations": [
                     "Editor - Ghost - Standard Tile - Offset"
                 ]
+            }
+        },
+        "Editor - Selected Zone Indicator": {
+            "prefix": "",
+            "parent": "_StandardHelper",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "ui_cross"
+                },
+                "eventMacros": [
+                    "Destroy On Remove"
+                ]
+            }
+        },
+        "Editor - Selected Zone Marker": {
+            "prefix": "",
+            "parent": "_StandardHelper",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_circle_highlight_yellow_castle2"
+                },
+                "hostSiteOperations": [
+                    "SOp DownBy Dot25"
+                ],
+                "spriteOptions": {
+                    "renderingQueue": 3
+                }
+            }
+        },
+        "Editor - Zone Marker": {
+            "prefix": "",
+            "parent": "_StandardHelper",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_circle3_frame_yellow_mergewar"
+                },
+                "hostSiteOperations": [
+                    "SOp DownBy Dot5"
+                ],
+                "spriteOptions": {
+                    "renderingQueue": 3
+                }
             }
         },
         "Elite - Bloodstone": {
@@ -6617,9 +6713,7 @@
                         },
                         "actions": [
                             {
-                                "setVisibility": {
-                                    "visibility": false
-                                }
+                                "playAnimation": {}
                             },
                             {
                                 "createTimer": {
@@ -6637,14 +6731,8 @@
                         },
                         "actions": [
                             {
-                                "setVisibility": {
-                                    "visibility": true
-                                }
-                            },
-                            {
-                                "create": {
-                                    "actor": "Hybrid - Miner Coin",
-                                    "hostSite": "SiteWeapon"
+                                "destroy": {
+                                    "actor": "Chop Tree - Axe Miner"
                                 }
                             }
                         ]
@@ -6657,13 +6745,13 @@
                         },
                         "actions": [
                             {
-                                "playAnimation": {}
-                            },
-                            {
                                 "createTimer": {
                                     "name": "DeliverTimer",
                                     "duration": 0.5
                                 }
+                            },
+                            {
+                                "playAnimation": {}
                             }
                         ]
                     },
@@ -6675,12 +6763,16 @@
                         },
                         "actions": [
                             {
-                                "destroy": {
-                                    "actor": "Hybrid - Miner Coin"
+                                "create": {
+                                    "actor": "Chop Tree - Axe Miner",
+                                    "hostSite": "SiteWeapon"
                                 }
                             }
                         ]
                     }
+                ],
+                "eventMacros": [
+                    "SlackingWorker"
                 ],
                 "modelScale": 0.01
             }
@@ -6951,6 +7043,14 @@
                     }
                 },
                 "modelScale": 0.01
+            }
+        },
+        "Hybrid - Sleep Vfx": {
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_status_sleep"
+                }
             }
         },
         "Hybrid - Spend Area": {
@@ -7440,6 +7540,18 @@
                     "Hybrid - Upgradable Building"
                 ],
                 "modelScale": 0.01
+            }
+        },
+        "Hybrid - WakeUp Vfx": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_status_detected"
+                },
+                "hostSiteOperations": [
+                    "SOp UpBy Dot5"
+                ]
             }
         },
         "Hybrid - Zone - Spend Area": {
@@ -8220,6 +8332,30 @@
                     "x": 0.5,
                     "y": 0.5,
                     "z": 0.5
+                }
+            }
+        },
+        "Loot - Iron": {
+            "prefix": "",
+            "parent": "_Loot",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_gear_steelarrow_castle2"
+                },
+                "scaleMultiplier": {
+                    "x": 0.25,
+                    "y": 0.25,
+                    "z": 0.25
+                }
+            }
+        },
+        "Loot - Iron - OnEnter - SFX": {
+            "parent": "_SFX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "Sound",
+                    "name": "metal_armor_hit_v3_pocketquest"
                 }
             }
         },
@@ -9700,6 +9836,80 @@
                 "resource": {
                     "type": "Sprite",
                     "name": "cartoon_land1_pump2_survival"
+                }
+            }
+        },
+        "Prop - Iron Vein - 01": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_prop_ingame_rock_rank4_mergewar"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Iron Vein - 02": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_prop_ingame_rock_rank3_mergewar"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Iron Vein - 03": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_prop_ingame_rock_rank2_mergewar"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Iron Vein - 04": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_prop_ingame_rock_rank1_mergewar"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Iron Vein - 05": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_prop_ingame_rock_rank1_mergewar"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Iron Vein - OnDeath - VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_Stone_Impact"
                 }
             }
         },
@@ -12682,6 +12892,36 @@
                 ]
             }
         },
+        "Slack Worker Wake Up Cancel Rotation": {
+            "siteOperation": {
+                "rotate": {
+                    "dx": -1440,
+                    "dy": 0,
+                    "dz": 0,
+                    "orientation": 1
+                }
+            }
+        },
+        "Slack Worker Wake Up Rotation": {
+            "siteOperation": {
+                "rotate": {
+                    "dx": 1440,
+                    "dy": 0,
+                    "dz": 0,
+                    "orientation": 1
+                }
+            }
+        },
+        "Slacking Worker WakeUp Impact Fx": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_golem_slam_impact_aoe"
+                },
+                "modelScale": 0.5
+            }
+        },
         "Snap - VFX": {
             "prefix": "",
             "parent": "_VFX",
@@ -13593,6 +13833,67 @@
                     "type": "ParticleAnimation",
                     "name": "vfx_status_stun_impact_wildsurvivor"
                 }
+            }
+        },
+        "Throw Resource - Iron": {
+            "prefix": "",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_gear_steelarrow_castle2"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "createTimer": {
+                                    "name": "destroy",
+                                    "duration": 0.5
+                                }
+                            },
+                            {
+                                "setSiteOperations": {
+                                    "siteOperations": [
+                                        "MoveBy Random - 1"
+                                    ],
+                                    "duration": 0.05
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.5
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.05,
+                                    "duration": 0.5,
+                                    "ease": 25
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onTimer": {
+                                "name": "destroy"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "playSound": {
+                                    "soundName": "metal_armor_hit_v3_pocketquest"
+                                }
+                            },
+                            {
+                                "destroy": {}
+                            }
+                        ]
+                    }
+                ]
             }
         },
         "Throw Resource - Meat": {
@@ -16543,6 +16844,30 @@
                                 "actor": "Chop Tree - Axe",
                                 "hostSite": "SiteWeaponRight"
                             }
+                        },
+                        {
+                            "setModelScale": {
+                                "actor": "Chop Tree - Axe",
+                                "modelScale": 0.01,
+                                "modelScaleExpression": [
+                                    {
+                                        "multiply": {
+                                            "expressions": [
+                                                {
+                                                    "behaviorStackCount": {
+                                                        "behavior": "Skill - Chop Tree - Axe Scale"
+                                                    }
+                                                },
+                                                {
+                                                    "constant": {
+                                                        "value": 0.01
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
                         }
                     ]
                 },
@@ -16608,6 +16933,30 @@
                             "create": {
                                 "actor": "Mine Stone - Pickaxe",
                                 "hostSite": "SiteWeaponRight"
+                            }
+                        },
+                        {
+                            "setModelScale": {
+                                "actor": "Mine Stone - Pickaxe",
+                                "modelScale": 0.01,
+                                "modelScaleExpression": [
+                                    {
+                                        "multiply": {
+                                            "expressions": [
+                                                {
+                                                    "behaviorStackCount": {
+                                                        "behavior": "Skill - Mine Stone - Pickaxe Scale"
+                                                    }
+                                                },
+                                                {
+                                                    "constant": {
+                                                        "value": 0.01
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
                             }
                         }
                     ]
@@ -17429,6 +17778,140 @@
                     "actions": [
                         {
                             "destroy": {}
+                        }
+                    ]
+                }
+            ]
+        },
+        "SlackingWorker": {
+            "events": [
+                {
+                    "actorTerm": {
+                        "behaviorOn": {
+                            "behavior": "Hybrid - Worker Sleep"
+                        }
+                    },
+                    "actions": [
+                        {
+                            "create": {
+                                "actor": "Hybrid - Sleep Vfx"
+                            }
+                        },
+                        {
+                            "playAnimation": {
+                                "clipId": 1
+                            }
+                        },
+                        {
+                            "createTimer": {
+                                "name": "LieDown",
+                                "duration": 0.8
+                            }
+                        }
+                    ]
+                },
+                {
+                    "actorTerm": {
+                        "behaviorOff": {
+                            "behavior": "Hybrid - Worker Sleep"
+                        }
+                    },
+                    "actions": [
+                        {
+                            "destroy": {
+                                "actor": "Hybrid - Sleep Vfx"
+                            }
+                        },
+                        {
+                            "create": {
+                                "actor": "Hybrid - WakeUp Vfx",
+                                "detached": false
+                            }
+                        },
+                        {
+                            "setSiteOperations": {
+                                "siteOperations": [
+                                    "SOp UpBy 2",
+                                    "Slack Worker Wake Up Rotation"
+                                ],
+                                "duration": 0.5,
+                                "append": true,
+                                "ease": 0
+                            }
+                        },
+                        {
+                            "createTimer": {
+                                "name": "WakeUpDown",
+                                "duration": 0.5
+                            }
+                        }
+                    ]
+                },
+                {
+                    "actorTerm": {
+                        "onTimer": {
+                            "name": "WakeUpDown"
+                        }
+                    },
+                    "actions": [
+                        {
+                            "setSiteOperations": {
+                                "siteOperations": [
+                                    "SOp DownBy 2"
+                                ],
+                                "duration": 0.5,
+                                "append": true,
+                                "ease": 2
+                            }
+                        },
+                        {
+                            "createTimer": {
+                                "name": "FullyWakeUp",
+                                "duration": 0.5
+                            }
+                        }
+                    ]
+                },
+                {
+                    "actorTerm": {
+                        "onTimer": {
+                            "name": "FullyWakeUp"
+                        }
+                    },
+                    "actions": [
+                        {
+                            "setSiteOperations": {
+                                "siteOperations": [
+                                    "Slack Worker Wake Up Cancel Rotation"
+                                ],
+                                "duration": 0,
+                                "append": true
+                            }
+                        },
+                        {
+                            "create": {
+                                "actor": "Slacking Worker WakeUp Impact Fx",
+                                "detached": true
+                            }
+                        },
+                        {
+                            "playAnimation": {
+                                "clipId": 3
+                            }
+                        }
+                    ]
+                },
+                {
+                    "actorTerm": {
+                        "onTimer": {
+                            "name": "LieDown"
+                        }
+                    },
+                    "actions": [
+                        {
+                            "pauseAnimation": {
+                                "clipId": 1
+                            }
                         }
                     ]
                 }

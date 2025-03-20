@@ -68,18 +68,22 @@ local REF = {
     GenerateCoin = DCEI.Effect("Hybrid - Meat Grinder - Spawn Coin"),
 
     SpawnPlank = DCEI.Effect("Spawn Resource - Plank"),
+
+    -- island worker effect
+    ChopTree = DCEI.Effect("Skill - Chop Tree - Impact Area"),
+    MineStone = DCEI.Effect("Skill - Mine Stone - Impact Area"),
 }
 
 local POS = {
     Star = Vector2.New(2.5, -2.5),
 
     TalentExchange = Vector2.New(5, 0),
-    Talents = Vector2.New(8, 0),
+    Talents = Vector2.New(0, 9),
     Shrine_Strafe = Vector2.New(0, -8),
     Shrine_Bash = Vector2.New(0, -16),
 
-    Logging = Vector2.New(0, 5),
-    Mine = Vector2.New(5, -5),
+    Logging = Vector2.New(10, 26),
+    Mine = Vector2.New(10, -20),
     Treasury = Vector2.New(-1, 12),
 
     ArcherSlot_1 = Vector2.New(-4, 0),
@@ -850,20 +854,19 @@ local data = {
         Position = POS.Logging,
         Rotation = Vector2.New(0, -1),
 
-        overhead_display = {
-            layout_name = "Hybrid/ResourceNeed",
-            upgrade_type = "Miner",
-            show_distance = 4.5,
-            offset = Vector2.New(0, 80),
-        },
+        -- overhead_display = {
+        --     layout_name = "Hybrid/Storage",
 
-        required_resource = {
-            key = SAVE_KEY.Gold,
-            increase_key = SAVE_KEY.Miner,
-            amount = 20, -- TODO: support boss scroll
-            increasing_amount = 40,
-            spend_distance = 2.5,
-            generate_miner = true,
+        --     show_distance = 999,
+        --     offset = Vector2.New(0, 0.5),
+        -- },
+
+        island_worker = {
+            resource_key = SAVE_KEY.Wood,
+            target_tag = SIMPLE_TAG.Tree,
+            scan_range = 10,
+            sleep_timer = 12,
+            effect = REF.ChopTree,
         },
 
         ShowStatusBar = false,
@@ -884,32 +887,31 @@ local data = {
         -- },
 
         MetaRequirements = { -- Required to Build
-            "Zone_0_3",
+            "forest_5",
         },
     },
 
-    MineSlot = {
-        Key = "MineSlot",
-        StatusSaveKey = SAVE_KEY.MineStatus,
-        Name = "MineSlot",
+    MineCabin = {
+        Key = "MineCabin",
+        StatusSaveKey = SAVE_KEY.LoggingStatus,
+        Name = "MineCabin",
         UnitType = DCEI.Unit("Hybrid - Mine"),
         Position = POS.Mine,
         Rotation = Vector2.New(0, -1),
 
-        overhead_display = {
-            layout_name = "Hybrid/ResourceNeed",
-            upgrade_type = "Miner",
-            show_distance = 4.5,
-            offset = Vector2.New(0, 80),
-        },
+        -- overhead_display = {
+        --     layout_name = "Hybrid/Storage",
 
-        required_resource = {
-            key = SAVE_KEY.Gold,
-            increase_key = SAVE_KEY.Miner,
-            amount = 20, -- TODO: support boss scroll
-            increasing_amount = 40,
-            spend_distance = 2.5,
-            generate_miner = true,
+        --     show_distance = 999,
+        --     offset = Vector2.New(0, 0.5),
+        -- },
+
+        island_worker = {
+            resource_key = SAVE_KEY.Stone,
+            target_tag = SIMPLE_TAG.Stone,
+            scan_range = 10,
+            sleep_timer = 20,
+            effect = REF.MineStone,
         },
 
         ShowStatusBar = false,
@@ -930,9 +932,55 @@ local data = {
         -- },
 
         MetaRequirements = { -- Required to Build
-            "Zone_0_4",
+            "sand_8",
         },
     },
+
+    -- MineSlot = {
+    --     Key = "MineSlot",
+    --     StatusSaveKey = SAVE_KEY.MineStatus,
+    --     Name = "MineSlot",
+    --     UnitType = DCEI.Unit("Hybrid - Mine"),
+    --     Position = POS.Mine,
+    --     Rotation = Vector2.New(0, -1),
+
+    --     overhead_display = {
+    --         layout_name = "Hybrid/ResourceNeed",
+    --         upgrade_type = "Miner",
+    --         show_distance = 4.5,
+    --         offset = Vector2.New(0, 80),
+    --     },
+
+    --     required_resource = {
+    --         key = SAVE_KEY.Gold,
+    --         increase_key = SAVE_KEY.Miner,
+    --         amount = 20, -- TODO: support boss scroll
+    --         increasing_amount = 40,
+    --         spend_distance = 2.5,
+    --         generate_miner = true,
+    --     },
+
+    --     ShowStatusBar = false,
+    --     is_destructible = false,
+    --     TriggerDefeatOnDestoyed = false,
+
+    --     ArmorType = ARMOR_TYPES.Default,
+    --     OnEnter = REF.StructureOnEnter,
+
+    --     Modifiers = {
+    --         Modifier.New(STAT.Health, 500, SCALING.Scaled),
+    --         Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled),
+    --     },
+
+    --     -- quest_requirement = { -- Must start quest before appearing
+    --     --     key = "recruit_miner", -- Which quest
+    --     --     objective = 1, -- Which objective
+    --     -- },
+
+    --     MetaRequirements = { -- Required to Build
+    --         "Zone_0_4",
+    --     },
+    -- },
 
     -- TalentExchange = {
     --     Key = "TalentExchange",
@@ -1007,7 +1055,7 @@ local data = {
         -- },
 
         MetaRequirements = { -- Required to Build
-            META_DATA.talents,
+            "talent_unlock",
         },
     },
 

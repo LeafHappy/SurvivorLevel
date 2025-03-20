@@ -35,7 +35,7 @@ Data.Strafe = {
                 Modifier.New(STAT.Spread, 5, SCALING.Scaled, { SKILL_TAG.Strafe }),
 
                 -- Projectile
-                Modifier.New(STAT.SkillRange, 8.00, SCALING.Scaled, { SKILL_TAG.Strafe }), -- Travel Distance
+                Modifier.New(STAT.SkillRange, 4.00, SCALING.Scaled, { SKILL_TAG.Strafe }), -- Travel Distance
                 Modifier.New(STAT.SkillSize, 0.65, SCALING.Scaled, { SKILL_TAG.Strafe }), -- Projectile Size
                 Modifier.New(STAT.ProjectileSpeed, 22, SCALING.Scaled, { SKILL_TAG.Strafe }),
                 Modifier.New(STAT.ProjectileHealth, 1, SCALING.Scaled, { SKILL_TAG.Strafe }),

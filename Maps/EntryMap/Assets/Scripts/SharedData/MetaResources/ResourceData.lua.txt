@@ -95,6 +95,26 @@ ResourceData.List = {
         OnEnter = DCEI.Effect("Loot - Stone - OnEnter"),
     },
     {
+        Key = "Iron",
+
+        -- Types
+        SaveKey = SAVE_KEY.Iron,
+        TrackedStat = TRACKED_STATS.Iron,
+
+        -- UI
+        DisplayName = "Iron",
+        Icon = DCEI.Texture("cartoon_icon_gear_steelarrow_castle2"),
+        Sound = DCEI.Sound("metal_armor_hit_v3_pocketquest"),
+        DisplayUpdateEvent = "Camp.Overlay.SetIron",
+
+        -- Game
+        ThrowEffect = DCEI.Effect("Throw Resource - Iron - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Iron"),
+        OnEnter = DCEI.Effect("Loot - Iron - OnEnter"),
+    },
+    {
         Key = "Pumpkin",
 
         -- Types
