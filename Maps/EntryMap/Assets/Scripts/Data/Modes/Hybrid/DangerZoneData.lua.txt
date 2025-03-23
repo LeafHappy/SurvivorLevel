@@ -584,8 +584,8 @@ local data = {
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 20,
-                Resource = "Pumpkin",
+                Amount = 4,
+                Resource = "HardWood",
             },
             StandOffset = {
                 x = 0,
@@ -1277,7 +1277,7 @@ local data = {
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 5,
+                Amount = 12,
                 Resource = "HardWood",
             },
             StandOffset = {

@@ -177,7 +177,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 01"),
         Health = {
-            Starting = 200,
+            Starting = 60,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -207,7 +207,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 02"),
         Health = {
-            Starting = 200,
+            Starting = 60,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -237,7 +237,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 03"),
         Health = {
-            Starting = 200,
+            Starting = 60,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -267,7 +267,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 04"),
         Health = {
-            Starting = 200,
+            Starting = 60,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -511,7 +511,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 01"),
         Health = {
-            Starting = 500,
+            Starting = 100,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -543,7 +543,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 02"),
         Health = {
-            Starting = 500,
+            Starting = 100,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -575,7 +575,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 03"),
         Health = {
-            Starting = 500,
+            Starting = 100,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -607,7 +607,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 04"),
         Health = {
-            Starting = 500,
+            Starting = 100,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -639,7 +639,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 05"),
         Health = {
-            Starting = 500,
+            Starting = 100,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Mass = 1000000,
