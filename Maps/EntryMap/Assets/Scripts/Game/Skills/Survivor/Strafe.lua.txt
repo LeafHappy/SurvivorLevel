@@ -36,6 +36,7 @@ local REF = {
     Ability = DCEI.Ability("Skill - Strafe"),
 
     -- Behavior
+    ActionPending = DCEI.Behavior("Action Pending"),
     PierceStack = DCEI.Behavior("Missile - Pierce"),
     ProjectileSpeed = DCEI.Behavior("Skill - Strafe - Projectile Speed"),
     LearnedTrickshot = DCEI.Behavior("Skill - Strafe - Learned - Trickshot"),
@@ -259,7 +260,8 @@ local function OnSuccess(ctx)
             AttemptTrickshot(hero)
             AttemptQuickDraw(hero)
         end,
-        cast_point
+        cast_point,
+        "attack"
     )
 end
 

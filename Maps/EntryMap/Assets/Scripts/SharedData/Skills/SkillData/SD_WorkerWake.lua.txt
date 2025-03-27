@@ -7,45 +7,32 @@ local Data = {}
 -- ANCHOR -- Core Skill
 -- ================================================================================================
 
-Data.MineStone = {
-    Key = "MineStone",
+Data.WorkerWake = {
+    Key = "WorkerWake",
 
     -- UI Information
-    DisplayName = "MineStone",
-    ShortDescription = "Chop some trees down.",
-    Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
+    DisplayName = "WorkerWake",
+    ShortDescription = "Make workers awake 30 secs longer.",
+    Icon = DCEI.Texture("flat_icon_emoji_hot_beverage_2615_ipick"),
 
     -- Skill Information
-    MaxLevel = 1,
+    MaxLevel = 3,
     Type = SKILL_TYPE.Active,
     AppliedSkillTagLevels = {
-        SKILL_TAG.MineStone,
+        SKILL_TAG.WorkerWake,
     },
     Requirements = {},
     Applications = {
         FirstLevelOnly = {
-            Abilities = {
-                DCEI.Ability("Skill - Mine Stone"),
-            },
+            Abilities = {},
             Behaviors = {},
-            Modifiers = {
-                -- Cast
-                Modifier.New(STAT.BaseAttackTime, 1.00, SCALING.Scaled, { SKILL_TAG.MineStone }),
-                Modifier.New(STAT.SkillSize, 1.75, SCALING.Scaled, { SKILL_TAG.MineStone }),
-                Modifier.New(STAT.Spread, 120, SCALING.Scaled, { SKILL_TAG.MineStone }),
-
-                Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.MineStone }),
-
-                -- Drop Count
-                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.MineStone }),
-
-                -- Visual
-                Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled, { SKILL_TAG.MineStone }),
-            },
+            Modifiers = {},
         },
         EveryLevel = {
             Abilities = {},
-            Behaviors = {},
+            Behaviors = {
+                Behavior.New(DCEI.Behavior("Worker Awake"), 1, APPLICATION_TYPE.Set),
+            },
             Modifiers = {},
         },
         EveryLevelAfterFirst = {
@@ -55,10 +42,11 @@ Data.MineStone = {
         },
     },
     ApplyStatInheritance = {
-        [SKILL_TAG.MineStone] = {
+        [SKILL_TAG.WorkerWake] = {
             -- Core Tags
             SKILL_TAG.Global,
-            SKILL_TAG.MineStone,
+            SKILL_TAG.WorkerWake,
+            SKILL_TAG.Tool,
         },
     },
     RemoveStatInheritance = {},

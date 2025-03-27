@@ -30,8 +30,8 @@ local SimpleUnits = require("SharedData/SimpleUnits")
 
 local SpawnDirector = require("Game/Directors/Spawn")
 
-local PropData = require("Map/PropData")
-local ZonePropData = require("Editor/ZonePropData")
+local PropData = require("Zone/Data/PropData")
+local ZonePropData = require("Zone/Editor/EditorPropData")
 
 local Help = require("Help")
 
@@ -54,7 +54,7 @@ local REGISTERED_UNITS = {}
 
 ---@class PropInstanceTracker
 ---@field Data DangerZoneData.PropData
----@field PropData ZonePropData
+---@field PropData EditorPropData
 ---@field IsEnabled boolean
 ---@field ZonePosition Vector2
 local PropInstanceTracker = {}

@@ -4,7 +4,7 @@ local Vector2 = require("Class/Vector2")
 local SimpleUnit = require("Class/Simple/SimpleUnit")
 local PerlinNoise = require("Class/PerlinNoise")
 
-local PropData = require("Map/PropData")
+local PropData = require("Zone/Data/PropData")
 local TileData = require("Data/TileData")
 
 local Help = require("Help")

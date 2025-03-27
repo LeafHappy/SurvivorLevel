@@ -11,8 +11,8 @@ local REF = {
     Wasteland01 = DCEI.SimpleUnit("Zone - Wasteland - 01"),
 }
 
----@type table<ZoneItemData>
-local ZoneTileData = {
+---@type table<EditorItemData>
+local EditorTileData = {
     StandardTile = {
         Key = "StandardTile",
         Icon = DCEI.Texture("wildsurvivor_standard_tile"), -- Displayed in the Editor UI
@@ -75,4 +75,4 @@ local ZoneTileData = {
     },
 }
 
-return ZoneTileData
+return EditorTileData

@@ -178,7 +178,7 @@ SKILL_TAG = {
     ChopTree = "ChopTree",
     MineStone = "MineStone",
     Shovel = "Shovel",
-
+    WorkerWake = "WorkerWake",
     Tool = "Tool", -- Used for Tools
     Worker = "Worker", -- Used for Workers
 
@@ -501,7 +501,7 @@ TRACKED_STATS = {
     -- Currency
     Wood = DCEI.Stats("Wood"),
     Plank = DCEI.Stats("Plank"),
-    HardWood = DCEI.Stats("HardWood"),
+    -- HardWood = DCEI.Stats("HardWood"),
     Stone = DCEI.Stats("Stone"),
     Iron = DCEI.Stats("Iron"),
     Pumpkin = DCEI.Stats("Pumpkin"),
@@ -741,7 +741,7 @@ SAVE_KEY = {
     -- Currencies
     Wood = { "currency", "wood" },
     Plank = { "currency", "plank" },
-    HardWood = { "currency", "hard_wood" },
+    -- HardWood = { "currency", "hard_wood" },
     Stone = { "currency", "stone" },
     Iron = { "currency", "iron" },
     Pumpkin = { "currency", "pumpkin" },
@@ -909,4 +909,5 @@ SELECTION_TOOL = {
     Tile = "Tile",
     Prop = "Prop",
     KeyItem = "KeyItem",
+    Unit = "Unit",
 }

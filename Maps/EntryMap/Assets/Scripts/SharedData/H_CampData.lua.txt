@@ -82,8 +82,8 @@ local POS = {
     Shrine_Strafe = Vector2.New(0, -8),
     Shrine_Bash = Vector2.New(0, -16),
 
-    Logging = Vector2.New(10, 21),
-    Mine = Vector2.New(10, -10),
+    Logging = Vector2.New(10, 26),
+    Mine = Vector2.New(10, -20),
     Treasury = Vector2.New(-1, 12),
 
     ArcherSlot_1 = Vector2.New(-4, 0),
@@ -863,7 +863,7 @@ local data = {
 
         island_worker = {
             resource_key = SAVE_KEY.Wood,
-            target_tag = SIMPLE_TAG.Tree,
+            target_tag = DCEI.Tag("Tree"),
             scan_range = 10,
             sleep_timer = 12,
             effect = REF.ChopTree,
@@ -908,7 +908,7 @@ local data = {
 
         island_worker = {
             resource_key = SAVE_KEY.Stone,
-            target_tag = SIMPLE_TAG.Stone,
+            target_tag = DCEI.Tag("Stone"),
             scan_range = 10,
             sleep_timer = 20,
             effect = REF.MineStone,
@@ -932,7 +932,7 @@ local data = {
         -- },
 
         MetaRequirements = { -- Required to Build
-            "sand_5",
+            "sand_8",
         },
     },
 

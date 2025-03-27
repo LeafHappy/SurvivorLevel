@@ -1,11 +1,11 @@
 local KeyItemData = require("SharedData/KeyItemData")
 
----@class KeyItemSettings
+---@class EditorKeyItemData.Settings
 ---@field Type Unit | string
 ---@field Status ZONE_STATUS
 
----@class ZoneKeyItemData:ZoneItemData
----@field Settings KeyItemSettings
+---@class EditorKeyItemData:EditorItemData
+---@field Settings EditorKeyItemData.Settings
 
 local data = {
     ChopTree = {

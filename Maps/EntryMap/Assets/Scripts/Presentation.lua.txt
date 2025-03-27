@@ -61,9 +61,9 @@ local GameState = {}
 ---NOTE: Setup Meta Resources
 for _, resource_data in ipairs(ResourceData.List) do
     GameState[resource_data.Key] = {
-        limit = 100,
+        -- limit = 100,
         value = 0,
-        fill = 0,
+        -- fill = 0,
     }
 end
 DCEI.BindLuaTable("Game", GameState)
@@ -179,6 +179,10 @@ ui.camp.quest_hud = require("UiMeta/Quest/QuestHUD")
 ui.zone = {}
 ui.zone.cost = require("UiZone/ZoneCost")
 
+-- ZoneUnit
+ui.zone_unit = {}
+ui.zone_unit.shop_cost = require("Zone/UI/Shop")
+
 -- Hybrid
 ui.camp.labels = require("UiCamp/CampButtons")
 ui.camp.warning = require("UiCamp/WaveStart")
@@ -219,7 +223,7 @@ ui.game.transition_mask = require("UiGame/TransitionMask")
 ui.dev_log = require("UiGame/DevLog")
 
 -- Editor
-ui.editor = require("Editor/Editor")
+ui.editor = require("Zone/UI/Editor")
 
 function AddResultsChest(chest_data, chest_rewards)
     for _, results_chest_data in ipairs(results_chest_queue) do

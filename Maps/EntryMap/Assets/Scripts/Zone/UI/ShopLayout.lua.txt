@@ -1,0 +1,190 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local Vector3 = require("Class/Vector3")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---@class SetDisplayActiveData
+---@field UID string
+---@field IsActive boolean
+
+---@class ShopDisplayData
+---@field UID string
+---@field WorldPosition Vector2 | nil
+---@field AmountStored integer | nil
+---@field AmountRequired integer | nil
+---@field ResourceType string | nil
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local ui = GMUI.ui
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Layout
+---============================================================================
+
+---@class ShopLayout
+---@field Layout Layout
+---@field Data ShopDisplayData
+---@field IsActive boolean
+local ShopLayout = {}
+ShopLayout.__index = ShopLayout
+ShopLayout.__name = "ShopLayout"
+
+---comment
+---@param data ShopDisplayData
+---@return ShopLayout
+function ShopLayout.New(data)
+    local self = setmetatable({}, ShopLayout)
+    self.Layout = GMUI.Layout.New({
+        name = "ZoneUnit/Shop",
+        parent = ui.root,
+    })
+    self.Data = data
+    self.IsActive = true
+
+    self.Layout:Show()
+
+    -- Layout Hookups
+    local layout = self
+
+    function self.Layout:OnShow()
+        layout.IsActive = true
+
+        -- Animate
+        Animation.FadeIn(self.Frame)
+    end
+
+    function self.Layout:OnHide()
+        layout.IsActive = false
+
+        -- Animate
+        Animation.FadeOut(self.Frame)
+    end
+
+    return self
+end
+
+---============================================================================
+---!SECTION: Layout
+---SECTION: Internal
+---============================================================================
+
+function ShopLayout:_UpdatePosition()
+    if not self.Data.WorldPosition then
+        return
+    end
+
+    local position_3d = Vector3.New(self.Data.WorldPosition.x, 0, self.Data.WorldPosition.y)
+    DCEI.MoveFrameToCanvasPosition(self.Layout.Frame, DCEI.GetCanvasPositionFromWorldPosition(position_3d))
+end
+
+function ShopLayout:_UpdateIcon()
+    if not self.Data.ResourceType then
+        return
+    end
+
+    local resource_data = ResourceData.Map[self.Data.ResourceType]
+
+    if not resource_data then
+        return
+    end
+
+    local is_changed = false
+    if self.Layout.state.icon ~= resource_data.Icon then
+        is_changed = true
+        self.Layout.state.icon = resource_data.Icon
+    end
+
+    return is_changed
+end
+
+function ShopLayout:_UpdateAmountStored()
+    if not self.Data.AmountStored then
+        return
+    end
+
+    local is_changed = false
+
+    if self.Layout.state.stored ~= self.Data.AmountStored then
+        is_changed = true
+        self.Layout.state.stored = self.Data.AmountStored
+    end
+
+    return is_changed
+end
+
+function ShopLayout:_UpdateAmountRequired()
+    if not self.Data.AmountRequired then
+        return
+    end
+
+    local is_changed = false
+    if self.Layout.state.required ~= self.Data.AmountRequired then
+        is_changed = true
+        self.Layout.state.required = self.Data.AmountRequired
+    end
+
+    return is_changed
+end
+
+---============================================================================
+---!SECTION: Internal
+---SECTION: Methods
+---============================================================================
+
+---@param data ShopDisplayData
+function ShopLayout:UpdateData(data)
+    self.Data.ResourceType = data.ResourceType or self.Data.ResourceType
+    self.Data.AmountStored = data.AmountStored or self.Data.AmountStored
+    self.Data.AmountRequired = data.AmountRequired or self.Data.AmountRequired
+    self.Data.WorldPosition = data.WorldPosition or self.Data.WorldPosition
+end
+
+---comment
+---@param delta Time
+function ShopLayout:Update(delta)
+    self:_UpdateIcon()
+    local is_stored_changed = self:_UpdateAmountStored()
+    self:_UpdateAmountRequired()
+    self:_UpdatePosition()
+
+    -- Animate Changes
+    if is_stored_changed then
+        local size = self.Data.AmountStored == self.Data.AmountRequired and 1.75 or 1.3
+        Animation.Impact(self.Layout.Frame, {
+            final_size = size,
+        })
+    end
+end
+
+function ShopLayout:Destroy()
+    self.Layout:Destroy()
+    self.Layout = nil
+    self.Data = nil
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return ShopLayout

@@ -1900,73 +1900,6 @@
                 "behavior": "Hero - Slow"
             }
         },
-        "Camp - Prop - Stone - Launch - Stone": {
-            "launchMissile": {
-                "missileUnit": "Loot - Stone",
-                "effect": "Spawn - Loot - Stone - Stationary",
-                "launchOffset": {
-                    "explicitOffset": {
-                        "up": 0.5
-                    }
-                },
-                "impactOffset": {
-                    "polarOffset": {}
-                },
-                "mover": "Throw Resource - Launch - Mover"
-            },
-            "universalFieldExpressions": [
-                {
-                    "fieldPath": [
-                        "launchMissile",
-                        "impactOffset",
-                        "polarOffset",
-                        "yaw"
-                    ],
-                    "expression": {
-                        "namedExpression": {
-                            "name": "Random Angle (0 - 360)"
-                        }
-                    }
-                },
-                {
-                    "fieldPath": [
-                        "launchMissile",
-                        "impactOffset",
-                        "polarOffset",
-                        "distance"
-                    ],
-                    "expression": {
-                        "value": {
-                            "random": {
-                                "doubleValue": {
-                                    "min": 0.5,
-                                    "max": 1.5
-                                }
-                            }
-                        }
-                    }
-                }
-            ]
-        },
-        "Camp - Prop - Stone - OnDeath": {
-            "set": {
-                "effectList": [
-                    "Camp - Prop - Stone - Launch - Stone",
-                    "Camp - Prop - Stone - OnDeath - VFX",
-                    "Simple Remove Source"
-                ]
-            }
-        },
-        "Camp - Prop - Stone - OnDeath - VFX": {
-            "spawnActor": {
-                "actor": "Camp - Prop - Stone - OnDeath - VFX",
-                "orientation": {
-                    "offsetOrientation": {},
-                    "eulerAnglesRelativeOffset": {}
-                },
-                "scale": 0.5
-            }
-        },
         "Campfire - Damage": {
             "damage": {
                 "whichUnit": 2,
@@ -5425,7 +5358,7 @@
         },
         "Prop - Drop Table - Gold Chance": {
             "triggerByChance": {
-                "effect": "Spawn - Loot - Gold - Stationary",
+                "effect": "Spawn - Loot - Gold",
                 "triggerChance": 1
             }
         },
@@ -5493,7 +5426,7 @@
                     0.0625
                 ],
                 "periodicEffects": [
-                    "Spawn Resource - Iron"
+                    "Spawn Resource - Stone"
                 ]
             }
         },
@@ -5559,6 +5492,36 @@
                     "Trigger - Spawn - Tree - Rank 3",
                     "Simple Remove Source"
                 ]
+            }
+        },
+        "Prop - Stone - Drop Count": {
+            "persistent": {
+                "periodicCount": 1,
+                "periodicDurations": [
+                    0.0625
+                ],
+                "periodicEffects": [
+                    "Spawn Resource - Stone"
+                ]
+            }
+        },
+        "Prop - Stone - OnDeath": {
+            "set": {
+                "effectList": [
+                    "Prop - Stone - Drop Count",
+                    "Prop - Stone - OnDeath - VFX",
+                    "Simple Remove Source"
+                ]
+            }
+        },
+        "Prop - Stone - OnDeath - VFX": {
+            "spawnActor": {
+                "actor": "Camp - Prop - Stone - OnDeath - VFX",
+                "orientation": {
+                    "offsetOrientation": {},
+                    "eulerAnglesRelativeOffset": {}
+                },
+                "scale": 0.5
             }
         },
         "Pryoclasm - Attach": {
@@ -6710,8 +6673,8 @@
             "persistent": {}
         },
         "Skill - Chop Tree - Damage": {
-            "parent": "_Damage - Physical",
-            "simpleDamage": {}
+            "parent": "Standard Damage",
+            "damage": {}
         },
         "Skill - Chop Tree - Effects": {
             "set": {
@@ -6722,26 +6685,34 @@
         },
         "Skill - Chop Tree - Impact Area": {
             "parent": "_Scan - Tree",
-            "simpleAreaSearch": {
-                "debugDraw": false,
+            "areaSearch": {
                 "areaSearchType": {
                     "circleSector": {}
                 },
                 "maxUnitCount": 0,
-                "effect": "Skill - Chop Tree - Damage",
-                "location": {
-                    "base": 6
-                },
+                "effect": "Skill - Chop Tree - Impact Effects",
+                "location": 6
+            }
+        },
+        "Skill - Chop Tree - Impact Effects": {
+            "set": {
+                "effectList": [
+                    "Skill - Chop Tree - Damage",
+                    "Skill - Chop Tree - Impact VFX"
+                ]
+            }
+        },
+        "Skill - Chop Tree - Impact VFX": {
+            "spawnActor": {
+                "actor": "Skill - Chop Tree - Impact VFX",
                 "orientation": {
-                    "offsetOrientation": {
-                        "offsetStart": 6
-                    }
+                    "eulerAnglesRelativeOffset": {}
                 }
             }
         },
         "Skill - Chop Tree - Scan": {
             "parent": "_Scan - Tree",
-            "simpleAreaSearch": {
+            "areaSearch": {
                 "effect": "Skill - Chop Tree - Success"
             }
         },
@@ -7757,8 +7728,8 @@
             }
         },
         "Skill - Mine Stone - Damage": {
-            "parent": "_Damage - Physical",
-            "simpleDamage": {}
+            "parent": "Standard Damage",
+            "damage": {}
         },
         "Skill - Mine Stone - Effects": {
             "set": {
@@ -7769,23 +7740,33 @@
         },
         "Skill - Mine Stone - Impact Area": {
             "parent": "_Scan - Stone",
-            "simpleAreaSearch": {
+            "areaSearch": {
                 "areaSearchType": {
                     "circleSector": {}
                 },
-                "maxUnitCount": 0,
-                "effect": "Skill - Mine Stone - Damage",
-                "location": {
-                    "base": 6
-                },
+                "effect": "Skill - Mine Stone - Impact Effects",
+                "location": 6
+            }
+        },
+        "Skill - Mine Stone - Impact Effects": {
+            "set": {
+                "effectList": [
+                    "Skill - Mine Stone - Damage",
+                    "Skill - Mine Stone - Impact VFX"
+                ]
+            }
+        },
+        "Skill - Mine Stone - Impact VFX": {
+            "spawnActor": {
+                "actor": "Skill - Mine Stone - Impact VFX",
                 "orientation": {
-                    "offsetOrientation": {}
+                    "eulerAnglesRelativeOffset": {}
                 }
             }
         },
         "Skill - Mine Stone - Scan": {
             "parent": "_Scan - Stone",
-            "simpleAreaSearch": {
+            "areaSearch": {
                 "effect": "Skill - Mine Stone - Success"
             }
         },
@@ -7821,8 +7802,8 @@
             }
         },
         "Skill - Shovel - Damage": {
-            "parent": "_Damage - Hidden",
-            "simpleDamage": {}
+            "parent": "Standard Damage",
+            "damage": {}
         },
         "Skill - Shovel - Effects": {
             "set": {
@@ -7833,7 +7814,7 @@
         },
         "Skill - Shovel - Scan": {
             "parent": "_Scan - Dig Spot",
-            "simpleAreaSearch": {
+            "areaSearch": {
                 "effect": "Skill - Shovel - Success"
             }
         },
@@ -8531,18 +8512,18 @@
                 "playerId": 0
             }
         },
+        "Spawn - Loot - Gold": {
+            "parent": "_Simple Spawn",
+            "simpleSpawn": {
+                "spawnUnitType": "Loot - Gold",
+                "playerId": 0
+            }
+        },
         "Spawn - Loot - Gold - Nearby": {
             "parent": "_Simple Spawn",
             "simpleSpawn": {
                 "spawnUnitType": "Loot - Gold",
                 "effect": "SMover - Random Circle - Small",
-                "playerId": 0
-            }
-        },
-        "Spawn - Loot - Gold - Stationary": {
-            "parent": "_Simple Spawn",
-            "simpleSpawn": {
-                "spawnUnitType": "Loot - Gold",
                 "playerId": 0
             }
         },
@@ -8704,15 +8685,7 @@
                 "spawnUnitType": "Loot - Small Potion"
             }
         },
-        "Spawn - Loot - Stone - Nearby": {
-            "parent": "_Simple Spawn",
-            "simpleSpawn": {
-                "spawnUnitType": "Loot - Stone",
-                "effect": "SMover - Random Circle - Small",
-                "playerId": 0
-            }
-        },
-        "Spawn - Loot - Stone - Stationary": {
+        "Spawn - Loot - Stone": {
             "parent": "_Simple Spawn",
             "simpleSpawn": {
                 "spawnUnitType": "Loot - Stone",
@@ -8771,6 +8744,54 @@
                 "spawnUnitType": "Loot - Wood",
                 "playerId": 0
             }
+        },
+        "Spawn Resource - Gold": {
+            "launchMissile": {
+                "missileUnit": "Loot - Gold",
+                "effect": "Spawn - Loot - Gold",
+                "launchOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "impactOffset": {
+                    "polarOffset": {}
+                },
+                "mover": "Throw Resource - Launch - Mover"
+            },
+            "universalFieldExpressions": [
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "yaw"
+                    ],
+                    "expression": {
+                        "namedExpression": {
+                            "name": "Random Angle (0 - 360)"
+                        }
+                    }
+                },
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "distance"
+                    ],
+                    "expression": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "min": 0.5,
+                                    "max": 1.5
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "Spawn Resource - Hard Wood": {
             "launchMissile": {
@@ -8915,6 +8936,54 @@
                 "missileUnit": "Loot - Pumpkin",
                 "effect": "Spawn - Loot - Pumpkin - Stationary",
                 "impactLocation": 2,
+                "launchOffset": {
+                    "explicitOffset": {
+                        "up": 0.5
+                    }
+                },
+                "impactOffset": {
+                    "polarOffset": {}
+                },
+                "mover": "Throw Resource - Launch - Mover"
+            },
+            "universalFieldExpressions": [
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "yaw"
+                    ],
+                    "expression": {
+                        "namedExpression": {
+                            "name": "Random Angle (0 - 360)"
+                        }
+                    }
+                },
+                {
+                    "fieldPath": [
+                        "launchMissile",
+                        "impactOffset",
+                        "polarOffset",
+                        "distance"
+                    ],
+                    "expression": {
+                        "value": {
+                            "random": {
+                                "doubleValue": {
+                                    "min": 0.5,
+                                    "max": 1.5
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "Spawn Resource - Stone": {
+            "launchMissile": {
+                "missileUnit": "Loot - Stone",
+                "effect": "Spawn - Loot - Stone",
                 "launchOffset": {
                     "explicitOffset": {
                         "up": 0.5
@@ -9279,7 +9348,7 @@
                     0.0625
                 ],
                 "periodicEffects": [
-                    "Spawn Resource - Hard Wood"
+                    "Spawn Resource - Wood"
                 ]
             }
         },
@@ -10895,98 +10964,37 @@
         },
         "_Scan - Dig Spot": {
             "template": true,
-            "simpleAreaSearch": {
-                "areaSearchType": {
-                    "circle": {
-                        "radius": 0
-                    }
-                },
-                "maxUnitCount": 1,
-                "filter": {
-                    "primarySortKeys": {
-                        "key": 3,
-                        "order": 1
-                    },
-                    "secondarySortKeys": {
-                        "key": 2
-                    },
-                    "player": 0,
-                    "ally": 2,
-                    "enemy": 1,
-                    "neutral": 2,
-                    "hasSimpleHealth": 1,
-                    "hasSimpleCollision": 1,
-                    "tagMask": 512
-                },
-                "effect": "DoNothing",
-                "orientation": {
-                    "unitOrientation": 0,
-                    "eulerAnglesRelativeOffset": {}
-                }
+            "parent": "_StandardAreaSearch",
+            "areaSearch": {
+                "requiredTagNames": [
+                    "Dig"
+                ]
             }
         },
         "_Scan - Stone": {
             "template": true,
-            "simpleAreaSearch": {
+            "parent": "_StandardAreaSearch",
+            "areaSearch": {
                 "areaSearchType": {
-                    "circle": {
-                        "radius": 0
-                    }
+                    "circle": {}
                 },
                 "maxUnitCount": 1,
-                "filter": {
-                    "primarySortKeys": {
-                        "key": 3,
-                        "order": 1
-                    },
-                    "secondarySortKeys": {
-                        "key": 2
-                    },
-                    "player": 0,
-                    "ally": 2,
-                    "enemy": 1,
-                    "neutral": 2,
-                    "hasSimpleHealth": 1,
-                    "hasSimpleCollision": 1,
-                    "tagMask": 128
-                },
-                "effect": "DoNothing",
-                "orientation": {
-                    "unitOrientation": 0,
-                    "eulerAnglesRelativeOffset": {}
-                }
+                "requiredTagNames": [
+                    "Stone"
+                ]
             }
         },
         "_Scan - Tree": {
             "template": true,
-            "simpleAreaSearch": {
+            "parent": "_StandardAreaSearch",
+            "areaSearch": {
                 "areaSearchType": {
-                    "circle": {
-                        "radius": 0
-                    }
+                    "circle": {}
                 },
                 "maxUnitCount": 1,
-                "filter": {
-                    "primarySortKeys": {
-                        "key": 3,
-                        "order": 1
-                    },
-                    "secondarySortKeys": {
-                        "key": 2
-                    },
-                    "player": 0,
-                    "ally": 2,
-                    "enemy": 1,
-                    "neutral": 2,
-                    "hasSimpleHealth": 1,
-                    "hasSimpleCollision": 1,
-                    "tagMask": 64
-                },
-                "effect": "DoNothing",
-                "orientation": {
-                    "unitOrientation": 0,
-                    "eulerAnglesRelativeOffset": {}
-                }
+                "requiredTagNames": [
+                    "Tree"
+                ]
             }
         },
         "_Scan All": {

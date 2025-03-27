@@ -47,7 +47,6 @@ local Heatmap = require("Class/Heatmap")
 -- Data
 -- local HuntData = require("Data/Modes/HuntData")
 local SimpleUnits = require("SharedData/SimpleUnits")
-local PropData = require("Map/PropData")
 -- local Biome = require("Data/Biomes/Forest")
 
 -- Shared Data

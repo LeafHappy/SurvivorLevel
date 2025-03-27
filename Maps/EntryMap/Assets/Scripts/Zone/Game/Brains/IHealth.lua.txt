@@ -1,0 +1,79 @@
+local SimpleUnit = require("Class/Simple/SimpleUnit")
+
+local Help = require("Help")
+
+---comment
+---@param health_percentage number
+---@param phases integer
+---@return integer
+local function GetCurrentPhase(health_percentage, phases)
+    local health_range = 1 / phases
+    local phase_index = math.ceil((1 - health_percentage) / health_range)
+
+    return phase_index
+end
+
+---@class IHealthData
+---@field public Health number
+---@field public HealthPhases table<string> | nil
+
+---@class IHealth
+---@field public ZoneUnit ZoneUnit
+---@field public Data IHealthData
+---@field public HasHealthPhases boolean | nil
+---@field public CurrentPhase number
+local IHealth = {}
+IHealth.__index = IHealth
+IHealth.__name = "IHealth"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data IHealthData
+---@return IHealth
+function IHealth.New(zone_unit, data)
+    local self = setmetatable({}, IHealth)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+
+    self.HasHealthPhases = data.HealthPhases and #data.HealthPhases > 0
+    self.CurrentPhase = 0
+
+    return self
+end
+
+---Implement in child class
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function IHealth:Update(delta, instance, hero, data_pass)
+    if data_pass.IsSpawnedThisFrame then
+        DCEI.SetMaxHealth(instance, self.Data.Health)
+        DCEI.SetHealth(instance, self.Data.Health)
+    end
+
+    if not data_pass.IsAlive then
+        return
+    end
+
+    if not self.HasHealthPhases then
+        return
+    end
+
+    local health_max = self.Data.Health
+    local health_current = DCEI.GetHealth(instance)
+    local health_percentage = health_current / health_max
+
+    local target_phase = GetCurrentPhase(health_percentage, #self.Data.HealthPhases)
+
+    if target_phase ~= self.CurrentPhase then
+        self.CurrentPhase = target_phase
+
+        local event_id = self.Data.HealthPhases[self.CurrentPhase]
+        Help.SendActorEvent(instance, event_id)
+    end
+end
+
+function IHealth:Clear() end
+
+return IHealth

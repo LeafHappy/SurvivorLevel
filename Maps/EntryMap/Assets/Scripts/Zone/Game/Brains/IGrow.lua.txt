@@ -1,0 +1,147 @@
+local Vector2 = require("Class/Vector2")
+
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+local Help = require("Help")
+
+---comment
+---@param health_percentage number
+---@param phases integer
+---@return integer
+local function GetCurrentPhase(health_percentage, phases)
+    if health_percentage >= 1 then
+        return phases
+    end
+
+    local health_range = 1 / phases
+    local phase_index = math.floor(health_percentage / health_range)
+    return phase_index
+end
+
+---@class IGrowData
+---@field public GrowthRate number The amount of time required before it can be harvested.
+---@field public PhaseEvents table<string> Actor Event Messages based on growth intervals.
+---@field public HarvestRange number The distance required to harvest the unit.
+---@field public OnCollect table<IGrowData.DropData> The resources that are dropped when harvested.
+
+---@class IGrowData.DropData
+---@field ResourceType string
+---@field Amount integer
+
+---@class IGrow : IBrain
+---@field public ZoneUnit ZoneUnit
+---@field public Data IGrowData
+---@field public GrowTimer number
+---@field public CurrentPhase integer
+local IGrow = {}
+IGrow.__index = IGrow
+IGrow.__name = "IGrow"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data IGrowData
+---@return IGrow
+function IGrow.New(zone_unit, data)
+    local self = setmetatable({}, IGrow)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+    self.GrowTimer = 0
+    self.CurrentPhase = 0
+
+    return self
+end
+
+---comment
+---@param instance UnitInstance
+function IGrow:_Reset(instance)
+    self.GrowTimer = 0
+    self.CurrentPhase = 1
+
+    local event_id = self.Data.PhaseEvents[self.CurrentPhase]
+    Help.SendActorEvent(instance, event_id)
+end
+
+---comment
+---@param instance UnitInstance
+function IGrow:_CheckPhaseChange(instance)
+    local percentage = self.GrowTimer / self.Data.GrowthRate
+    local target_phase = GetCurrentPhase(percentage, #self.Data.PhaseEvents)
+
+    if self.CurrentPhase ~= target_phase then
+        self.CurrentPhase = target_phase
+
+        local event_id = self.Data.PhaseEvents[self.CurrentPhase]
+        Help.SendActorEvent(instance, event_id)
+    end
+end
+
+---comment
+---@param unit UnitInstance
+function IGrow:_DropResources(unit)
+    local position = self.ZoneUnit.Position
+
+    for _, drop_data in ipairs(self.Data.OnCollect) do
+        local resource_data = ResourceData.Map[drop_data.ResourceType]
+
+        if resource_data then
+            local effect = resource_data.SpawnEffect
+            if effect then
+                local amount = drop_data.Amount or 1
+                for i = 1, amount do
+                    DCEI.CreateEffectAtPosition(effect, unit, position.x, position.y)
+                end
+            end
+        end
+    end
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function IGrow:Update(delta, instance, hero, data_pass)
+    if data_pass.IsSpawnedThisFrame then
+        self:_Reset(instance)
+    end
+
+    if self.GrowTimer < self.Data.GrowthRate then
+        self.GrowTimer = self.GrowTimer + delta
+    end
+
+    self:_CheckPhaseChange(instance)
+
+    if self.GrowTimer < self.Data.GrowthRate then
+        return
+    end
+
+    -- Validate Alive
+    if not data_pass.IsAlive then
+        return
+    end
+
+    -- Validate Hero
+    if not hero:IsUnitAlive() then
+        return
+    end
+
+    -- Validate Range
+    local hero_position = hero:GetPosition()
+    local position = Vector2.NewFromTable(self.ZoneUnit.Position)
+
+    local distance = Vector2.Distance(hero_position, position)
+    if distance > self.Data.HarvestRange then
+        return
+    end
+
+    -- Drop Resources
+    self:_DropResources(instance)
+
+    -- Destroy Instance
+    DCEI.KillUnit(instance)
+    data_pass.IsAlive = false
+    data_pass.IsKilledThisFrame = true
+end
+
+function IGrow:Clear() end
+
+return IGrow

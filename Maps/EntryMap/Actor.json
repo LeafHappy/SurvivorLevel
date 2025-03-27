@@ -2705,58 +2705,6 @@
                 }
             }
         },
-        "Camp - Prop - Stone - 01": {
-            "prefix": "",
-            "parent": "_Prop - FG",
-            "unitActor": {
-                "resource": {
-                    "type": "Sprite",
-                    "name": "cartoon_bigstone_survival"
-                },
-                "animation2dOptions": {
-                    "renderingQueue": 2
-                }
-            }
-        },
-        "Camp - Prop - Stone - 02": {
-            "prefix": "",
-            "parent": "_Prop - FG",
-            "unitActor": {
-                "resource": {
-                    "type": "Sprite",
-                    "name": "cartoon_halfstone_survival"
-                },
-                "animation2dOptions": {
-                    "renderingQueue": 2
-                }
-            }
-        },
-        "Camp - Prop - Stone - 03": {
-            "prefix": "",
-            "parent": "_Prop - FG",
-            "unitActor": {
-                "resource": {
-                    "type": "Sprite",
-                    "name": "cartoon_fewstone_survival"
-                },
-                "animation2dOptions": {
-                    "renderingQueue": 2
-                }
-            }
-        },
-        "Camp - Prop - Stone - 04": {
-            "prefix": "",
-            "parent": "_Prop - FG",
-            "unitActor": {
-                "resource": {
-                    "type": "Sprite",
-                    "name": "cartoon_singlestone_survival"
-                },
-                "animation2dOptions": {
-                    "renderingQueue": 2
-                }
-            }
-        },
         "Camp - Prop - Stone - OnDeath - VFX": {
             "parent": "_FX OneShot SelfRemoving",
             "modelActor": {
@@ -10070,6 +10018,71 @@
                 "modelScale": 0.6
             }
         },
+        "Prop - Stone - 01": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_bigstone_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Stone - 02": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_halfstone_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Stone - 03": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_fewstone_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Stone - 04": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_singlestone_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Prop - Stone - 05": {
+            "prefix": "",
+            "parent": "_Prop - FG",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_singlestone_survival"
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
         "Prop - Tire - 01": {
             "prefix": "",
             "parent": "_Prop - FG",
@@ -10596,6 +10609,79 @@
                     "name": "2d_survivor_creep_shieldbearer_minion"
                 },
                 "modelScale": 2
+            }
+        },
+        "Shop - Axe Preview - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "GpuAnimation",
+                    "name": "modern_missile_wildsurvivor_bjornnson_axe"
+                },
+                "hostSiteOperations": [
+                    "Shop - Axe Preview - Rotation",
+                    "SOp UpBy Dot5",
+                    "SOp UpBy Dot25"
+                ]
+            }
+        },
+        "Shop - Axe Preview - Rotation": {
+            "siteOperation": {
+                "rotate": {
+                    "x": -45,
+                    "y": 0,
+                    "z": 90,
+                    "dx": 30,
+                    "dy": 30,
+                    "dz": 30
+                }
+            }
+        },
+        "Shop - Coffee Preview - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "flat_icon_emoji_hot_beverage_2615_ipick"
+                },
+                "hostSiteOperations": [
+                    "Shop - Axe Preview - Rotation",
+                    "SOp UpBy Dot5",
+                    "SOp UpBy Dot25"
+                ]
+            }
+        },
+        "Shop Bubble": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_status_shield"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp UpBy Dot5"
+                ]
+            }
+        },
+        "Shop Indicator": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_misc_pocketquest_select_highlight_3x3_3"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ]
             }
         },
         "Shot - Missile": {
@@ -11272,6 +11358,40 @@
                 },
                 "animation2dOptions": {
                     "renderingQueue": 2
+                }
+            }
+        },
+        "Skill - Chop Tree - Impact VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "vfx_2d_wildsurvivor_tree_death"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "playAnimation": {
+                                    "clipId": 1
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 3
                 }
             }
         },
@@ -12517,6 +12637,33 @@
                     }
                 ],
                 "modelScale": 0.01,
+                "hostSiteOperations": [
+                    "SOp Fixed - 45"
+                ],
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Skill - Mine Stone - Impact VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "vfx_2d_wildsurvivor_strafe_impact"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "playAnimation": {}
+                            }
+                        ]
+                    }
+                ],
                 "hostSiteOperations": [
                     "SOp Fixed - 45"
                 ],
@@ -15182,6 +15329,611 @@
                 }
             }
         },
+        "ZoneUnit - Dig - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_bigdig_survival"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - OnGround - Rotation"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.1,
+                    "y": 0.1,
+                    "z": 0.1
+                },
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 1
+                }
+            }
+        },
+        "ZoneUnit - Pumpkin - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_pumpkin_survival"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 1"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_pumpkin_rank1_survival"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 2"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_pumpkin_rank2_survival"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 3"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_pumpkin_rank3_survival"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 4"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_pumpkin_survival"
+                                }
+                            },
+                            {
+                                "create": {
+                                    "actor": "KeyItem - Glow"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45",
+                    "SOp UpBy Dot25"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.25,
+                    "y": 0.25,
+                    "z": 0.25
+                },
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "ZoneUnit - Shop - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "GpuAnimation",
+                    "name": "fantasy_tower_demonswrath_base_rank2"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ]
+            }
+        },
+        "ZoneUnit - Stone - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_bigstone_survival"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 1"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_bigstone_survival"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 1,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 2"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_halfstone_survival"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.75,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 3"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_fewstone_survival"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.5,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45",
+                    "SOp UpBy Dot25"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "ZoneUnit - Stone - 01 - Placeholder": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_singlestone_survival"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45",
+                    "SOp UpBy Dot25"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.25,
+                    "y": 0.25,
+                    "z": 0.25
+                },
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 1
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
+        "ZoneUnit - Stone - 02": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_portrait_prop_rock_rank4_mergewar"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 1"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_icon_portrait_prop_rock_rank4_mergewar"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 1,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 2"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_icon_portrait_prop_rock_rank3_mergewar"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.75,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 3"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_icon_portrait_prop_rock_rank2_mergewar"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.5,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45",
+                    "SOp UpBy Dot25"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "ZoneUnit - Stone - 02 - Placeholder": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_icon_portrait_prop_rock_rank1_mergewar"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45",
+                    "SOp UpBy Dot25"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.25,
+                    "y": 0.25,
+                    "z": 0.25
+                },
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 1
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
+        "ZoneUnit - Tree - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "cartoon_land1_tree2_survival"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 1"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_land1_tree2_survival"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 2"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_land1_tree2_broken1_survival"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 3"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "cartoon_land1_tree2_broken2_survival"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45",
+                    "SOp UpBy Dot5",
+                    "SOp UpBy Dot25"
+                ],
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "ZoneUnit - Tree - 01 - Placeholder": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "prop_wildsurvivor_tree_broken_rank1"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp DownBy Dot25",
+                    "SOp DownBy Dot1"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
+        "ZoneUnit - Tree - 02": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "Wildsurvivor_prop_f_ntree02"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 1"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "Wildsurvivor_prop_f_ntree02"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 1,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 2"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "Wildsurvivor_prop_f_ntree02"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.75,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "onCustomEvent": {
+                                "identifier": "Phase - 3"
+                            }
+                        },
+                        "actions": [
+                            {
+                                "setModel": {
+                                    "type": "Sprite",
+                                    "name": "Wildsurvivor_prop_f_ntree02"
+                                }
+                            },
+                            {
+                                "setModelScale": {
+                                    "modelScale": 0.5,
+                                    "duration": 0.25,
+                                    "ease": 2
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45",
+                    "SOp UpBy Dot5",
+                    "SOp UpBy Dot25"
+                ],
+                "spriteOptions": {
+                    "disableCameraFacing": true,
+                    "centerSpriteAnchor": true,
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "ZoneUnit - Tree - 02 - Placeholder": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "Wildsurvivor_prop_f_ntree02"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "hostSiteOperations": [
+                    "SOp DownBy Dot25",
+                    "SOp DownBy Dot1"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.1,
+                    "y": 0.1,
+                    "z": 0.1
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
         "_AAOrigin2D": {
             "template": true,
             "actionActor": {
@@ -16013,6 +16765,14 @@
                 "eventMacros": [
                     "Shrink and Destroy (0.0625)"
                 ]
+            }
+        },
+        "_ZoneUnit": {
+            "prefix": "",
+            "unitActor": {
+                "resource": {
+                    "type": "GpuAnimation"
+                }
             }
         }
     },
@@ -17079,12 +17839,6 @@
                                         "value": 1
                                     }
                                 }
-                            }
-                        },
-                        {
-                            "log": {
-                                "type": 2,
-                                "message": "show spend"
                             }
                         }
                     ]

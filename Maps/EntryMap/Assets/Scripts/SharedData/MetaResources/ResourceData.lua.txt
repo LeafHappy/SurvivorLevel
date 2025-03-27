@@ -6,7 +6,8 @@
 ---@field Icon string
 ---@field Sound string
 ---@field DisplayUpdateEvent string
----@field ThrowEffect string
+---@field SpawnEffect string -- Generates a Loot Resource that can be picked up.
+---@field ThrowEffect string -- Visual "Spend" Effect
 ---@field Loot string
 ---@field OnEnter string
 
@@ -14,146 +15,6 @@ local ResourceData = {}
 
 ---@table table<ResourceData>
 ResourceData.List = {
-    {
-        Key = "Wood",
-
-        -- Types
-        SaveKey = SAVE_KEY.Wood,
-        TrackedStat = TRACKED_STATS.Wood,
-
-        -- UI
-        DisplayName = "Wood",
-        Icon = DCEI.Texture("cartoon_icon_forest_wood_bg_wildsurvivor"),
-        Sound = DCEI.Sound("wood_armor_hit_v1"),
-        DisplayUpdateEvent = "Camp.Overlay.SetWood",
-
-        -- Game
-        ThrowEffect = DCEI.Effect("Throw Resource - Wood - Launch"),
-
-        -- Simple Unit Data
-        Loot = DCEI.SimpleUnit("Loot - Wood"),
-        OnEnter = DCEI.Effect("Loot - Wood - OnEnter"),
-    },
-    {
-        Key = "Plank",
-
-        -- Types
-        SaveKey = SAVE_KEY.Plank,
-        TrackedStat = TRACKED_STATS.Plank,
-
-        -- UI
-        DisplayName = "Plank",
-        Icon = DCEI.Texture("icon_gear_plank_03"),
-        Sound = DCEI.Sound("wood_armor_hit_v1"),
-        DisplayUpdateEvent = "Camp.Overlay.SetPlank",
-
-        -- Game
-        ThrowEffect = DCEI.Effect("Throw Resource - Plank - Launch"),
-
-        -- Simple Unit Data
-        Loot = DCEI.SimpleUnit("Loot - Plank"),
-        OnEnter = DCEI.Effect("Loot - Plank - OnEnter"),
-    },
-    {
-        Key = "HardWood",
-
-        -- Types
-        SaveKey = SAVE_KEY.HardWood,
-        TrackedStat = TRACKED_STATS.HardWood,
-
-        -- UI
-        DisplayName = "Wood",
-        Icon = DCEI.Texture("Wildsurvivor_prop_f_ndeadwood01"),
-        Sound = DCEI.Sound("wood_armor_hit_v1"),
-        DisplayUpdateEvent = "Camp.Overlay.SetHardWood",
-
-        -- Game
-        ThrowEffect = DCEI.Effect("Throw Resource - Hard Wood - Launch"),
-
-        -- Simple Unit Data
-        Loot = DCEI.SimpleUnit("Loot - Hard Wood"),
-        OnEnter = DCEI.Effect("Loot - Hard Wood - OnEnter"),
-    },
-    {
-        Key = "Stone",
-
-        -- Types
-        SaveKey = SAVE_KEY.Stone,
-        TrackedStat = TRACKED_STATS.Stone,
-
-        -- UI
-        DisplayName = "Stone",
-        Icon = DCEI.Texture("wildcastle_terrain_forestland_prop_stone"),
-        Sound = DCEI.Sound("mergewar_rock_hit3"),
-        DisplayUpdateEvent = "Camp.Overlay.SetStone",
-
-        -- Game
-        ThrowEffect = DCEI.Effect("Throw Resource - Stone - Launch"),
-
-        -- Simple Unit Data
-        Loot = DCEI.SimpleUnit("Loot - Stone"),
-        OnEnter = DCEI.Effect("Loot - Stone - OnEnter"),
-    },
-    {
-        Key = "Iron",
-
-        -- Types
-        SaveKey = SAVE_KEY.Iron,
-        TrackedStat = TRACKED_STATS.Iron,
-
-        -- UI
-        DisplayName = "Iron",
-        Icon = DCEI.Texture("cartoon_icon_gear_steelarrow_castle2"),
-        Sound = DCEI.Sound("metal_armor_hit_v3_pocketquest"),
-        DisplayUpdateEvent = "Camp.Overlay.SetIron",
-
-        -- Game
-        ThrowEffect = DCEI.Effect("Throw Resource - Iron - Launch"),
-
-        -- Simple Unit Data
-        Loot = DCEI.SimpleUnit("Loot - Iron"),
-        OnEnter = DCEI.Effect("Loot - Iron - OnEnter"),
-    },
-    {
-        Key = "Pumpkin",
-
-        -- Types
-        SaveKey = SAVE_KEY.Pumpkin,
-        TrackedStat = TRACKED_STATS.Pumpkin,
-
-        -- UI
-        DisplayName = "Pumpkin",
-        Icon = DCEI.Texture("cartoon_pumpkin_survival"),
-        Sound = DCEI.Sound("smh_hachimi_shark_impact2"),
-        DisplayUpdateEvent = "Camp.Overlay.SetPumpkin",
-
-        -- Game
-        ThrowEffect = DCEI.Effect("Throw Resource - Pumpkin - Launch"),
-
-        -- Simple Unit Data
-        Loot = DCEI.SimpleUnit("Loot - Pumpkin"),
-        OnEnter = DCEI.Effect("Loot - Pumpkin - OnEnter"),
-    },
-    {
-        Key = "Meat",
-
-        -- Types
-        SaveKey = SAVE_KEY.Meat,
-        TrackedStat = TRACKED_STATS.Meat,
-
-        -- UI
-        DisplayName = "Meat",
-        Icon = DCEI.Texture("flat_icon_emoji_1f356_ipick"),
-        Sound = DCEI.Sound("smh_hachimi_shark_impact1"),
-        DisplayUpdateEvent = "Camp.Overlay.SetMeat",
-
-        -- Game
-        ThrowEffect = DCEI.Effect("Throw Resource - Meat - Launch"),
-
-        -- Simple Unit Data
-        Loot = DCEI.SimpleUnit("Loot - Meat"),
-        OnEnter = DCEI.Effect("Loot - Meat - OnEnter"),
-    },
     {
         Key = "Gold",
 
@@ -168,6 +29,7 @@ ResourceData.List = {
         DisplayUpdateEvent = "Camp.Overlay.SetGold",
 
         -- Game
+        SpawnEffect = DCEI.Effect("Spawn Resource - Gold"),
         ThrowEffect = DCEI.Effect("Throw Resource - Gold - Launch"),
 
         -- Simple Unit Data
@@ -194,6 +56,151 @@ ResourceData.List = {
         Loot = DCEI.SimpleUnit("Loot - Gem"),
         OnEnter = DCEI.Effect("Loot - Gem - OnEnter"),
     },
+    {
+        Key = "Wood",
+
+        -- Types
+        SaveKey = SAVE_KEY.Wood,
+        TrackedStat = TRACKED_STATS.Wood,
+
+        -- UI
+        DisplayName = "Wood",
+        Icon = DCEI.Texture("cartoon_icon_forest_wood_bg_wildsurvivor"),
+        Sound = DCEI.Sound("wood_armor_hit_v1"),
+        DisplayUpdateEvent = "Camp.Overlay.SetWood",
+
+        -- Game
+        SpawnEffect = DCEI.Effect("Spawn Resource - Wood"),
+        ThrowEffect = DCEI.Effect("Throw Resource - Wood - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Wood"),
+        OnEnter = DCEI.Effect("Loot - Wood - OnEnter"),
+    },
+    {
+        Key = "Plank",
+
+        -- Types
+        SaveKey = SAVE_KEY.Plank,
+        TrackedStat = TRACKED_STATS.Plank,
+
+        -- UI
+        DisplayName = "Plank",
+        Icon = DCEI.Texture("icon_gear_plank_03"),
+        Sound = DCEI.Sound("wood_armor_hit_v1"),
+        DisplayUpdateEvent = "Camp.Overlay.SetPlank",
+
+        -- Game
+        SpawnEffect = DCEI.Effect("Spawn Resource - Plank"),
+        ThrowEffect = DCEI.Effect("Throw Resource - Plank - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Plank"),
+        OnEnter = DCEI.Effect("Loot - Plank - OnEnter"),
+    },
+    -- {
+    --     Key = "HardWood",
+
+    --     -- Types
+    --     SaveKey = SAVE_KEY.HardWood,
+    --     TrackedStat = TRACKED_STATS.HardWood,
+
+    --     -- UI
+    --     DisplayName = "Wood",
+    --     Icon = DCEI.Texture("Wildsurvivor_prop_f_ndeadwood01"),
+    --     Sound = DCEI.Sound("wood_armor_hit_v1"),
+    --     DisplayUpdateEvent = "Camp.Overlay.SetHardWood",
+
+    --     -- Game
+    --     ThrowEffect = DCEI.Effect("Throw Resource - Hard Wood - Launch"),
+
+    --     -- Simple Unit Data
+    --     Loot = DCEI.SimpleUnit("Loot - Hard Wood"),
+    --     OnEnter = DCEI.Effect("Loot - Hard Wood - OnEnter"),
+    -- },
+    {
+        Key = "Stone",
+
+        -- Types
+        SaveKey = SAVE_KEY.Stone,
+        TrackedStat = TRACKED_STATS.Stone,
+
+        -- UI
+        DisplayName = "Stone",
+        Icon = DCEI.Texture("wildcastle_terrain_forestland_prop_stone"),
+        Sound = DCEI.Sound("mergewar_rock_hit3"),
+        DisplayUpdateEvent = "Camp.Overlay.SetStone",
+
+        -- Game
+        SpawnEffect = DCEI.Effect("Spawn Resource - Stone"),
+        ThrowEffect = DCEI.Effect("Throw Resource - Stone - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Stone"),
+        OnEnter = DCEI.Effect("Loot - Stone - OnEnter"),
+    },
+    {
+        Key = "Iron",
+
+        -- Types
+        SaveKey = SAVE_KEY.Iron,
+        TrackedStat = TRACKED_STATS.Iron,
+
+        -- UI
+        DisplayName = "Iron",
+        Icon = DCEI.Texture("cartoon_icon_gear_steelarrow_castle2"),
+        Sound = DCEI.Sound("metal_armor_hit_v3_pocketquest"),
+        DisplayUpdateEvent = "Camp.Overlay.SetIron",
+
+        -- Game
+        SpawnEffect = DCEI.Effect("Spawn Resource - Iron"),
+        ThrowEffect = DCEI.Effect("Throw Resource - Iron - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Iron"),
+        OnEnter = DCEI.Effect("Loot - Iron - OnEnter"),
+    },
+    {
+        Key = "Pumpkin",
+
+        -- Types
+        SaveKey = SAVE_KEY.Pumpkin,
+        TrackedStat = TRACKED_STATS.Pumpkin,
+
+        -- UI
+        DisplayName = "Pumpkin",
+        Icon = DCEI.Texture("cartoon_pumpkin_survival"),
+        Sound = DCEI.Sound("smh_hachimi_shark_impact2"),
+        DisplayUpdateEvent = "Camp.Overlay.SetPumpkin",
+
+        -- Game
+        SpawnEffect = DCEI.Effect("Spawn Resource - Pumpkin"),
+        ThrowEffect = DCEI.Effect("Throw Resource - Pumpkin - Launch"),
+
+        -- Simple Unit Data
+        Loot = DCEI.SimpleUnit("Loot - Pumpkin"),
+        OnEnter = DCEI.Effect("Loot - Pumpkin - OnEnter"),
+    },
+    -- {
+    --     Key = "Meat",
+
+    --     -- Types
+    --     SaveKey = SAVE_KEY.Meat,
+    --     TrackedStat = TRACKED_STATS.Meat,
+
+    --     -- UI
+    --     DisplayName = "Meat",
+    --     Icon = DCEI.Texture("flat_icon_emoji_1f356_ipick"),
+    --     Sound = DCEI.Sound("smh_hachimi_shark_impact1"),
+    --     DisplayUpdateEvent = "Camp.Overlay.SetMeat",
+
+    --     -- Game
+    --     ThrowEffect = DCEI.Effect("Throw Resource - Meat - Launch"),
+
+    --     -- Simple Unit Data
+    --     Loot = DCEI.SimpleUnit("Loot - Meat"),
+    --     OnEnter = DCEI.Effect("Loot - Meat - OnEnter"),
+    -- },
 }
 
 ---@type table<string, ResourceData>

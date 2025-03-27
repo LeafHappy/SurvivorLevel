@@ -36,6 +36,7 @@ local REF = {
     Ability = DCEI.Ability("Skill - Mine Stone"),
 
     -- Behavior
+    ActionPending = DCEI.Behavior("Action Pending"),
     PickaxeScale = DCEI.Behavior("Skill - Mine Stone - Pickaxe Scale"),
 
     -- Cast Effects
@@ -46,6 +47,10 @@ local REF = {
     Effects = DCEI.Effect("Skill - Mine Stone - Effects"),
     ImpactArea = DCEI.Effect("Skill - Mine Stone - Impact Area"),
     Damage = DCEI.Effect("Skill - Mine Stone - Damage"),
+
+    -- Extras
+    DropAmount_01 = DCEI.Effect("Prop - Stone - Drop Count"),
+    DropAmount_02 = DCEI.Effect("Prop - Iron Vein - Drop Count"),
 }
 
 ---@type table<number, Hero>
@@ -75,6 +80,14 @@ local function OnSuccess(ctx)
     ---@type Hero
     local hero = _Heroes[player_id]
 
+    -- Action Pending
+    local action_pending = Help.GetBehaviorInfo(hero.unit, REF.ActionPending)
+
+    if action_pending.active then
+        return
+    end
+
+    -- Stats
     local tags = hero:GetInheritedTags(SKILL_TAG.MineStone)
 
     local attack_speed = hero:GetStat(STAT.AttackSpeed, tags)
@@ -150,39 +163,18 @@ local Upgrade = {
     Name = REF.Ability,
 }
 
--- ---comment
--- ---@param hero Hero
--- function Upgrade.PreCache(hero)
---     ---TESTING: Check what the total Projectile Speed is from all sources
---     local total_projectile_speed = hero:GetStat(STAT.ProjectileSpeed)
---     local multiplier = 0.01
---     local value = total_projectile_speed * multiplier
---     Help.Log("Projectile Speed Conversion Damage Bonus", value)
-
---     ---TESTING: Get all Additive Projectile Speed Modifiers
---     local increased_projectile_speed = hero.Attributes:GetStatScaling(STAT.ProjectileSpeed, SCALING.Additive)
---     Help.Log("Increased Projectile Speed", increased_projectile_speed)
-
---     local modifier_id = "Projectile Speed Conversion Modifier"
---     local projectile_speed_conversion_modifier =
---         Modifier.New(STAT.Damage, value, SCALING.Additive, { SKILL_TAG.Global }, modifier_id)
-
---     -- Apply Modifier
---     hero:ApplyModifier(projectile_speed_conversion_modifier, true)
--- end
-
 Upgrade.Cache = {
     [STAT.CastRange] = {
-        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius, nil, 0.95),
+        EffectPath.New(REF.Scan, EJS.StandardAreaSearch.Radius, nil, 0.95),
     },
     [STAT.SkillSize] = {
-        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.OuterRadius),
+        EffectPath.New(REF.ImpactArea, EJS.StandardAreaSearch.OuterRadius),
     },
     [STAT.Spread] = {
-        EffectPath.New(REF.ImpactArea, EJS.AreaSearch.Angle),
+        EffectPath.New(REF.ImpactArea, EJS.StandardAreaSearch.Angle),
     },
     [STAT.Damage] = {
-        EffectPath.New(REF.Damage, EJS.Damage.Value),
+        EffectPath.New(REF.Damage, EJS.StandardDamage.Value),
     },
 }
 
@@ -201,9 +193,17 @@ function Upgrade.Override(hero)
 
     local tags = hero:GetInheritedTags(SKILL_TAG.MineStone)
 
+    -- Model Scale
     local pickaxe_scale = hero:GetStat(STAT.CollisionSize, tags)
     pickaxe_scale = math.floor(pickaxe_scale * 100) -- Behavior Stacks Applied
     Core.Unit.SetBehaviorCount(hero.top, REF.PickaxeScale, pickaxe_scale)
+
+    -- Stone Drop Count
+    local count_01 = hero:GetStat(STAT.Count, tags)
+    DCEI.SetEffectFieldValueForPlayer(PLAYER.Destructible, REF.DropAmount_01, EJS.Persistent.Count, count_01)
+
+    local count_02 = count_01 * 20
+    DCEI.SetEffectFieldValueForPlayer(PLAYER.Destructible, REF.DropAmount_02, EJS.Persistent.Count, count_02)
 end
 
 -- ================================================================================================

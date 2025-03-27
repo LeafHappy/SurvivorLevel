@@ -558,10 +558,15 @@ function Help.UnitHasBehavior(unit, behavior)
     return DCEI.GetUnitBehaviorStackCount(unit, behavior) > 0
 end
 
+---@class BehaviorInfo
+---@field active boolean
+---@field behavior string
+---@field count integer
+
 ---Returns a table containing active, behavior, and count
 ---@param unit any
 ---@param behavior string
----@return table
+---@return BehaviorInfo
 function Help.GetBehaviorInfo(unit, behavior)
     ---@type number
     local stacks = DCEI.GetUnitBehaviorStackCount(unit, behavior)

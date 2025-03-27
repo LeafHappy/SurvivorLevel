@@ -52,7 +52,7 @@ local CampPropData = require("Data/Camp/CampPropData")
 local SimpleUnits = require("SharedData/SimpleUnits")
 local TileData = require("Data/TileData")
 local Biome = require("Data/Biomes/Forest")
-local PropData = require("Map/PropData")
+local PropData = require("Zone/Data/PropData")
 local HostileData = require("Data/SimpleUnits/HostileData")
 local Heroes = require("SharedData/Heroes")
 

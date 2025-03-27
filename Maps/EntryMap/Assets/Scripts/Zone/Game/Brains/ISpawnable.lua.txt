@@ -1,0 +1,80 @@
+local Help = require("Help")
+
+---@class ISpawnableData
+---@field public UnitType string
+---@field public Team number
+---@field public Player number
+---@field public Tags table<string> | nil
+---@field public RespawnTime number
+---@field public SpawnImmediately boolean
+
+---@class ISpawnable
+---@field public ZoneUnit ZoneUnit
+---@field public Data ISpawnableData
+---@field public RespawnTimer number
+local ISpawnable = {}
+ISpawnable.__index = ISpawnable
+ISpawnable.__name = "ISpawnable"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data ISpawnableData
+---@return ISpawnable
+function ISpawnable.New(zone_unit, data)
+    local self = setmetatable({}, ISpawnable)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+
+    -- State Tracking
+    self.RespawnTimer = self:_GetRespawnTime()
+
+    if data.SpawnImmediately then
+        self.RespawnTimer = 0
+    end
+
+    return self
+end
+
+-- Checks Data for a RespawnTime or returns 0
+function ISpawnable:_GetRespawnTime()
+    return self.Data.RespawnTime or 0
+end
+
+---Implement in child class
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function ISpawnable:Update(delta, instance, hero, data_pass)
+    if data_pass.IsAlive then
+        return
+    end
+
+    -- Check and Verify Respawn Time
+    if self.RespawnTimer > 0 then
+        self.RespawnTimer = self.RespawnTimer - delta
+        return
+    end
+
+    -- Spawn
+    data_pass.IsSpawnedThisFrame = true
+    data_pass.IsAlive = true
+
+    self.RespawnTimer = self:_GetRespawnTime()
+
+    local data = self.Data
+    local position = self.ZoneUnit.Position
+    local unit = DCEI.CreateUnit(data.Team, data.Player, data.UnitType, position.x, position.y)
+
+    if data.Tags and #data.Tags > 0 then
+        for _, tag in ipairs(data.Tags) do
+            DCEI.ApplyTag(unit, tag, -1, 1)
+        end
+    end
+
+    self.ZoneUnit.Instance = unit
+end
+
+function ISpawnable:Clear() end
+
+return ISpawnable

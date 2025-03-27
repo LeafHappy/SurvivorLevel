@@ -37,23 +37,11 @@ local Vector3 = require("Class/Vector3")
 local Joystick = require("Class/Joystick")
 local Camera = require("Class/Camera")
 local Experience = require("Class/Experience")
-local TileMap = require("Class/TileMap")
-local PerlinNoise = require("Class/PerlinNoise")
 local SimpleUnit = require("Class/Simple/SimpleUnit")
-local DamageAffinity = require("Class/Simple/DamageAffinity")
 local Event = require("Class/Event")
 local CampManager = require("Class/CampManager")
 
--- Data
-local SimpleUnits = require("SharedData/SimpleUnits")
--- local Biome = require("Data/Biomes/Forest")
-local PropData = require("Map/PropData")
-local HostileData = require("Data/SimpleUnits/HostileData")
-local Heroes = require("SharedData/Heroes")
-
 -- Shared Data
-local MetaData = require("SharedData/MetaData")
-local LootData = require("Data/SimpleUnits/LootData")
 local Modifier = require("SharedData/Class/Modifier")
 local SkillData = require("SharedData/Skills/SkillData")
 local ResourceData = require("SharedData/MetaResources/ResourceData")
@@ -69,7 +57,6 @@ local Elites = require("Game/AI/Elites")
 local StageEvents = require("Game/Events/StageEvents")
 
 -- Directors
-local CreditDirector = require("Game/Directors/Credits")
 local SpawnDirector = require("Game/Directors/Spawn")
 
 -- Managers
@@ -96,8 +83,8 @@ local GameEventManager = require("Game/Events/GameEventManager")
 local HybridEventManager = require("Game/HybridEvents/HybridEventManager")
 
 ---NOTE: New, Reorganize later
-local DangerZoneManager = require("Data/Modes/Hybrid/DangerZoneManager")
-local DangerZoneData = require("Data/Modes/Hybrid/DangerZoneData")
+local ZoneManager = require("Zone/Game/ZoneManager")
+local ZoneData = require("Data/Modes/Hybrid/DangerZoneData")
 
 -- Debug
 local _Dev = require("_Dev")
@@ -1265,9 +1252,9 @@ local function Initialize()
     UiHelper.SetGameUIActive(false)
 
     -- Initialize DangerZoneManager
-    DangerZoneManager.Instance:LoadDangerZoneDataSet(DangerZoneData)
+    ZoneManager.Instance:LoadDangerZoneDataSet(ZoneData)
 
-    CampManager.Instance.DangerZoneManager = DangerZoneManager.Instance
+    CampManager.Instance.DangerZoneManager = ZoneManager.Instance
 end
 
 -- Start Quests
@@ -1295,7 +1282,7 @@ end
 local function AutoVictory()
     -- Clear everything
     CampManager.Instance:Clear()
-    DangerZoneManager.Instance:Reset()
+    ZoneManager.Instance:Reset()
 
     FSM:Transition(FSM.States.Test)
     -- -- Check if we're in the Wave Sequence and automatically complete it.
@@ -1336,7 +1323,7 @@ local function ToggleEditor()
     Core.Event.SendPresentationEvent("Editor.ToggleActive")
 
     -- Toggle Editor Mode
-    DangerZoneManager.Instance:__ToggleEditorModeActive()
+    ZoneManager.Instance:__ToggleEditorModeActive()
 end
 
 ---============================================================================
@@ -1415,7 +1402,7 @@ local function UpdateDangerZones(delta)
     local hero = Hero.Fetch(PLAYER.Player1)
     local camera = Camera.Fetch(PLAYER.Player1)
 
-    DangerZoneManager.Instance:Update(delta, hero, camera.position)
+    ZoneManager.Instance:Update(delta, hero, camera.position)
 end
 
 local function UpdateBackground(delta)

@@ -1,0 +1,124 @@
+local UnitDataSet = require("Zone/Data/UnitDataSet")
+
+-- Interfaces
+local ISpawnable = require("Zone/Game/Brains/ISpawnable")
+local IHealth = require("Zone/Game/Brains/IHealth")
+local IGrow = require("Zone/Game/Brains/IGrow")
+local IDrop = require("Zone/Game/Brains/IDrop")
+local IPlaceholder = require("Zone/Game/Brains/IPlaceholder")
+local IShop = require("Zone/Game/Brains/IShop")
+
+local Help = require("Help")
+
+-- Interface Order
+---@type table<IBrain>
+local IORDER = {
+    ISpawnable,
+    IHealth,
+    IGrow,
+    IDrop,
+    IPlaceholder,
+    IShop,
+}
+
+-- Create a UID based on the Zone, Position, and Key
+-- The UID should be consistent across startup for proper SaveData handling.
+---@param zone Zone
+---@param key string
+---@param index integer
+---@return string
+local function GenerateUID(zone, key, index)
+    return zone.UID .. "_" .. key .. "_" .. index
+end
+
+---@class ZoneUnitDataPass
+---@field IsAlive boolean
+---@field IsSpawnedThisFrame boolean | nil
+---@field IsKilledThisFrame boolean | nil
+
+---@class ZoneUnit
+---@field public Zone Zone
+---@field public UID string
+---@field public Position Vector2
+---@field public Key string
+---@field public Data UnitData
+---@field public Interfaces table<IBrain>
+---@field public Instance UnitInstance | nil
+---@field public IsAlive boolean
+local ZoneUnit = {}
+ZoneUnit.__index = ZoneUnit
+
+---Generates a new ZoneUnit
+---@param zone Zone
+---@param position Vector2
+---@param key string
+---@param index integer
+---@return ZoneUnit
+function ZoneUnit.New(zone, position, key, index)
+    local self = setmetatable({}, ZoneUnit)
+    self.Zone = zone
+    self.UID = GenerateUID(zone, key, index)
+    self.Position = position
+    self.Key = key
+    self.Data = UnitDataSet.Map[key]
+    self.Instance = nil
+    self.IsAlive = false
+
+    -- Load Interfaces
+    self.Interfaces = {}
+    for _, interface in ipairs(IORDER) do
+        if self.Data[interface.__name] then
+            table.insert(self.Interfaces, interface.New(self, self.Data[interface.__name]))
+        end
+    end
+
+    return self
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function ZoneUnit:Update(delta, hero)
+    local is_alive = false
+    local is_killed_this_frame = false
+
+    if Help.ValidateUnit(self.Instance) then
+        is_alive = DCEI.UnitIsAlive(self.Instance)
+    end
+
+    if self.IsAlive and not is_alive then
+        is_killed_this_frame = true
+    end
+
+    -- Data Tracking between Interfaces
+    local data_pass = {
+        IsAlive = is_alive,
+        IsKilledThisFrame = is_killed_this_frame,
+    }
+
+    -- Update Interfaces
+    for _, interface in pairs(self.Interfaces) do
+        interface:Update(delta, self.Instance, hero, data_pass)
+    end
+
+    self.IsAlive = data_pass.IsAlive
+end
+
+function ZoneUnit:Clear()
+    -- Go through all of my interfaces and Clear
+    for _, interface in pairs(self.Interfaces) do
+        if interface.Clear then
+            interface:Clear()
+        end
+    end
+
+    self.Interfaces = {}
+
+    -- Remove Instance
+    if Help.ValidateUnit(self.Instance) then
+        DCEI.RemoveUnit(self.Instance)
+        self.Instance = nil
+    end
+end
+
+return ZoneUnit

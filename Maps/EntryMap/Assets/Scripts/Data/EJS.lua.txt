@@ -2,6 +2,10 @@
 local EJS = {}
 
 ---ANCHOR: Damage
+EJS.StandardDamage = {}
+EJS.StandardDamage.Value = { "damage", "damageAmount" }
+
+---ANCHOR: Damage
 EJS.Damage = {}
 EJS.Damage.Value = { "simpleDamage", "damageValue" }
 EJS.Damage.CriticalChance = { "simpleDamage", "criticalDamageChance" }
@@ -54,6 +58,9 @@ EJS.AreaSearch.OuterRadius = { "simpleAreaSearch", "areaSearchType", "circleSect
 ---ANCHOR: StandardAreaSearch
 EJS.StandardAreaSearch = {}
 EJS.StandardAreaSearch.Radius = { "areaSearch", "areaSearchType", "circle", "radius" }
+EJS.StandardAreaSearch.OuterRadius = { "areaSearch", "areaSearchType", "circleSector", "outerRadius" }
+EJS.StandardAreaSearch.InnerRadius = { "areaSearch", "areaSearchType", "circleSector", "innerRadius" }
+EJS.StandardAreaSearch.Angle = { "areaSearch", "areaSearchType", "circleSector", "angle" }
 
 ---ANCHOR: Launch
 EJS.Launch = {}

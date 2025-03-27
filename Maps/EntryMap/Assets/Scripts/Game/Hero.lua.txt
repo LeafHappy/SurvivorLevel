@@ -89,6 +89,7 @@ local REF = {
 
     ---SECTION: Behaviors
     MoveSpeed = DCEI.Behavior("Stats - Move Speed"),
+    ActionPending = DCEI.Behavior("Action Pending"),
 }
 
 local _heroes = {}
@@ -1580,6 +1581,9 @@ end
 function Hero:AttackTargetCallback(target_unit, duration, callback, callback_time, animation)
     callback_time = callback_time or duration
     animation = animation or "attack"
+
+    -- Action Pending
+    DCEI.ApplyBehaviorWithDurationAsync(self.unit, REF.ActionPending, duration, false)
 
     Help.SendActorEvent(self.top, "Attack") -- Informs Actor to change States
     Help.PlayAnimationWithDuration(self.top, animation, duration)

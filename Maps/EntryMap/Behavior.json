@@ -37,6 +37,9 @@
             "maxStackCount": 1,
             "defaultStackType": {}
         },
+        "Action Pending": {
+            "defaultStackType": {}
+        },
         "Actor - Size": {
             "defaultStackType": {}
         },
@@ -531,6 +534,9 @@
                 }
             ],
             "periodicEffect": "Wisp - Detector"
+        },
+        "Worker Awake": {
+            "defaultStackType": {}
         },
         "_DamageApplier": {
             "template": true,

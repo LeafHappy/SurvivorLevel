@@ -148,7 +148,7 @@ Data.List = {
         DisplayName = "MOVE SPEED",
         Icon = DCEI.Texture("cartoon_icon_tag_attack_survivor"),
         Cost = {
-            ResourceType = ResourceData.Map.HardWood.Key,
+            ResourceType = ResourceData.Map.Gold.Key,
             Base = 10,
             Increment = 10,
         },

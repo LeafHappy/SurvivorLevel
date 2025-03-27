@@ -15,7 +15,7 @@ local Vector3 = require("Class/Vector3")
 
 local PropZone = require("Class/PropZone")
 
-local PropData = require("Map/PropData")
+local PropData = require("Zone/Data/PropData")
 
 local Help = require("Help")
 

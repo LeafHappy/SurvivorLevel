@@ -48,7 +48,6 @@ local Event = require("Class/Event")
 -- local HuntData = require("Data/Modes/HuntData")
 local SimpleUnits = require("SharedData/SimpleUnits")
 local TileData = require("Data/TileData")
-local PropData = require("Map/PropData")
 local HostileData = require("Data/SimpleUnits/HostileData")
 
 -- Shared Data

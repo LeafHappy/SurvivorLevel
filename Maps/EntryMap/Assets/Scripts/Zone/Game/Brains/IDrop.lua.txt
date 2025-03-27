@@ -1,0 +1,122 @@
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+local Help = require("Help")
+
+---@class IDropData
+---@field public Thresholds table<IDropData.Threshold>
+
+---@class IDropData.Threshold
+---@field Health number
+---@field Drops table<IDropData.Threshold.DropData>
+
+---@class IDropData.Threshold.DropData
+---@field ResourceType string
+---@field Amount integer
+
+---@class IDrop : IBrain
+---@field public ZoneUnit ZoneUnit
+---@field public Data IDropData
+---@field public ThresholdsRemaining table<IDropData.Threshold>
+local IDrop = {}
+IDrop.__index = IDrop
+IDrop.__name = "IDrop"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data IDropData
+---@return IDrop
+function IDrop.New(zone_unit, data)
+    local self = setmetatable({}, IDrop)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+
+    -- State Tracking
+    self.ThresholdsRemaining = {} -- Contains a list of thresholds that have been met to trigger a drop
+
+    return self
+end
+
+function IDrop:_ResetThresholdsMet()
+    for _, threshold in ipairs(self.Data.Thresholds) do
+        table.insert(self.ThresholdsRemaining, threshold)
+    end
+
+    -- Sort the thresholds in descending order
+    table.sort(self.ThresholdsRemaining, function(a, b)
+        return a.Health > b.Health
+    end)
+end
+
+---comment
+---@param drop_table table<IDropData.Threshold.DropData>
+function IDrop:_DropResourceTable(drop_table)
+    local position = self.ZoneUnit.Position
+
+    for _, drop_data in ipairs(drop_table) do
+        local resource_data = ResourceData.Map[drop_data.ResourceType]
+
+        if resource_data then
+            local effect = resource_data.SpawnEffect
+            if effect then
+                local amount = drop_data.Amount or 1
+
+                ---TODO: Setup Global Caster so drops can continue if hero dies
+                Help.PeriodicGameTimer(amount, TICK_RATE, nil, function()
+                    Help.CreateEffect(PLAYER.Terrain, effect, position, position)
+                end)
+            end
+        end
+    end
+end
+
+---comment
+function IDrop:_DropRemainingResources()
+    for _, drop_data in ipairs(self.ThresholdsRemaining) do
+        self:_DropResourceTable(drop_data.Drops)
+    end
+
+    self.ThresholdsRemaining = {}
+end
+
+---comment
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function IDrop:Update(delta, instance, hero, data_pass)
+    if data_pass.IsSpawnedThisFrame then
+        self:_ResetThresholdsMet()
+    end
+
+    if data_pass.IsKilledThisFrame then
+        -- Drop the remaining resources
+        self:_DropRemainingResources()
+        return
+    end
+
+    if not Help.ValidateUnit(instance) then
+        return
+    end
+
+    -- Check the unit's health against the thresholds
+    -- We will do this in a while loop and only check the first entry (since they are sorted)
+    local health_max = DCEI.GetMaxHealth(instance)
+    local health_current = DCEI.GetHealth(instance)
+    local health_percentage = math.floor((health_current / health_max) * 100)
+
+    local drop_data = self.ThresholdsRemaining[1]
+    while drop_data and health_percentage <= drop_data.Health do
+        self:_DropResourceTable(drop_data.Drops)
+
+        table.remove(self.ThresholdsRemaining, 1)
+        if #self.ThresholdsRemaining > 0 then
+            drop_data = self.ThresholdsRemaining[1]
+        else
+            drop_data = nil
+        end
+    end
+end
+
+function IDrop:Clear() end
+
+return IDrop

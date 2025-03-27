@@ -17,7 +17,7 @@ local Vector3 = require("Class/Vector3")
 local SimpleUnit = require("Class/Simple/SimpleUnit")
 local SimpleUnits = require("SharedData/SimpleUnits")
 
-local PropData = require("Map/PropData")
+local PropData = require("Zone/Data/PropData")
 
 local Help = require("Help")
 

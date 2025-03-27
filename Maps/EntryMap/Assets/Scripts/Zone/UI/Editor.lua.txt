@@ -16,11 +16,13 @@ local FlyingRewards = require("UiMeta/FlyingRewards")
 local Vector2 = require("Class/Vector2")
 local Vector3 = require("Class/Vector3")
 
-local PropData = require("Map/PropData")
+local PropData = require("Zone/Data/PropData")
 
-local ZoneTileData = require("Editor/ZoneTileData")
-local ZonePropData = require("Editor/ZonePropData")
-local ZoneKeyItemData = require("Editor/ZoneKeyItemData")
+local ZoneTileData = require("Zone/Editor/EditorTileData")
+local ZonePropData = require("Zone/Editor/EditorPropData")
+local ZoneKeyItemData = require("Zone/Editor/EditorKeyItemData")
+
+local UnitDataSet = require("Zone/Data/UnitDataSet")
 
 local Help = require("UiHelp")
 
@@ -29,7 +31,7 @@ local Help = require("UiHelp")
 ---SECTION: Definitions
 ---============================================================================
 
----@class ZoneItemData
+---@class EditorItemData
 ---@field Key string
 ---@field Icon string
 ---@field GhostPlacement string
@@ -44,6 +46,7 @@ local REF = {
     TileIcon = DCEI.Texture("pocketquest_proptile_camp_slot_ground1"),
     PropIcon = DCEI.Texture("prop_wildsurvivor_tree03"),
     KeyItemIcon = DCEI.Texture("icon_event_physical_key"),
+    UnitIcon = DCEI.Texture("flat_icon_emoji_brain_1f9e0_ipick"),
 }
 
 local TOOL_LAYOUTS = {
@@ -58,6 +61,10 @@ local TOOL_LAYOUTS = {
     {
         Id = SELECTION_TOOL.KeyItem,
         Icon = REF.KeyItemIcon,
+    },
+    {
+        Id = SELECTION_TOOL.Unit,
+        Icon = REF.UnitIcon,
     },
 }
 
@@ -80,7 +87,7 @@ local _RequestUpdateZone = false
 
 ---@class Editor.ItemLayout
 ---@field Layout Layout
----@field Data ZoneItemData
+---@field Data EditorItemData
 ---@field Index integer
 
 ---@class Editor.ItemLayouts
@@ -148,7 +155,7 @@ end
 
 ---comment
 ---@param parent Layout
----@param data ZoneItemData
+---@param data EditorItemData
 ---@param tool SELECTION_TOOL
 ---@param index integer
 function Layout:_GenerateItemLayout(parent, data, tool, index)
@@ -207,7 +214,7 @@ end
 ---TODO: Order the List of Items
 ---Generate the list of Items
 ---@param parent Layout
----@param items table<ZoneItemData>
+---@param items table<EditorItemData>
 ---@param tool SELECTION_TOOL
 function Layout:_GenerateItemScroll(parent, items, tool)
     local index = 0
@@ -463,6 +470,7 @@ function Layout:Initialize()
     self:_GenerateItemScroll(self.Tiles, ZoneTileData, SELECTION_TOOL.Tile)
     self:_GenerateItemScroll(self.Props, ZonePropData, SELECTION_TOOL.Prop)
     self:_GenerateItemScroll(self.KeyItems, ZoneKeyItemData, SELECTION_TOOL.KeyItem)
+    self:_GenerateItemScroll(self.Units, UnitDataSet.Map, SELECTION_TOOL.Unit)
 
     self:Hide()
 end

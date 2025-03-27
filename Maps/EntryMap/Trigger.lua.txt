@@ -142,6 +142,15 @@ end
 local function SetupDamageNumbers()
     if not _HIDE_DAMAGE_NUMBERS then
         DamageNumbers.Initialize()
+
+        -- Setup Damage numbers for Players
+        local filter = DCEI.CreateUnitFilter({
+            team = TEAM.Terrain,
+            player = PLAYER.Destructible,
+        })
+        DCEI.TriggerAddUnitDamageEvent(filter, function(damage, target_unit)
+            DCEI.ShowSimpleDamageNumber(target_unit, 2, damage)
+        end)
     else
         DamageNumbers.HideDamageNumbers()
     end

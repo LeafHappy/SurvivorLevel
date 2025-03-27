@@ -1,0 +1,51 @@
+local Help = require("Help")
+
+---@class IPlaceholderData
+---@field public UnitType string
+
+---@class IPlaceholder
+---@field public ZoneUnit ZoneUnit
+---@field public Data IPlaceholderData
+local IPlaceholder = {}
+IPlaceholder.__index = IPlaceholder
+IPlaceholder.__name = "IPlaceholder"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data IPlaceholderData
+---@return IPlaceholder
+function IPlaceholder.New(zone_unit, data)
+    local self = setmetatable({}, IPlaceholder)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+    self.Instance = nil
+    return self
+end
+
+---Implement in child class
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function IPlaceholder:Update(delta, instance, hero, data_pass)
+    if data_pass.IsSpawnedThisFrame then
+        if Help.ValidateUnit(self.Instance) then
+            DCEI.RemoveUnit(self.Instance)
+            self.Instance = nil
+        end
+    end
+
+    if data_pass.IsKilledThisFrame then
+        local position = self.ZoneUnit.Position
+        self.Instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, self.Data.UnitType, position.x, position.y)
+    end
+end
+
+function IPlaceholder:Clear()
+    if Help.ValidateUnit(self.Instance) then
+        DCEI.RemoveUnit(self.Instance)
+        self.Instance = nil
+    end
+end
+
+return IPlaceholder

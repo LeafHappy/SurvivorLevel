@@ -34,7 +34,6 @@ local REF = {
 
     -- Meta
     GoldNearby = DCEI.Effect("Spawn - Loot - Gold - Nearby"),
-    StoneNearby = DCEI.Effect("Spawn - Loot - Stone - Nearby"),
 
     ---TODO: Configure what other types of Spawns you want to have.
 }
@@ -199,16 +198,6 @@ local SimpleDropTableData = {
         items = {
             {
                 effect_name = REF.GoldNearby,
-                weight = 20,
-            },
-        },
-    },
-
-    Stone = {
-        key = "Stone",
-        items = {
-            {
-                effect_name = REF.StoneNearby,
                 weight = 20,
             },
         },

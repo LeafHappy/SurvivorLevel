@@ -35,6 +35,9 @@ local REF = {
     -- Ability
     Ability = DCEI.Ability("Skill - Shovel"),
 
+    -- Behavior
+    ActionPending = DCEI.Behavior("Action Pending"),
+
     -- Cast Effects
     Scan = DCEI.Effect("Skill - Shovel - Scan"),
     Success = DCEI.Effect("Skill - Shovel - Success"),
@@ -70,6 +73,13 @@ local function OnSuccess(ctx)
 
     ---@type Hero
     local hero = _Heroes[player_id]
+
+    -- Action Pending
+    local action_pending = Help.GetBehaviorInfo(hero.unit, REF.ActionPending)
+
+    if action_pending.active then
+        return
+    end
 
     local tags = hero:GetInheritedTags(SKILL_TAG.Shovel)
 
@@ -145,33 +155,12 @@ local Upgrade = {
     Name = REF.Ability,
 }
 
--- ---comment
--- ---@param hero Hero
--- function Upgrade.PreCache(hero)
---     ---TESTING: Check what the total Projectile Speed is from all sources
---     local total_projectile_speed = hero:GetStat(STAT.ProjectileSpeed)
---     local multiplier = 0.01
---     local value = total_projectile_speed * multiplier
---     Help.Log("Projectile Speed Conversion Damage Bonus", value)
-
---     ---TESTING: Get all Additive Projectile Speed Modifiers
---     local increased_projectile_speed = hero.Attributes:GetStatScaling(STAT.ProjectileSpeed, SCALING.Additive)
---     Help.Log("Increased Projectile Speed", increased_projectile_speed)
-
---     local modifier_id = "Projectile Speed Conversion Modifier"
---     local projectile_speed_conversion_modifier =
---         Modifier.New(STAT.Damage, value, SCALING.Additive, { SKILL_TAG.Global }, modifier_id)
-
---     -- Apply Modifier
---     hero:ApplyModifier(projectile_speed_conversion_modifier, true)
--- end
-
 Upgrade.Cache = {
     [STAT.CastRange] = {
-        EffectPath.New(REF.Scan, EJS.AreaSearch.Radius, nil, 0.95),
+        EffectPath.New(REF.Scan, EJS.StandardAreaSearch.Radius, nil, 0.95),
     },
     [STAT.Damage] = {
-        EffectPath.New(REF.Damage, EJS.Damage.Value),
+        EffectPath.New(REF.Damage, EJS.StandardDamage.Value),
     },
 }
 

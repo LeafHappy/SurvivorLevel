@@ -1,0 +1,99 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local ShopLayout = require("Zone/UI/ShopLayout")
+
+local Animation = require("Presentation/Animation")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local Vector3 = require("Class/Vector3")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local ui = GMUI.ui
+
+local Shop = {}
+
+---@type table<string, ShopLayout>
+local _Layouts = {}
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---comment
+---@param delta_time Time
+local function Update(delta_time)
+    -- Loop through and update all layout changes received from Simulation.
+    for _, layout in pairs(_Layouts) do
+        layout:Update(delta_time)
+    end
+end
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@param data SetDisplayActiveData
+function Shop.SetActive(data)
+    local layout = _Layouts[data.UID]
+    if layout then
+        layout.IsActive = data.IsActive
+    end
+end
+
+---@param data ShopDisplayData
+function Shop.UpdateData(data)
+    local layout = _Layouts[data.UID]
+    if not layout then
+        layout = ShopLayout.New(data)
+        _Layouts[data.UID] = layout
+    end
+
+    layout:UpdateData(data)
+end
+
+---@param uid string
+function Shop.Destroy(uid)
+    local layout = _Layouts[uid]
+
+    if layout then
+        layout:Destroy()
+        _Layouts[uid] = nil
+    end
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.SetActive", Shop.SetActive)
+Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.UpdateData", Shop.UpdateData)
+Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.Destroy", Shop.Destroy)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+DCEI.TriggerAddUpdateEvent(Update)
+
+return Shop

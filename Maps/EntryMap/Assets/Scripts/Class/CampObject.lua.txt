@@ -22,7 +22,6 @@ local SimpleUnit = require("Class/Simple/SimpleUnit")
 local SimpleUnits = require("SharedData/SimpleUnits")
 
 local EJS = require("Data/EJS")
-local PropData = require("Map/PropData")
 
 local Modifier = require("SharedData/Class/Modifier")
 local SkillData = require("SharedData/Skills/SkillData")
@@ -1281,6 +1280,14 @@ function CampObject:_CheckNPCWork(delta, hero)
                 if Vector2.DistanceBetweenUnits(hero.unit, miner_data.unit_reference) <= 1.5 then
                     -- wake up
                     miner_data.sleep_timer = self.data.island_worker.sleep_timer
+
+                    -- coffee effect
+
+                    if DCEI.GetUnitBehaviorStackCount(hero.unit, DCEI.Behavior("Worker Awake")) > 0 then
+                        miner_data.sleep_timer = miner_data.sleep_timer
+                            + DCEI.GetUnitBehaviorStackCount(hero.unit, DCEI.Behavior("Worker Awake")) * 30
+                    end
+
                     DCEI.RemoveBehavior(miner_data.unit_reference, DCEI.Behavior("Hybrid - Worker Sleep"))
                 end
             end
@@ -1369,7 +1376,11 @@ function CampObject:AddIslandWorker()
     if not upgrade_levels[upgrade_key] then
         upgrade_levels[upgrade_key] = 0
     else
-        DCEI.ApplyBehaviorToSelf(new_island_worker, DCEI.Behavior("Hybrid - Worker Speed Upgrade Buff"), upgrade_levels[upgrade_key])
+        DCEI.ApplyBehaviorToSelf(
+            new_island_worker,
+            DCEI.Behavior("Hybrid - Worker Speed Upgrade Buff"),
+            upgrade_levels[upgrade_key]
+        )
     end
 
     self.island_workers[miner_index + 1] = {

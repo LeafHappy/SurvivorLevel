@@ -3,7 +3,7 @@ local SimpleUnit = require("Class/Simple/SimpleUnit")
 local PerlinNoise = require("Class/PerlinNoise")
 
 local SimpleUnits = require("SharedData/SimpleUnits")
-local PropData = require("Map/PropData")
+local PropData = require("Zone/Data/PropData")
 
 local Help = require("Help")
 

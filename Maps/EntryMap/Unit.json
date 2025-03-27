@@ -469,30 +469,6 @@
                 "Prop - Pumpkin - OnEnter"
             ]
         },
-        "Camp - Prop - Stone - 01": {
-            "baseUnit": "_Prop - BG",
-            "dependentEffects": [
-                "Camp - Prop - Stone - OnDeath"
-            ]
-        },
-        "Camp - Prop - Stone - 02": {
-            "baseUnit": "_Prop - BG",
-            "dependentEffects": [
-                "Camp - Prop - Stone - OnDeath"
-            ]
-        },
-        "Camp - Prop - Stone - 03": {
-            "baseUnit": "_Prop - BG",
-            "dependentEffects": [
-                "Camp - Prop - Stone - OnDeath"
-            ]
-        },
-        "Camp - Prop - Stone - 04": {
-            "baseUnit": "_Prop - BG",
-            "dependentEffects": [
-                "Camp - Prop - Stone - OnDeath"
-            ]
-        },
         "Camp - Prop - Stone Path - 01": {
             "baseUnit": "_Camp - Floor"
         },
@@ -1339,7 +1315,7 @@
             "baseUnit": "_StandardHelper",
             "unitEventTriggers": {
                 "onUnitDeathEffects": [
-                    "Spawn - Loot - Gold - Stationary"
+                    "Spawn - Loot - Gold"
                 ]
             }
         },
@@ -1919,6 +1895,36 @@
         "Prop - Simple - Tree": {
             "baseUnit": "_Prop - BG"
         },
+        "Prop - Stone - 01": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Stone - OnDeath"
+            ]
+        },
+        "Prop - Stone - 02": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Stone - OnDeath"
+            ]
+        },
+        "Prop - Stone - 03": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Stone - OnDeath"
+            ]
+        },
+        "Prop - Stone - 04": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Stone - OnDeath"
+            ]
+        },
+        "Prop - Stone - 05": {
+            "baseUnit": "_Prop - BG",
+            "dependentEffects": [
+                "Prop - Stone - OnDeath"
+            ]
+        },
         "Prop - Tire - 01": {
             "baseUnit": "_Prop - FG"
         },
@@ -1968,6 +1974,18 @@
                 "Shieldbearer - Minion - Mummy - OnEnter",
                 "Shieldbearer - Minion - Mummy - OnDeath"
             ]
+        },
+        "Shop - Axe Preview - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Shop - Coffee Preview - 01": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Shop Bubble": {
+            "baseUnit": "_StandardHelper"
+        },
+        "Shop Indicator": {
+            "baseUnit": "_StandardHelper"
         },
         "Shot - Missile": {
             "baseUnit": "_Projectile",
@@ -2618,6 +2636,54 @@
         "Zone - Wasteland - 01": {
             "baseUnit": "_GenericControllableUnit"
         },
+        "ZoneUnit - Dig - 01": {
+            "baseUnit": "_ZoneUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0.25
+                }
+            }
+        },
+        "ZoneUnit - Pumpkin - 01": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Shop - 01": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Stone - 01": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Stone - 01 - Placeholder": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Stone - 02": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Stone - 02 - Placeholder": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Tree - 01": {
+            "baseUnit": "_ZoneUnit",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                }
+            }
+        },
+        "ZoneUnit - Tree - 01 - Placeholder": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Tree - 02": {
+            "baseUnit": "_ZoneUnit",
+            "components": {
+                "unitStats": {
+                    "ignorePathing": true
+                }
+            }
+        },
+        "ZoneUnit - Tree - 02 - Placeholder": {
+            "baseUnit": "_ZoneUnit"
+        },
         "_Boss": {
             "template": true,
             "components": {
@@ -2834,7 +2900,8 @@
                 "Hero - Retaliation Armor"
             ],
             "dependentBehaviors": [
-                "Complex Collector"
+                "Complex Collector",
+                "Action Pending"
             ]
         },
         "_HeroTop": {
@@ -3048,6 +3115,17 @@
                 "behaviorList": [
                     "Temporary - Remove"
                 ]
+            }
+        },
+        "_ZoneUnit": {
+            "template": true,
+            "baseUnit": "_GenericControllableUnit",
+            "components": {
+                "unitStats": {
+                    "radius": 0,
+                    "ignoreCollision": true,
+                    "ignorePathing": true
+                }
             }
         }
     }

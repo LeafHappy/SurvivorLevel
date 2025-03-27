@@ -24,8 +24,6 @@ local Event = require("Class/Event")
 local SimpleUnit = require("Class/Simple/SimpleUnit")
 local SimpleUnits = require("SharedData/SimpleUnits")
 
-local PropData = require("Map/PropData")
-
 local Modifier = require("SharedData/Class/Modifier")
 local MetaData = require("SharedData/MetaData")
 local TalentData = require("SharedData/Talents/TalentData")
@@ -1031,7 +1029,11 @@ function CampManager:UpgradeWorkers()
     for _, camp_object in pairs(self.Objects) do
         if camp_object.island_workers then
             for _, island_worker in ipairs(camp_object.island_workers) do
-                DCEI.ApplyBehaviorToSelf(island_worker.unit_reference, DCEI.Behavior("Hybrid - Worker Speed Upgrade Buff"), 1)
+                DCEI.ApplyBehaviorToSelf(
+                    island_worker.unit_reference,
+                    DCEI.Behavior("Hybrid - Worker Speed Upgrade Buff"),
+                    1
+                )
             end
         end
     end

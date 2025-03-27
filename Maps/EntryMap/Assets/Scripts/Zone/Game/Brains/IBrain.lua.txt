@@ -1,0 +1,34 @@
+local Help = require("Help")
+
+---@class IBrainData
+
+---@class IBrain
+---@field public ZoneUnit ZoneUnit
+---@field public Data IBrainData
+local IBrain = {}
+IBrain.__index = IBrain
+IBrain.__name = "IBrain"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data IBrainData
+---@return IBrain
+function IBrain.New(zone_unit, data)
+    local self = setmetatable({}, IBrain)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+    return self
+end
+
+---Implement in child class
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function IBrain:Update(delta, instance, hero, data_pass) end
+
+-- Implement in child class
+-- Used to Clear any UnitInstances
+function IBrain:Clear() end
+
+return IBrain

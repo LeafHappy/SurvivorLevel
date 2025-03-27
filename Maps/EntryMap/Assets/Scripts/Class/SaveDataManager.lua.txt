@@ -10,24 +10,8 @@
 -- ================================================================================================
 
 local Core = require("Core")
-local GMUI = require("GMUI")
 local Json = require("json")
 
-local Vector2 = require("Class/Vector2")
-local Vector3 = require("Class/Vector3")
-local Joystick = require("Class/Joystick")
-
-local Attributes = require("Class/Attributes")
-local Event = require("Class/Event")
-
-local SimpleUnit = require("Class/Simple/SimpleUnit")
-local SimpleUnits = require("SharedData/SimpleUnits")
-
-local PropData = require("Map/PropData")
-
-local Modifier = require("SharedData/Class/Modifier")
-local MetaData = require("SharedData/MetaData")
-local TalentData = require("SharedData/Talents/TalentData")
 local ResourceData = require("SharedData/MetaResources/ResourceData")
 
 local Help = require("Help")

@@ -28,7 +28,7 @@ local Bosses = require("Game/AI/Bosses")
 
 local Modifier = require("SharedData/Class/Modifier")
 
-local DangerZone = require("Data/Modes/Hybrid/DangerZone")
+local DangerZone = require("Zone/Game/Zone")
 local serpent = require("serpent")
 
 local UserSettings = require("UserSettings")
@@ -38,9 +38,11 @@ local SpawnDirector = require("Game/Directors/Spawn")
 local SaveDataManager = require("Class/SaveDataManager")
 -- local DangerZoneData = require("Data/Modes/Hybrid/DangerZoneData")
 
-local ZoneTileData = require("Editor/ZoneTileData")
-local ZonePropData = require("Editor/ZonePropData")
-local ZoneKeyItemData = require("Editor/ZoneKeyItemData")
+local ZoneTileData = require("Zone/Editor/EditorTileData")
+local ZonePropData = require("Zone/Editor/EditorPropData")
+local ZoneKeyItemData = require("Zone/Editor/EditorKeyItemData")
+
+local UnitDataSet = require("Zone/Data/UnitDataSet")
 
 local Help = require("Help")
 local UiHelper = require("Game/UiHelper")
@@ -71,14 +73,14 @@ local HALF_TILE = Vector2.New(TILE_SIZE / 2, TILE_SIZE / 2) -- Cache
 ---============================================================================
 
 ---@class DangerZoneManager
----@field LoadedZoneData table<DangerZoneData>
----@field Zones table<integer, table<integer, DangerZone>> -- Rows & Columns
-local DangerZoneManager = {}
-DangerZoneManager.__index = DangerZoneManager
+---@field LoadedZoneData table<ZoneData>
+---@field Zones table<integer, table<integer, Zone>> -- Rows & Columns
+local ZoneManager = {}
+ZoneManager.__index = ZoneManager
 
 local function New()
     ---@type DangerZoneManager
-    local self = setmetatable({}, DangerZoneManager)
+    local self = setmetatable({}, ZoneManager)
 
     self:Reset()
 
@@ -87,7 +89,7 @@ local function New()
     return self
 end
 
-function DangerZoneManager:Reset()
+function ZoneManager:Reset()
     ---TODO: Possibly tracks Simulated, Presented, and Inactive Zones for better handling/performance
     self.LoadedZoneData = {}
 
@@ -104,14 +106,14 @@ function DangerZoneManager:Reset()
     self.Zones = {} -- Rows & Columns
 end
 
-function DangerZoneManager:__ResetEditor()
+function ZoneManager:__ResetEditor()
     -- Editor
     self.Editor = {}
     self.Editor.IsEnabled = false
 end
 
 local Instance = New()
-DangerZoneManager.Instance = Instance
+ZoneManager.Instance = Instance
 
 ---============================================================================
 -- !SECTION -- Initialize
@@ -123,14 +125,14 @@ DangerZoneManager.Instance = Instance
 -- SECTION -- Internal Functions
 ---============================================================================
 
-function DangerZoneManager:_ReloadZoneByKey(key)
+function ZoneManager:_ReloadZoneByKey(key)
     --
 end
 
 ---TODO: Replace Handling
 ---comment
 ---@param index Vector2
-function DangerZoneManager:_ReloadDangerZone(index)
+function ZoneManager:_ReloadDangerZone(index)
     -- Help.Log("Reloading Index", index)
     -- Check if we have a danger zone at the index
     local danger_zone = self.Zones[index.x] and self.Zones[index.x][index.y]
@@ -161,8 +163,8 @@ end
 
 ---TODO: Replace Handling
 ---comment
----@param danger_zone_data DangerZoneData
-function DangerZoneManager:_LoadDangerZoneData(danger_zone_data)
+---@param danger_zone_data ZoneData
+function ZoneManager:_LoadDangerZoneData(danger_zone_data)
     local danger_zone = DangerZone.New(danger_zone_data, self)
 
     local r = danger_zone_data.Position.x
@@ -194,13 +196,17 @@ end
 --     self.ActiveZone = -1
 -- end
 
-function DangerZoneManager:GetNearestResource(worker_pos, tag)
+function ZoneManager:GetNearestResource(worker_pos, tag)
     local nearest_resource = nil
-    if self.Zones then
-        for _, t in pairs(self.Zones) do
-            for _, zone in pairs(t) do
-                for _, instance in pairs(zone.PropInstances) do
-                    local pos = instance:CheckAvailability(tag)
+
+    for _, t in pairs(self.Zones) do
+        for _, zone in pairs(t) do
+            -- Check ZoneUnits
+            for _, unit in pairs(zone.ZoneUnits) do
+                if Core.Table.Contains(unit.Data.ISpawnable.Tags, tag) and unit.IsAlive then
+                    -- Shared Tag here.
+
+                    local pos = unit.Position
                     if pos then
                         if nearest_resource then
                             if Vector2.Distance(worker_pos, nearest_resource) > Vector2.Distance(worker_pos, pos) then
@@ -226,7 +232,7 @@ end
 ---Converts World Position to Tile Index
 ---@param position Vector2
 ---@return Vector2 position row, column
-function DangerZoneManager:GetTileIndexFromWorldPosition(position)
+function ZoneManager:GetTileIndexFromWorldPosition(position)
     local centered_position = position + HALF_TILE
 
     local row = math.floor(centered_position.x / TILE_SIZE)
@@ -239,7 +245,7 @@ end
 ---@param r integer
 ---@param c integer
 ---@return Vector2
-function DangerZoneManager:GetWorldPositionFromTileIndex(r, c)
+function ZoneManager:GetWorldPositionFromTileIndex(r, c)
     local x = c * TILE_SIZE
     local y = r * TILE_SIZE
 
@@ -256,8 +262,8 @@ end
 ---TODO: Startup make sure to only activate the necessary danger zone
 ---TODO: Move SpawnDirector Registry to when Danger Zone is Activated
 ---comment
----@param danger_zone_data_set table<DangerZoneData>
-function DangerZoneManager:LoadDangerZoneDataSet(danger_zone_data_set)
+---@param danger_zone_data_set table<ZoneData>
+function ZoneManager:LoadDangerZoneDataSet(danger_zone_data_set)
     self.LoadedZoneData = Core.Table.DeepCopy(danger_zone_data_set)
 
     -- Load Danger Zones
@@ -269,7 +275,7 @@ end
 ---Loop through and Update Zone Data that has this Status Key
 ---@param status_key string
 ---@param status ZONE_STATUS
-function DangerZoneManager:UpdateStatusKey(status_key, status)
+function ZoneManager:UpdateStatusKey(status_key, status)
     -- All Zones with the Status Key need to be triggered as "Purchased"
     for _, t in pairs(self.Zones) do
         for _, zone in pairs(t) do
@@ -284,7 +290,7 @@ end
 ---comment
 ---@param hero Hero
 ---@param camera_position Vector2
-function DangerZoneManager:Update(delta, hero, camera_position)
+function ZoneManager:Update(delta, hero, camera_position)
     ---TODO: Use the Hero Position to determine which Tiles to Check
     ---TODO: Also use the Camera Position to determine which Tiles to Check
 
@@ -392,15 +398,15 @@ end
 ---TODO: Get Closest Tile to Position
 
 local __EditorAxes = Vector2.New(0, 0)
----@type DangerZoneData | nil
+---@type ZoneData | nil
 local __ClosestZone = nil
----@type ZoneItemData | nil
+---@type EditorItemData | nil
 
 ---@type SELECTION_TOOL
 local __SelectionTool = SELECTION_TOOL.None
 local __ItemPlacementKey = nil
 
----@type ZoneItemData | nil
+---@type EditorItemData | nil
 local __ZoneItemData = nil ---TODO: Maybe change this to a Key and ZonePropData ref?
 
 ---@type UnitInstance | nil
@@ -506,7 +512,7 @@ if _Dev and _Dev.Game.enable_editor then
     end)
 end
 
-function DangerZoneManager:__CameraUpdate()
+function ZoneManager:__CameraUpdate()
     local axes = Vector2.Normalized(__EditorAxes)
 
     local speed = 20
@@ -522,7 +528,7 @@ function DangerZoneManager:__CameraUpdate()
     camera:Update()
 end
 
-function DangerZoneManager:__UpdateClosestZoneIndicator()
+function ZoneManager:__UpdateClosestZoneIndicator()
     local camera = Camera.Fetch(PLAYER.Player1)
     local camera_position = camera:GetPosition()
     local position = self:GetTileIndexFromWorldPosition(camera_position) * TILE_SIZE
@@ -540,7 +546,7 @@ function DangerZoneManager:__UpdateClosestZoneIndicator()
     DCEI.SetUnitPosition2D(__SelectedZoneIndicator, position.x, position.y)
 end
 
-function DangerZoneManager:__RemoveClosestZoneIndicator()
+function ZoneManager:__RemoveClosestZoneIndicator()
     if Help.ValidateUnit(__SelectedZoneIndicator) then
         DCEI.RemoveUnit(__SelectedZoneIndicator)
     end
@@ -548,7 +554,7 @@ end
 
 ---TODO: Configure a way for the player to select a Zone
 ---NOTE: For now, just select the Zone closest to the Camera
-function DangerZoneManager:__ZoneSelectionUpdate()
+function ZoneManager:__ZoneSelectionUpdate()
     if not __IsAutoZone then
         return
     end
@@ -565,7 +571,7 @@ function DangerZoneManager:__ZoneSelectionUpdate()
     __ClosestZone = closest_zone
 end
 
-function DangerZoneManager:__GhostPlacementUpdate()
+function ZoneManager:__GhostPlacementUpdate()
     if not Help.ValidateUnit(__GhostPlacement) then
         return
     end
@@ -583,8 +589,8 @@ end
 
 ---comment
 ---@param position Vector2
----@return DangerZoneData | nil
-function DangerZoneManager:__GetClosestZone(position)
+---@return ZoneData | nil
+function ZoneManager:__GetClosestZone(position)
     -- Find the closest Zone to the position
     local closest_zone = nil
     local closest_distance = math.huge
@@ -602,7 +608,7 @@ function DangerZoneManager:__GetClosestZone(position)
     return closest_zone
 end
 
-function DangerZoneManager:__AttemptPlacement()
+function ZoneManager:__AttemptPlacement()
     if not __AttemptPlacement then
         return
     end
@@ -626,6 +632,8 @@ function DangerZoneManager:__AttemptPlacement()
         self:__InjectProp()
     elseif __SelectionTool == SELECTION_TOOL.KeyItem then
         self:__InjectKeyItem()
+    elseif __SelectionTool == SELECTION_TOOL.Unit then
+        self:__InjectUnit()
     end
 
     -- ---NOTE: OLD Implementation
@@ -661,7 +669,7 @@ end
 local REMOVAL_RADIUS = 1
 
 ---comment
----@param data ZoneItemData
+---@param data EditorItemData
 ---@return string
 local function GetPrimaryPropKeyFromData(data)
     if data.PropSeries then
@@ -671,7 +679,7 @@ local function GetPrimaryPropKeyFromData(data)
     end
 end
 
-function DangerZoneManager:__RemoveTile()
+function ZoneManager:__RemoveTile()
     if not __ClosestZone then
         return
     end
@@ -703,7 +711,7 @@ function DangerZoneManager:__RemoveTile()
     __ReloadBoundaryTiles = true
 end
 
-function DangerZoneManager:__RemoveProps()
+function ZoneManager:__RemoveProps()
     if not __ClosestZone then
         return
     end
@@ -741,7 +749,7 @@ function DangerZoneManager:__RemoveProps()
     end
 end
 
-function DangerZoneManager:__RemoveKeyItem()
+function ZoneManager:__RemoveKeyItem()
     if not __ClosestZone then
         return
     end
@@ -784,7 +792,45 @@ function DangerZoneManager:__RemoveKeyItem()
     end
 end
 
-function DangerZoneManager:__AttemptRemoval()
+function ZoneManager:__RemoveUnits()
+    if not __ClosestZone then
+        return
+    end
+
+    if not __ZoneItemData then
+        return
+    end
+
+    -- Draw the Removal Radius
+    local position = GetMouseWorldPosition()
+    Help.Draw(position, 0.125, REMOVAL_RADIUS)
+
+    -- Loop through all Props in the selected Zone and Remove Props with the same Key
+    local remove_indices = {}
+    for index, unit_data in ipairs(__ClosestZone.Units) do
+        if unit_data.Key == __ItemPlacementKey then
+            local prop_position = Vector2.NewFromTable(__ClosestZone.Position) * TILE_SIZE
+                + Vector2.NewFromTable(unit_data.Position)
+            local distance = Vector2.Distance(position, prop_position)
+
+            if distance <= REMOVAL_RADIUS then
+                table.insert(remove_indices, index)
+            end
+        end
+    end
+
+    -- Iterate through the Props and Remove them (in reverse)
+    for i = #remove_indices, 1, -1 do
+        table.remove(__ClosestZone.Units, remove_indices[i])
+    end
+
+    -- Reload the Danger Zone
+    if #remove_indices > 0 then
+        self:_ReloadDangerZone(__ClosestZone.Position)
+    end
+end
+
+function ZoneManager:__AttemptRemoval()
     -- Loop through the current zone's Props for this Prop Type
     if not __AttemptRemoval then
         return
@@ -808,10 +854,12 @@ function DangerZoneManager:__AttemptRemoval()
         self:__RemoveProps()
     elseif __SelectionTool == SELECTION_TOOL.KeyItem then
         self:__RemoveKeyItem()
+    elseif __SelectionTool == SELECTION_TOOL.Unit then
+        self:__RemoveUnits()
     end
 end
 
-function DangerZoneManager:__SendEditorUpdateData()
+function ZoneManager:__SendEditorUpdateData()
     local camera = Camera.Fetch(PLAYER.Player1)
     local camera_position = camera:GetPosition()
 
@@ -838,7 +886,7 @@ end
 local __SelectedZoneMarker = nil
 local __ZoneMarkers = {}
 
-function DangerZoneManager:__RemoveZoneMarkers()
+function ZoneManager:__RemoveZoneMarkers()
     for i = 1, #__ZoneMarkers do
         DCEI.RemoveUnit(__ZoneMarkers[i])
     end
@@ -846,7 +894,7 @@ function DangerZoneManager:__RemoveZoneMarkers()
     __ZoneMarkers = {}
 end
 
-function DangerZoneManager:__SpawnZoneMarkers()
+function ZoneManager:__SpawnZoneMarkers()
     for _, zone in pairs(self.LoadedZoneData) do
         local position = Vector2.NewFromTable(zone.Position) * TILE_SIZE
         local instance =
@@ -855,13 +903,13 @@ function DangerZoneManager:__SpawnZoneMarkers()
     end
 end
 
-function DangerZoneManager:__RemoveSelectedZoneMarker()
+function ZoneManager:__RemoveSelectedZoneMarker()
     if Help.ValidateUnit(__SelectedZoneMarker) then
         DCEI.RemoveUnit(__SelectedZoneMarker)
     end
 end
 
-function DangerZoneManager:__SpawnSelectedZoneMarker()
+function ZoneManager:__SpawnSelectedZoneMarker()
     if not __ClosestZone then
         return
     end
@@ -876,7 +924,7 @@ function DangerZoneManager:__SpawnSelectedZoneMarker()
     )
 end
 
-function DangerZoneManager:__DrawZoneMarkers()
+function ZoneManager:__DrawZoneMarkers()
     for _, zone in pairs(self.LoadedZoneData) do
         ---TODO: Optimize this a bit
         -- For now, Remove all Zone Markers, then Create New Ones
@@ -905,7 +953,7 @@ function DangerZoneManager:__DrawZoneMarkers()
     end
 end
 
-function DangerZoneManager:__EditorUpdate()
+function ZoneManager:__EditorUpdate()
     self:__CameraUpdate()
     self:__ZoneSelectionUpdate()
 
@@ -923,7 +971,7 @@ function DangerZoneManager:__EditorUpdate()
     self:__SendEditorUpdateData()
 end
 
-function DangerZoneManager:__OnEditorEnabled()
+function ZoneManager:__OnEditorEnabled()
     self.Editor.IsEnabled = true
 
     -- Disable Game UI
@@ -955,7 +1003,7 @@ function DangerZoneManager:__OnEditorEnabled()
     Core.Event.SendPresentationEvent("Editor.SetZoneData", self.LoadedZoneData)
 end
 
-function DangerZoneManager:__OnEditorDisabled()
+function ZoneManager:__OnEditorDisabled()
     self.Editor.IsEnabled = false
 
     -- Show Game UI
@@ -980,7 +1028,7 @@ function DangerZoneManager:__OnEditorDisabled()
     self:__RemoveSelectedZoneMarker()
 end
 
-function DangerZoneManager:__ToggleEditorModeActive()
+function ZoneManager:__ToggleEditorModeActive()
     if self.Editor.IsEnabled then
         self:__OnEditorDisabled()
     else
@@ -994,14 +1042,14 @@ end
 --     self:_LoadDangerZoneData(prop_data)
 -- end
 
-function DangerZoneManager:__RemoveCurrentGhostPlacement()
+function ZoneManager:__RemoveCurrentGhostPlacement()
     if Help.ValidateUnit(__GhostPlacement) then
         DCEI.RemoveUnit(__GhostPlacement)
     end
 end
 
 ---comment
-function DangerZoneManager:__SpawnGhostPlacement()
+function ZoneManager:__SpawnGhostPlacement()
     if not self.Editor.IsEnabled then
         return
     end
@@ -1023,15 +1071,18 @@ function DangerZoneManager:__SpawnGhostPlacement()
         item_data = ZonePropData[__ItemPlacementKey]
     elseif __SelectionTool == SELECTION_TOOL.KeyItem then
         item_data = ZoneKeyItemData[__ItemPlacementKey]
+    elseif __SelectionTool == SELECTION_TOOL.Unit then
+        item_data = UnitDataSet.Map[__ItemPlacementKey]
     else
         return
     end
 
     __ZoneItemData = item_data
-    __GhostPlacement = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Player1, item_data.GhostPlacement, position.x, position.y)
+    local ghost_placement = item_data.GhostPlacement or item_data.ISpawnable.UnitType
+    __GhostPlacement = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Player1, ghost_placement, position.x, position.y)
 end
 
-function DangerZoneManager:__SelectPropData(tool, key)
+function ZoneManager:__SelectPropData(tool, key)
     __SelectionTool = tool
     __ItemPlacementKey = key
 
@@ -1039,8 +1090,54 @@ function DangerZoneManager:__SelectPropData(tool, key)
     self:__SpawnGhostPlacement()
 end
 
-function DangerZoneManager:__SaveLatestDangerZoneToFile()
-    local data = self.LoadedZoneData
+local function DataConversion(data)
+    -- Reformat specific Props to Units
+    local converts = {
+        -- Example
+        -- {
+        --     Prop = "Pumpkin01",
+        --     Unit = "Pumpkin01",
+        -- },
+    }
+
+    -- Loop through the Zones and remove Prop Keys that match and replace with Unit Keys
+    for _, zone in pairs(data) do
+        local props = zone.Props
+        local units = zone.Units
+
+        if not units then
+            units = {}
+            zone.Units = units
+        end
+
+        if props then
+            local remove_indices = {}
+            for index, prop_data in ipairs(props) do
+                -- Check if converts contains the prop key
+                for _, convert in pairs(converts) do
+                    if prop_data.Key == convert.Prop then
+                        table.insert(units, {
+                            Key = convert.Unit,
+                            Position = prop_data.Position,
+                        })
+                        table.insert(remove_indices, index)
+                    end
+                end
+            end
+
+            -- Remove the Props that were converted to Units
+            for i = #remove_indices, 1, -1 do
+                table.remove(props, remove_indices[i])
+            end
+        end
+    end
+
+    return data
+end
+
+function ZoneManager:__SaveLatestDangerZoneToFile()
+    local data = DataConversion(self.LoadedZoneData)
+
     Help.Log("Saving Danger Zone Data to File", nil, data)
 
     local file = io.open(UserSettings.FilePath .. UserSettings.FileName, "w") -- Open file for writing
@@ -1055,7 +1152,7 @@ end
 ---TODO: Provide a way to add/remove/modify without recreating the entire Manager Dataset
 
 ---@param data Editor.NewZoneData
-function DangerZoneManager:__CreateNewZone(data)
+function ZoneManager:__CreateNewZone(data)
     data.Tiles = {}
     data.Props = {}
     data.KeyItems = {}
@@ -1070,7 +1167,7 @@ function DangerZoneManager:__CreateNewZone(data)
     Core.Event.SendPresentationEvent("Editor.SetZoneData", self.LoadedZoneData)
 end
 
-function DangerZoneManager:__InjectTile()
+function ZoneManager:__InjectTile()
     if not __ClosestZone then
         Help.Log("No available Zone to Inject Tile")
         return
@@ -1120,7 +1217,7 @@ function DangerZoneManager:__InjectTile()
     Core.Event.SendPresentationEvent("Editor.SetZoneData", self.LoadedZoneData)
 end
 
-function DangerZoneManager:__InjectProp()
+function ZoneManager:__InjectProp()
     if not __ClosestZone then
         Help.Log("No available Zone to Inject Tile")
         return
@@ -1165,7 +1262,7 @@ function DangerZoneManager:__InjectProp()
     Core.Event.SendPresentationEvent("Editor.SetZoneData", self.LoadedZoneData)
 end
 
-function DangerZoneManager:__InjectKeyItem()
+function ZoneManager:__InjectKeyItem()
     if not __ClosestZone then
         Help.Log("No available Zone to Inject Tile")
         return
@@ -1221,7 +1318,59 @@ function DangerZoneManager:__InjectKeyItem()
     -- self:UpdateStatusKey(__ClosestZone.Key, status)
 end
 
-function DangerZoneManager:__EditorUpdateZoneData(data)
+function ZoneManager:__InjectUnit()
+    if not __ClosestZone then
+        Help.Log("No available Zone to Inject Tile")
+        return
+    end
+
+    if not __ZoneItemData then
+        Help.Log("No available Zone Item Data to Inject Tile")
+        return
+    end
+
+    local zone_key = __ClosestZone.Key
+    if not self.LoadedZoneData[zone_key] then
+        Help.Log("No Zone Data Found for Key", zone_key)
+        return
+    end
+
+    -- Initialize
+    if not self.LoadedZoneData[zone_key].Units then
+        self.LoadedZoneData[zone_key].Units = {}
+    end
+
+    local new_zone_data = Core.Table.DeepCopy(self.LoadedZoneData)
+
+    local zone_position = Vector2.NewFromTable(__ClosestZone.Position) * TILE_SIZE
+    local mouse_position = GetMouseWorldPosition()
+    local position = mouse_position - zone_position
+
+    local zone_index = __ClosestZone and Vector2.NewFromTable(__ClosestZone.Position) or nil
+    local danger_zone = zone_index and self.Zones[zone_index.x] and self.Zones[zone_index.x][zone_index.y]
+    local status = danger_zone and danger_zone.Status or ""
+
+    if not status or status == "" then
+        Help.Log("No Status Found for Zone", zone_key)
+        return
+    end
+
+    local injected_data = {
+        Key = __ZoneItemData.Key,
+        Position = {
+            x = position.x,
+            y = position.y,
+        },
+    }
+
+    table.insert(new_zone_data[zone_key].Units, injected_data)
+
+    self:Reset()
+    self:LoadDangerZoneDataSet(new_zone_data)
+    Core.Event.SendPresentationEvent("Editor.SetZoneData", self.LoadedZoneData)
+end
+
+function ZoneManager:__EditorUpdateZoneData(data)
     Help.Log("Update Zone Data", nil, data)
     -- We're essentially going to copy the Key's Data, Modify it, then Replace it
 
@@ -1300,16 +1449,16 @@ end
 ---comment
 ---@param data Editor.ItemSelectedData
 local function OnItemSelected(data)
-    DangerZoneManager.Instance:__SelectPropData(data.Tool, data.Key)
+    ZoneManager.Instance:__SelectPropData(data.Tool, data.Key)
 end
 
 local function SaveZoneData()
-    DangerZoneManager.Instance:__SaveLatestDangerZoneToFile()
+    ZoneManager.Instance:__SaveLatestDangerZoneToFile()
 end
 
 ---@param data Editor.NewZoneData
 local function CreateNewZone(data)
-    DangerZoneManager.Instance:__CreateNewZone(data)
+    ZoneManager.Instance:__CreateNewZone(data)
 
     -- DangerZoneManager.Instance:__InjectDangerZoneData(data)
 end
@@ -1319,7 +1468,7 @@ end
 local function UpdateZoneStatus(status)
     -- Update the Status of the Selected Zone
     if __ClosestZone then
-        DangerZoneManager.Instance:UpdateStatusKey(__ClosestZone.Key, status)
+        ZoneManager.Instance:UpdateStatusKey(__ClosestZone.Key, status)
     end
 end
 
@@ -1329,7 +1478,7 @@ local function SetAutoZone(status)
 end
 
 local function UpdateZoneData(data)
-    DangerZoneManager.Instance:__EditorUpdateZoneData(data)
+    ZoneManager.Instance:__EditorUpdateZoneData(data)
 end
 
 ---TODO: Setup Events that the Editor can use to modify Danger Zones
@@ -1345,4 +1494,4 @@ Core.Event.RegisterSimulationEvent("Editor.UpdateZoneData", UpdateZoneData)
 -- !SECTION -- Events
 ---============================================================================
 
-return DangerZoneManager
+return ZoneManager

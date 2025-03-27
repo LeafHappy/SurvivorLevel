@@ -54,8 +54,9 @@ local function CreateResourceBar(currency_type, value_expression, parent)
     })
 
     layout.state.icon = ResourceData.Map[currency_type].Icon
+    -- layout.state.amount = value_expression
     DCEI.SetTextFrameTextExpression(layout.Label, value_expression)
-    DCEI.SetFrameImageFillAmountExpression(layout.Mask, "Game." .. currency_type .. ".fill")
+    -- DCEI.SetFrameImageFillAmountExpression(layout.Mask, "Game." .. currency_type .. ".fill")
 
     DCEI.WaitForUiUpdateToComplete(function()
         if FlyingLocationData[currency_type] then
@@ -80,13 +81,13 @@ local function AnimateValueOverTime(currency_type)
     -- Animate value over timer
     Animation.ValueOverTime(function(value)
         ui.GameState[currency_type].value = value
-        ui.GameState[currency_type].fill = GetBarFill(currency_type)
+        -- ui.GameState[currency_type].fill = GetBarFill(currency_type)
     end, args)
 
     -- Reset after duration of animation
     GMUI.RunFunctionAfterTimeElapsed(function()
         ui.GameState[currency_type].value = end_value
-        ui.GameState[currency_type].fill = GetBarFill(currency_type)
+        -- ui.GameState[currency_type].fill = GetBarFill(currency_type)
 
         ResourceDisplay.animation_values.do_animation[currency_type] = false
     end, args.duration)
@@ -112,7 +113,7 @@ function ResourceDisplay.UpdateBar(currency_type, target_amount, skip_animation)
         end, fly_delay)
     elseif target_amount then
         ui.GameState[currency_type].value = target_amount
-        ui.GameState[currency_type].fill = GetBarFill(currency_type)
+        -- ui.GameState[currency_type].fill = GetBarFill(currency_type)
     end
 end
 

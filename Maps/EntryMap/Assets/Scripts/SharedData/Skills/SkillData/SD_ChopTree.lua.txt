@@ -34,8 +34,10 @@ Data.ChopTree = {
                 Modifier.New(STAT.SkillSize, 1.75, SCALING.Scaled, { SKILL_TAG.ChopTree }),
                 Modifier.New(STAT.Spread, 120, SCALING.Scaled, { SKILL_TAG.ChopTree }),
 
-                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
                 Modifier.New(STAT.Damage, 10, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+
+                -- Drop Count
+                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
 
                 -- Visual
                 Modifier.New(STAT.CollisionSize, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
@@ -60,6 +62,94 @@ Data.ChopTree = {
             SKILL_TAG.Tool,
         },
     },
+    RemoveStatInheritance = {},
+}
+
+Data.ChopTreeLevel_02 = {
+    Key = "ChopTreeLevel_02",
+
+    -- UI Information
+    DisplayName = "Axe Level 2",
+    ShortDescription = "Improves Damage and Wood gathered.",
+    Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ChopTree,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 20, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+
+                -- Drop Count
+                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+
+                -- Visual
+                Modifier.New(STAT.CollisionSize, 0.20, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
+    RemoveStatInheritance = {},
+}
+
+Data.ChopTreeLevel_03 = {
+    Key = "ChopTreeLevel_03",
+
+    -- UI Information
+    DisplayName = "Axe Level 3",
+    ShortDescription = "Improves Damage and Wood gathered.",
+    Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
+
+    -- Skill Information
+    MaxLevel = 1,
+    Type = SKILL_TYPE.Active,
+    AppliedSkillTagLevels = {
+        SKILL_TAG.ChopTree,
+    },
+    Requirements = {},
+    Applications = {
+        FirstLevelOnly = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {
+                Modifier.New(STAT.Damage, 40, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+
+                -- Drop Count
+                Modifier.New(STAT.Count, 1, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+
+                -- Visual
+                Modifier.New(STAT.CollisionSize, 0.20, SCALING.Scaled, { SKILL_TAG.ChopTree }),
+            },
+        },
+        EveryLevel = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+        EveryLevelAfterFirst = {
+            Abilities = {},
+            Behaviors = {},
+            Modifiers = {},
+        },
+    },
+    ApplyStatInheritance = {},
     RemoveStatInheritance = {},
 }
 

@@ -1,0 +1,470 @@
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+
+local SaveDataManager = require("Class/SaveDataManager")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+local Help = require("Help")
+
+local CHANNEL_TIME = 2.25
+local MAX_CHANNEL_STEP = 0.25
+local THROW_TIME = 0.45
+
+local REF = {
+    Indicator = DCEI.Unit("Shop Indicator"),
+    Bubble = DCEI.Unit("Shop Bubble"),
+}
+
+---@class IShopData
+---@field Contents IShopData.Contents
+
+---@class IShopData.Contents
+---@field Preview UnitType
+---@field ResourceType string
+---@field Cost number
+---@field HeroUpgrades table<string>
+
+---@class IShop
+---@field public ZoneUnit ZoneUnit
+---@field public Data IShopData
+---@field public Preview UnitInstance | nil
+---@field public Indicator UnitInstance | nil
+---@field public Bubble UnitInstance | nil
+---@field public CurrentOfferIndex integer
+---@field public ChanneledTime number
+---@field public StoredResources table<string, integer>
+---@field public DisplayValue number
+---@field public UI_IsActive boolean
+---@field public UI_TargetActiveStatus boolean
+---@field public UI_IsUpdateRequired boolean
+---@field public UI_DataUpdate ShopDisplayData
+local IShop = {}
+IShop.__index = IShop
+IShop.__name = "IShop"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data IShopData
+---@return IShop
+function IShop.New(zone_unit, data)
+    local self = setmetatable({}, IShop)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+
+    -- Unit Instances
+    self.Preview = nil
+    self.Bubble = nil
+    self.Indicator = nil
+
+    -- Animation/Presentation Temporary Disable
+    self.DisableTimer = 0
+
+    -- Offer
+    self.CurrentOfferIndex = 0
+
+    -- Channeled Time
+    self.ChanneledTime = 0
+
+    -- Save Data
+    self.StoredResources = {
+        -- ["Gold"] = 10,
+    }
+    self.DisplayValue = 0
+
+    -- Check SaveData
+    local save_data_path = self:_GetSaveDataPath()
+    local save_data = SaveDataManager.GetReference(save_data_path) or {}
+
+    -- Check for current offer
+    if not save_data.CurrentOfferIndex then
+        save_data.CurrentOfferIndex = 1
+        SaveDataManager.Set(save_data_path, save_data)
+        SaveDataManager.CommitSaveData()
+    end
+
+    -- Check Saved Stored Resources
+    if save_data.StoredResources then
+        self.StoredResources = save_data.StoredResources
+
+        ---TODO: Update Display Value
+        local latest_offer = self:_GetLatestOfferData()
+        local stored_amount = self.StoredResources[latest_offer.ResourceType] or 0
+        self.DisplayValue = stored_amount
+    end
+
+    -- UI Display
+    self.UI_IsActive = false
+    self.UI_TargetActiveStatus = true
+    self.UI_IsUpdateRequired = true
+    self.UI_DataUpdate = {}
+
+    return self
+end
+
+---comment
+---@return IShopData.Contents
+function IShop:_GetLatestOfferData()
+    local index = self:_GetLatestOfferIndex()
+    return self.Data.Contents[index] or {}
+end
+
+function IShop:_GetSaveDataPath()
+    return {
+        "zone_status",
+        self.ZoneUnit.Zone.UID,
+        self.ZoneUnit.UID,
+        "IShop",
+    }
+end
+
+function IShop:_GetStandPosition()
+    local zone_position = Vector2.NewFromTable(self.ZoneUnit.Position)
+    local offset = Vector2.Down() * 1.5
+
+    return zone_position + offset
+end
+
+function IShop:_GetDepositBounds()
+    local position = self:_GetStandPosition()
+    local bounds_low = position + Vector2.One() * -0.5
+    local bounds_high = position + Vector2.One() * 0.5
+
+    return bounds_low, bounds_high
+end
+
+function IShop:_IsInsideIndicatorBounds(position)
+    local low, high = self:_GetDepositBounds()
+    local is_in_bounds = Vector2.IsInsideBounds(position, low, high)
+    return is_in_bounds
+end
+
+function IShop:_SpawnIndicator()
+    local position = self:_GetStandPosition()
+    self.Indicator = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Indicator, position.x, position.y)
+end
+
+---comment
+---@param index integer
+function IShop:_SpawnOfferPreview(index)
+    -- Update Offer
+    local offer = self.Data.Contents[index]
+    local position = Vector2.NewFromTable(self.ZoneUnit.Position)
+
+    if Help.ValidateUnit(self.Preview) then
+        DCEI.RemoveUnit(self.Preview)
+        self.Preview = nil
+    end
+
+    self.Preview = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, offer.Preview, position.x, position.y)
+
+    if Help.ValidateUnit(self.Bubble) then
+        DCEI.RemoveUnit(self.Bubble)
+        self.Bubble = nil
+    end
+
+    self.Bubble = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Bubble, position.x, position.y)
+end
+
+function IShop:_RemoveOfferPreview()
+    if Help.ValidateUnit(self.Preview) then
+        DCEI.RemoveUnit(self.Preview)
+        self.Preview = nil
+    end
+
+    if Help.ValidateUnit(self.Bubble) then
+        DCEI.RemoveUnit(self.Bubble)
+        self.Bubble = nil
+    end
+end
+
+function IShop:_RemoveIndicator()
+    if not Help.ValidateUnit(self.Indicator) then
+        return
+    end
+
+    DCEI.RemoveUnit(self.Indicator)
+    self.Indicator = nil
+end
+
+---TODO: Update based on SaveData
+function IShop:_GetLatestOfferIndex()
+    local save_data_path = self:_GetSaveDataPath()
+    local save_data = SaveDataManager.GetReference(save_data_path) or {}
+
+    if not save_data.CurrentOfferIndex then
+        save_data.CurrentOfferIndex = 1
+        SaveDataManager.Set(save_data_path, save_data)
+        SaveDataManager.CommitSaveData()
+    end
+
+    return save_data.CurrentOfferIndex
+
+    -- return #self.Data.Contents
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function IShop:_AttemptDepositResources(delta, hero)
+    if self.DisableTimer > 0 then
+        self.DisableTimer = self.DisableTimer - delta
+        return
+    end
+
+    -- Check if Hero is in Bounds
+    local hero_position = hero:GetPosition()
+
+    -- Check to make sure the Hero is Stationary
+    if hero:GetTravelDistance() > 0 then
+        self.ChanneledTime = 0
+        return
+    end
+
+    -- Check to make sure the Hero is in the Bounds
+    if not self:_IsInsideIndicatorBounds(hero_position) then
+        self.ChanneledTime = 0
+        return
+    end
+
+    -- Check to make sure the Hero has Resources
+    local target_offer_index = self:_GetLatestOfferIndex()
+
+    ---@type IShopData.Contents
+    local offer = self.Data.Contents[target_offer_index]
+
+    local resource_data = ResourceData.Map[offer.ResourceType]
+
+    local channel_step = CHANNEL_TIME / offer.Cost
+    channel_step = math.min(MAX_CHANNEL_STEP, channel_step)
+
+    self.ChanneledTime = self.ChanneledTime + delta
+    if self.ChanneledTime < channel_step then
+        return
+    end
+
+    local step_count = 1
+    if channel_step < delta then
+        step_count = step_count * math.ceil(delta / channel_step)
+    end
+
+    if not self.StoredResources[offer.ResourceType] then
+        self.StoredResources[offer.ResourceType] = 0
+    end
+
+    -- Check Save Data for Stored Resources
+    local save_path = self:_GetSaveDataPath()
+    local save_data = SaveDataManager.GetReference(save_path) or {}
+
+    local stored_resources = self:_GetStoredResources()
+    if not stored_resources[offer.ResourceType] then
+        stored_resources[offer.ResourceType] = 0
+    end
+    local stored_amount = stored_resources[offer.ResourceType]
+
+    local remaining_cost = offer.Cost - stored_amount
+    local amount_owned = SaveDataManager.Get(resource_data.SaveKey) or 0
+    local spend_amount = math.min(step_count, remaining_cost, amount_owned)
+
+    self.ChanneledTime = 0
+
+    if spend_amount <= 0 then
+        return
+    end
+
+    -- When we spend resources, we immediately update the data, and save it
+    SaveDataManager.Spend(resource_data.SaveKey, spend_amount)
+
+    save_data.StoredResources[offer.ResourceType] = save_data.StoredResources[offer.ResourceType] + spend_amount
+    SaveDataManager.Set(save_path, save_data)
+
+    SaveDataManager.CommitSaveData()
+
+    local effect = resource_data.ThrowEffect
+    local position = self.ZoneUnit.Position
+    DCEI.CreateEffectAtPosition(effect, hero.unit, position.x, position.y)
+
+    -- Add a Delay to change the display value
+    Help.GameTimer(THROW_TIME, nil, nil, function()
+        self.DisplayValue = self.DisplayValue + spend_amount
+        self.UI_DataUpdate.AmountStored = self.DisplayValue
+        self.UI_IsUpdateRequired = true
+    end)
+end
+
+function IShop:_GetStoredResources()
+    local save_path = self:_GetSaveDataPath()
+    local save_data = SaveDataManager.GetReference(save_path) or {}
+
+    if not save_data.StoredResources then
+        save_data.StoredResources = {}
+    end
+
+    return save_data.StoredResources
+end
+
+---@param hero Hero
+function IShop:_AttemptPurchase(delta, hero)
+    -- Check if Resource Cost is met
+    local offer = self:_GetLatestOfferData()
+    local stored_resources = self:_GetStoredResources()
+    local stored_amount = stored_resources[offer.ResourceType] or 0
+
+    -- Not enough resources
+    if stored_amount < offer.Cost then
+        return
+    end
+
+    -- Make sure display value is also met
+    if self.DisplayValue < offer.Cost then
+        return
+    end
+    self.DisplayValue = 0
+
+    -- Disable the UI
+    self.UI_TargetActiveStatus = false
+
+    -- Update Save Data
+    for _, skill_name in ipairs(offer.HeroUpgrades) do
+        SaveDataManager.AddKey(SAVE_KEY.Skills, skill_name)
+    end
+
+    -- Reset Storage and Temporarily Disable the UI and Collection
+    local save_data_path = self:_GetSaveDataPath()
+    local save_data = SaveDataManager.GetReference(save_data_path) or {}
+    save_data.StoredResources[offer.ResourceType] = 0
+
+    -- Update Current Offer Index
+    save_data.CurrentOfferIndex = save_data.CurrentOfferIndex + 1
+    SaveDataManager.Set(save_data_path, save_data)
+
+    -- Disable IShop Updates for a moment so we can Animate the Purchase
+    local disable_time = 2.5 ---TODO: Determine what this needs to be
+    self.DisableTimer = disable_time
+    Help.GameTimer(disable_time, nil, nil, function()
+        -- Apply the Purchase (Hero Update)
+        for _, skill_name in ipairs(offer.HeroUpgrades) do
+            hero:LearnSkill(skill_name)
+        end
+
+        self.UI_TargetActiveStatus = true
+    end)
+
+    -- Update next Data Pass
+    local next_offer_index = self:_GetLatestOfferIndex()
+    local next_offer = self.Data.Contents[next_offer_index]
+
+    if next_offer then
+        self.UI_DataUpdate.ResourceType = next_offer.ResourceType
+        self.UI_DataUpdate.AmountRequired = next_offer.Cost
+        self.UI_DataUpdate.AmountStored = 0
+        self.UI_IsUpdateRequired = true
+    end
+end
+
+---Implement in child class
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function IShop:Update(delta, instance, hero, data_pass)
+    if data_pass.IsSpawnedThisFrame then
+        self:_SpawnIndicator()
+    end
+
+    if data_pass.IsKilledThisFrame then
+        self:_RemoveIndicator()
+    end
+
+    -- if not data_pass.IsAlive then
+    --     return
+    -- end
+
+    -- Check Offer
+    local target_offer_index = self:_GetLatestOfferIndex()
+
+    -- No Additional Offers Availables
+    if not self.Data.Contents[target_offer_index] then
+        self:Clear()
+
+        DCEI.RemoveUnit(self.ZoneUnit.Instance)
+        data_pass.IsAlive = false
+        data_pass.IsKilledThisFrame = true
+
+        return
+    end
+
+    if self.CurrentOfferIndex ~= target_offer_index then
+        self.CurrentOfferIndex = target_offer_index
+
+        -- Remove Offer Preview
+
+        -- Add New Offer Preview
+        self:_SpawnOfferPreview(target_offer_index)
+    end
+
+    self:_AttemptDepositResources(delta, hero)
+
+    ---TODO: Only send Presentation Data that needs to be updated.
+
+    -- Simulation:
+    -- Throw Coin
+    -- SaveData - Reduce Resource Held
+    -- SaveData - Set Resource Stored
+
+    -- Presentation:
+    -- Update Stored (after coin reaches the shop)
+
+    self:_AttemptPurchase(delta, hero)
+
+    if self.UI_IsActive ~= self.UI_TargetActiveStatus then
+        self.UI_IsActive = self.UI_TargetActiveStatus
+
+        local set_display_data = {
+            UID = self.ZoneUnit.UID,
+            IsActive = self.UI_IsActive,
+        }
+        Core.Event.SendPresentationEvent("ZoneUnit.Shop.SetActive", set_display_data)
+
+        if self.UI_IsActive then
+            local lastest_offer_data = self:_GetLatestOfferData()
+
+            self.UI_DataUpdate.WorldPosition = self.ZoneUnit.Position
+            self.UI_DataUpdate.ResourceType = lastest_offer_data.ResourceType
+            self.UI_DataUpdate.AmountStored = self.DisplayValue
+            self.UI_DataUpdate.AmountRequired = lastest_offer_data.Cost
+            self.UI_IsUpdateRequired = true
+        end
+    end
+
+    -- if not self.UI_IsActive then
+    --     self.UI_IsActive = true
+
+    --     local lastest_offer_data = self:_GetLatestOfferData()
+
+    --     self.UI_DataUpdate.WorldPosition = self.ZoneUnit.Position
+    --     self.UI_DataUpdate.ResourceType = lastest_offer_data.ResourceType
+    --     self.UI_DataUpdate.AmountStored = self.DisplayValue
+    --     self.UI_DataUpdate.AmountRequired = lastest_offer_data.Cost
+    --     self.UI_IsUpdateRequired = true
+    -- end
+
+    if self.UI_IsUpdateRequired then
+        self.UI_IsUpdateRequired = false
+
+        self.UI_DataUpdate.UID = self.ZoneUnit.UID
+        Core.Event.SendPresentationEvent("ZoneUnit.Shop.UpdateData", self.UI_DataUpdate)
+        self.UI_DataUpdate = {} -- Reset at end of frame after sending to UI
+    end
+end
+
+-- Implement in child class
+-- Used to Clear any UnitInstances
+function IShop:Clear()
+    self:_RemoveIndicator()
+    self:_RemoveOfferPreview()
+
+    Core.Event.SendPresentationEvent("ZoneUnit.Shop.Destroy", self.ZoneUnit.UID)
+end
+
+return IShop

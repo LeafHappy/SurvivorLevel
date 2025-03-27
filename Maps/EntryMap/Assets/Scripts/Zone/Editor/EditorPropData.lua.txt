@@ -1,6 +1,6 @@
-local PropData = require("Map/PropData")
+local PropData = require("Zone/Data/PropData")
 
----@class PropItemSettings
+---@class EditorPropSettings
 ---@field PropSeries table<string>
 ---@field PropData string
 ---@field DestroyedPlaceholder string
@@ -8,10 +8,10 @@ local PropData = require("Map/PropData")
 ---@field SpawnImmediately boolean | nil
 ---@field GrowTime number | nil
 
----@class ZonePropData:ZoneItemData
----@field Settings PropItemSettings
+---@class EditorPropData:EditorItemData
+---@field Settings EditorPropSettings
 
----@type table<ZonePropData>
+---@type table<EditorPropData>
 local data = {
     -- TreeDegrade01 = { -- Multiple Zone Status Handling
     --     Key = "TreeDegrade01",
@@ -47,7 +47,7 @@ local data = {
                 PropData.TreeDegrade04.Key,
             },
             DestroyedPlaceholder = PropData.TreeDegrade05.Key,
-            RespawnTime = 20,
+            RespawnTime = 60,
             SpawnImmediately = true,
         },
     },
@@ -114,8 +114,9 @@ local data = {
                 PropData.Stone03.Key,
                 PropData.Stone04.Key,
             },
+            DestroyedPlaceholder = PropData.Stone05.Key,
             -- DestroyedPlaceholder = PropData.TreeDegrade05.Key,
-            RespawnTime = 30,
+            RespawnTime = 60,
             SpawnImmediately = true,
         },
     },

@@ -177,7 +177,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 01"),
         Health = {
-            Starting = 60,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -207,7 +207,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 02"),
         Health = {
-            Starting = 60,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -237,7 +237,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 03"),
         Health = {
-            Starting = 60,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -267,7 +267,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Thicket - Prop - Tree - Degrade - 04"),
         Health = {
-            Starting = 60,
+            Starting = 200,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Tree,
@@ -389,7 +389,7 @@ local PropData = {
         Key = "Stone01",
 
         -- Simple Unit Data
-        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 01"),
+        UnitType = DCEI.SimpleUnit("Prop - Stone - 01"),
         Health = {
             Starting = 20,
         },
@@ -401,7 +401,7 @@ local PropData = {
             collides_with_layer_mask = CollisionLayers.Hostile,
             radius = 0.5,
         },
-        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+        DeathEffect = DCEI.Effect("Prop - Stone - OnDeath"),
 
         -- Prop Data
         Weight = 5,
@@ -419,7 +419,7 @@ local PropData = {
         Key = "Stone02",
 
         -- Simple Unit Data
-        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 02"),
+        UnitType = DCEI.SimpleUnit("Prop - Stone - 02"),
         Health = {
             Starting = 20,
         },
@@ -431,7 +431,7 @@ local PropData = {
             collides_with_layer_mask = CollisionLayers.Hostile,
             radius = 0.5,
         },
-        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+        DeathEffect = DCEI.Effect("Prop - Stone - OnDeath"),
 
         -- Prop Data
         Weight = 5,
@@ -449,7 +449,7 @@ local PropData = {
         Key = "Stone03",
 
         -- Simple Unit Data
-        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 03"),
+        UnitType = DCEI.SimpleUnit("Prop - Stone - 03"),
         Health = {
             Starting = 20,
         },
@@ -461,7 +461,7 @@ local PropData = {
             collides_with_layer_mask = CollisionLayers.Hostile,
             radius = 0.5,
         },
-        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+        DeathEffect = DCEI.Effect("Prop - Stone - OnDeath"),
 
         -- Prop Data
         Weight = 5,
@@ -479,7 +479,7 @@ local PropData = {
         Key = "Stone04",
 
         -- Simple Unit Data
-        UnitType = DCEI.SimpleUnit("Camp - Prop - Stone - 04"),
+        UnitType = DCEI.SimpleUnit("Prop - Stone - 04"),
         Health = {
             Starting = 20,
         },
@@ -491,7 +491,7 @@ local PropData = {
             collides_with_layer_mask = CollisionLayers.Hostile,
             radius = 0.5,
         },
-        DeathEffect = DCEI.Effect("Camp - Prop - Stone - OnDeath"),
+        DeathEffect = DCEI.Effect("Prop - Stone - OnDeath"),
 
         -- Prop Data
         Weight = 5,
@@ -505,13 +505,37 @@ local PropData = {
 
         RandomizeScale = 0.35,
     },
+    Stone05 = {
+        Key = "Stone05",
+
+        -- Simple Unit Data
+        UnitType = DCEI.SimpleUnit("Prop - Stone - 05"),
+        Health = {
+            Starting = 20,
+        },
+        ArmorType = ARMOR_TYPES.Structure,
+        Tag = SIMPLE_TAG.Stone,
+        Mass = 1000000,
+
+        -- Prop Data
+        Weight = 5,
+        IsSimple = true,
+        IsDestructible = false,
+
+        TransformAnimation = {
+            end_scale = Vector3.New(0.25, 0.25, 0.25),
+            end_position = Vector3.New(0, -0.001, 0),
+        },
+
+        RandomizeScale = 0.35,
+    },
     IronVein01 = {
         Key = "IronVein01",
 
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 01"),
         Health = {
-            Starting = 100,
+            Starting = 500,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -543,7 +567,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 02"),
         Health = {
-            Starting = 100,
+            Starting = 500,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -575,7 +599,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 03"),
         Health = {
-            Starting = 100,
+            Starting = 500,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -607,7 +631,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 04"),
         Health = {
-            Starting = 100,
+            Starting = 500,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Tag = SIMPLE_TAG.Stone,
@@ -639,7 +663,7 @@ local PropData = {
         -- Simple Unit Data
         UnitType = DCEI.SimpleUnit("Prop - Iron Vein - 05"),
         Health = {
-            Starting = 100,
+            Starting = 500,
         },
         ArmorType = ARMOR_TYPES.Structure,
         Mass = 1000000,

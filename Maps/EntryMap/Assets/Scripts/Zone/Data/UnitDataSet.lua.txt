@@ -1,0 +1,413 @@
+local Vector2 = require("Class/Vector2")
+
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+---@class UnitData
+---@field public Key string
+---@field public Icon string
+---@field public ISpawnable ISpawnableData | nil
+---@field public IHealth IHealthData | nil
+---@field public IBreakable IDropData | nil
+
+---@class UnitDataSet
+---@field public List table<UnitData>
+---@field public Map table<string, UnitData>
+local UnitDataSet = {}
+
+UnitDataSet.List = {
+    ---TODO: Setup the different interfaces
+    -- Breakable - Health, Drops, and Respawn
+    -- Grow - Time, Growth, Glow, Drops (Can be UI-Driven or Object-Driven)
+    -- SaveConditions - Likely based on Zone Status or Key Items
+    -- Purchase (Cost, Storage, and Reward)
+    -- Editor Setup
+    {
+        Key = "Tree01",
+        Icon = DCEI.Texture("cartoon_land1_tree1_survival"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Destructible,
+            UnitType = DCEI.Unit("ZoneUnit - Tree - 01"),
+            Tags = {
+                DCEI.Tag("Tree"),
+            },
+            SpawnImmediately = true,
+            RespawnTime = 60,
+        },
+
+        IHealth = {
+            Health = 30,
+            HealthPhases = {
+                "Phase - 1",
+                "Phase - 2",
+                "Phase - 3",
+            },
+        },
+
+        IDrop = {
+            ---TODO: Scaling Options
+            Thresholds = {
+                {
+                    Health = 66,
+                    Drops = {
+                        {
+                            ResourceType = "Wood",
+                            Amount = 1,
+                        },
+                    },
+                },
+                {
+                    Health = 33,
+                    Drops = {
+                        {
+                            ResourceType = "Wood",
+                            Amount = 1,
+                        },
+                    },
+                },
+                {
+                    Health = 0,
+                    Drops = {
+                        {
+                            ResourceType = "Wood",
+                            Amount = 1,
+                        },
+                    },
+                },
+            },
+        },
+
+        IPlaceholder = {
+            UnitType = DCEI.Unit("ZoneUnit - Tree - 01 - Placeholder"),
+        },
+    },
+    {
+        Key = "Tree02",
+        Icon = DCEI.Texture("Wildsurvivor_prop_f_ntree02"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Destructible,
+            UnitType = DCEI.Unit("ZoneUnit - Tree - 02"),
+            Tags = {
+                DCEI.Tag("Tree"),
+            },
+            SpawnImmediately = true,
+            RespawnTime = 60,
+        },
+
+        IHealth = {
+            Health = 150, -- 5x Tree01
+            HealthPhases = {
+                "Phase - 1",
+                "Phase - 2",
+                "Phase - 3",
+            },
+        },
+
+        IDrop = {
+            ---TODO: Scaling Options
+            Thresholds = {
+                {
+                    Health = 66,
+                    Drops = {
+                        {
+                            ResourceType = "Wood",
+                            Amount = 5,
+                        },
+                    },
+                },
+                {
+                    Health = 33,
+                    Drops = {
+                        {
+                            ResourceType = "Wood",
+                            Amount = 5,
+                        },
+                    },
+                },
+                {
+                    Health = 0,
+                    Drops = {
+                        {
+                            ResourceType = "Wood",
+                            Amount = 5,
+                        },
+                    },
+                },
+            },
+        },
+
+        IPlaceholder = {
+            UnitType = DCEI.Unit("ZoneUnit - Tree - 02 - Placeholder"),
+        },
+    },
+    {
+        Key = "Stone01",
+        Icon = DCEI.Texture("cartoon_icon_portrait_prop_rock_rank4_mergewar"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Destructible,
+            UnitType = DCEI.Unit("ZoneUnit - Stone - 01"),
+            Tags = {
+                DCEI.Tag("Stone"),
+            },
+            SpawnImmediately = true,
+            RespawnTime = 90,
+        },
+
+        IHealth = {
+            Health = 60,
+            HealthPhases = {
+                "Phase - 1",
+                "Phase - 2",
+                "Phase - 3",
+            },
+        },
+
+        IDrop = {
+            ---TODO: Scaling Options
+            Thresholds = {
+                {
+                    Health = 66,
+                    Drops = {
+                        {
+                            ResourceType = "Stone",
+                            Amount = 1,
+                        },
+                    },
+                },
+                {
+                    Health = 33,
+                    Drops = {
+                        {
+                            ResourceType = "Stone",
+                            Amount = 1,
+                        },
+                    },
+                },
+                {
+                    Health = 0,
+                    Drops = {
+                        {
+                            ResourceType = "Stone",
+                            Amount = 1,
+                        },
+                    },
+                },
+            },
+        },
+
+        IPlaceholder = {
+            UnitType = DCEI.Unit("ZoneUnit - Stone - 01 - Placeholder"),
+        },
+    },
+    {
+        Key = "Stone02",
+        Icon = DCEI.Texture("cartoon_bigstone_survival"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Destructible,
+            UnitType = DCEI.Unit("ZoneUnit - Stone - 02"),
+            Tags = {
+                DCEI.Tag("Stone"),
+            },
+            SpawnImmediately = true,
+            RespawnTime = 90,
+        },
+
+        IHealth = {
+            Health = 300, -- 5x Stone01
+            HealthPhases = {
+                "Phase - 1",
+                "Phase - 2",
+                "Phase - 3",
+            },
+        },
+
+        IDrop = {
+            ---TODO: Scaling Options
+            Thresholds = {
+                {
+                    Health = 66,
+                    Drops = {
+                        {
+                            ResourceType = "Stone",
+                            Amount = 5,
+                        },
+                    },
+                },
+                {
+                    Health = 33,
+                    Drops = {
+                        {
+                            ResourceType = "Stone",
+                            Amount = 5,
+                        },
+                    },
+                },
+                {
+                    Health = 0,
+                    Drops = {
+                        {
+                            ResourceType = "Stone",
+                            Amount = 5,
+                        },
+                    },
+                },
+            },
+        },
+
+        IPlaceholder = {
+            UnitType = DCEI.Unit("ZoneUnit - Stone - 02 - Placeholder"),
+        },
+    },
+    {
+        Key = "Pumpkin01",
+        Icon = DCEI.Texture("cartoon_pumpkin_survival"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Terrain,
+            UnitType = DCEI.Unit("ZoneUnit - Pumpkin - 01"),
+            Tags = {},
+            SpawnImmediately = true,
+            RespawnTime = 0,
+        },
+
+        IGrow = {
+            GrowthRate = 30,
+            PhaseEvents = {
+                "Phase - 1",
+                "Phase - 2",
+                "Phase - 3",
+                "Phase - 4",
+            },
+            HarvestRange = 0.5,
+            OnCollect = {
+                {
+                    ResourceType = "Pumpkin",
+                    Amount = 1,
+                },
+            },
+        },
+    },
+    -- Dig
+    {
+        Key = "Dig01",
+        Icon = DCEI.Texture("cartoon_bigdig_survival"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Destructible,
+            UnitType = DCEI.Unit("ZoneUnit - Dig - 01"),
+            Tags = {
+                DCEI.Tag("Dig"),
+            },
+            SpawnImmediately = true,
+            RespawnTime = 120,
+        },
+
+        IHealth = {
+            Health = 10,
+        },
+
+        IDrop = {
+            ---TODO: Scaling Options
+            Thresholds = {
+                {
+                    Health = 0,
+                    Drops = {
+                        {
+                            ResourceType = "Gold",
+                            Amount = 20,
+                        },
+                    },
+                },
+            },
+        },
+
+        ---TODO: Add Placeholder
+    },
+    -- Axe Shrine
+    {
+        Key = "AxeShop",
+        Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Terrain,
+            UnitType = DCEI.Unit("ZoneUnit - Shop - 01"),
+            Tags = {},
+            SpawnImmediately = true,
+            RespawnTime = 9999999,
+        },
+
+        IShop = {
+            -- Save Information?
+            -- -- How much is currently held in the Shrine
+            -- -- What Content Index is being offered
+            -- Unique?
+            Contents = {
+                {
+                    Preview = DCEI.Unit("Shop - Axe Preview - 01"), ---TODO: Update to Axe Preview
+                    ResourceType = "Gold",
+                    Cost = 25,
+                    HeroUpgrades = {
+                        "ChopTreeLevel_02",
+                    },
+                },
+                {
+                    Preview = DCEI.Unit("Shop - Axe Preview - 01"), ---TODO: Update to Axe Preview
+                    ResourceType = "Gold",
+                    Cost = 50,
+                    HeroUpgrades = {
+                        "ChopTreeLevel_03",
+                    },
+                },
+            },
+        },
+    },
+
+    -- Coffee Shrine
+    {
+        Key = "CoffeeShop",
+        Icon = DCEI.Texture("flat_icon_emoji_hot_beverage_2615_ipick"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Terrain,
+            UnitType = DCEI.Unit("ZoneUnit - Shop - 01"),
+            Tags = {},
+            SpawnImmediately = true,
+            RespawnTime = 9999999,
+        },
+
+        IShop = {
+            -- Save Information?
+            -- -- How much is currently held in the Shrine
+            -- -- What Content Index is being offered
+            -- Unique?
+            Contents = {
+                {
+                    Preview = DCEI.Unit("Shop - Coffee Preview - 01"), ---TODO: Update to Axe Preview
+                    ResourceType = "Gold",
+                    Cost = 25,
+                    HeroUpgrades = {
+                        "WorkerWake",
+                    },
+                },
+            },
+        },
+    },
+}
+
+UnitDataSet.Map = {}
+for _, data in ipairs(UnitDataSet.List) do
+    UnitDataSet.Map[data.Key] = data
+end
+
+return UnitDataSet

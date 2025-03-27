@@ -17,6 +17,7 @@ local SD_ArcherTowers = require("SharedData/Skills/CampData/SD_ArcherTowers")
 
 -- Generic
 local SD_ChopTree = require("SharedData/Skills/SkillData/SD_ChopTree")
+local SD_WorkerWake = require("SharedData/Skills/SkillData/SD_WorkerWake")
 local SD_MineStone = require("SharedData/Skills/SkillData/SD_MineStone")
 local SD_Shovel = require("SharedData/Skills/SkillData/SD_Shovel")
 
@@ -110,6 +111,11 @@ local Data = {
     -- ================================================================================================
 
     ChopTree = SD_ChopTree.ChopTree,
+    ChopTreeLevel_02 = SD_ChopTree.ChopTreeLevel_02,
+    ChopTreeLevel_03 = SD_ChopTree.ChopTreeLevel_03,
+
+    WorkerWake = SD_WorkerWake.WorkerWake,
+
     MineStone = SD_MineStone.MineStone,
     Shovel = SD_Shovel.Shovel,
 
