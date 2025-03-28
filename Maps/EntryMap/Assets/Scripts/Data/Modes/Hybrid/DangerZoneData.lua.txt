@@ -102,13 +102,6 @@ local data =
             x = 1.6682891845703125,
             y = -0.18378257751464844
             }
-        },
-        {
-            Key = "AxeShop",
-            Position = {
-            x = 0,
-            y = -2
-            }
         }
         },
         UnlockRequirements = {
@@ -235,7 +228,7 @@ local data =
                 y = 0,
             },
             Zones = {
-                "farm_1",
+                "sand_6",
             },
         },
     },
@@ -1494,16 +1487,7 @@ local data =
     },
     starting_zone = {
         Key = "starting_zone",
-        KeyItems = {
-        {
-            Key = "ChopTree",
-            Position = {
-            x = -0.11501608788967133,
-            y = 4.8436832427978516
-            },
-            Status = "Cleansed"
-        }
-        },
+        KeyItems = {},
         Position = {
         x = 0,
         y = 0
@@ -1638,6 +1622,13 @@ local data =
             Position = {
             x = 2.5,
             y = 0
+            }
+        },
+        {
+            Key = "AxeShop",
+            Position = {
+            x = 2.5,
+            y = -2
             }
         }
         }

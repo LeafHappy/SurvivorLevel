@@ -350,16 +350,16 @@ UnitDataSet.List = {
             Contents = {
                 {
                     Preview = DCEI.Unit("Shop - Axe Preview - 01"), ---TODO: Update to Axe Preview
-                    ResourceType = "Stone",
-                    Cost = 15,
+                    ResourceType = "Gold",
+                    Cost = 10,
                     HeroUpgrades = {
                         "ChopTreeLevel_01",
                     },
                 },
                 {
                     Preview = DCEI.Unit("Shop - Axe Preview - 01"),
-                    ResourceType = "Gold",
-                    Cost = 40,
+                    ResourceType = "Stone",
+                    Cost = 15,
                     HeroUpgrades = {
                         "ChopTreeLevel_02",
                     },
