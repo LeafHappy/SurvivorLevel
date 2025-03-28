@@ -78,12 +78,12 @@ local POS = {
     Star = Vector2.New(2.5, -2.5),
 
     TalentExchange = Vector2.New(5, 0),
-    Talents = Vector2.New(0, 9),
+    Talents = Vector2.New(10, 5),
     Shrine_Strafe = Vector2.New(0, -8),
     Shrine_Bash = Vector2.New(0, -16),
 
-    Logging = Vector2.New(10, 26),
-    Mine = Vector2.New(10, -20),
+    Logging = Vector2.New(20, 15),
+    Mine = Vector2.New(10, -15),
     Treasury = Vector2.New(-1, 12),
 
     ArcherSlot_1 = Vector2.New(-4, 0),
@@ -887,7 +887,7 @@ local data = {
         -- },
 
         MetaRequirements = { -- Required to Build
-            "forest_5",
+            "forest_4",
         },
     },
 
@@ -932,7 +932,7 @@ local data = {
         -- },
 
         MetaRequirements = { -- Required to Build
-            "sand_8",
+            "sand_6",
         },
     },
 
