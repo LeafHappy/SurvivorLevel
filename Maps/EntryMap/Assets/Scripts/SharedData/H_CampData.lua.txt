@@ -78,7 +78,7 @@ local POS = {
     Star = Vector2.New(2.5, -2.5),
 
     TalentExchange = Vector2.New(5, 0),
-    Talents = Vector2.New(10, 7),
+    Talents = Vector2.New(15, 0),
     Shrine_Strafe = Vector2.New(0, -8),
     Shrine_Bash = Vector2.New(0, -16),
 

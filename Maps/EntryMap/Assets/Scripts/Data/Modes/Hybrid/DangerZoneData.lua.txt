@@ -108,8 +108,8 @@ local data =
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 15,
-                Resource = "Gold",
+                Amount = 20,
+                Resource = "Wood",
             },
             StandOffset = {
                 x = 0,
@@ -169,8 +169,8 @@ local data =
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 30,
-                Resource = "Wood",
+                Amount = 15,
+                Resource = "Pumpkin",
             },
             StandOffset = {
                 x = 3,
@@ -237,7 +237,7 @@ local data =
         KeyItems = {},
         Position = {
         x = 2,
-        y = 0
+        y = 1
         },
         Props = {
         {
@@ -260,8 +260,8 @@ local data =
         {
             Key = "Grasslands",
             Position = {
-            x = 3,
-            y = 0
+            x = 2,
+            y = 1
             }
         }
         },
@@ -313,8 +313,8 @@ local data =
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 20,
-                Resource = "Wood",
+                Amount = 5,
+                Resource = "Gold",
             },
             StandOffset = {
                 x = 0,
@@ -325,7 +325,7 @@ local data =
                 y = 0,
             },
             Zones = {
-                "talent_unlock",
+                "forest_4",
             },
         },
     },
@@ -1637,8 +1637,8 @@ local data =
         Key = "talent_unlock",
         KeyItems = {},
         Position = {
-        x = 2,
-        y = 1
+        x = 3,
+        y = 0
         },
         Props = {
         {
@@ -1654,8 +1654,8 @@ local data =
         {
             Key = "Grasslands",
             Position = {
-            x = 2,
-            y = 1
+            x = 3,
+            y = 0
             }
         }
         },
@@ -1664,16 +1664,19 @@ local data =
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 5,
+                Amount = 15,
                 Resource = "Gold",
             },
             StandOffset = {
-                x = -3,
+                x = 3,
                 y = 0,
             },
             UIOffset = {
                 x = 0,
                 y = 0,
+            },
+            Zones = {
+                "east_2",
             },
         },
     }
