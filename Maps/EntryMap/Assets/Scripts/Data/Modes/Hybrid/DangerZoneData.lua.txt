@@ -107,7 +107,7 @@ local data =
             Key = "AxeShop",
             Position = {
             x = 0,
-            y = 0
+            y = -2
             }
         }
         },
@@ -180,15 +180,15 @@ local data =
                 Resource = "Wood",
             },
             StandOffset = {
-                x = 0,
-                y = 3,
+                x = 3,
+                y = 0,
             },
             UIOffset = {
                 x = 0,
                 y = 0,
             },
             Zones = {
-                "forest_2",
+                "east_1",
             },
         },
     },
@@ -223,7 +223,7 @@ local data =
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 20,
+                Amount = 30,
                 Resource = "Pumpkin",
             },
             StandOffset = {
@@ -1414,7 +1414,7 @@ local data =
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 60,
+                Amount = 40,
                 Resource = "Gold",
             },
             StandOffset = {
@@ -1488,7 +1488,7 @@ local data =
                 y = 0,
             },
             Zones = {
-                "sand_6",
+                "sand_7",
             },
         },
     },
@@ -1631,6 +1631,13 @@ local data =
             Position = {
             x = -1.513641357421875,
             y = -5.7050838470458984
+            }
+        },
+        {
+            Key = "Campfire01",
+            Position = {
+            x = 2.5,
+            y = 0
             }
         }
         }
