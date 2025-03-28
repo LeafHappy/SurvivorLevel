@@ -5809,6 +5809,70 @@
                 "modelScale": 1.43
             }
         },
+        "Hostile - Spawn - Dust VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "vfx_2d_wildsurvivor_ground_summon_birth_top"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "playAnimation": {}
+                            }
+                        ]
+                    }
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - 45"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.75,
+                    "y": 0.75,
+                    "z": 0.75
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 2
+                }
+            }
+        },
+        "Hostile - Spawn - Hole VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "Animation2D",
+                    "name": "vfx_2d_wildsurvivor_ground_summon_brith"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "playAnimation": {}
+                            }
+                        ]
+                    }
+                ],
+                "hostSiteOperations": [
+                    "SOp Fixed - OnGround - Rotation"
+                ],
+                "scaleMultiplier": {
+                    "x": 0.75,
+                    "y": 0.75,
+                    "z": 0.75
+                },
+                "animation2dOptions": {
+                    "renderingQueue": 1
+                }
+            }
+        },
         "Hostile - Walker": {
             "prefix": "",
             "parent": "_Hostile",
@@ -10619,6 +10683,10 @@
                     "type": "GpuAnimation",
                     "name": "modern_missile_wildsurvivor_bjornnson_axe"
                 },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
                 "hostSiteOperations": [
                     "Shop - Axe Preview - Rotation",
                     "SOp UpBy Dot5",
@@ -10638,22 +10706,7 @@
                 }
             }
         },
-        "Shop - Coffee Preview - 01": {
-            "prefix": "",
-            "parent": "_StandardUnitMinimal",
-            "unitActor": {
-                "resource": {
-                    "type": "Sprite",
-                    "name": "flat_icon_emoji_hot_beverage_2615_ipick"
-                },
-                "hostSiteOperations": [
-                    "Shop - Axe Preview - Rotation",
-                    "SOp UpBy Dot5",
-                    "SOp UpBy Dot25"
-                ]
-            }
-        },
-        "Shop Bubble": {
+        "Shop - Bubble": {
             "prefix": "",
             "parent": "_StandardUnitMinimal",
             "unitActor": {
@@ -10670,7 +10723,22 @@
                 ]
             }
         },
-        "Shop Indicator": {
+        "Shop - Coffee Preview - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "Sprite",
+                    "name": "flat_icon_emoji_hot_beverage_2615_ipick"
+                },
+                "hostSiteOperations": [
+                    "Shop - Axe Preview - Rotation",
+                    "SOp UpBy Dot5",
+                    "SOp UpBy Dot25"
+                ]
+            }
+        },
+        "Shop - Indicator": {
             "prefix": "",
             "parent": "_StandardUnitMinimal",
             "unitActor": {
@@ -10682,6 +10750,24 @@
                     "Destroy On Death",
                     "Destroy On Remove"
                 ]
+            }
+        },
+        "Shop - Purchase - Item Vanish VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_drow_mage_shield_aura_impact_aoe"
+                }
+            }
+        },
+        "Shop - Purchase - Pop VFX": {
+            "parent": "_SFX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_dryad_bewitch_impact_slim"
+                }
             }
         },
         "Shot - Missile": {
@@ -15327,6 +15413,70 @@
                     "y": 0.1,
                     "z": 0.1
                 }
+            }
+        },
+        "ZoneUnit - Campfire - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "GpuAnimation",
+                    "name": "prop_campfire_wildsurvivor"
+                },
+                "events": [
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "create": {
+                                    "actor": "ZoneUnit - Campfire - Addon - Fire"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "actorTerm": {
+                            "actorCreate": {}
+                        },
+                        "actions": [
+                            {
+                                "create": {
+                                    "actor": "ZoneUnit - Campfire - Addon - Indicator"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ]
+            }
+        },
+        "ZoneUnit - Campfire - Addon - Fire": {
+            "parent": "_UnitModelAddition",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_campfire_wildsurvivor"
+                },
+                "scaleMultiplier": {
+                    "x": 1.25,
+                    "y": 1.25,
+                    "z": 1.25
+                }
+            }
+        },
+        "ZoneUnit - Campfire - Addon - Indicator": {
+            "parent": "_UnitModelAddition",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_indicator_white_wildsurvivor"
+                },
+                "modelScale": 2.5
             }
         },
         "ZoneUnit - Dig - 01": {

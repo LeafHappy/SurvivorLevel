@@ -347,23 +347,27 @@ UnitDataSet.List = {
         },
 
         IShop = {
-            -- Save Information?
-            -- -- How much is currently held in the Shrine
-            -- -- What Content Index is being offered
-            -- Unique?
             Contents = {
                 {
-                    Preview = DCEI.Unit("Shop - Axe Preview - 01"), ---TODO: Update to Axe Preview
+                    Preview = DCEI.Unit("Shop - Axe Preview - 01"),
                     ResourceType = "Gold",
                     Cost = 15,
+                    HeroUpgrades = {
+                        "ChopTreeLevel_01",
+                    },
+                },
+                {
+                    Preview = DCEI.Unit("Shop - Axe Preview - 01"),
+                    ResourceType = "Gold",
+                    Cost = 40,
                     HeroUpgrades = {
                         "ChopTreeLevel_02",
                     },
                 },
                 {
-                    Preview = DCEI.Unit("Shop - Axe Preview - 01"), ---TODO: Update to Axe Preview
+                    Preview = DCEI.Unit("Shop - Axe Preview - 01"),
                     ResourceType = "Gold",
-                    Cost = 40,
+                    Cost = 150,
                     HeroUpgrades = {
                         "ChopTreeLevel_03",
                     },
@@ -387,10 +391,6 @@ UnitDataSet.List = {
         },
 
         IShop = {
-            -- Save Information?
-            -- -- How much is currently held in the Shrine
-            -- -- What Content Index is being offered
-            -- Unique?
             Contents = {
                 {
                     Preview = DCEI.Unit("Shop - Coffee Preview - 01"), ---TODO: Update to Axe Preview
@@ -401,6 +401,19 @@ UnitDataSet.List = {
                     },
                 },
             },
+        },
+    },
+    {
+        Key = "Campfire01",
+        Icon = DCEI.Texture("icon_ingame_campfire"),
+
+        ISpawnable = {
+            Team = TEAM.Terrain,
+            Player = PLAYER.Terrain,
+            UnitType = DCEI.Unit("ZoneUnit - Campfire - 01"),
+            Tags = {},
+            SpawnImmediately = true,
+            RespawnTime = 0,
         },
     },
 }

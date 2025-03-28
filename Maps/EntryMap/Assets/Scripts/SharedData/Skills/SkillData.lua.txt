@@ -110,7 +110,7 @@ local Data = {
     -- ANCHOR -- Generic
     -- ================================================================================================
 
-    ChopTree = SD_ChopTree.ChopTree,
+    ChopTreeLevel_01 = SD_ChopTree.ChopTreeLevel_01,
     ChopTreeLevel_02 = SD_ChopTree.ChopTreeLevel_02,
     ChopTreeLevel_03 = SD_ChopTree.ChopTreeLevel_03,
 

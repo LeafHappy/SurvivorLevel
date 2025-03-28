@@ -37,7 +37,10 @@ local Help = require("Help")
 -- SECTION -- Local Data
 ---============================================================================
 
-local REF = {}
+local REF = {
+    SpawnHoleVFX = DCEI.Effect("Hostile - Spawn - Hole VFX"),
+    SpawnDustVFX = DCEI.Effect("Hostile - Spawn - Dust VFX"),
+}
 
 ---@type table<string, SimpleUnit>
 local REGISTERED_UNITS = {}
@@ -54,6 +57,7 @@ local REGISTERED_UNITS = {}
 ---@field Instance SimpleUnitInstance | nil
 ---@field EstimatedPosition Vector2
 ---@field RoamDestination Vector2
+---@field DisableTimer number
 ---@field IsActive boolean
 ---@field OnKilledEvent Event
 local DangerInstanceTracker = {}
@@ -86,8 +90,10 @@ function DangerInstanceTracker.New(hostile_data, position, respawn_time, spawn_i
     self.EstimatedPosition = position
     self.RoamDestination = position
 
+    self.DisableTimer = 0
+
     if spawn_immediately then
-        self:ForceSpawn()
+        self:_SpawnInstance()
         -- self.Timer = self.RespawnTime
     end
 
@@ -128,6 +134,20 @@ function DangerInstanceTracker:_ValidateUnit()
     end
 end
 
+function DangerInstanceTracker:_SpawnInstance()
+    self.DisableTimer = 2
+
+    Help.CreateEffect(PLAYER.Terrain, REF.SpawnHoleVFX, self.Position)
+
+    Help.GameTimer(0.3, nil, nil, function()
+        Help.CreateEffect(PLAYER.Terrain, REF.SpawnDustVFX, self.Position)
+    end)
+
+    Help.GameTimer(1.8, nil, nil, function()
+        self.Instance = SpawnDirector.Instance:SpawnStationary(self.HostileData, self.Position)
+    end)
+end
+
 ---comment
 function DangerInstanceTracker:_CheckSpawnInstance()
     if Help.ValidateSimpleUnit(self.Instance) then
@@ -144,7 +164,7 @@ function DangerInstanceTracker:_CheckSpawnInstance()
     end
     self.Timer = 0
 
-    self.Instance = SpawnDirector.Instance:SpawnStationary(self.HostileData, self.Position)
+    self:_SpawnInstance()
 end
 
 ---Move to a random location near spawn point
@@ -224,6 +244,12 @@ end
 ---@param hero Hero
 function DangerInstanceTracker:Update(hero)
     self:_ValidateUnit()
+
+    if self.DisableTimer > 0 then
+        self.DisableTimer = self.DisableTimer - TICK_RATE
+        return
+    end
+
     self:_CheckSpawnInstance()
     self:_UpdateInstanceMoveBehavior(hero)
 end

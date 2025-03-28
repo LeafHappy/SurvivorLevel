@@ -538,6 +538,11 @@
         "Worker Awake": {
             "defaultStackType": {}
         },
+        "ZoneUnit - Campfire - Heal": {
+            "defaultStackType": {},
+            "periodicInterval": 0.03125,
+            "periodicEffect": "ZoneUnit - Campfire - Heal - Scan"
+        },
         "_DamageApplier": {
             "template": true,
             "maxStackCount": 1,

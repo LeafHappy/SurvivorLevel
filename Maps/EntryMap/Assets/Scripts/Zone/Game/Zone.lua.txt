@@ -984,6 +984,33 @@ function Zone:_CheckSpendResource(delta, hero)
     self:_ChannelUnlockProgress(hero, delta)
 end
 
+function Zone:_ZoneRequirementsMet()
+    -- Check for Unlock Requirements
+    local unlock_requirements = self.Data.UnlockRequirements
+    if not unlock_requirements then
+        return true
+    end
+
+    local zones = unlock_requirements.Zones
+    if not zones then
+        return true
+    end
+
+    local save_data = SaveDataManager.GetReference(SAVE_KEY.ZoneStatus) or {}
+
+    for _, zone_key in ipairs(zones) do
+        if not save_data[zone_key] then
+            return false
+        end
+
+        if not (save_data[zone_key].status == ZONE_STATUS.Cleansed) then
+            return false
+        end
+    end
+
+    return true
+end
+
 ---@param delta number
 ---@param hero Hero
 function Zone:_CheckAvailableForPurchase(delta, hero)
@@ -995,6 +1022,10 @@ function Zone:_CheckAvailableForPurchase(delta, hero)
     -- Check for Unlock Requirements
     local unlock_requirements = self.Data.UnlockRequirements
     if not unlock_requirements then
+        return
+    end
+
+    if not self:_ZoneRequirementsMet() then
         return
     end
 

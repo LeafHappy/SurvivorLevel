@@ -1,19 +1,28 @@
 local Core = require("Core")
 
 local Vector2 = require("Class/Vector2")
+local Vector3 = require("Class/Vector3")
 
 local SaveDataManager = require("Class/SaveDataManager")
 local ResourceData = require("SharedData/MetaResources/ResourceData")
 
+local Joystick = require("Class/Joystick")
+local Camera = require("Class/Camera")
+
 local Help = require("Help")
 
+local POST_PURCHASE_DISABLE_TIME = 5.0
+local SHOW_PREVIEW_DISTANCE = 2.0
 local CHANNEL_TIME = 2.25
 local MAX_CHANNEL_STEP = 0.25
 local THROW_TIME = 0.45
 
 local REF = {
-    Indicator = DCEI.Unit("Shop Indicator"),
-    Bubble = DCEI.Unit("Shop Bubble"),
+    Indicator = DCEI.Unit("Shop - Indicator"),
+    Bubble = DCEI.Unit("Shop - Bubble"),
+
+    PurchaseBubblePop = DCEI.Effect("Shop - Purchase - Pop VFX"),
+    PurchaseItemVanish = DCEI.Effect("Shop - Purchase - Item Vanish VFX"),
 }
 
 ---@class IShopData
@@ -146,7 +155,18 @@ end
 
 ---comment
 ---@param index integer
-function IShop:_SpawnOfferPreview(index)
+function IShop:_AttemptSpawnOfferPreview(index)
+    -- Disable temporary post-purchase
+    if self.DisableTimer > 0 then
+        return
+    end
+
+    -- Do we need to skip this return if no Preview is shown?
+    if self.CurrentOfferIndex == index then
+        return
+    end
+    self.CurrentOfferIndex = index
+
     -- Update Offer
     local offer = self.Data.Contents[index]
     local position = Vector2.NewFromTable(self.ZoneUnit.Position)
@@ -166,16 +186,23 @@ function IShop:_SpawnOfferPreview(index)
     self.Bubble = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Bubble, position.x, position.y)
 end
 
-function IShop:_RemoveOfferPreview()
+function IShop:_RemovePreview()
     if Help.ValidateUnit(self.Preview) then
         DCEI.RemoveUnit(self.Preview)
         self.Preview = nil
     end
+end
 
+function IShop:_RemoveBubble()
     if Help.ValidateUnit(self.Bubble) then
         DCEI.RemoveUnit(self.Bubble)
         self.Bubble = nil
     end
+end
+
+function IShop:_RemoveSimulationOfferPreview()
+    self:_RemovePreview()
+    self:_RemoveBubble()
 end
 
 function IShop:_RemoveIndicator()
@@ -208,7 +235,6 @@ end
 ---@param hero Hero
 function IShop:_AttemptDepositResources(delta, hero)
     if self.DisableTimer > 0 then
-        self.DisableTimer = self.DisableTimer - delta
         return
     end
 
@@ -338,28 +364,119 @@ function IShop:_AttemptPurchase(delta, hero)
     save_data.CurrentOfferIndex = save_data.CurrentOfferIndex + 1
     SaveDataManager.Set(save_data_path, save_data)
 
+    -- Hide UI Preview
+    Core.Event.SendPresentationEvent("ZoneUnit.Shop.HidePreview", self.ZoneUnit.UID)
+
+    local position = self.ZoneUnit.Position
+    Help.CreateEffect(PLAYER.Terrain, REF.PurchaseBubblePop, position)
+    self:_RemoveBubble()
+
+    -- Animation Time
+    local animation_time = POST_PURCHASE_DISABLE_TIME / 2
+
+    -- Disable Joystick
+    local joystick = Joystick.Fetch(PLAYER.Player1)
+    joystick:SetActive(false)
+
+    -- Zoom Camera In
+    local camera = Camera.Fetch(PLAYER.Player1)
+    local original_camera_size = camera:GetSize()
+    camera:SetSize(3, animation_time, true)
+
+    -- Turn Hero
+    DCEI.TurnUnitTowards(hero.unit, 0, -1, animation_time / 2)
+    Help.PlayAnimationWithDuration(hero.top, "action1", animation_time)
+
+    -- Move the Preview above the Hero
+    local original_position = self.ZoneUnit.Position
+    local hero_position = hero:GetPosition()
+    local heights = {
+        {
+            ease = "OutCubic",
+            value = 0,
+        },
+        {
+            ease = "OutCubic",
+            value = 2,
+        },
+        {
+            ease = "OutCubic",
+            value = 1,
+        },
+        {
+            ease = "OutCubic",
+            value = 1,
+        },
+    }
+
+    local latest_item_position = Vector3.Zero()
+    local recurring_action = function(timer_delta)
+        local x = Help.Lerp(original_position.x, hero_position.x, timer_delta, "OutCubic")
+        local z = Help.Lerp(original_position.y, hero_position.y, timer_delta, "OutCubic")
+        local height = Help.MultiLerp(heights, timer_delta)
+
+        DCEI.SetUnitPosition3DWithInterpolation(self.Preview, x, height, z)
+        latest_item_position = Vector3.New(x, height, z)
+    end
+
+    -- Give back control
+    Help.GameTimer(animation_time, nil, recurring_action, function()
+        -- Re-enable Joystick
+        joystick:SetActive(true)
+
+        -- Reset Camera Distance
+        camera:SetSize(original_camera_size, animation_time, true)
+
+        -- Remove the Offer Preview
+        self:_RemovePreview()
+
+        -- Collected Effect
+        local effect_position = Vector2.New(latest_item_position.x, latest_item_position.z)
+        Help.CreateEffect(PLAYER.Terrain, REF.PurchaseItemVanish, effect_position)
+    end)
+
     -- Disable IShop Updates for a moment so we can Animate the Purchase
-    local disable_time = 2.5 ---TODO: Determine what this needs to be
-    self.DisableTimer = disable_time
-    Help.GameTimer(disable_time, nil, nil, function()
+    self.DisableTimer = POST_PURCHASE_DISABLE_TIME
+    Help.GameTimer(POST_PURCHASE_DISABLE_TIME, nil, nil, function()
         -- Apply the Purchase (Hero Update)
         for _, skill_name in ipairs(offer.HeroUpgrades) do
             hero:LearnSkill(skill_name)
         end
 
         self.UI_TargetActiveStatus = true
+
+        -- Update next Data Pass
+        local next_offer_index = self:_GetLatestOfferIndex()
+        local next_offer = self.Data.Contents[next_offer_index]
+
+        if next_offer then
+            self.UI_DataUpdate.ResourceType = next_offer.ResourceType
+            self.UI_DataUpdate.AmountRequired = next_offer.Cost
+            self.UI_DataUpdate.AmountStored = 0
+            self.UI_IsUpdateRequired = true
+        end
     end)
+end
 
-    -- Update next Data Pass
-    local next_offer_index = self:_GetLatestOfferIndex()
-    local next_offer = self.Data.Contents[next_offer_index]
-
-    if next_offer then
-        self.UI_DataUpdate.ResourceType = next_offer.ResourceType
-        self.UI_DataUpdate.AmountRequired = next_offer.Cost
-        self.UI_DataUpdate.AmountStored = 0
-        self.UI_IsUpdateRequired = true
+function IShop:_CheckShowUIPreview(delta, hero)
+    if self.DisableTimer > 0 then
+        return
     end
+
+    local position = self.ZoneUnit.Position
+    local hero_position = hero:GetPosition()
+
+    local distance = Vector2.Distance(position, hero_position)
+
+    if distance > SHOW_PREVIEW_DISTANCE then
+        return
+    end
+
+    -- Show this Preview
+    local offer = self:_GetLatestOfferData()
+    local skill_id = offer.HeroUpgrades[1]
+
+    Core.Event.SendPresentationEvent("ZoneUnit.Shop.UpdatePreview", skill_id)
 end
 
 ---Implement in child class
@@ -376,15 +493,13 @@ function IShop:Update(delta, instance, hero, data_pass)
         self:_RemoveIndicator()
     end
 
-    -- if not data_pass.IsAlive then
-    --     return
-    -- end
-
     -- Check Offer
     local target_offer_index = self:_GetLatestOfferIndex()
 
-    -- No Additional Offers Availables
-    if not self.Data.Contents[target_offer_index] then
+    -- Show Previews
+    if self.DisableTimer > 0 then
+        self.DisableTimer = self.DisableTimer - delta
+    elseif not self.Data.Contents[target_offer_index] then
         self:Clear()
 
         DCEI.RemoveUnit(self.ZoneUnit.Instance)
@@ -392,31 +507,14 @@ function IShop:Update(delta, instance, hero, data_pass)
         data_pass.IsKilledThisFrame = true
 
         return
+    else
+        self:_CheckShowUIPreview(delta, hero)
+        self:_AttemptSpawnOfferPreview(target_offer_index)
+        self:_AttemptDepositResources(delta, hero)
+        self:_AttemptPurchase(delta, hero)
     end
 
-    if self.CurrentOfferIndex ~= target_offer_index then
-        self.CurrentOfferIndex = target_offer_index
-
-        -- Remove Offer Preview
-
-        -- Add New Offer Preview
-        self:_SpawnOfferPreview(target_offer_index)
-    end
-
-    self:_AttemptDepositResources(delta, hero)
-
-    ---TODO: Only send Presentation Data that needs to be updated.
-
-    -- Simulation:
-    -- Throw Coin
-    -- SaveData - Reduce Resource Held
-    -- SaveData - Set Resource Stored
-
-    -- Presentation:
-    -- Update Stored (after coin reaches the shop)
-
-    self:_AttemptPurchase(delta, hero)
-
+    -- Enable/Disable UI
     if self.UI_IsActive ~= self.UI_TargetActiveStatus then
         self.UI_IsActive = self.UI_TargetActiveStatus
 
@@ -433,22 +531,14 @@ function IShop:Update(delta, instance, hero, data_pass)
             self.UI_DataUpdate.ResourceType = lastest_offer_data.ResourceType
             self.UI_DataUpdate.AmountStored = self.DisplayValue
             self.UI_DataUpdate.AmountRequired = lastest_offer_data.Cost
+            self.UI_DataUpdate.IsHidden = false
             self.UI_IsUpdateRequired = true
+        else
+            self.UI_DataUpdate.IsHidden = true
         end
     end
 
-    -- if not self.UI_IsActive then
-    --     self.UI_IsActive = true
-
-    --     local lastest_offer_data = self:_GetLatestOfferData()
-
-    --     self.UI_DataUpdate.WorldPosition = self.ZoneUnit.Position
-    --     self.UI_DataUpdate.ResourceType = lastest_offer_data.ResourceType
-    --     self.UI_DataUpdate.AmountStored = self.DisplayValue
-    --     self.UI_DataUpdate.AmountRequired = lastest_offer_data.Cost
-    --     self.UI_IsUpdateRequired = true
-    -- end
-
+    -- Update UI Data
     if self.UI_IsUpdateRequired then
         self.UI_IsUpdateRequired = false
 
@@ -462,7 +552,7 @@ end
 -- Used to Clear any UnitInstances
 function IShop:Clear()
     self:_RemoveIndicator()
-    self:_RemoveOfferPreview()
+    self:_RemoveSimulationOfferPreview()
 
     Core.Event.SendPresentationEvent("ZoneUnit.Shop.Destroy", self.ZoneUnit.UID)
 end

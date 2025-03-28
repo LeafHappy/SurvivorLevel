@@ -1,0 +1,115 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local SkillData = require("SharedData/Skills/SkillData")
+local Vector3 = require("Class/Vector3")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---@class UpgradePreviewData
+---@field SkillId string
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local ui = GMUI.ui
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Layout
+---============================================================================
+
+---@class UpgradePreviewLayout
+---@field Layout Layout
+---@field Data ShopDisplayData
+---@field IsActive boolean
+local UpgradePreviewLayout = {}
+UpgradePreviewLayout.__index = UpgradePreviewLayout
+UpgradePreviewLayout.__name = "UpgradePreviewLayout"
+
+---comment
+---@return UpgradePreviewLayout
+function UpgradePreviewLayout.New()
+    local self = setmetatable({}, UpgradePreviewLayout)
+    self.Layout = GMUI.Layout.New({
+        name = "ZoneUnit/UpgradePreview",
+        parent = ui.root,
+    })
+    self.IsActive = true
+
+    self.Layout:Show()
+
+    -- Layout Hookups
+    local layout = self
+
+    function self.Layout:OnShow()
+        layout.IsActive = true
+
+        -- Animate
+        Animation.FadeIn(self.Frame)
+    end
+
+    function self.Layout:OnHide()
+        layout.IsActive = false
+
+        -- Animate
+        Animation.FadeOut(self.Frame)
+    end
+
+    self.Layout:Hide()
+    return self
+end
+
+---============================================================================
+---!SECTION: Layout
+---SECTION: Internal
+---============================================================================
+
+---============================================================================
+---!SECTION: Internal
+---SECTION: Methods
+---============================================================================
+
+function UpgradePreviewLayout:SetActive(is_active)
+    if is_active then
+        self.Layout:Show()
+    else
+        self.Layout:Hide()
+    end
+end
+
+---comment
+---@param skill_id string
+function UpgradePreviewLayout:UpdateData(skill_id)
+    local skill_data = SkillData[skill_id]
+
+    if not skill_data then
+        return
+    end
+
+    -- Set Skill Name
+    self.Layout.state.icon = skill_data.Icon
+    self.Layout.state.name = skill_data.DisplayName
+    self.Layout.state.description = skill_data.ShortDescription
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return UpgradePreviewLayout

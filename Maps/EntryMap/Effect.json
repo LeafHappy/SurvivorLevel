@@ -3770,6 +3770,22 @@
                 ]
             }
         },
+        "Hostile - Spawn - Dust VFX": {
+            "spawnActor": {
+                "actor": "Hostile - Spawn - Dust VFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
+        "Hostile - Spawn - Hole VFX": {
+            "spawnActor": {
+                "actor": "Hostile - Spawn - Hole VFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
         "Hostile - Walker - Damage": {
             "parent": "_Damage - Hostile",
             "simpleDamage": {}
@@ -6015,6 +6031,22 @@
                 "effectList": [
                     "Shieldbearer - Minion - Mummy - Damage"
                 ]
+            }
+        },
+        "Shop - Purchase - Item Vanish VFX": {
+            "spawnActor": {
+                "actor": "Shop - Purchase - Item Vanish VFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
+        "Shop - Purchase - Pop VFX": {
+            "spawnActor": {
+                "actor": "Shop - Purchase - Pop VFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
             }
         },
         "Shot - Apply Size": {
@@ -10753,6 +10785,24 @@
                     "Hero"
                 ],
                 "effect": "Wisp - Death"
+            }
+        },
+        "ZoneUnit - Campfire - Heal - Heal": {
+            "parent": "_Heal",
+            "simpleHeal": {
+                "value": 1,
+                "styleIndex": 999
+            }
+        },
+        "ZoneUnit - Campfire - Heal - Scan": {
+            "parent": "_Scan Player Owned",
+            "simpleAreaSearch": {
+                "areaSearchType": {
+                    "circle": {
+                        "radius": 2.5
+                    }
+                },
+                "effect": "ZoneUnit - Campfire - Heal - Heal"
             }
         },
         "_Damage": {

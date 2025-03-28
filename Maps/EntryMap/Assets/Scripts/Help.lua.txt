@@ -1046,6 +1046,27 @@ function Help.Lerp(a, b, t, ease)
     end
 end
 
+---@class MultiLerpData
+---@field ease Ease | nil
+---@field value number | nil
+
+---comment
+---@param t table<MultiLerpData>
+---@param delta any
+function Help.MultiLerp(t, delta)
+    local segments = #t - 1
+    local segment_delta = delta * segments
+    local segment_index = math.floor(segment_delta) + 1
+    local local_t = segment_delta % 1
+
+    if segment_index >= #t then
+        segment_index = #t - 1
+        local_t = 1
+    end
+
+    return Help.Lerp(t[segment_index].value, t[segment_index + 1].value, local_t, t[segment_index].ease)
+end
+
 ---comment
 ---@param a integer
 ---@param b integer

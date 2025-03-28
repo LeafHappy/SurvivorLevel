@@ -29,6 +29,7 @@ local Vector3 = require("Class/Vector3")
 ---@field AmountStored integer | nil
 ---@field AmountRequired integer | nil
 ---@field ResourceType string | nil
+---@field IsHidden boolean | nil
 
 ---============================================================================
 ---!SECTION: Definitions
@@ -158,11 +159,24 @@ function ShopLayout:UpdateData(data)
     self.Data.AmountStored = data.AmountStored or self.Data.AmountStored
     self.Data.AmountRequired = data.AmountRequired or self.Data.AmountRequired
     self.Data.WorldPosition = data.WorldPosition or self.Data.WorldPosition
+
+    if data.IsHidden ~= nil then -- Nil Check to avoid hiding the icon when not set
+        self.Data.IsHidden = data.IsHidden
+    end
 end
 
 ---comment
 ---@param delta Time
 function ShopLayout:Update(delta)
+    if self.Data.IsHidden and not self.IsActive then
+        self.Layout:Hide()
+        self.IsActive = false
+        return
+    elseif not self.Data.IsHidden and self.IsActive then
+        self.Layout:Show()
+        self.IsActive = true
+    end
+
     self:_UpdateIcon()
     local is_stored_changed = self:_UpdateAmountStored()
     self:_UpdateAmountRequired()

@@ -1978,13 +1978,13 @@
         "Shop - Axe Preview - 01": {
             "baseUnit": "_StandardHelper"
         },
+        "Shop - Bubble": {
+            "baseUnit": "_StandardHelper"
+        },
         "Shop - Coffee Preview - 01": {
             "baseUnit": "_StandardHelper"
         },
-        "Shop Bubble": {
-            "baseUnit": "_StandardHelper"
-        },
-        "Shop Indicator": {
+        "Shop - Indicator": {
             "baseUnit": "_StandardHelper"
         },
         "Shot - Missile": {
@@ -2636,6 +2636,14 @@
         "Zone - Wasteland - 01": {
             "baseUnit": "_GenericControllableUnit"
         },
+        "ZoneUnit - Campfire - 01": {
+            "baseUnit": "_ZoneUnit",
+            "references": {
+                "behaviorList": [
+                    "ZoneUnit - Campfire - Heal"
+                ]
+            }
+        },
         "ZoneUnit - Dig - 01": {
             "baseUnit": "_ZoneUnit",
             "components": {
@@ -2648,7 +2656,11 @@
             "baseUnit": "_ZoneUnit"
         },
         "ZoneUnit - Shop - 01": {
-            "baseUnit": "_ZoneUnit"
+            "baseUnit": "_ZoneUnit",
+            "dependentEffects": [
+                "Shop - Purchase - Pop VFX",
+                "Shop - Purchase - Item Vanish VFX"
+            ]
         },
         "ZoneUnit - Stone - 01": {
             "baseUnit": "_ZoneUnit"
@@ -2928,6 +2940,12 @@
                 "behavior": {
                     "genericControllableUnit": {}
                 }
+            },
+            "unitEventTriggers": {
+                "onUnitCreateEffects": [
+                    "Hostile - Spawn - Hole VFX",
+                    "Hostile - Spawn - Dust VFX"
+                ]
             }
         },
         "_KeyItem": {

@@ -7,12 +7,12 @@ local Data = {}
 -- ANCHOR -- Core Skill
 -- ================================================================================================
 
-Data.ChopTree = {
+Data.ChopTreeLevel_01 = {
     Key = "ChopTree",
 
     -- UI Information
-    DisplayName = "ChopTree",
-    ShortDescription = "Chop some trees down.",
+    DisplayName = "Axe",
+    ShortDescription = "Chop down some trees.",
     Icon = DCEI.Texture("cartoon_icon_weapon_axe_survivor"),
 
     -- Skill Information

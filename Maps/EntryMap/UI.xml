@@ -4630,4 +4630,20 @@
             <Frame bind:frameImage="state.icon" width="30" height="30" />
         </Frame>
     </Frame>
+    <Frame layout="flex" widthPercent="100" heightPercent="100" name="ZoneUnit/UpgradePreview">
+        <!-- State -->
+        <State name="icon" stringValue="cartoon_icon_tag_physical_survivor" />
+        <State name="name" stringValue="name" />
+        <State name="description" stringValue="description" />
+        <!-- Layout -->
+        <Frame frameImage="summonrevolt_icon_bar_08_mergewar" widthPercent="80" height="140" position="absolute" top="300" flexDirection="row">
+            <!--  -->
+            <Frame bind:frameImage="state.icon" heightPercent="50" aspectRatio="1" />
+            <Frame flexDirection="column" widthPercent="80" heightPercent="60">
+                <Text bind:text="state.name" heightPercent="20" />
+                <Frame heightPercent="20" />
+                <Text bind:text="state.description" heightPercent="60" />
+            </Frame>
+        </Frame>
+    </Frame>
 </UI>

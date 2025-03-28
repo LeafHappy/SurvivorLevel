@@ -11,6 +11,7 @@ local GMUI = require("GMUI:Presentation")
 ---============================================================================
 
 local ShopLayout = require("Zone/UI/ShopLayout")
+local UpgradePreviewLayout = require("Zone/UI/UpgradePreviewLayout")
 
 local Animation = require("Presentation/Animation")
 local ResourceData = require("SharedData/MetaResources/ResourceData")
@@ -28,10 +29,16 @@ local Vector3 = require("Class/Vector3")
 
 local ui = GMUI.ui
 
+local PREVIEW_TIME = 0.25 -- Linger Time after exiting Preview distance
+
 local Shop = {}
 
 ---@type table<string, ShopLayout>
 local _Layouts = {}
+
+---@type UpgradePreviewLayout
+local _UpgradePreviewLayout = UpgradePreviewLayout.New()
+local _PreviewTimer = 0
 
 ---============================================================================
 ---!SECTION: Variables
@@ -44,6 +51,14 @@ local function Update(delta_time)
     -- Loop through and update all layout changes received from Simulation.
     for _, layout in pairs(_Layouts) do
         layout:Update(delta_time)
+    end
+
+    -- Hide Preview after a short delay
+    if _PreviewTimer > 0 then
+        _PreviewTimer = _PreviewTimer - delta_time
+        if _PreviewTimer <= 0 then
+            _UpgradePreviewLayout:SetActive(false)
+        end
     end
 end
 
@@ -81,6 +96,17 @@ function Shop.Destroy(uid)
     end
 end
 
+---@param skill_id string
+function Shop.UpdatePreview(skill_id)
+    _UpgradePreviewLayout:SetActive(true)
+    _UpgradePreviewLayout:UpdateData(skill_id)
+    _PreviewTimer = PREVIEW_TIME
+end
+
+function Shop.HidePreview()
+    _UpgradePreviewLayout:SetActive(false)
+end
+
 ---============================================================================
 ---!SECTION: Methods
 ---SECTION: Events
@@ -89,6 +115,9 @@ end
 Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.SetActive", Shop.SetActive)
 Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.UpdateData", Shop.UpdateData)
 Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.Destroy", Shop.Destroy)
+
+Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.UpdatePreview", Shop.UpdatePreview)
+Core.Event.RegisterPresentationEvent("ZoneUnit.Shop.HidePreview", Shop.HidePreview)
 
 ---============================================================================
 ---!SECTION: Events

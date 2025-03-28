@@ -1583,7 +1583,7 @@ end
 local KEY_ITEMS = {
     Axe = {
         Effect = DCEI.Effect("KeyItem - Axe - Picked Up"),
-        Key = SkillData.ChopTree.Key,
+        Key = SkillData.ChopTreeLevel_01.Key,
     },
     Bow = {
         Effect = DCEI.Effect("KeyItem - Bow - Picked Up"),
