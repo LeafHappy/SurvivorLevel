@@ -55,7 +55,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = 1.5,
             },
             Zones = {
                 "forest_4",
@@ -66,7 +66,7 @@ local data =
         Key = "east_2",
         KeyItems = {},
         Position = {
-        x = 4,
+        x = 2,
         y = 1
         },
         Props = {
@@ -83,14 +83,14 @@ local data =
         {
             Key = "Grasslands",
             Position = {
-            x = 4,
+            x = 2,
             y = 1
             }
         },
         {
             Key = "Grasslands",
             Position = {
-            x = 4,
+            x = 2,
             y = 0
             }
         }
@@ -102,14 +102,21 @@ local data =
             x = 1.6682891845703125,
             y = -0.18378257751464844
             }
+        },
+        {
+            Key = "Stone01",
+            Position = {
+            x = -1.6682891845703125,
+            y = -5.18378257751464844
+            }
         }
         },
         UnlockRequirements = {
             AlwaysShowCost = true,
             Range = 1,
             ResourceCost = {
-                Amount = 20,
-                Resource = "Wood",
+                Amount = 5,
+                Resource = "Gold",
             },
             StandOffset = {
                 x = 0,
@@ -117,10 +124,10 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = 1.5,
             },
             Zones = {
-                "east_1",
+                "forest_4",
             },
         },
     },
@@ -177,7 +184,7 @@ local data =
                 y = 0,
             },
             UIOffset = {
-                x = 0,
+                x = 1.5,
                 y = 0,
             },
             Zones = {
@@ -225,7 +232,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = -1.5,
             },
             Zones = {
                 "sand_6",
@@ -236,8 +243,8 @@ local data =
         Key = "farm_1",
         KeyItems = {},
         Position = {
-        x = 2,
-        y = 1
+        x = 3,
+        y = 0
         },
         Props = {
         {
@@ -248,20 +255,13 @@ local data =
             }
         }
         },
-        StartingStatus = "Available",
+        StartingStatus = "Cleansed",
         Tiles = {
         {
             Key = "Grasslands",
             Position = {
-            x = 2,
+            x = 3,
             y = 0
-            }
-        },
-        {
-            Key = "Grasslands",
-            Position = {
-            x = 2,
-            y = 1
             }
         }
         },
@@ -322,7 +322,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = 1.5,
             },
             Zones = {
                 "forest_4",
@@ -405,14 +405,14 @@ local data =
         {
             Key = "Tree01",
             Position = {
-            x = 4.8165988922119141,
-            y = 1.6756534576416016
+            x = 3.8165988922119141,
+            y = -0.6756534576416016
             }
         },
         {
             Key = "Tree01",
             Position = {
-            x = 6.0388212203979492,
+            x = 7.0388212203979492,
             y = -0.52423667907714844
             }
         }
@@ -430,7 +430,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = -1.5,
             },
         },
     },
@@ -487,7 +487,7 @@ local data =
         {
             Key = "Tree01",
             Position = {
-            x = 5.6416473388671875,
+            x = 6.6416473388671875,
             y = 1.4347476959228516
             }
         },
@@ -519,7 +519,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = -1.5,
             },
             Zones = {
                 "forest_1",
@@ -609,7 +609,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = -1.5,
             },
             Zones = {
                 "forest_2",
@@ -712,11 +712,11 @@ local data =
                 y = 0,
             },
             UIOffset = {
-                x = 0,
+                x = -1.5,
                 y = 0,
             },
             Zones = {
-                "forest_2",
+                "forest_3",
             },
         },
     },
@@ -863,10 +863,10 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = 1.5,
             },
             Zones = {
-                "east_2",
+                "talent_unlock",
             },
         },
     },
@@ -954,7 +954,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = 1.5,
             },
             Zones = {
                 "sand_1",
@@ -1051,7 +1051,7 @@ local data =
                 y = 0,
             },
             UIOffset = {
-                x = 0,
+                x = -1.5,
                 y = 0,
             },
             Zones = {
@@ -1142,7 +1142,7 @@ local data =
                 y = 0,
             },
             UIOffset = {
-                x = 0,
+                x = 1.5,
                 y = 0,
             },
             Zones = {
@@ -1217,7 +1217,7 @@ local data =
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = -1.5,
             },
             Zones = {
                 "sand_4",
@@ -1263,7 +1263,7 @@ local data =
                 y = 0,
             },
             UIOffset = {
-                x = 0,
+                x = 1.5,
                 y = 0,
             },
             Zones = {
@@ -1354,7 +1354,7 @@ local data =
                 y = 0,
             },
             UIOffset = {
-                x = 0,
+                x = 1.5,
                 y = 0,
             },
             Zones = {
@@ -1415,7 +1415,7 @@ local data =
                 y = 0,
             },
             UIOffset = {
-                x = 0,
+                x = -1.5,
                 y = 0,
             },
             Zones = {
@@ -1478,7 +1478,7 @@ local data =
             },
             UIOffset = {
                 x = 5,
-                y = 0,
+                y = -1.5,
             },
             Zones = {
                 "sand_7",
@@ -1637,8 +1637,8 @@ local data =
         Key = "talent_unlock",
         KeyItems = {},
         Position = {
-        x = 3,
-        y = 0
+        x = 4,
+        y = 1
         },
         Props = {
         {
@@ -1654,8 +1654,15 @@ local data =
         {
             Key = "Grasslands",
             Position = {
-            x = 3,
+            x = 4,
             y = 0
+            }
+        },
+        {
+            Key = "Grasslands",
+            Position = {
+            x = 4,
+            y = 1
             }
         }
         },
@@ -1668,15 +1675,15 @@ local data =
                 Resource = "Gold",
             },
             StandOffset = {
-                x = 3,
-                y = 0,
+                x = 0,
+                y = 3,
             },
             UIOffset = {
                 x = 0,
-                y = 0,
+                y = 1.5,
             },
             Zones = {
-                "east_2",
+                "east_1",
             },
         },
     }
