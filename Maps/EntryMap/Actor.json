@@ -15479,6 +15479,34 @@
                 "modelScale": 2.5
             }
         },
+        "ZoneUnit - Chest - Fail VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_alchemist_acidsplash_impact_aoe"
+                },
+                "scaleMultiplier": {
+                    "x": 2,
+                    "y": 2,
+                    "z": 2
+                }
+            }
+        },
+        "ZoneUnit - Chest - Success VFX": {
+            "parent": "_FX OneShot SelfRemoving",
+            "modelActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_boss_light_channel_aura_wildsurvivor"
+                },
+                "scaleMultiplier": {
+                    "x": 1.5,
+                    "y": 1.5,
+                    "z": 1.5
+                }
+            }
+        },
         "ZoneUnit - Dig - 01": {
             "prefix": "",
             "parent": "_StandardUnitMinimal",
@@ -15504,6 +15532,53 @@
                     "centerSpriteAnchor": true,
                     "renderingQueue": 1
                 }
+            }
+        },
+        "ZoneUnit - EChest": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "GpuAnimation",
+                    "name": "fantasy_prop_chest_wood_wildsurvivor"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "modelScale": 1.5,
+                "hostSiteOperations": [
+                    "SOp 180"
+                ]
+            }
+        },
+        "ZoneUnit - Event - Radial": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "ParticleAnimation",
+                    "name": "vfx_indicator_white_wildsurvivor"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ],
+                "modelScale": 0.01
+            }
+        },
+        "ZoneUnit - Event Slot - 01": {
+            "prefix": "",
+            "parent": "_StandardUnitMinimal",
+            "unitActor": {
+                "resource": {
+                    "type": "GpuAnimation",
+                    "name": "shipslot_rock"
+                },
+                "eventMacros": [
+                    "Destroy On Death",
+                    "Destroy On Remove"
+                ]
             }
         },
         "ZoneUnit - Pumpkin - 01": {

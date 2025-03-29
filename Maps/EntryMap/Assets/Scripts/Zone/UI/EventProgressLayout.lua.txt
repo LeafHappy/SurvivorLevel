@@ -1,0 +1,149 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---@class EventProgressDisplayData
+---@field Objective string
+---@field Progress number
+---@field IsHidden boolean | nil
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local ui = GMUI.ui
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Layout
+---============================================================================
+
+---@class EventProgressLayout
+---@field Data EventProgressDisplayData
+---@field IsActive boolean
+---@field Layout Layout
+local EventProgressLayout = {}
+EventProgressLayout.__index = EventProgressLayout
+EventProgressLayout.__name = "EventProgressLayout"
+
+---comment
+---@param data EventProgressDisplayData
+---@return EventProgressLayout
+function EventProgressLayout.New(data)
+    local self = setmetatable({}, EventProgressLayout)
+    self.Data = data
+    self.IsActive = false
+
+    self.Layout = GMUI.Layout.New({
+        name = "ZoneUnit/Event/Progress",
+        parent = ui.root,
+    })
+
+    self.Layout:Show()
+
+    -- Layout Hookups
+    local layout = self
+
+    -- self.Layout.state.progress = 0
+
+    function self.Layout:OnShow()
+        layout.IsActive = true
+
+        -- Animate
+        Animation.FadeIn(self.Frame)
+    end
+
+    function self.Layout:OnHide()
+        layout.IsActive = false
+
+        -- Animate
+        Animation.FadeOut(self.Frame)
+    end
+
+    self.Layout:Hide()
+
+    return self
+end
+
+---============================================================================
+---!SECTION: Layout
+---SECTION: Internal
+---============================================================================
+
+function EventProgressLayout:_UpdateObjective()
+    if not self.Data.Objective then
+        return
+    end
+
+    -- Update the objective text
+    self.Layout.state.objective = self.Data.Objective
+end
+
+function EventProgressLayout:_UpdateProgress()
+    if not self.Data.Progress then
+        return
+    end
+
+    -- Update the progress bar
+    self.Layout.state.progress = self.Data.Progress
+end
+
+---============================================================================
+---!SECTION: Internal
+---SECTION: Methods
+---============================================================================
+
+---@param data EventProgressDisplayData
+function EventProgressLayout:UpdateData(data)
+    self.Data.Objective = data.Objective or self.Data.Objective
+    self.Data.Progress = data.Progress or self.Data.Progress
+
+    if data.IsHidden ~= nil then
+        self.Data.IsHidden = data.IsHidden
+    end
+end
+
+function EventProgressLayout:Update()
+    -- Check if this needs to be shown
+    if not self.IsActive and not self.Data.IsHidden then
+        self.Layout:Show()
+    end
+
+    -- Check if this needs to be hidden
+    if self.IsActive and self.Data.IsHidden then
+        self.Layout:Hide()
+    end
+
+    -- Update only is Active
+    if not self.IsActive then
+        return
+    end
+
+    -- Updates
+    self:_UpdateObjective()
+    self:_UpdateProgress()
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return EventProgressLayout

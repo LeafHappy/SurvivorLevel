@@ -1,0 +1,302 @@
+local Core = require("Core")
+
+local SpawnDirector = require("Game/Directors/Spawn")
+
+local HostileData = require("Data/SimpleUnits/HostileData")
+
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+
+local Help = require("Help")
+
+local Vector2 = require("Class/Vector2")
+
+local REF = {
+    BaseModel = DCEI.Unit("ZoneUnit - EChest"),
+    Radial = DCEI.Unit("ZoneUnit - Event - Radial"),
+
+    SpawnHoleVFX = DCEI.Effect("Hostile - Spawn - Hole VFX"),
+    SpawnDustVFX = DCEI.Effect("Hostile - Spawn - Dust VFX"),
+
+    ChestSuccessVFX = DCEI.Effect("ZoneUnit - Chest - Success VFX"),
+    ChestFailVFX = DCEI.Effect("ZoneUnit - Chest - Fail VFX"),
+}
+
+local STATES = {
+    Disabled = 0,
+    StartupAnimation = 1,
+    Active = 2,
+    CompletedAnimation = 3,
+    FailedAnimation = 4,
+}
+
+local EVENT_SIZE = 5
+local EVENT_TIME = 20
+
+---TODO: Onscreen UI Progress Bar and Objective "Clear the Incoming Enemies"
+
+---@class EChestData
+
+---@class EChest : EBrain
+---@field public Position Vector2
+---@field public BaseModel UnitInstance | nil
+---@field public IsEventCompleted boolean
+---@field public State integer
+---@field public Radial UnitInstance | nil
+---@field public InnerRadial UnitInstance | nil
+---@field public UI_DataPass EventProgressDisplayData
+---@field public Timer Time
+---@field public SpawnedUnits table<SimpleUnitInstance>
+local EChest = {}
+EChest.__index = EChest
+EChest.__name = "EChest"
+
+---comment
+---@return EChest
+function EChest.New(position)
+    local self = setmetatable({}, EChest)
+    self.Position = position
+
+    self.BaseModel = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.BaseModel, position.x, position.y)
+    ---TODO: Animations as needed
+
+    self.IsEventCompleted = false
+
+    self.State = STATES.StartupAnimation
+
+    self.Radial = nil
+    self.InnerRadial = nil
+
+    self.Timer = 0
+
+    self.UI_DataPass = {}
+
+    self.SpawnedUnits = {}
+
+    return self
+end
+
+---TODO: Joystick Lock?
+---TODO: UI
+function EChest:_StartupAnimations()
+    self.State = STATES.Disabled
+
+    local animation_time = 2.0
+
+    -- Create a Radial and expand it to max distance
+    self.Radial = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Radial, self.Position.x, self.Position.y)
+    Help.SetModelScale(self.Radial, EVENT_SIZE, animation_time, "Linear")
+
+    Help.GameTimer(animation_time, nil, nil, function()
+        self.State = STATES.Active
+    end)
+
+    self.Timer = 0
+
+    self.UI_DataPass.IsHidden = false
+    self.UI_DataPass.Objective = "Stay Inside to Open the Chest"
+    self.UI_DataPass.Progress = 0
+end
+
+---comment
+---@param position Vector2
+---@param target UnitInstance | nil
+function EChest:_SpawnUnitInstance(position, target)
+    Help.CreateEffect(PLAYER.Terrain, REF.SpawnHoleVFX, position)
+
+    Help.GameTimer(0.3, nil, nil, function()
+        Help.CreateEffect(PLAYER.Terrain, REF.SpawnDustVFX, position)
+    end)
+
+    Help.GameTimer(1.8, nil, nil, function()
+        if self.State ~= STATES.Active then
+            return
+        end
+
+        self.Instance = SpawnDirector.Instance:SpawnFollow(HostileData.Walker, position, target)
+        table.insert(self.SpawnedUnits, self.Instance)
+    end)
+end
+
+---comment
+---@param delta Time
+---@param hero Hero
+function EChest:_ProcessEvent(delta, hero)
+    local is_alive = hero:IsUnitAlive()
+    if not is_alive then
+        self.State = STATES.FailedAnimation
+        self:_ClearUnitInstances()
+        return
+    end
+
+    ---TESTING: Fail Test
+    -- if self.Timer >= EVENT_TIME / 2 then
+    --     self.State = STATES.FailedAnimation
+    --     return
+    -- end
+
+    local hero_position = hero:GetPosition()
+    local distance = Vector2.Distance(self.Position, hero_position)
+    if distance > EVENT_SIZE then
+        self.State = STATES.FailedAnimation
+        self:_ClearUnitInstances()
+        return
+    end
+
+    -- Update Timers
+    self.Timer = self.Timer + delta
+
+    -- Update UI DataPass
+    local progress = self.Timer / EVENT_TIME
+    self.UI_DataPass.Progress = progress
+
+    -- Spawn and Scale Inner Radial (if one doesn't exist)
+    if not Help.ValidateUnit(self.InnerRadial) then
+        self.InnerRadial = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, REF.Radial, self.Position.x, self.Position.y)
+        Help.SetModelScale(self.InnerRadial, EVENT_SIZE, EVENT_TIME, "Linear")
+    end
+
+    ---TODO: Spawn Units
+    local is_time_valid = (self.Timer % 0.50) == 0
+    local is_progress_valid = progress < 0.80 -- Only spawn if the first 80% of the time
+    if is_time_valid and is_progress_valid then
+        local spawn_position = self.Position + Vector2.Random() * EVENT_SIZE
+        self:_SpawnUnitInstance(spawn_position, hero.unit)
+    end
+
+    if self.Timer >= EVENT_TIME then
+        self.State = STATES.CompletedAnimation
+
+        self:_ClearUnitInstances()
+    end
+end
+
+---comment
+---@param position Vector2
+function EChest:_SpawnLoot(position)
+    local gold = ResourceData.Map.Gold
+    local effect = gold.SpawnEffect
+
+    local amount = Help.RandomInteger(80, 120)
+    Help.PeriodicGameTimer(amount / 2, TICK_RATE, nil, function()
+        Help.CreateEffect(PLAYER.Terrain, effect, position)
+        Help.CreateEffect(PLAYER.Terrain, effect, position)
+    end)
+end
+
+function EChest:_CompletedAnimation()
+    self.UI_DataPass.IsHidden = true
+    self.State = STATES.Disabled
+
+    local animation_time = 2.0
+
+    Help.CreateEffect(PLAYER.Terrain, REF.ChestSuccessVFX, self.Position)
+
+    Help.PlayAnimation(self.BaseModel, "action1") -- Chest Shake
+    Help.GameTimer(0.45, nil, nil, function()
+        Help.PlayAnimation(self.BaseModel, "action2") -- Chest Open
+        Help.SetModelScale(self.BaseModel, 0.01, 0.45, "InSine")
+
+        ---TODO: Spawn Loot
+        self:_SpawnLoot(self.Position)
+
+        Help.GameTimer(0.45, nil, nil, function()
+            self:_ClearBaseModel()
+        end)
+    end)
+
+    Help.SetModelScale(self.Radial, 0.01, animation_time, "Linear")
+    Help.SetModelScale(self.InnerRadial, 0.01, animation_time, "Linear")
+
+    Help.GameTimer(animation_time, nil, nil, function()
+        self:_ClearRadial()
+        self:_ClearInnerRadial()
+
+        self.IsEventCompleted = true
+    end)
+end
+
+function EChest:_FailedAnimation()
+    self.UI_DataPass.IsHidden = true
+    self.State = STATES.Disabled
+
+    local animation_time = 1.25
+
+    self:_ClearRadial()
+    self:_ClearInnerRadial()
+
+    -- Fail VFX
+    Help.CreateEffect(PLAYER.Terrain, REF.ChestFailVFX, self.Position)
+
+    Help.GameTimer(0.25, nil, nil, function()
+        self:_ClearBaseModel()
+    end)
+
+    Help.GameTimer(animation_time, nil, nil, function()
+        self.IsEventCompleted = true
+    end)
+end
+
+---Implement in child class
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function EChest:Update(delta, instance, hero, data_pass)
+    --
+    if self.State == STATES.Disabled then
+        return
+    elseif self.State == STATES.StartupAnimation then
+        self:_StartupAnimations()
+    elseif self.State == STATES.Active then
+        self:_ProcessEvent(delta, hero)
+    elseif self.State == STATES.CompletedAnimation then
+        self:_CompletedAnimation()
+    elseif self.State == STATES.FailedAnimation then
+        self:_FailedAnimation()
+    end
+
+    -- Update UI
+    Core.Event.SendPresentationEvent("ZoneUnit.Event.UpdateData", self.UI_DataPass)
+    self.UI_DataPass = {}
+end
+
+function EChest:_ClearUnitInstances()
+    for _, instance in ipairs(self.SpawnedUnits) do
+        if Help.ValidateSimpleUnit(instance) then
+            DCEI.RemoveSimpleUnit(instance)
+        end
+    end
+    self.SpawnedUnits = {}
+end
+
+function EChest:_ClearBaseModel()
+    if Help.ValidateUnit(self.BaseModel) then
+        DCEI.RemoveUnit(self.BaseModel)
+        self.BaseModel = nil
+    end
+end
+
+function EChest:_ClearRadial()
+    if Help.ValidateUnit(self.Radial) then
+        DCEI.RemoveUnit(self.Radial)
+        self.Radial = nil
+    end
+end
+
+function EChest:_ClearInnerRadial()
+    if Help.ValidateUnit(self.InnerRadial) then
+        DCEI.RemoveUnit(self.InnerRadial)
+        self.InnerRadial = nil
+    end
+end
+
+-- Implement in child class
+-- Used to Clear any UnitInstances
+function EChest:Clear()
+    self:_ClearBaseModel()
+    self:_ClearRadial()
+    self:_ClearInnerRadial()
+    self:_ClearUnitInstances()
+end
+
+return EChest

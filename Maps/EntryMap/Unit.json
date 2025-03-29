@@ -2652,6 +2652,19 @@
                 }
             }
         },
+        "ZoneUnit - EChest": {
+            "baseUnit": "_ZoneUnit",
+            "dependentEffects": [
+                "ZoneUnit - Chest - Fail VFX",
+                "ZoneUnit - Chest - Success VFX"
+            ]
+        },
+        "ZoneUnit - Event - Radial": {
+            "baseUnit": "_ZoneUnit"
+        },
+        "ZoneUnit - Event Slot - 01": {
+            "baseUnit": "_ZoneUnit"
+        },
         "ZoneUnit - Pumpkin - 01": {
             "baseUnit": "_ZoneUnit"
         },

@@ -1,0 +1,30 @@
+local Help = require("Help")
+
+---@class EBrainData
+
+---@class EBrain
+---@field public ZoneUnit ZoneUnit
+---@field public Data EBrainData
+---@field public Position Vector2
+---@field public IsEventCompleted boolean
+local EBrain = {}
+EBrain.__index = EBrain
+EBrain.__name = "EBrain"
+
+---comment
+---@param position Vector2
+---@return EBrain
+function EBrain.New(position)
+    local self = setmetatable({}, EBrain)
+    return self
+end
+
+function EBrain:Update(delta, instance, hero, data_pass)
+    --
+end
+
+function EBrain:Clear()
+    -- Clear any UnitInstances
+end
+
+return EBrain

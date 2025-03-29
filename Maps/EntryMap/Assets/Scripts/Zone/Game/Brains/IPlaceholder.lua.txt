@@ -2,6 +2,7 @@ local Help = require("Help")
 
 ---@class IPlaceholderData
 ---@field public UnitType string
+---@field public IgnoreDataPass boolean | nil Typically used when no ISpawnable is present
 
 ---@class IPlaceholder
 ---@field public ZoneUnit ZoneUnit
@@ -22,22 +23,39 @@ function IPlaceholder.New(zone_unit, data)
     return self
 end
 
+function IPlaceholder:_RemoveInstance()
+    if Help.ValidateUnit(self.Instance) then
+        DCEI.RemoveUnit(self.Instance)
+        self.Instance = nil
+    end
+end
+
+function IPlaceholder:_SpawnInstance()
+    self:_RemoveInstance()
+
+    local position = self.ZoneUnit.Position
+    self.Instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, self.Data.UnitType, position.x, position.y)
+end
+
 ---Implement in child class
 ---@param delta Time
 ---@param instance UnitInstance | nil
 ---@param hero Hero
 ---@param data_pass ZoneUnitDataPass
 function IPlaceholder:Update(delta, instance, hero, data_pass)
-    if data_pass.IsSpawnedThisFrame then
-        if Help.ValidateUnit(self.Instance) then
-            DCEI.RemoveUnit(self.Instance)
-            self.Instance = nil
+    if self.Data.IgnoreDataPass then
+        if not Help.ValidateUnit(self.Instance) then
+            self:_SpawnInstance()
         end
+        return
+    end
+
+    if data_pass.IsSpawnedThisFrame then
+        self:_RemoveInstance()
     end
 
     if data_pass.IsKilledThisFrame then
-        local position = self.ZoneUnit.Position
-        self.Instance = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Terrain, self.Data.UnitType, position.x, position.y)
+        self:_SpawnInstance()
     end
 end
 

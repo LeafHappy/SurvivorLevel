@@ -8,6 +8,11 @@ local ResourceData = require("SharedData/MetaResources/ResourceData")
 ---@field public ISpawnable ISpawnableData | nil
 ---@field public IHealth IHealthData | nil
 ---@field public IBreakable IDropData | nil
+---@field public IGrow IGrowData | nil
+---@field public IDrop IDropData | nil
+---@field public IPlaceholder IPlaceholderData | nil
+---@field public IShop IShopData | nil
+---@field public IEvent IEventData | nil
 
 ---@class UnitDataSet
 ---@field public List table<UnitData>
@@ -414,6 +419,22 @@ UnitDataSet.List = {
             Tags = {},
             SpawnImmediately = true,
             RespawnTime = 0,
+        },
+    },
+    {
+        Key = "EventSlot01",
+        Icon = DCEI.Texture("wildcastle_terrain_industry_prop_towerslot"),
+
+        IPlaceholder = {
+            UnitType = DCEI.Unit("ZoneUnit - Event Slot - 01"),
+            IgnoreDataPass = true,
+        },
+
+        IEvent = {
+            Cooldown = 60,
+            EventOptions = {
+                "EChest",
+            },
         },
     },
 }

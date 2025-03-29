@@ -1,0 +1,212 @@
+local Core = require("Core")
+
+local Vector2 = require("Class/Vector2")
+
+local Help = require("Help")
+
+-- Events
+local EChest = require("Zone/Game/Events/EChest")
+
+local EVENTS = {
+    EChest = EChest,
+}
+
+---@enum EVENT_STATE
+local EVENT_STATE = {
+    Inactive = 0, -- Event is on Cooldown
+    Idle = 1, -- Event is Spawned, but not activated
+    Standby = 2, -- Event is Activated, waiting for Event Completion
+}
+
+local UI_OFFSET = Vector2.New(0, 2)
+local EVENT_START_RADIUS = 1
+local EVENT_REQUIRED_TIME_TO_START = 2
+
+--[[
+    States: Event on Cooldown, Event on Standby, Event on Active
+
+    Order of Events:
+        1. Player stands on Event location.
+        2. Visual indicator for the Event being activated.
+        3. Event start visuals. Circle Indicator expands to show the restricted area.
+        4. Event starts. Player must survive or complete some tasks.
+        5. Event ends.
+            - Victory: Animation + Rewards
+            - Defeat: Animation + Rewards
+    
+    Things needed in IEvent
+        - Cooldown to Spawn Event
+        - Pick an Event
+        - Spawn the Event Model
+        - Activation (player stands nearby)
+        - Callback for when the event is completed (put on Cooldown)
+
+    IEvent handles pre-event and post-event, not the event itself.
+
+]]
+
+---@class IEventData
+---@field public Cooldown Time
+---@field public EventOptions table<string>
+
+---@class IEvent
+---@field public ZoneUnit ZoneUnit
+---@field public Data IEventData
+---@field public SelectedEvent EBrain | nil
+---@field public State EVENT_STATE
+---@field public Timer Time
+---@field public UI_DataPass TimerDisplayData
+local IEvent = {}
+IEvent.__index = IEvent
+IEvent.__name = "IEvent"
+
+---comment
+---@param zone_unit ZoneUnit
+---@param data IEventData
+---@return IEvent
+function IEvent.New(zone_unit, data)
+    local self = setmetatable({}, IEvent)
+    self.ZoneUnit = zone_unit
+    self.Data = data
+
+    --
+    self.SelectedEvent = nil
+    self.Timer = 0
+
+    self.State = EVENT_STATE.Inactive
+
+    ---TESTING: Set to Max Cooldown
+    -- self.Timer = self.Data.Cooldown
+
+    self.UI_DataPass = {}
+    self.UI_DataPass.WorldPosition = Vector2.NewFromTable(self.ZoneUnit.Position) + UI_OFFSET
+
+    return self
+end
+
+---@param delta Time
+function IEvent:_CheckCooldown(delta)
+    if self.Timer > 0 then
+        self.Timer = self.Timer - delta
+
+        self.UI_DataPass.TimerType = TIMER_TYPE.Number
+        self.UI_DataPass.Progress = math.ceil(self.Timer)
+        self.UI_DataPass.IsHidden = false
+        return
+    end
+
+    -- Spawn the Event
+    self:_SpawnNewEvent()
+    self.State = EVENT_STATE.Idle
+    self.Timer = 0
+
+    -- Save Data?
+
+    -- Update UI
+    self.UI_DataPass.IsHidden = false
+end
+
+-- Spawns the Event Instance
+function IEvent:_SpawnNewEvent()
+    -- Select a random event from the list of events
+    local event_name = Core.Table.GetRandomValue(self.Data.EventOptions)
+    Help.Log("New Event Selected", event_name)
+
+    local event = EVENTS[event_name]
+    if event == nil then
+        Help.LogError("Event not found", event_name)
+        return
+    end
+
+    local position = self.ZoneUnit.Position
+    self.SelectedEvent = event.New(position)
+end
+
+---@param hero Hero
+---@return boolean
+function IEvent:_IsActivationProgress(hero)
+    -- -- Check if Hero is Stationary
+    -- local is_hero_stationary = hero:GetTravelDistance() < 0.1
+    -- if not is_hero_stationary then
+    --     return false
+    -- end
+
+    -- Check if the Hero is within the Event-Start Radius
+    local position = Vector2.NewFromTable(self.ZoneUnit.Position)
+    local hero_position = hero:GetPosition()
+
+    local distance = Vector2.Distance(position, hero_position)
+    if distance > EVENT_START_RADIUS then
+        return false
+    end
+
+    return true
+end
+
+---@param delta Time
+---@param hero Hero
+function IEvent:_TryActivateEvent(delta, hero)
+    local is_valid_progress = self:_IsActivationProgress(hero)
+
+    local delta_change = is_valid_progress and delta or -delta
+    self.Timer = self.Timer + delta_change
+    self.Timer = Help.Clamp(self.Timer, 0, EVENT_REQUIRED_TIME_TO_START)
+
+    -- Update UI DataPass
+    self.UI_DataPass.TimerType = TIMER_TYPE.Progress
+    self.UI_DataPass.Progress = self.Timer / EVENT_REQUIRED_TIME_TO_START
+    self.UI_DataPass.IsHidden = false
+
+    if self.Timer >= EVENT_REQUIRED_TIME_TO_START then
+        -- Activate the Event
+        self.State = EVENT_STATE.Standby
+
+        self.UI_DataPass.IsHidden = true
+        return
+    end
+end
+
+---Implement in child class
+---@param delta Time
+---@param instance UnitInstance | nil
+---@param hero Hero
+---@param data_pass ZoneUnitDataPass
+function IEvent:Update(delta, instance, hero, data_pass)
+    if self.State == EVENT_STATE.Inactive then
+        self:_CheckCooldown(delta)
+    elseif self.State == EVENT_STATE.Idle then
+        self:_TryActivateEvent(delta, hero)
+    elseif self.State == EVENT_STATE.Standby then
+        -- Update the Event
+        self.SelectedEvent:Update(delta, instance, hero, data_pass)
+
+        -- Check if the Event has been completed or not.
+        if not self.SelectedEvent.IsEventCompleted then
+            return
+        else
+            -- Reset
+            self.State = EVENT_STATE.Inactive
+            self.Timer = self.Data.Cooldown
+            self.SelectedEvent:Clear()
+            self.SelectedEvent = nil
+        end
+    end
+
+    ---NOTE: Figure out a way to know if Presentation update is needed.
+    -- Update UI
+    self.UI_DataPass.UID = self.ZoneUnit.UID
+
+    Core.Event.SendPresentationEvent("ZoneUnit.Timer.UpdateData", self.UI_DataPass)
+    self.UI_DataPass = {}
+end
+
+-- Implement in child class
+-- Used to Clear any UnitInstances
+function IEvent:Clear()
+    if self.SelectedEvent then
+        self.SelectedEvent:Clear()
+        self.SelectedEvent = nil
+    end
+end
+
+return IEvent

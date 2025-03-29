@@ -1,0 +1,71 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local ShopLayout = require("Zone/UI/ShopLayout")
+local EventProgressLayout = require("Zone/UI/EventProgressLayout")
+
+local Animation = require("Presentation/Animation")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local Vector3 = require("Class/Vector3")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local ui = GMUI.ui
+
+local EventProgress = {}
+
+---@type EventProgressLayout | nil
+local _EventProgressLayout = nil
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Local Functions
+---============================================================================
+
+---============================================================================
+---!SECTION: Local Functions
+---SECTION: Methods
+---============================================================================
+
+---@param data EventProgressDisplayData
+function EventProgress.UpdateData(data)
+    local layout = _EventProgressLayout
+
+    if not layout then
+        layout = EventProgressLayout.New(data)
+        _EventProgressLayout = layout
+    end
+
+    layout:UpdateData(data)
+    layout:Update()
+end
+
+---============================================================================
+---!SECTION: Methods
+---SECTION: Events
+---============================================================================
+
+Core.Event.RegisterPresentationEvent("ZoneUnit.Event.UpdateData", EventProgress.UpdateData)
+
+---============================================================================
+---!SECTION: Events
+---============================================================================
+
+return EventProgress

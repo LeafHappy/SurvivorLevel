@@ -7,6 +7,7 @@ local IGrow = require("Zone/Game/Brains/IGrow")
 local IDrop = require("Zone/Game/Brains/IDrop")
 local IPlaceholder = require("Zone/Game/Brains/IPlaceholder")
 local IShop = require("Zone/Game/Brains/IShop")
+local IEvent = require("Zone/Game/Brains/IEvent")
 
 local Help = require("Help")
 
@@ -19,6 +20,7 @@ local IORDER = {
     IDrop,
     IPlaceholder,
     IShop,
+    IEvent,
 }
 
 -- Create a UID based on the Zone, Position, and Key

@@ -1,0 +1,173 @@
+---============================================================================
+---SECTION: Libraries
+---============================================================================
+
+local Core = require("Core:Presentation")
+local GMUI = require("GMUI:Presentation")
+
+---============================================================================
+---!SECTION: Libraries
+---SECTION: Scripts
+---============================================================================
+
+local Animation = require("Presentation/Animation")
+local ResourceData = require("SharedData/MetaResources/ResourceData")
+local Vector3 = require("Class/Vector3")
+
+local Help = require("UiHelp")
+
+---============================================================================
+---!SECTION: Scripts
+---SECTION: Definitions
+---============================================================================
+
+---@class TimerDisplayData
+---@field UID string
+---@field WorldPosition Vector2 | nil
+---@field TimerType TIMER_TYPE | nil
+---@field Progress integer | nil
+---@field IsHidden boolean | nil
+
+---============================================================================
+---!SECTION: Definitions
+---SECTION: Variables
+---============================================================================
+
+local ui = GMUI.ui
+
+---============================================================================
+---!SECTION: Variables
+---SECTION: Layout
+---============================================================================
+
+---@class TimerLayout
+---@field Data TimerDisplayData
+---@field IsActive boolean
+---@field Layout Layout
+local TimerLayout = {}
+TimerLayout.__index = TimerLayout
+TimerLayout.__name = "TimerLayout"
+
+---comment
+---@param data TimerDisplayData
+---@return TimerLayout
+function TimerLayout.New(data)
+    local self = setmetatable({}, TimerLayout)
+    self.Data = data
+    self.IsActive = true
+
+    self.Layout = GMUI.Layout.New({
+        name = "ZoneUnit/Timer",
+        parent = ui.root,
+    })
+
+    self.Layout:Show()
+
+    -- Layout Hookups
+    local layout = self
+
+    function self.Layout:OnShow()
+        layout.IsActive = true
+
+        -- Animate
+        Animation.FadeIn(self.Frame)
+    end
+
+    function self.Layout:OnHide()
+        layout.IsActive = false
+
+        -- Animate
+        Animation.FadeOut(self.Frame)
+    end
+
+    -- Set Position before render?
+
+    return self
+end
+
+---============================================================================
+---!SECTION: Layout
+---SECTION: Internal
+---============================================================================
+
+function TimerLayout:_UpdateTimerType()
+    if not self.Data.TimerType then
+        return
+    end
+
+    if self.Data.TimerType == TIMER_TYPE.Number then
+        self.Layout.state.type = "Number"
+    elseif self.Data.TimerType == TIMER_TYPE.Progress then
+        self.Layout.state.type = "Progress"
+    end
+end
+
+function TimerLayout:_UpdatePosition()
+    if not self.Data.WorldPosition then
+        return
+    end
+
+    local position_3d = Vector3.New(self.Data.WorldPosition.x, 0, self.Data.WorldPosition.y)
+    DCEI.MoveFrameToCanvasPosition(self.Layout.Frame, DCEI.GetCanvasPositionFromWorldPosition(position_3d))
+end
+
+function TimerLayout:_UpdateTime()
+    if not self.Data.Progress then
+        return
+    end
+
+    if self.Data.TimerType == TIMER_TYPE.Number then
+        local formatted_time = Help.FormatTime(self.Data.Progress)
+        self.Layout.state.display = formatted_time
+    elseif self.Data.TimerType == TIMER_TYPE.Progress then
+        self.Layout.state.progress = self.Data.Progress
+    end
+end
+
+---============================================================================
+---!SECTION: Internal
+---SECTION: Methods
+---============================================================================
+
+---@param data TimerDisplayData
+function TimerLayout:UpdateData(data)
+    self.Data.WorldPosition = data.WorldPosition or self.Data.WorldPosition
+    self.Data.TimerType = data.TimerType or self.Data.TimerType
+    self.Data.Progress = data.Progress or self.Data.Progress
+
+    if data.IsHidden ~= nil then
+        self.Data.IsHidden = data.IsHidden
+    end
+end
+
+function TimerLayout:Update(delta)
+    -- Check if this needs to be shown
+    if not self.IsActive and not self.Data.IsHidden then
+        self.Layout:Show()
+    end
+
+    -- Check if this needs to be hidden
+    if self.IsActive and self.Data.IsHidden then
+        self.Layout:Hide()
+    end
+
+    -- Update only is Active
+    if not self.IsActive then
+        return
+    end
+
+    -- Updates
+    self:_UpdateTimerType()
+    self:_UpdatePosition()
+    self:_UpdateTime()
+end
+
+function TimerLayout:Destroy()
+    --
+end
+
+---============================================================================
+---!SECTION: Methods
+---============================================================================
+
+return TimerLayout

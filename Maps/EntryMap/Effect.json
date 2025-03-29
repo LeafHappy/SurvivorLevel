@@ -10805,6 +10805,22 @@
                 "effect": "ZoneUnit - Campfire - Heal - Heal"
             }
         },
+        "ZoneUnit - Chest - Fail VFX": {
+            "spawnActor": {
+                "actor": "ZoneUnit - Chest - Fail VFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
+        "ZoneUnit - Chest - Success VFX": {
+            "spawnActor": {
+                "actor": "ZoneUnit - Chest - Success VFX",
+                "orientation": {
+                    "eulerAnglesRelativeOffset": {}
+                }
+            }
+        },
         "_Damage": {
             "template": true,
             "simpleDamage": {}

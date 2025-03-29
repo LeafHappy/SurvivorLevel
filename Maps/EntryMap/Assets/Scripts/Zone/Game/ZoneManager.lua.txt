@@ -1078,7 +1078,16 @@ function ZoneManager:__SpawnGhostPlacement()
     end
 
     __ZoneItemData = item_data
-    local ghost_placement = item_data.GhostPlacement or item_data.ISpawnable.UnitType
+    local ghost_placement
+
+    if item_data.GhostPlacement then
+        ghost_placement = item_data.GhostPlacement
+    elseif item_data and item_data.ISpawnable and item_data.ISpawnable.UnitType then
+        ghost_placement = item_data.ISpawnable.UnitType
+    elseif item_data and item_data.IPlaceholder and item_data.IPlaceholder.UnitType then
+        ghost_placement = item_data.IPlaceholder.UnitType
+    end
+
     __GhostPlacement = DCEI.CreateUnit(TEAM.Terrain, PLAYER.Player1, ghost_placement, position.x, position.y)
 end
 

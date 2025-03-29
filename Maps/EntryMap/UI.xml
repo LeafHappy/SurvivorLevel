@@ -4617,6 +4617,19 @@
         <State name="count" stringValue="+1" />
         <Text bind:text="state.count" fontSize="40" color="#efef23ff" />
     </Frame>
+    <Frame layout="flex" widthPercent="100" heightPercent="100" name="ZoneUnit/Event/Progress">
+        <!-- State -->
+        <State name="objective" stringValue="Charge the Chest" />
+        <State name="progress" numberValue="0.75" />
+        <!-- Layout -->
+        <Frame width="500" height="100" flexDirection="column" position="absolute" top="200">
+            <Text widthPercent="100" fontSizeMin="12" fontSizeMax="20" bind:text="state.objective" alignment="bottom" justifyContent="flex-end" />
+            <Frame height="5" />
+            <Frame width="300" height="20" frameImage="summonrevolt_icon_bar_04_empty">
+                <Frame widthPercent="98" heightPercent="70" verticalOffsetInParent="1" frameImage="summonrevolt_icon_bar_04_fill" bind:frameImageFillAmount="state.progress" />
+            </Frame>
+        </Frame>
+    </Frame>
     <Frame layout="flex" name="ZoneUnit/Shop">
         <!-- Register -->
         <!-- <Frame frameImage="cartoon_icon_coin3_mergewar"/> -->
@@ -4628,6 +4641,19 @@
         <Frame heightPercent="100">
             <Text bind:text="state.stored .. '/' .. state.required" class="outline" outsideOutline="true" fontSize="28" wrapping="false" marginRight="8" />
             <Frame bind:frameImage="state.icon" width="30" height="30" />
+        </Frame>
+    </Frame>
+    <Frame layout="flex" name="ZoneUnit/Timer">
+        <!-- State -->
+        <State name="display" stringValue="00:00" />
+        <State name="progress" numberValue="0.75" />
+        <State name="type" stringValue="Number" />
+        <!-- Layout -->
+        <Frame width="100" height="46" alignItems="center" justifyContent="center" frameImage="ui_squareround2_wildsurvivor" frameImageColor="#00000099" frameImagePixelsPerUnitMultiplier="2" bind:active="state.type == 'Number'">
+            <Text id="label" bind:text="state.display" fontSize="28" />
+        </Frame>
+        <Frame width="50" height="50" frameImage="flat_icon_circle_frame_white_ipick" frameImageColor="#666666a8" bind:active="state.type == 'Progress'">
+            <Frame widthPercent="100" heightPercent="100" frameImage="flat_icon_circle_frame_white_ipick" frameImageColor="#ee9937d5" frameImageFillRadial="true" bind:frameImageFillAmount="state.progress" />
         </Frame>
     </Frame>
     <Frame layout="flex" widthPercent="100" heightPercent="100" name="ZoneUnit/UpgradePreview">

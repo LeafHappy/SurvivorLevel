@@ -182,6 +182,8 @@ ui.zone.cost = require("UiZone/ZoneCost")
 -- ZoneUnit
 ui.zone_unit = {}
 ui.zone_unit.shop_cost = require("Zone/UI/Shop")
+ui.zone_unit.timer = require("Zone/UI/Timer")
+ui.zone_unit.event_progress = require("Zone/UI/EventProgress")
 
 -- Hybrid
 ui.camp.labels = require("UiCamp/CampButtons")
