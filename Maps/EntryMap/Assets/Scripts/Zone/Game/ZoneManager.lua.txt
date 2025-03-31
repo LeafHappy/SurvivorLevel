@@ -203,17 +203,21 @@ function ZoneManager:GetNearestResource(worker_pos, tag)
         for _, zone in pairs(t) do
             -- Check ZoneUnits
             for _, unit in pairs(zone.ZoneUnits) do
-                if Core.Table.Contains(unit.Data.ISpawnable.Tags, tag) and unit.IsAlive then
-                    -- Shared Tag here.
+                if unit.Data.ISpawnable then
+                    if Core.Table.Contains(unit.Data.ISpawnable.Tags, tag) and unit.IsAlive then
+                        -- Shared Tag here.
 
-                    local pos = unit.Position
-                    if pos then
-                        if nearest_resource then
-                            if Vector2.Distance(worker_pos, nearest_resource) > Vector2.Distance(worker_pos, pos) then
+                        local pos = unit.Position
+                        if pos then
+                            if nearest_resource then
+                                if
+                                    Vector2.Distance(worker_pos, nearest_resource) > Vector2.Distance(worker_pos, pos)
+                                then
+                                    nearest_resource = pos
+                                end
+                            else
                                 nearest_resource = pos
                             end
-                        else
-                            nearest_resource = pos
                         end
                     end
                 end

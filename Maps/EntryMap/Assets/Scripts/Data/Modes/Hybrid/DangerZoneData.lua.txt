@@ -426,13 +426,13 @@ local data =
             },
         },
         Units = {
-            -- {
-            --     Key = "EventSlot01",
-            --     Position = {
-            --         x = 2.5,
-            --         y = 2.5
-            --     }
-            -- }
+            {
+                Key = "EventSlot01",
+                Position = {
+                    x = 2.5,
+                    y = 2.5
+                }
+            }
         }
     },
     farm_1 = {
